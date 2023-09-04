@@ -6,6 +6,7 @@ from invoke import Collection
 
 from . import (
     agent,
+    allinone,
     bench,
     buildimages,
     cluster_agent,
@@ -130,6 +131,7 @@ ns.add_task(send_unit_tests_stats)
 # add namespaced tasks to the root
 ns.add_collection(agent)
 ns.add_collection(buildimages)
+ns.add_collection(allinone)
 ns.add_collection(cluster_agent)
 ns.add_collection(cluster_agent_cloudfoundry)
 ns.add_collection(components)
