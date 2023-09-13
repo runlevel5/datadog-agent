@@ -378,8 +378,8 @@ func (s *windowsInstallerSuite) TestAgentUser() {
 	var domainpart string
 	var servicedomainpart string
 	if hostinfo.IsDomainController() {
-		domainpart = hostinfo.Domain
-		servicedomainpart = hostinfo.Domain
+		domainpart = windows.NetBIOSName(hostinfo.Domain)
+		servicedomainpart = windows.NetBIOSName(hostinfo.Domain)
 	} else {
 		domainpart = windows.NetBIOSName(hostinfo.Hostname)
 		servicedomainpart = "."

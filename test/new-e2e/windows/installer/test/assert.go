@@ -46,6 +46,12 @@ func AssertInstalledUser(a *assert.Assertions, client *ssh.Client, expectedusern
 	// provided, then the FQDN is used and written to the registry.
 	domain = windows.NetBIOSName(domain)
 	expecteddomain = windows.NetBIOSName(expecteddomain)
+	if strings.Contains(expectedserviceuser, "\\") {
+		parts := strings.Split(expectedserviceuser, "\\")
+		netbios := windows.NetBIOSName(parts[0])
+		expectedserviceuser = fmt.Sprintf("%s\\%s", netbios, parts[1])
+	}
+
 	if !a.Equal(expectedusername, username, "installedUser registry value should be %s", expectedusername) {
 		return false
 	}
@@ -67,6 +73,12 @@ func AssertInstalledUser(a *assert.Assertions, client *ssh.Client, expectedusern
 		user, err := windows.GetServiceAccountName(client, svc.name)
 		if !a.NoError(err) {
 			return false
+		}
+		// Ditto above comment about comparing NetBIOS version of domain part
+		if strings.Contains(user, "\\") {
+			parts := strings.Split(user, "\\")
+			netbios := windows.NetBIOSName(parts[0])
+			user = fmt.Sprintf("%s\\%s", netbios, parts[1])
 		}
 		if !a.Equal(strings.ToLower(svc.account), strings.ToLower(user), "%s logon account should be %s", svc.name, svc.account) {
 			return false
