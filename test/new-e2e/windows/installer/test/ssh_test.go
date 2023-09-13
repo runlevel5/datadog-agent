@@ -251,6 +251,19 @@ func (s *windowsInstallerSuite) TestUninstall() {
 	userexists, err := windows.LocalUserExists(s.sshclient, "ddagentuser")
 	s.Require().NoError(err)
 	s.Require().True(userexists, "user should still exist after uninstall")
+
+	fmt.Printf("Checking expected paths were removed...")
+	sftpclient, err := sftp.NewClient(s.sshclient)
+	s.Require().NoError(err)
+	defer sftpclient.Close()
+	dirs := []string{
+		"C:\\Program Files\\Datadog",
+	}
+	for _, dir := range dirs {
+		_, err = sftpclient.Stat(dir)
+		s.Require().Error(err, fmt.Sprintf("'%s' shouldn't exist but does", dir))
+	}
+	fmt.Println("done")
 }
 
 func (s *windowsInstallerSuite) TestNPM() {
