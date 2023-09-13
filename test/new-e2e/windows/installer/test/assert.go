@@ -6,11 +6,13 @@
 package installertest
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/windows"
 	"github.com/DataDog/datadog-agent/test/new-e2e/windows/installer"
 
+	"github.com/pkg/sftp"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/ssh"
 )
@@ -69,6 +71,26 @@ func AssertInstalledUser(a *assert.Assertions, client *ssh.Client, expectedusern
 		if !a.Equal(strings.ToLower(svc.account), strings.ToLower(user), "%s logon account should be %s", svc.name, svc.account) {
 			return false
 		}
+	}
+
+	return true
+}
+
+func AssertInstalledDirectoriesExist(a *assert.Assertions, client *ssh.Client) bool {
+	sftpclient, err := sftp.NewClient(client)
+	if err != nil {
+		return false
+	}
+	defer sftpclient.Close()
+	dirs := []string{
+		"C:\\ProgramData\\Datadog\\checks.d",
+		"C:\\ProgramData\\Datadog\\logs",
+		"C:\\ProgramData\\Datadog\\run",
+		"C:\\Program Files\\Datadog\\Datadog Agent\\embedded3",
+	}
+	for _, dir := range dirs {
+		_, err = sftpclient.Stat(dir)
+		a.NoError(err, fmt.Sprintf("'%s' should exist but doesn't", dir))
 	}
 
 	return true

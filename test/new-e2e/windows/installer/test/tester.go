@@ -15,7 +15,6 @@ import (
 	"github.com/DataDog/datadog-agent/test/new-e2e/windows/agent/test"
 
 	"github.com/cenkalti/backoff"
-	"github.com/pkg/sftp"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/ssh"
 )
@@ -206,6 +205,14 @@ func (t *Tester) assertAgentRunning(a *assert.Assertions, client *ssh.Client) bo
 	return true
 }
 
+func (t *Tester) assertDirectoriesExist(a *assert.Assertions, client *ssh.Client) bool {
+	if !AssertInstalledDirectoriesExist(a, client) {
+		return false
+	}
+
+	return true
+}
+
 func (t *Tester) waitForAgent(a *assert.Assertions, client *ssh.Client) bool {
 	err := backoff.Retry(func() error {
 		_, err := agent.GetStatus(client)
@@ -230,20 +237,8 @@ func (t *Tester) AssertExpectations(a *assert.Assertions, client *ssh.Client) bo
 	}
 
 	fmt.Printf("Checking expected paths exist...")
-	sftpclient, err := sftp.NewClient(client)
-	if err != nil {
+	if !t.assertDirectoriesExist(a, client) {
 		return false
-	}
-	defer sftpclient.Close()
-	dirs := []string{
-		"C:\\ProgramData\\Datadog\\checks.d",
-		"C:\\ProgramData\\Datadog\\logs",
-		"C:\\ProgramData\\Datadog\\run",
-		"C:\\Program Files\\Datadog\\Datadog Agent\\embedded3",
-	}
-	for _, dir := range dirs {
-		_, err = sftpclient.Stat(dir)
-		a.NoError(err, fmt.Sprintf("'%s' should exist but doesn't", dir))
 	}
 	fmt.Println("done")
 

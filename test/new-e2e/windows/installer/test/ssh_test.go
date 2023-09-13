@@ -228,6 +228,9 @@ func (s *windowsInstallerSuite) TestRollback() {
 	status, err := agent.GetStatus(s.sshclient)
 	s.Require().NoError(err, "agent returns valid json status")
 	agenttest.AssertRunningChecks(s.Assert(), status)
+
+	// ensure directories exist
+	s.Require().True(AssertInstalledDirectoriesExist(s.Assert(), s.sshclient))
 }
 
 // Tests that the agent can be uninstalled
