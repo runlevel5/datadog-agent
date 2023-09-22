@@ -250,7 +250,7 @@ def _python_signed_files(python_runtimes='3'):
     files = []
 
     if '3' in runtimes:
-        for f in ['python.exe', 'python3.dll', 'python39.dll', 'pythonw.exe']:
+        for f in ['python.exe', 'python3.dll', 'python311.dll', 'pythonw.exe']:
             files.append(os.path.join(InstallerSource, 'embedded3', f))
     if '2' in runtimes:
         for f in ['python.exe', 'python27.dll', 'pythonw.exe']:

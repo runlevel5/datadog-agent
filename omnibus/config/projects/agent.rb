@@ -197,7 +197,7 @@ package :msi do
     "#{install_dir}\\bin\\agent\\ddtray.exe",
     "#{install_dir}\\embedded3\\python.exe",
     "#{install_dir}\\embedded3\\\\python3.dll",
-    "#{install_dir}\\embedded3\\\\python39.dll",
+    "#{install_dir}\\embedded3\\\\python311.dll",
     "#{install_dir}\\embedded3\\\\pythonw.exe"
   ]
   if with_python_runtime? '2'
