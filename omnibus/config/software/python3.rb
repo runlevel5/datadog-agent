@@ -29,7 +29,9 @@ if ohai["platform"] != "windows"
                           "--enable-shared")
   elsif linux_target?
     python_configure_options.push("--enable-shared",
-                          "--enable-ipv6")
+                          "--enable-ipv6",
+                          "ac_cv_file__dev_ptmx=yes",
+                          "ac_cv_file__dev_ptc=yes")
   elsif aix?
     # something here...
   end
