@@ -134,6 +134,7 @@ build do
     "LDFLAGS" => "-L#{install_dir}/embedded/lib -L/opt/mqm/lib64 -L/opt/mqm/lib",
     "LD_RUN_PATH" => "#{install_dir}/embedded/lib -L/opt/mqm/lib64 -L/opt/mqm/lib",
     "PATH" => "#{install_dir}/embedded/bin:#{ENV['PATH']}",
+    "MAKEFLAGS" => "-j#{workers}",
   }
 
   win_build_env = {
