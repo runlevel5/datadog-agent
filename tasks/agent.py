@@ -620,7 +620,7 @@ def omnibus_run_task(ctx, task, target_project, base_dir, env, omnibus_s3_cache=
         else:
             populate_s3_cache = ""
 
-        cmd = "{omnibus} {task} {project_name} --log-level={log_level} {populate_s3_cache} {overrides}"
+        cmd = "{omnibus} {task} {project_name} --log-level={log_level} {populate_s3_cache} {overrides} --override=host:x86_64-unknown-linux-gnu"
         args = {
             "omnibus": omnibus,
             "task": task,
