@@ -604,8 +604,12 @@ def get_omnibus_env(
 def omnibus_run_task(ctx, task, target_project, base_dir, env, omnibus_s3_cache=False, log_level="info"):
     with ctx.cd("omnibus"):
         overrides_cmd = ""
+        print(f'DEBUG BASE DIR: {base_dir}')
         if base_dir:
-            overrides_cmd = f"--override=base_dir:{base_dir}"
+            overrides_cmd = f"base_dir:{base_dir}"
+        overrides_cmd += ' host:x86_64-unknown-linux-gnu'
+        if overrides_cmd:
+            overrides_cmd = f'--override {overrides_cmd}'
 
         omnibus = "bundle exec omnibus"
         if sys.platform == 'win32':
@@ -620,7 +624,7 @@ def omnibus_run_task(ctx, task, target_project, base_dir, env, omnibus_s3_cache=
         else:
             populate_s3_cache = ""
 
-        cmd = "{omnibus} {task} {project_name} --log-level={log_level} {populate_s3_cache} {overrides} --override=host:x86_64-unknown-linux-gnu"
+        cmd = "{omnibus} {task} {project_name} --log-level={log_level} {populate_s3_cache} {overrides}"
         args = {
             "omnibus": omnibus,
             "task": task,
