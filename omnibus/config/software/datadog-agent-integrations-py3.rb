@@ -161,12 +161,6 @@ build do
       nix_build_env["CFLAGS"] += " -std=c99"
     end
 
-    # We only have gcc 10.4.0 on linux for now
-    if linux_target?
-      nix_build_env["CC"] = "/opt/gcc-#{gcc_version}/bin/gcc"
-      nix_build_env["CXX"] = "/opt/gcc-#{gcc_version}/bin/g++"
-    end
-
     # Some libraries (looking at you, aerospike-client-python) need EXT_CFLAGS instead of CFLAGS.
     nix_specific_build_env = {
       "aerospike" => nix_build_env.merge({"EXT_CFLAGS" => nix_build_env["CFLAGS"] + " -std=gnu99"}),
