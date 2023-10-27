@@ -168,11 +168,6 @@ build do
     nix_build_env["CFLAGS"] += " -std=c99"
   end
 
-  # We only have gcc 10.4.0 on linux for now
-  if linux_target?
-    nix_build_env["CC"] = "/opt/gcc-#{gcc_version}/bin/gcc"
-    nix_build_env["CXX"] = "/opt/gcc-#{gcc_version}/bin/g++"
-  end
 
   # We need to explicitly specify RUSTFLAGS for libssl and libcrypto
   # See https://github.com/pyca/cryptography/issues/8614#issuecomment-1489366475
