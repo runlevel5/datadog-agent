@@ -1703,10 +1703,7 @@ func (s *TracerSuite) TestBlockingReadCounts() {
 	buf := make([]byte, 6)
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		n, _, err := syscall.Recvfrom(fd, buf[read:], syscall.MSG_WAITALL)
-		if !assert.NoError(c, err) {
-			return
-		}
-
+		require.NoError(c, err)
 		read += n
 		t.Logf("read %d", read)
 		assert.Equal(c, 6, read)
