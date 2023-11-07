@@ -33,6 +33,12 @@ type tracerFlareTransport struct {
 	agentVersion string
 }
 
+func e2eTest(url *url.URL, agentVersion string) {
+	url.Scheme = "https"
+	url.Host = "app.datadoghq.com"
+	url.Path = serverlessFlareEndpointPath
+}
+
 func getServerlessFlareEndpoint(url *url.URL, agentVersion string) {
 	// The DNS doesn't redirect to the proper endpoint when a subdomain is not present in the baseUrl.
 	// Adding app. subdomain here for site like datadoghq.com
@@ -57,10 +63,10 @@ func (m *tracerFlareTransport) RoundTrip(req *http.Request) (rresp *http.Respons
 }
 
 func (r *HTTPReceiver) tracerFlareHandler() http.Handler {
-	apiKey := r.conf.APIKey()
+	// apiKey := r.conf.APIKey()
 
 	director := func(req *http.Request) {
-		req.Header.Set("DD-API-KEY", apiKey)
+		req.Header.Set("DD-API-KEY", "<prod-api-key>")
 	}
 
 	logger := log.NewThrottled(5, 10*time.Second) // limit to 5 messages every 10 seconds
@@ -69,6 +75,6 @@ func (r *HTTPReceiver) tracerFlareHandler() http.Handler {
 	return &httputil.ReverseProxy{
 		Director:  director,
 		ErrorLog:  stdlog.New(logger, "tracer_flare.Proxy: ", 0),
-		Transport: &tracerFlareTransport{transport, getServerlessFlareEndpoint, agentVersion},
+		Transport: &tracerFlareTransport{transport, e2eTest, agentVersion},
 	}
 }
