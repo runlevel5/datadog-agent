@@ -777,7 +777,7 @@ func (k *KSMCheck) getClusterName() {
 	}
 }
 
-// initTags sets the kube_cluster_name tag for all metrics.
+// initTags sets the global tags for all metrics
 func (k *KSMCheck) initTags() error {
 	// Add the cluster name tag to the global tags
 	globalTags := []string{}
