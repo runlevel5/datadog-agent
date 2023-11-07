@@ -33,6 +33,8 @@ type Sender interface {
 	GetSenderStats() stats.SenderStats
 	DisableDefaultHostname(disable bool)
 	SetCheckCustomTags(tags []string)
+	// GetCheckCustomTags returns the check custom tags, added to every metric/log/event of the check
+	GetCheckCustomTags() []string
 	SetCheckService(service string)
 	SetNoIndex(noIndex bool)
 	FinalizeCheckServiceTag()

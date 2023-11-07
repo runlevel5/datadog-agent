@@ -99,6 +99,12 @@ func (m *MockSender) SetCheckCustomTags(tags []string) {
 	m.Called(tags)
 }
 
+// GetCheckCustomTags enables the get of check custom tags mock call.
+func (m *MockSender) GetCheckCustomTags() []string {
+	m.Called()
+	return []string{}
+}
+
 // SetCheckService enables the setting of check service mock call.
 func (m *MockSender) SetCheckService(service string) {
 	m.Called(service)
