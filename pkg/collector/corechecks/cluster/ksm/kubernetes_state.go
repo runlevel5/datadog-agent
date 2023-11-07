@@ -845,8 +845,8 @@ func (k *KSMCheck) sendTelemetry() {
 	// reset the cache for the next check run
 	defer k.telemetry.reset()
 
-	safeSender.Gauge(ksmMetricPrefix+"telemetry.metrics.count.total", float64(k.telemetry.getTotal()), "", []string{})
-	safeSender.Gauge(ksmMetricPrefix+"telemetry.unknown_metrics.count", float64(k.telemetry.getUnknown()), "", []string{})
+	safeSender.Gauge(ksmMetricPrefix+"telemetry.metrics.count.total", float64(k.telemetry.getTotal()), "", nil)
+	safeSender.Gauge(ksmMetricPrefix+"telemetry.unknown_metrics.count", float64(k.telemetry.getUnknown()), "", nil)
 	for resource, count := range k.telemetry.getResourcesCount() {
 		safeSender.Gauge(ksmMetricPrefix+"telemetry.metrics.count", float64(count), "", []string{"resource_name:" + resource})
 	}
