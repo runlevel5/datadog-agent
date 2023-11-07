@@ -16,7 +16,8 @@ import (
 	"time"
 )
 
-func compressWithGZip(filename string, rawBuf []byte) (*bytes.Buffer, error) {
+// CompressWithGZip compresses the provided buffer using gzip
+func CompressWithGZip(filename string, rawBuf []byte) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 
 	zw := gzip.NewWriter(&buf)

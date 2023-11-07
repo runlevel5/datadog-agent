@@ -9,9 +9,11 @@
 package profile
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"slices"
 	"sync"
 	"time"
@@ -34,6 +36,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
 	activity_tree "github.com/DataDog/datadog-agent/pkg/security/security_profile/activity_tree"
+	"github.com/DataDog/datadog-agent/pkg/security/security_profile/dump"
 	"github.com/DataDog/datadog-agent/pkg/security/utils"
 )
 
@@ -453,6 +456,10 @@ func (m *SecurityProfileManager) ShouldDeleteProfile(profile *SecurityProfile) {
 		m.unloadProfile(profile)
 	}
 
+	if err := m.persistProfile(profile, false); err != nil {
+		seclog.Errorf("couldn't persist profile: %v", err)
+	}
+
 	// cleanup profile before insertion in cache
 	profile.reset()
 
@@ -651,6 +658,55 @@ func (m *SecurityProfileManager) unlinkProfile(profile *SecurityProfile, workloa
 
 func (m *SecurityProfileManager) canGenerateAnomaliesFor(e *model.Event) bool {
 	return m.config.RuntimeSecurity.AnomalyDetectionEnabled && slices.Contains(m.config.RuntimeSecurity.AnomalyDetectionEventTypes, e.GetEventType())
+}
+
+// persistProfile (thread unsafe) persists a profile to the filesystem
+func (m *SecurityProfileManager) persistProfile(profile *SecurityProfile, compress bool) error {
+	proto := SecurityProfileToProto(profile)
+	if proto == nil {
+		return fmt.Errorf("couldn't encode profile (nil proto)")
+	}
+	raw, err := proto.MarshalVT()
+	if err != nil {
+		return fmt.Errorf("couldn't encode profile: %w", err)
+	}
+	buffer := bytes.NewBuffer(raw)
+
+	filename := profile.Metadata.Name + ".profile"
+	outputPath := path.Join(m.config.RuntimeSecurity.SecurityProfileDir, filename)
+
+	if compress {
+		tmpBuffer, err := dump.CompressWithGZip(filename, raw)
+		if err != nil {
+			return err
+		}
+		buffer = tmpBuffer
+	}
+
+	// create output file
+	err = os.MkdirAll(m.config.RuntimeSecurity.SecurityProfileDir, 0400)
+	if err != nil {
+		return fmt.Errorf("couldn't ensure directory [%s] exists: %w", m.config.RuntimeSecurity.SecurityProfileDir, err)
+	}
+
+	file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0400)
+	if err != nil {
+		return fmt.Errorf("couldn't persist profile to file [%s]: %w", outputPath, err)
+	}
+	defer file.Close()
+
+	// persist data to disk
+	if _, err = file.Write(buffer.Bytes()); err != nil {
+		return fmt.Errorf("couldn't write profile to file [%s]: %w", outputPath, err)
+	}
+
+	if err = file.Close(); err != nil {
+		return fmt.Errorf("could not close profile file [%s]: %w", file.Name(), err)
+	}
+
+	seclog.Infof("[profile] file for [%s] written at: [%s]", profile.selector.String(), outputPath)
+
+	return nil
 }
 
 // LookupEventInProfiles lookups event in profiles
