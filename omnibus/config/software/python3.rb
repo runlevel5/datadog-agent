@@ -42,6 +42,15 @@ if ohai["platform"] != "windows"
     # 2.0 is the license version here, not the python version
     license "Python-2.0"
 
+    # We need to build a native python executable which will be used
+    # when cross compiling python immediatly after.
+    # Since both python version *must* be identical, it's easier to manage
+    # by building the same python version twice.
+
+    mkdir "build"
+    command "../configure && make", :cwd => "#{project_dir}/build"
+    python_configure_options.push("--with-build-python=#{project_dir}/build/python")
+
     env = with_standard_compiler_flags(with_embedded_path)
     configure(*python_configure_options, :env => env)
     command "make -j #{workers}", :env => env
