@@ -165,7 +165,7 @@ func (storage *ActivityDumpLocalStorage) Persist(request config.StorageRequest, 
 	outputPath := request.GetOutputPath(ad.Metadata.Name)
 
 	if request.Compression {
-		tmpRaw, err := compressWithGZip(path.Base(outputPath), raw.Bytes())
+		tmpRaw, err := CompressWithGZip(path.Base(outputPath), raw.Bytes())
 		if err != nil {
 			return err
 		}

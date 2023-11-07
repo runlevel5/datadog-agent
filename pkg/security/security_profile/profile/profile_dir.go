@@ -47,6 +47,7 @@ var _ Provider = (*DirectoryProvider)(nil)
 type profileFSEntry struct {
 	path    string
 	version string
+	status  model.Status
 }
 
 // DirectoryProvider is a ProfileProvider that fetches Security Profiles from the filesystem
@@ -165,7 +166,7 @@ func (dp *DirectoryProvider) onNewProfileDebouncerCallback() {
 				// read and parse profile
 				profile, err := LoadProfileFromFile(profilePath.path)
 				if err != nil {
-					seclog.Warnf("couldn't load profile %s: %v", profilePath, err)
+					seclog.Warnf("couldn't load profile %s: %v", profilePath.path, err)
 					continue
 				}
 
@@ -210,9 +211,7 @@ func (dp *DirectoryProvider) loadProfile(profilePath string) error {
 		return fmt.Errorf("couldn't load profile %s: %w", profilePath, err)
 	}
 
-	if dp.status != 0 {
-		profile.Status = uint32(dp.status)
-	}
+	profile.Status |= uint32(dp.status)
 
 	workloadSelector, err := cgroupModel.NewWorkloadSelector(utils.GetTagValue("image_name", profile.Tags), utils.GetTagValue("image_tag", profile.Tags))
 	if err != nil {
@@ -225,7 +224,13 @@ func (dp *DirectoryProvider) loadProfile(profilePath string) error {
 
 	// update profile mapping
 	if existingProfile, ok := dp.profileMapping[workloadSelector]; ok {
-		if existingProfile.version > profile.Version {
+		if existingProfile.status.IsEnabled(model.StableProfile) && model.Status(profile.Status).IsEnabled(model.StableProfile) && existingProfile.version > profile.Version {
+			seclog.Warnf("ignoring %s (version: %v status: %s): a more recent version of this stable profile already exists (existing version is %v)", profilePath, profile.Version, model.Status(profile.Status), existingProfile.version)
+			return nil
+		} else if existingProfile.status.IsEnabled(model.StableProfile) && !model.Status(profile.Status).IsEnabled(model.StableProfile) {
+			seclog.Warnf("ignoring %s (version: %v status: %s): a stable version of this profile already exists (existing version is %v)", profilePath, profile.Version, model.Status(profile.Status), existingProfile.version)
+			return nil
+		} else if existingProfile.version > profile.Version {
 			seclog.Warnf("ignoring %s (version: %v status: %s): a more recent version of this profile already exists (existing version is %v)", profilePath, profile.Version, model.Status(profile.Status), existingProfile.version)
 			return nil
 		}
@@ -233,6 +238,7 @@ func (dp *DirectoryProvider) loadProfile(profilePath string) error {
 	dp.profileMapping[workloadSelector] = profileFSEntry{
 		path:    profilePath,
 		version: profile.Version,
+		status:  model.Status(profile.Status),
 	}
 
 	seclog.Debugf("security profile %s (version: %s status: %s) loaded from file system", workloadSelector, profile.Version, model.Status(profile.Status))

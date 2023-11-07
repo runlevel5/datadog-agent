@@ -9,9 +9,11 @@
 package profile
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"sync"
 	"time"
 
@@ -33,6 +35,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
 	activity_tree "github.com/DataDog/datadog-agent/pkg/security/security_profile/activity_tree"
+	"github.com/DataDog/datadog-agent/pkg/security/security_profile/dump"
 	"github.com/DataDog/datadog-agent/pkg/security/utils"
 )
 
@@ -447,6 +450,13 @@ func (m *SecurityProfileManager) ShouldDeleteProfile(profile *SecurityProfile) {
 		m.unloadProfile(profile)
 	}
 
+	if profile.isStable(m.config) {
+		profile.Status |= model.StableProfile
+		if err := m.persistProfile(profile, false, true); err != nil {
+			seclog.Errorf("couldn't persist profile: %v", err)
+		}
+	}
+
 	// cleanup profile before insertion in cache
 	profile.reset()
 
@@ -651,6 +661,63 @@ func (m *SecurityProfileManager) unlinkProfile(profile *SecurityProfile, workloa
 		seclog.Errorf("couldn't unlink workload %s (selector: %s) with profile %s: %v", workload.ID, workload.WorkloadSelector.String(), profile.Metadata.Name, err)
 	}
 	seclog.Infof("workload %s (selector: %s) successfully unlinked from profile %s", workload.ID, workload.WorkloadSelector.String(), profile.Metadata.Name)
+}
+
+// persistProfile (thread unsafe) persists a profile to the filesystem
+func (m *SecurityProfileManager) persistProfile(profile *SecurityProfile, compress bool, isStable bool) error {
+	proto := SecurityProfileToProto(profile)
+	if proto == nil {
+		return fmt.Errorf("couldn't encode profile (nil proto)")
+	}
+	raw, err := proto.MarshalVT()
+	if err != nil {
+		return fmt.Errorf("couldn't encode profile: %w", err)
+	}
+	buffer := bytes.NewBuffer(raw)
+
+	filename := profile.Metadata.Name
+	if isStable {
+		filename += "_stable"
+	}
+	filename += ".profile"
+
+	outputPath := path.Join(m.config.RuntimeSecurity.SecurityProfileDir, filename)
+
+	if compress {
+		tmpBuffer, err := dump.CompressWithGZip(path.Base(outputPath), raw)
+		if err != nil {
+			return err
+		}
+		buffer = tmpBuffer
+	}
+
+	profile.Metadata.Size = uint64(len(buffer.Bytes()))
+
+	// create output file
+	_ = os.MkdirAll(m.config.RuntimeSecurity.SecurityProfileDir, 0400)
+	file, err := os.Create(outputPath)
+	if err != nil {
+		return fmt.Errorf("couldn't persist to file [%s]: %w", outputPath, err)
+	}
+	defer file.Close()
+
+	// set output file access mode
+	if err = os.Chmod(outputPath, 0400); err != nil {
+		return fmt.Errorf("couldn't set mod for file [%s]: %w", outputPath, err)
+	}
+
+	// persist data to disk
+	if _, err = file.Write(buffer.Bytes()); err != nil {
+		return fmt.Errorf("couldn't write to file [%s]: %w", outputPath, err)
+	}
+
+	if err = file.Close(); err != nil {
+		return fmt.Errorf("could not close file [%s]: %w", file.Name(), err)
+	}
+
+	seclog.Infof("[profile] file for [%s] written at: [%s]", profile.selector.String(), outputPath)
+
+	return nil
 }
 
 // LookupEventInProfiles lookups event in profiles

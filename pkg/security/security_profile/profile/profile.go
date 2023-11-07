@@ -215,3 +215,23 @@ func (p *SecurityProfile) ToSecurityProfileMessage(timeResolver *timeResolver.Re
 	}
 	return msg
 }
+
+// isStable (thread unsafe) returns true if the profile is stable
+func (p *SecurityProfile) isStable(config *config.Config) bool {
+	p.eventTypeStateLock.Lock()
+	defer p.eventTypeStateLock.Unlock()
+
+	for _, eventType := range p.anomalyDetectionEvents {
+		state, ok := p.eventTypeState[eventType]
+		if !ok {
+			if time.Since(time.Unix(0, int64(p.loadedNano))) < config.RuntimeSecurity.GetAnomalyDetectionMinimumStablePeriod(eventType) {
+				return false
+			}
+		} else if state.state != StableEventType {
+			if time.Since(time.Unix(0, int64(state.lastAnomalyNano))) < config.RuntimeSecurity.GetAnomalyDetectionMinimumStablePeriod(eventType) {
+				return false
+			}
+		}
+	}
+	return true
+}

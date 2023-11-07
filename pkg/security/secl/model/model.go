@@ -94,6 +94,8 @@ const (
 	AutoSuppression
 	// WorkloadHardening will kill the process that triggered anomaly detection
 	WorkloadHardening
+	// StableProfile is used to mark a profile as stable
+	StableProfile
 )
 
 // IsEnabled returns true if enabled
@@ -111,6 +113,9 @@ func (s Status) String() string {
 	}
 	if s.IsEnabled(WorkloadHardening) {
 		options = append(options, "workload_hardening")
+	}
+	if s.IsEnabled(StableProfile) {
+		options = append(options, "stable_profile")
 	}
 
 	var res string
