@@ -347,12 +347,12 @@ kernel_matrix_testing_setup_env:
         'false'
       fi
     - INSTANCE_IP=$(cat $CI_PROJECT_DIR/stack.outputs | grep $ARCH-instance-ip | cut -d ' ' -f 2)
-    - MICRO_VM_IP=$(cat $CI_PROJECT_DIR/stack.outputs | grep $ARCH-$TAG | cut -d ' ' -f 2)
-    - MICRO_VM_NAME=$(cat $CI_PROJECT_DIR/stack.outputs | grep $ARCH-$TAG | cut -d ' ' -f 1)
+    - MICRO_VM_IP=$(cat $CI_PROJECT_DIR/stack.outputs | grep $ARCH-$TAG | grep $TEST_SET | cut -d ' ' -f 2)
+    - MICRO_VM_NAME=$(cat $CI_PROJECT_DIR/stack.outputs | grep $ARCH-$TAG | grep $TEST_SET | cut -d ' ' -f 1)
     - GO_VERSION=$(inv go-version)
     - !reference [.setup_ssh_config]
     # ssh into each micro-vm and run initialization script. This script will also run the tests.
-    - NESTED_VM_CMD="/home/ubuntu/connector -host ${MICRO_VM_IP} -user root -ssh-file /home/kernel-version-testing/ddvm_rsa -vm-cmd 'bash /root/fetch_dependencies.sh ${ARCH} && /micro-vm-init.sh ${GO_VERSION} ${RETRY} ${ARCH}'"
+    - NESTED_VM_CMD="/home/ubuntu/connector -host ${MICRO_VM_IP} -user root -ssh-file /home/kernel-version-testing/ddvm_rsa -vm-cmd 'bash /root/fetch_dependencies.sh ${ARCH} && /micro-vm-init.sh ${GO_VERSION} ${RETRY} ${ARCH} ${RUNNER_CMD}'"
     - $CI_PROJECT_DIR/connector-$ARCH -host $INSTANCE_IP -user ubuntu -ssh-file $AWS_EC2_SSH_KEY_FILE -vm-cmd "${NESTED_VM_CMD}"
     - ssh metal_instance "scp ${MICRO_VM_IP}:/ci-visibility/junit.tar.gz /home/ubuntu/junit.tar.gz"
     - ssh metal_instance "scp ${MICRO_VM_IP}:/ci-visibility/testjson.tar.gz /home/ubuntu/testjson.tar.gz"
@@ -360,7 +360,7 @@ kernel_matrix_testing_setup_env:
     - scp metal_instance:/home/ubuntu/junit.tar.gz $DD_AGENT_TESTING_DIR/
     - ssh metal_instance "ssh ${MICRO_VM_IP} '/test-json-review'"
 
-kernel_matrix_testing_run_tests_x64:
+kmt_run_tests_no_tracer_x64:
   extends:
     - .kernel_matrix_testing_run_tests
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/system-probe_x64$DATADOG_AGENT_SYSPROBE_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_SYSPROBE_BUILDIMAGES
@@ -369,11 +369,13 @@ kernel_matrix_testing_run_tests_x64:
   timeout: 3h
   variables:
     ARCH: "x86_64"
+    RUNNER_CMD: "-exclude-packages pkg/network/tracer"
+    TEST_SET: "no_tracer"
   parallel:
     matrix:
       - TAG: ["ubuntu_18.04", "ubuntu_20.04", "ubuntu_22.04", "amzn_4.14", "amzn_5.4", "amzn_5.10", "fedora_37", "fedora_38", "debian_10", "debian_11"]
 
-kernel_matrix_testing_run_tests_arm64:
+kmt_run_tests_no_tracer_arm64:
   extends:
     - .kernel_matrix_testing_run_tests
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/system-probe_arm64$DATADOG_AGENT_SYSPROBE_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_SYSPROBE_BUILDIMAGES
@@ -382,14 +384,48 @@ kernel_matrix_testing_run_tests_arm64:
   timeout: 3h
   variables:
     ARCH: "arm64"
+    RUNNER_CMD: "-exclude-packages pkg/network/tracer"
+    TEST_SET: "no_tracer"
   parallel:
     matrix:
       - TAG: ["ubuntu_20.04", "ubuntu_22.04", "amzn_4.14", "amzn_5.4", "amzn_5.10", "fedora_37", "fedora_38"]
 
+
+kmt_run_tests_tracer_only_x64:
+  extends:
+    - .kernel_matrix_testing_run_tests
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/system-probe_x64$DATADOG_AGENT_SYSPROBE_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_SYSPROBE_BUILDIMAGES
+  tags: ["arch:amd64"]
+  needs: ["kernel_matrix_testing_setup_env", "upload_dependencies_x64", "upload_system_probe_tests_x64", "upload_minimized_btfs_x64"]
+  timeout: 3h
+  variables:
+    ARCH: "x86_64"
+    RUNNER_CMD: "-include-packages pkg/network/tracer"
+    TEST_SET: "tracer_only"
+  parallel:
+    matrix:
+      - TAG: ["ubuntu_18.04", "ubuntu_20.04", "ubuntu_22.04", "amzn_4.14", "amzn_5.4", "amzn_5.10", "fedora_37", "fedora_38", "debian_10", "debian_11"]
+
+kmt_run_tests_tracer_only_arm64:
+  extends:
+    - .kernel_matrix_testing_run_tests
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/system-probe_arm64$DATADOG_AGENT_SYSPROBE_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_SYSPROBE_BUILDIMAGES
+  tags: ["arch:arm64"]
+  needs: ["kernel_matrix_testing_setup_env", "upload_dependencies_arm64", "upload_system_probe_tests_arm64", "upload_minimized_btfs_arm64"]
+  timeout: 3h
+  variables:
+    ARCH: "arm64"
+    RUNNER_CMD: "-include-packages pkg/network/tracer"
+    TEST_SET: "tracer_only"
+  parallel:
+    matrix:
+      - TAG: ["ubuntu_20.04", "ubuntu_22.04", "amzn_4.14", "amzn_5.4", "amzn_5.10", "fedora_37", "fedora_38"]
+
+
 kernel_matrix_testing_cleanup:
   stage: kernel_matrix_testing
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/test-infra-definitions/runner$TEST_INFRA_DEFINITIONS_BUILDIMAGES_SUFFIX:$TEST_INFRA_DEFINITIONS_BUILDIMAGES
-  needs: ["kernel_matrix_testing_setup_env", "kernel_matrix_testing_run_tests_x64", "kernel_matrix_testing_run_tests_arm64"]
+  needs: ["kernel_matrix_testing_setup_env", "kmt_run_tests_no_tracer_x64", "kmt_run_tests_no_tracer_arm64", "kmt_run_tests_tracer_only_x64", "kmt_run_tests_tracer_only_arm64"]
   when: always
   tags: ["arch:amd64"]
   rules:
