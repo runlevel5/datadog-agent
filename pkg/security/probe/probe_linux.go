@@ -20,6 +20,8 @@ import (
 	"syscall"
 	"time"
 
+	"go.uber.org/atomic"
+
 	lib "github.com/cilium/ebpf"
 	"github.com/hashicorp/go-multierror"
 	"github.com/moby/sys/mountinfo"
@@ -117,6 +119,10 @@ type PlatformProbe struct {
 	constantOffsets    map[string]uint64
 	runtimeCompiled    bool
 	useFentry          bool
+
+	// mount eviction stats
+	mountEvictionsMountpoint *atomic.Uint64
+	mountEvictionsMountRoot  *atomic.Uint64
 }
 
 func (p *Probe) detectKernelVersion() error {
@@ -453,6 +459,14 @@ func traceEvent(fmt string, marshaller func() ([]byte, model.EventType, error)) 
 // SendStats sends statistics about the probe to Datadog
 func (p *Probe) SendStats() error {
 	p.resolvers.TCResolver.SendTCProgramsStats(p.StatsdClient)
+
+	if val := p.PlatformProbe.mountEvictionsMountpoint.Swap(0); val > 0 {
+		_ = p.StatsdClient.Count(metrics.MetricProbeMountEvictionFailedResolution, int64(val), metrics.PathMountpoint, 1.0)
+	}
+
+	if val := p.PlatformProbe.mountEvictionsMountRoot.Swap(0); val > 0 {
+		_ = p.StatsdClient.Count(metrics.MetricProbeMountEvictionFailedResolution, int64(val), metrics.PathRoot, 1.0)
+	}
 
 	if err := p.profileManagers.SendStats(); err != nil {
 		return err
@@ -1363,11 +1377,17 @@ func (p *Probe) handleNewMount(ev *model.Event, m *model.Mount) error {
 	// Resolve mount point
 	if err := p.resolvers.PathResolver.SetMountPoint(ev, m); err != nil {
 		seclog.Debugf("failed to set mount point: %v", err)
+		if deleteErr := p.resolvers.MountResolver.Delete(m.MountID); deleteErr == nil {
+			p.PlatformProbe.mountEvictionsMountpoint.Inc()
+		}
 		return err
 	}
 	// Resolve root
 	if err := p.resolvers.PathResolver.SetMountRoot(ev, m); err != nil {
 		seclog.Debugf("failed to set mount root: %v", err)
+		if deleteErr := p.resolvers.MountResolver.Delete(m.MountID); deleteErr == nil {
+			p.PlatformProbe.mountEvictionsMountRoot.Inc()
+		}
 		return err
 	}
 
@@ -1473,11 +1493,13 @@ func NewProbe(config *config.Config, opts Opts) (*Probe, error) {
 		StatsdClient:         opts.StatsdClient,
 		discarderRateLimiter: rate.NewLimiter(rate.Every(time.Second/5), 100),
 		PlatformProbe: PlatformProbe{
-			approvers:          make(map[eval.EventType]kfilters.ActiveApprovers),
-			managerOptions:     ebpf.NewDefaultOptions(),
-			Erpc:               nerpc,
-			erpcRequest:        &erpc.Request{},
-			isRuntimeDiscarded: !opts.DontDiscardRuntime,
+			approvers:                make(map[eval.EventType]kfilters.ActiveApprovers),
+			managerOptions:           ebpf.NewDefaultOptions(),
+			Erpc:                     nerpc,
+			erpcRequest:              &erpc.Request{},
+			isRuntimeDiscarded:       !opts.DontDiscardRuntime,
+			mountEvictionsMountpoint: atomic.NewUint64(0),
+			mountEvictionsMountRoot:  atomic.NewUint64(0),
 		},
 	}
 

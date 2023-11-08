@@ -478,6 +478,12 @@ var (
 	// MetricRuntimeCgroupMemoryKmemLimitInBytes is the name of the metric used to report memory.kmem.limit_in_bytes
 	// Tags: -
 	MetricRuntimeCgroupMemoryKmemLimitInBytes = newRuntimeMetric(".runtime_monitor.cgroup.memory.kmem_limit_in_bytes")
+
+	// Probe metrics
+
+	// MetricProbeMountEvictionFailedResolution is the number of mount evictions due to a failed path resolution
+	// Tags: path
+	MetricProbeMountEvictionFailedResolution = newRuntimeMetric(".probe.mount_eviction.failed_resolution")
 )
 
 var (
@@ -507,6 +513,11 @@ var (
 	ProcessSourceKernelMapsTags = []string{KernelMapsTag}
 	// ProcessSourceProcTags is assigned to metrics for process cache entries populated from /proc data
 	ProcessSourceProcTags = []string{ProcFSTag}
+
+	// PathMountpoint is assigned to metrics related to a mount invalidation caused by a failed mointpoint path resolution
+	PathMountpoint = []string{"path:mountpoint"}
+	// PathRoot is assigned to metrics related to a mount invalidation caused by a failed root path resolution
+	PathRoot = []string{"path:root"}
 )
 
 func newRuntimeMetric(name string) string {
