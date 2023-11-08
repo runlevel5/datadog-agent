@@ -32,6 +32,11 @@ relative_path "#{name}-#{version}"
 build do
   env = with_standard_compiler_flags(with_embedded_path)
 
+  if Omnibus::Config.host
+    env["CC"] = "#{Omnibus::Config.host}-gcc"
+    env["CXX"] = "#{Omnibus::Config.host}-g++"
+  end
+
   patch source: "ln_no_relative.patch", env: env # don't use relative symlink on installed libraries
 
   make "-j #{workers} PREFIX=/ DESTDIR=#{install_dir}/embedded", env: env
