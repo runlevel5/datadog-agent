@@ -70,7 +70,10 @@
                     "target": "/home/kernel-version-testing/docker-amd64.qcow2",
                     "type": "default"
                 }
-            ]
+            ],
+            "host": {
+                "available_cpus": 96
+            }
         },
         {
             "name": "distro_arm64",
@@ -128,7 +131,10 @@
                     "target": "/home/kernel-version-testing/docker-arm64.qcow2",
                     "type": "default"
                 }
-            ]
+            ],
+            "host": {
+                "available_cpus": 64
+            }
         }
     ]
 }
