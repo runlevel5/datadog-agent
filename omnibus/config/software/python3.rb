@@ -47,9 +47,9 @@ if ohai["platform"] != "windows"
     # Since both python version *must* be identical, it's easier to manage
     # by building the same python version twice.
 
-    mkdir "build"
-    command "../configure && make", :cwd => "#{project_dir}/build"
-    python_configure_options.push("--with-build-python=#{project_dir}/build/python")
+#    mkdir "build"
+#    command "../configure && make", :cwd => "#{project_dir}/build"
+#    python_configure_options.push("--with-build-python=#{project_dir}/build/python")
 
     env = with_standard_compiler_flags(with_embedded_path)
     configure(*python_configure_options, :env => env)
