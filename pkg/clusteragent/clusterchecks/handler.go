@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/scheduler"
-	"github.com/DataDog/datadog-agent/pkg/clusteragent/api"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/clusterchecks/types"
+	"github.com/DataDog/datadog-agent/pkg/clusteragent/leaderforwarder"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 	"github.com/DataDog/datadog-agent/pkg/util/cache"
@@ -50,7 +50,7 @@ type Handler struct {
 	warmupDuration       time.Duration
 	leaderStatusCallback types.LeaderIPCallback
 	leadershipChan       chan state
-	leaderForwarder      *api.LeaderForwarder
+	leaderForwarder      *leaderforwarder.LeaderForwarder
 	m                    sync.RWMutex // Below fields protected by the mutex
 	state                state
 	leaderIP             string
@@ -74,7 +74,7 @@ func NewHandler(ac pluggableAutoConfig) (*Handler, error) {
 	}
 
 	if config.Datadog.GetBool("leader_election") {
-		h.leaderForwarder = api.NewLeaderForwarder(h.port, config.Datadog.GetInt("cluster_agent.max_leader_connections"))
+		h.leaderForwarder = leaderforwarder.NewLeaderForwarder(h.port, config.Datadog.GetInt("cluster_agent.max_leader_connections"))
 		callback, err := getLeaderIPCallback()
 		if err != nil {
 			return nil, err

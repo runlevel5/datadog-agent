@@ -12,6 +12,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/DataDog/datadog-agent/pkg/clusteragent/leaderforwarder"
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 )
 
@@ -54,7 +55,7 @@ type telemetryWriterWrapper struct {
 
 func (w *telemetryWriterWrapper) WriteHeader(statusCode int) {
 	w.ResponseWriter.WriteHeader(statusCode)
-	forwarded := w.Header().Get(respForwarded)
+	forwarded := w.Header().Get(leaderforwarder.RespForwarded)
 	if forwarded == "" {
 		forwarded = "false"
 	}

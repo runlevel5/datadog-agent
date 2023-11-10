@@ -3,9 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-// Package api contains the telemetry of the Cluster Agent API and implements
-// the forwarding of queries from Cluster Agent followers to the leader.
-package api
+// Package leaderforwarder contains the functions to forward queries from follower to leader
+package leaderforwarder
 
 import (
 	"crypto/tls"
@@ -25,7 +24,8 @@ import (
 
 const (
 	forwardHeader = "X-DCA-Follower-Forwarded"
-	respForwarded = "X-DCA-Forwarded"
+	// RespForwarded is the header set in the response to indicate that the query was forwarded
+	RespForwarded = "X-DCA-Forwarded"
 )
 
 // LeaderForwarder allows to forward queries from follower to leader
@@ -69,7 +69,7 @@ func NewLeaderForwarder(apiPort, maxConnections int) *LeaderForwarder {
 // Forward forwards a query to leader if available
 func (lf *LeaderForwarder) Forward(rw http.ResponseWriter, req *http.Request) {
 	// Always set Forwarded header in reply
-	rw.Header().Set(respForwarded, "true")
+	rw.Header().Set(RespForwarded, "true")
 
 	if req.Header.Get(forwardHeader) != "" {
 		http.Error(rw, fmt.Sprintf("Query was already forwarded from: %s", req.RemoteAddr), http.StatusLoopDetected)
