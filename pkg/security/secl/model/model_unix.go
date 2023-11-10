@@ -833,7 +833,7 @@ func (p *PathKey) IsNull() bool {
 }
 
 func (p *PathKey) String() string {
-	return fmt.Sprintf("%x/%x", p.MountID, p.Inode)
+	return fmt.Sprintf("%d/%d/%d", p.MountID, p.Inode, p.PathID)
 }
 
 // MarshalBinary returns the binary representation of a path key

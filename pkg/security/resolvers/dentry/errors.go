@@ -9,10 +9,14 @@
 package dentry
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 )
+
+// ErrEntryNotFound is thrown when a path key was not found in the cache
+var ErrEntryNotFound = errors.New("entry not found")
 
 // ErrERPCRequestNotProcessed is used to notify that the eRPC request was not processed
 type ErrERPCRequestNotProcessed struct{}
@@ -59,11 +63,11 @@ func (err ErrKernelMapResolution) Error() string {
 
 var errKernelMapResolution ErrKernelMapResolution
 
-// ErrDentryPathKeyNotFound is used to notify that the request key is missing from the kernel maps
-type ErrDentryPathKeyNotFound struct {
+// ErrEmptyDentryName is used to notify that a path key was resolved to an empty name
+type ErrEmptyDentryName struct {
 	PathKey model.PathKey
 }
 
-func (err ErrDentryPathKeyNotFound) Error() string {
-	return fmt.Sprintf("dentry path key not found %d/%d", err.PathKey.MountID, err.PathKey.Inode)
+func (err ErrEmptyDentryName) Error() string {
+	return fmt.Sprintf("path key has empty dentry name %s", err.PathKey.String())
 }
