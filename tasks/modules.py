@@ -176,6 +176,7 @@ DEFAULT_MODULES = {
     "pkg/util/filesystem": GoModule("pkg/util/filesystem", independent=True),
     "pkg/util/fxutil": GoModule("pkg/util/fxutil", independent=True),
     "pkg/util/buf": GoModule("pkg/util/buf", independent=True),
+    "pkg/util/goroutines": GoModule("pkg/util/goroutines", independent=True),
     "pkg/util/json": GoModule("pkg/util/json", independent=True),
     "pkg/util/sort": GoModule("pkg/util/sort", independent=True),
     "pkg/util/optional": GoModule("pkg/util/optional", independent=True),
