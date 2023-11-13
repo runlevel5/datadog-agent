@@ -270,6 +270,7 @@ func (nt *networkTracer) Register(httpMux *module.Router) error {
 
 // Close will stop all system probe activities
 func (nt *networkTracer) Close() {
+	log.Info("Closing module network tracer...")
 	close(nt.done)
 	nt.tracer.Stop()
 }

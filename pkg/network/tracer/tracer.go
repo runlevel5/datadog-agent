@@ -347,6 +347,7 @@ func (t *Tracer) addProcessInfo(c *network.ConnectionStats) {
 
 // Stop stops the tracer
 func (t *Tracer) Stop() {
+	log.Info("Stopping module network tracer...")
 	if t.gwLookup != nil {
 		t.gwLookup.Close()
 	}
@@ -354,6 +355,7 @@ func (t *Tracer) Stop() {
 		t.reverseDNS.Close()
 	}
 	if t.ebpfTracer != nil {
+		log.Info("Stopping ebpf tracer....")
 		t.ebpfTracer.Stop()
 		coretelemetry.GetCompatComponent().UnregisterCollector(t.ebpfTracer)
 	}

@@ -193,6 +193,7 @@ func Close() {
 	}
 
 	l.closed = true
+	log.Info("Closing modules in loader...")
 	l.forEachModule(func(_ string, mod Module) {
 		mod.Close()
 	})

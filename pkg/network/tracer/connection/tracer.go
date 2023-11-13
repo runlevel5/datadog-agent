@@ -315,6 +315,7 @@ func (t *tracer) FlushPending() {
 }
 
 func (t *tracer) Stop() {
+	log.Info("Stopping network tracer...")
 	t.stopOnce.Do(func() {
 		close(t.exitTelemetry)
 		ebpfcheck.RemoveNameMappings(t.m)

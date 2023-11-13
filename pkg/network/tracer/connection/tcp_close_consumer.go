@@ -38,6 +38,7 @@ type tcpCloseConsumer struct {
 	buffer       *network.ConnectionBuffer
 	once         sync.Once
 	closed       chan struct{}
+	infiniteLoop chan bool
 	ch           *cookieHasher
 }
 
@@ -48,6 +49,7 @@ func newTCPCloseConsumer(perfHandler *ddebpf.PerfHandler, batchManager *perfBatc
 		requests:     make(chan chan struct{}),
 		buffer:       network.NewConnectionBuffer(netebpf.BatchSize, netebpf.BatchSize),
 		closed:       make(chan struct{}),
+		infiniteLoop: make(chan bool),
 		ch:           newCookieHasher(),
 	}
 }
@@ -76,8 +78,9 @@ func (c *tcpCloseConsumer) Stop() {
 		return
 	}
 	c.perfHandler.Stop()
+	log.Info("sending bool to infinite loop channel...")
 	c.once.Do(func() {
-		close(c.closed)
+		c.infiniteLoop <- true
 	})
 }
 
@@ -101,7 +104,9 @@ func (c *tcpCloseConsumer) Start(callback func([]network.ConnectionStats)) {
 	)
 
 	go func() {
+		log.Info("In tcp_close_consumer_loop")
 		defer func() {
+			log.Info("Deregistering tcp_close_consumer...")
 			err := health.Deregister()
 			if err != nil {
 				log.Warnf("error de-registering health check: %s", err)
@@ -111,14 +116,24 @@ func (c *tcpCloseConsumer) Start(callback func([]network.ConnectionStats)) {
 		for {
 			select {
 			case <-c.closed:
+				log.Info("Closed channel closed...")
+				return
+			case <-c.infiniteLoop:
 				log.Info("Entering infinite loop...")
 				for {
-
+					log.Info("In the loop...")
+					time.Sleep(10 * time.Second)
 				}
 			case <-health.C:
+				log.Info("Read from health check...")
 			case batchData, ok := <-c.perfHandler.DataChannel:
 				if !ok {
-					return
+					log.Info("batchData not ok...")
+					log.Info("Entering infinite loop...")
+					for {
+						log.Info("In the loop...")
+						time.Sleep(10 * time.Second)
+					}
 				}
 
 				l := len(batchData.Data)
@@ -140,6 +155,7 @@ func (c *tcpCloseConsumer) Start(callback func([]network.ConnectionStats)) {
 				batchData.Done()
 			case lc, ok := <-c.perfHandler.LostChannel:
 				if !ok {
+					log.Info("lost channel not ok...")
 					return
 				}
 				closerConsumerTelemetry.perfLost.Add(float64(lc))
