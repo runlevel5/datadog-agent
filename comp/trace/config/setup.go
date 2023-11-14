@@ -103,7 +103,7 @@ func prepareConfig(c corecompcfg.Component) (*config.AgentConfig, error) {
 	orch := fargate.GetOrchestrator() // Needs to be after loading config, because it relies on feature auto-detection
 	cfg.FargateOrchestrator = config.FargateOrchestratorName(orch)
 	if p := coreconfig.Datadog.GetProxies(); p != nil {
-		cfg.Proxy = httputils.GetProxyTransportFunc(p)
+		cfg.Proxy = httputils.GetProxyTransportFunc(p, c)
 	}
 	if coreconfig.IsRemoteConfigEnabled(coreConfigObject) && coreConfigObject.GetBool("remote_configuration.apm_sampling.enabled") {
 		client, err := remote.NewGRPCClient(
@@ -340,6 +340,20 @@ func applyDatadogConfig(c *config.AgentConfig, core corecompcfg.Component) error
 		SpanNameAsResourceName: core.GetBool("otlp_config.traces.span_name_as_resource_name"),
 		ProbabilisticSampling:  core.GetFloat64("otlp_config.traces.probabilistic_sampler.sampling_percentage"),
 	}
+
+	if core.IsSet("apm_config.install_id") {
+		c.InstallSignature.Found = true
+		c.InstallSignature.InstallID = core.GetString("apm_config.install_id")
+	}
+	if core.IsSet("apm_config.install_time") {
+		c.InstallSignature.Found = true
+		c.InstallSignature.InstallTime = core.GetInt64("apm_config.install_time")
+	}
+	if core.IsSet("apm_config.install_type") {
+		c.InstallSignature.Found = true
+		c.InstallSignature.InstallType = core.GetString("apm_config.install_type")
+	}
+	applyOrCreateInstallSignature(c)
 
 	if core.GetBool("apm_config.telemetry.enabled") {
 		c.TelemetryConfig.Enabled = true

@@ -68,6 +68,7 @@ AGENT_CORECHECKS = [
     "uptime",
     "winproc",
     "jetson",
+    "orchestrator_pod",
 ]
 
 WINDOWS_CORECHECKS = [
@@ -498,6 +499,11 @@ def _windows_integration_tests(ctx, race=False, go_mod="mod", arch="x64"):
         {
             # Run eventlog tailer tests with the Windows API, which depend on the EventLog service
             'prefix': './pkg/logs/tailers/windowsevent/...',
+            'extra_args': '-evtapi Windows',
+        },
+        {
+            # Run eventlog check tests with the Windows API, which depend on the EventLog service
+            'prefix': './pkg/collector/corechecks/windows_event_log/...',
             'extra_args': '-evtapi Windows',
         },
     ]
