@@ -8,6 +8,7 @@ package windows
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -32,4 +33,10 @@ func GetServiceInfo(client *ssh.Client, service string) (map[string]any, error) 
 	}
 
 	return result, nil
+}
+
+func GetServiceSDDL(client *ssh.Client, service string) (string, error) {
+	cmd := fmt.Sprintf("sc.exe sdshow '%s'", service)
+	out, err := PsExec(client, cmd)
+	return strings.TrimSpace(out), err
 }

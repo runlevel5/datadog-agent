@@ -29,3 +29,8 @@ func CreateLocalUser(client *ssh.Client, user string, password string) error {
 	}
 	return nil
 }
+
+func GetSIDForUser(client *ssh.Client, user string) (string, error) {
+	cmd := fmt.Sprintf("(Get-WmiObject Win32_UserAccount -Filter \"Name=`'%s`'\").SID", user)
+	return PsExec(client, cmd)
+}

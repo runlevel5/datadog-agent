@@ -189,6 +189,10 @@ func (t *Tester) assertServices(a *assert.Assertions, client *ssh.Client) bool {
 		}
 	}
 
+	if !AssertServiceAccessControl(a, client, t.username) {
+		return false
+	}
+
 	return true
 }
 

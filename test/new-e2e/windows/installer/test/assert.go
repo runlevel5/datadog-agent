@@ -88,6 +88,37 @@ func AssertInstalledUser(a *assert.Assertions, client *ssh.Client, expectedusern
 	return true
 }
 
+func AssertServiceAccessControl(a *assert.Assertions, client *ssh.Client, expectedusername string) bool {
+	svcs := []struct {
+		name    string
+	}{
+		{"datadogagent"},
+		{"datadog-trace-agent"},
+		{"datadog-system-probe"},
+		{"datadog-process-agent"},
+	}
+	for _, svc := range svcs {
+		// Check that ddagentuser is in the service SDDL
+		sddl, err := windows.GetServiceSDDL(client, svc.name)
+		if !a.NoError(err) || !a.NotEmpty(sddl) {
+			return false
+		}
+		sid, err := windows.GetSIDForUser(client, expectedusername)
+		if !a.NoError(err) || !a.NotEmpty(sid) {
+			return false
+		}
+		// TODO: Check for explicit permisison: allow (start, stop, etc)
+		if !a.Contains(sddl, sid, "user %s sid %s not in SDDL for service %s: %s", expectedusername, sid, svc.name, sddl) {
+			return false
+		}
+		if !a.NotContains(sddl, "(A;;CCLCSWRPWPDTLOCR;;;WD)", "service %s must not be accessible by Everyone", svc.name) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func AssertInstalledDirectoriesExist(a *assert.Assertions, client *ssh.Client) bool {
 	sftpclient, err := sftp.NewClient(client)
 	if err != nil {
