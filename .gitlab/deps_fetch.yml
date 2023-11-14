@@ -41,6 +41,7 @@ go_deps:
     - key:
         files:
           - go.mod
+          - test/new-e2e/go.mod
         prefix: "go_deps"
       paths:
         - modcache.tar.gz
