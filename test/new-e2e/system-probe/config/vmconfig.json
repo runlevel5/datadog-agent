@@ -9,17 +9,17 @@
                 {
                     "dir": "bionic-server-cloudimg-amd64.qcow2",
                     "tag": "ubuntu_18.04",
-                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/master/bionic-server-cloudimg-amd64.qcow2.xz"
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/bryce.kahle/alt-network-dhcp/bionic-server-cloudimg-amd64.qcow2.xz"
                 },
                 {
                     "dir": "focal-server-cloudimg-amd64.qcow2",
                     "tag": "ubuntu_20.04",
-                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/master/focal-server-cloudimg-amd64.qcow2.xz"
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/bryce.kahle/alt-network-dhcp/focal-server-cloudimg-amd64.qcow2.xz"
                 },
                 {
                     "dir": "jammy-server-cloudimg-amd64.qcow2",
                     "tag": "ubuntu_22.04",
-                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/master/jammy-server-cloudimg-amd64.qcow2.xz"
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/bryce.kahle/alt-network-dhcp/jammy-server-cloudimg-amd64.qcow2.xz"
                 },
                 {
                     "dir": "amzn2-kvm-2.0-amd64-4.14.qcow2",
@@ -49,12 +49,12 @@
                 {
                     "dir": "debian-10-generic-amd64.qcow2",
                     "tag": "debian_10",
-                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/master/debian-10-generic-amd64.qcow2.xz"
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/bryce.kahle/alt-network-dhcp/debian-10-generic-amd64.qcow2.xz"
                 },
                 {
                     "dir": "debian-11-generic-amd64.qcow2",
                     "tag": "debian_11",
-                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/master/debian-11-generic-amd64.qcow2.xz"
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/bryce.kahle/alt-network-dhcp/debian-11-generic-amd64.qcow2.xz"
                 }
             ],
             "vcpu": [
@@ -81,12 +81,12 @@
                 {
                     "dir": "focal-server-cloudimg-arm64.qcow2",
                     "tag": "ubuntu_20.04",
-                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/master/focal-server-cloudimg-arm64.qcow2.xz"
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/bryce.kahle/alt-network-dhcp/focal-server-cloudimg-arm64.qcow2.xz"
                 },
                 {
                     "dir": "jammy-server-cloudimg-arm64.qcow2",
                     "tag": "ubuntu_22.04",
-                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/master/jammy-server-cloudimg-arm64.qcow2.xz"
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/bryce.kahle/alt-network-dhcp/jammy-server-cloudimg-arm64.qcow2.xz"
                 },
                 {
                     "dir": "amzn2-kvm-2.0-arm64-4.14.qcow2",
