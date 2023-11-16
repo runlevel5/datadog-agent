@@ -9,17 +9,17 @@
                 {
                     "dir": "bionic-server-cloudimg-amd64.qcow2",
                     "tag": "ubuntu_18.04",
-                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/master/bionic-server-cloudimg-amd64.qcow2.xz"
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/usama.saqib/standard-ubuntu-build/bionic-server-cloudimg-amd64.qcow2.xz"
                 },
                 {
                     "dir": "focal-server-cloudimg-amd64.qcow2",
                     "tag": "ubuntu_20.04",
-                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/master/focal-server-cloudimg-amd64.qcow2.xz"
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/usama.saqib/standard-ubuntu-build/focal-server-cloudimg-amd64.qcow2.xz"
                 },
                 {
                     "dir": "jammy-server-cloudimg-amd64.qcow2",
                     "tag": "ubuntu_22.04",
-                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/master/jammy-server-cloudimg-amd64.qcow2.xz"
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/usama.saqib/standard-ubuntu-build/jammy-server-cloudimg-amd64.qcow2.xz"
                 },
                 {
                     "dir": "amzn2-kvm-2.0-amd64-4.14.qcow2",
