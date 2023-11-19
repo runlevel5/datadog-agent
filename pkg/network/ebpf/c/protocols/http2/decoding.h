@@ -467,8 +467,9 @@ static __always_inline bool get_first_frame(struct __sk_buff *skb, skb_info_t *s
     return false;
 }
 
-static __always_inline __u8 find_relevant_headers(struct __sk_buff *skb, skb_info_t *skb_info, http2_frame_with_offset *frames_array, __u8 original_index) {
+static __always_inline __u8 find_relevant_headers(struct __sk_buff *skb, skb_info_t *skb_info, http2_frame_with_offset *frames_array, __u8 original_index, http2_telemetry_t *http2_tel) {
     bool is_headers_or_rst_frame, is_data_end_of_stream;
+    bool passed_max_interesting_frames = false;
     __u8 interesting_frame_index = 0;
     struct http2_frame current_frame = {};
     if (original_index == 1) {
@@ -498,7 +499,17 @@ static __always_inline __u8 find_relevant_headers(struct __sk_buff *skb, skb_inf
             frames_array[interesting_frame_index].offset = skb_info->data_off;
             interesting_frame_index++;
         }
+        passed_max_interesting_frames |= ((is_headers_or_rst_frame || is_data_end_of_stream) && interesting_frame_index >= HTTP2_MAX_FRAMES_ITERATIONS);
         skb_info->data_off += current_frame.length;
+    }
+
+    // Checking we can read HTTP2_FRAME_HEADER_SIZE from the skb - if we can, update telemetry to indicate we have
+    if (skb_info->data_off + HTTP2_FRAME_HEADER_SIZE <= skb_info->data_end) {
+        __sync_fetch_and_add(&http2_tel->max_frames_to_filter, 1);
+    }
+
+    if (passed_max_interesting_frames) {
+        __sync_fetch_and_add(&http2_tel->max_interesting_frames, 1);
     }
 
     return interesting_frame_index;
@@ -593,6 +604,11 @@ int socket__http2_filter(struct __sk_buff *skb) {
         return 0;
     }
 
+    http2_telemetry_t *http2_tel = bpf_map_lookup_elem(&http2_telemetry, &zero);
+    if (http2_tel == NULL) {
+        return 0;
+    }
+
     // Some functions might change and override fields in dispatcher_args_copy.skb_info. Since it is used as a key
     // in a map, we cannot allow it to be modified. Thus, having a local copy of skb_info.
     skb_info_t local_skb_info = dispatcher_args_copy.skb_info;
@@ -600,7 +616,7 @@ int socket__http2_filter(struct __sk_buff *skb) {
     // The verifier cannot tell if `iteration_value->frames_count` is 0 or 1, so we have to help it. The value is
     // 1 if we have found an interesting frame in `socket__http2_handle_first_frame`, otherwise it is 0.
     // filter frames
-    iteration_value->frames_count = find_relevant_headers(skb, &local_skb_info, iteration_value->frames_array, iteration_value->frames_count);
+    iteration_value->frames_count = find_relevant_headers(skb, &local_skb_info, iteration_value->frames_array, iteration_value->frames_count, http2_tel);
 
     frame_header_remainder_t new_frame_state = {0};
     if (local_skb_info.data_off > local_skb_info.data_end) {

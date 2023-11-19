@@ -8,8 +8,8 @@
 #define HTTP2_FRAMES_PER_TAIL_CALL 4
 // Maximum number of frames to be processed in a single TCP packet. That's also the number of tail calls we'll have.
 // NOTE: we may need to revisit this const if we need to capture more connections.
-#define HTTP2_MAX_FRAMES_ITERATIONS 30
-#define HTTP2_MAX_FRAMES_TO_FILTER  100
+#define HTTP2_MAX_FRAMES_ITERATIONS 120
+#define HTTP2_MAX_FRAMES_TO_FILTER  120
 
 // A limit of max headers which we process in the request/response.
 #define HTTP2_MAX_HEADERS_COUNT_FOR_FILTERING 25
@@ -20,7 +20,7 @@
 #define HTTP2_MAX_HEADERS_COUNT_FOR_PROCESSING 2
 
 // Maximum size for the path buffer.
-#define HTTP2_MAX_PATH_LEN 160
+#define HTTP2_MAX_PATH_LEN 120
 
 // The maximum index which may be in the static table.
 #define MAX_STATIC_TABLE_INDEX 61
@@ -129,5 +129,10 @@ typedef struct {
     __u32 header_length;
     char buf[HTTP2_FRAME_HEADER_SIZE];
 } frame_header_remainder_t;
+
+typedef struct {
+    __u64 max_interesting_frames;
+    __u64 max_frames_to_filter;
+} http2_telemetry_t;
 
 #endif
