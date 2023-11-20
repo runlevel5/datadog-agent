@@ -52,7 +52,7 @@ func (h *StatKeeper) Process(tx Transaction) {
 	defer h.mux.Unlock()
 
 	if tx.Incomplete() {
-		h.incomplete.Add(tx)
+		//h.incomplete.Add(tx)
 		return
 	}
 
@@ -63,9 +63,9 @@ func (h *StatKeeper) GetAndResetAllStats() map[Key]*RequestStats {
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
-	for _, tx := range h.incomplete.Flush(time.Now()) {
-		h.add(tx)
-	}
+	//for _, tx := range h.incomplete.Flush(time.Now()) {
+	//	h.add(tx)
+	//}
 
 	ret := h.stats // No deep copy needed since `h.stats` gets reset
 	h.stats = make(map[Key]*RequestStats)
