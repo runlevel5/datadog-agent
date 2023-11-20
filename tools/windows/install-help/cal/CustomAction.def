@@ -1,6 +1,7 @@
 LIBRARY customaction
 
 EXPORTS
+	CADecompressPython
 	DllMain
 	FinalizeInstall
 	PreStopServices

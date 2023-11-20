@@ -1,5 +1,7 @@
 #include "stdafx.h"
 
+UINT DecompressPython();
+
 extern "C" UINT __stdcall FinalizeInstall(MSIHANDLE hInstall)
 {
 
@@ -29,6 +31,30 @@ extern "C" UINT __stdcall FinalizeInstall(MSIHANDLE hInstall)
     }
 
     er = doFinalizeInstall(data.value());
+
+LExit:
+    if (er == ERROR_SUCCESS)
+    {
+        er = SUCCEEDED(hr) ? ERROR_SUCCESS : ERROR_INSTALL_FAILURE;
+    }
+    return WcaFinalize(er);
+}
+
+extern "C" UINT __stdcall CADecompressPython(MSIHANDLE hInstall)
+{
+
+    HRESULT hr = S_OK;
+    UINT er = ERROR_SUCCESS;
+    std::optional<CustomActionData> data;
+    hr = WcaInitialize(hInstall, "CA: FinalizeInstall");
+    ExitOnFailure(hr, "Failed to initialize");
+    WcaLog(LOGMSG_STANDARD, "Initialized.");
+
+#ifdef _DEBUG
+    MessageBox(NULL, L"hi", L"bye", MB_OK);
+#endif
+
+    er = DecompressPython();
 
 LExit:
     if (er == ERROR_SUCCESS)

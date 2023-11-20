@@ -18,6 +18,7 @@ from . import (
     epforwarder,
     github_tasks,
     kmt,
+    customaction,
     msi,
     new_e2e_tests,
     package,
@@ -132,6 +133,7 @@ ns.add_collection(docker_tasks, "docker")
 ns.add_collection(dogstatsd)
 ns.add_collection(emacs)
 ns.add_collection(epforwarder)
+ns.add_collection(customaction)
 ns.add_collection(msi)
 ns.add_collection(github_tasks, "github")
 ns.add_collection(package)

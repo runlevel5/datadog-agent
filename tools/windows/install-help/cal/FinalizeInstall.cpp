@@ -421,3 +421,42 @@ LExit:
     }
     return er;
 }
+
+UINT DecompressPython()
+{
+        HRESULT hr = S_OK;
+    UINT er = ERROR_SUCCESS;
+    #ifndef _CONSOLE
+        {
+        std::array<std::filesystem::path, 2> embeddedArchiveLocations = {
+            installdir + L"\\embedded2.COMPRESSED",
+            installdir + L"\\embedded3.COMPRESSED",
+        };
+
+        for (const auto path : embeddedArchiveLocations)
+        {
+            if (std::filesystem::exists(path))
+            {
+                WcaLog(LOGMSG_STANDARD, "Found archive %s, decompressing", path.string().c_str());
+                if (decompress_archive(path, installdir) != 0)
+                {
+                    WcaLog(LOGMSG_STANDARD, "Failed to decompress archive %s", path.string().c_str());
+                    er = ERROR_INSTALL_FAILURE;
+                    goto LExit;
+                }
+                else
+                {
+                    // Delete the archive
+                    std::filesystem::remove(path);
+                }
+            }
+        }
+    }
+    LExit:
+#endif
+    if (er == ERROR_SUCCESS)
+    {
+        er = SUCCEEDED(hr) ? ERROR_SUCCESS : ERROR_INSTALL_FAILURE;
+    }
+    return er;
+}

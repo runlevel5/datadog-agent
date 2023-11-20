@@ -126,7 +126,8 @@ namespace WixSetup.Datadog
                 )
                 {
                     Win64 = true
-                }
+                },
+                new Binary(new Id("NATIVECA"), @"nativeca.dll")
             );
 
             // Conditionally include the PROCMON MSM while it is in active development to make it easier
@@ -229,6 +230,21 @@ namespace WixSetup.Datadog
                     .Select("Wix/Product")
                     .AddElement("MediaTemplate",
                         "CabinetTemplate=cab{0}.cab; CompressionLevel=high; EmbedCab=yes; MaximumUncompressedMediaSize=2");
+                document
+                    .Select("Wix/Product")
+                    .AddElement("CustomAction",
+                        @"Id=CADECOMPRESSPYTHON;
+                                        BinaryKey=NATIVECA;
+                                        DllEntry=CADecompressPython;
+                                        Impersonate=no;
+                                        Execute=deferred;
+                                        Return=check");
+                document
+                    .Select("Wix/Product")
+                    .Select("InstallExecuteSequence")
+                    .AddElement("Custom",
+                        "Action=CADECOMPRESSPYTHON;After=CleanupOnRollback",
+                        Conditions.FirstInstall | Conditions.Upgrading | Conditions.Maintenance);
 
                 // Windows Installer (MSI.dll) calls the obsolete SetFileSecurityW function during CreateFolder rollback,
                 // this causes directories in the CreateFolder table to have their SE_DACL_AUTO_INHERITED flag removed.

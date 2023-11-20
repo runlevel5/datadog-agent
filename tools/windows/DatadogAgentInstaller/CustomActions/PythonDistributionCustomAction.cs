@@ -150,7 +150,8 @@ namespace Datadog.CustomActions
         [CustomAction]
         public static ActionResult DecompressPythonDistributions(Session session)
         {
-            return DecompressPythonDistributions(new SessionWrapper(session));
+            //return DecompressPythonDistributions(new SessionWrapper(session));
+            return ActionResult.Success;
         }
 
         private static ActionResult PrepareDecompressPythonDistributions(ISession session)

@@ -21,7 +21,10 @@ public:
     {
         _archive = archive_read_new();
         archive_read_support_compression_lzma(_archive);
+        archive_read_support_compression_gzip(_archive);
+        archive_read_support_filter_gzip(_archive);
         archive_read_support_format_7zip(_archive);
+        archive_read_support_format_tar(_archive);
 
         const int flags = ARCHIVE_EXTRACT_TIME | ARCHIVE_EXTRACT_PERM | ARCHIVE_EXTRACT_ACL | ARCHIVE_EXTRACT_FFLAGS;
         _extractor = archive_write_disk_new();
