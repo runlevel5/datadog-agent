@@ -1276,6 +1276,7 @@ func InitConfig(config Config) {
 	config.BindEnvAndSetDefault("language_detection.enabled", false)
 	config.BindEnvAndSetDefault("language_detection.client_period", "10s")
 
+	setupHAMR(config)
 	setupAPM(config)
 	SetupOTLP(config)
 	setupProcesses(config)
