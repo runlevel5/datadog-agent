@@ -85,6 +85,44 @@ static __always_inline __u64 *get_dynamic_counter(conn_tuple_t *tup) {
     return bpf_map_lookup_elem(&http2_dynamic_counter_table, tup);
 }
 
+// get_bucket_index returns the bucket index for the given size.
+static __always_inline __u32 get_bucket_index(__u32 size) {
+    if (size < HTTP2_MAX_PATH_LEN) {
+        return 0;
+    }
+    __s32 bucket_idx = (size - HTTP2_MAX_PATH_LEN) / 10;
+    bucket_idx = bucket_idx > 6 ? 6 : bucket_idx;
+    bucket_idx = bucket_idx < 0 ? 0 : bucket_idx;
+    return bucket_idx;
+}
+
+// update_path_size_telemetry updates the path size telemetry.
+static __always_inline void update_path_size_telemetry(http2_telemetry_t *http2_tel, __u32 bucket_idx) {
+    switch (bucket_idx) {
+        case 0:
+            __sync_fetch_and_add(&http2_tel->path_size_bucket0, 1);
+            break;
+        case 1:
+            __sync_fetch_and_add(&http2_tel->path_size_bucket1, 1);
+            break;
+        case 2:
+            __sync_fetch_and_add(&http2_tel->path_size_bucket2, 1);
+            break;
+        case 3:
+            __sync_fetch_and_add(&http2_tel->path_size_bucket3, 1);
+            break;
+        case 4:
+            __sync_fetch_and_add(&http2_tel->path_size_bucket4, 1);
+            break;
+        case 5:
+            __sync_fetch_and_add(&http2_tel->path_size_bucket5, 1);
+            break;
+        case 6:
+            __sync_fetch_and_add(&http2_tel->path_size_bucket6, 1);
+            break;
+        }
+}
+
 // parse_field_indexed is handling the case which the header frame is part of the static table.
 static __always_inline void parse_field_indexed(dynamic_table_index_t *dynamic_index, http2_header_t *headers_to_process, __u8 index, __u64 global_dynamic_counter, __u8 *interesting_headers_counter) {
     if (headers_to_process == NULL) {
@@ -301,7 +339,7 @@ static __always_inline void process_headers_frame(struct __sk_buff *skb, http2_s
     process_headers(skb, dynamic_index, current_stream, headers_to_process, interesting_headers);
 }
 
-static __always_inline void parse_frame(struct __sk_buff *skb, skb_info_t *skb_info, conn_tuple_t *tup, http2_ctx_t *http2_ctx, struct http2_frame *current_frame) {
+static __always_inline void parse_frame(struct __sk_buff *skb, skb_info_t *skb_info, conn_tuple_t *tup, http2_ctx_t *http2_ctx, struct http2_frame *current_frame, http2_telemetry_t *http2_tel) {
     http2_ctx->http2_stream_key.stream_id = current_frame->stream_id;
     http2_stream_t *current_stream = http2_fetch_stream(&http2_ctx->http2_stream_key);
     if (current_stream == NULL) {
@@ -320,7 +358,11 @@ static __always_inline void parse_frame(struct __sk_buff *skb, skb_info_t *skb_i
         bpf_map_delete_elem(&http2_in_flight, &http2_ctx->http2_stream_key);
         return;
     }
-    if (is_rst || ((current_frame->flags & HTTP2_END_OF_STREAM) == HTTP2_END_OF_STREAM)) {
+    if (current_frame->type == kRSTStreamFrame) {
+        __sync_fetch_and_add(&http2_tel->end_of_stream_rst, 1);
+        handle_end_of_stream(current_stream, &http2_ctx->http2_stream_key);
+    } else if ((current_frame->flags & HTTP2_END_OF_STREAM) == HTTP2_END_OF_STREAM) {
+        __sync_fetch_and_add(&http2_tel->end_of_stream_eos, 1);
         handle_end_of_stream(current_stream, &http2_ctx->http2_stream_key);
     }
 
@@ -663,6 +705,11 @@ int socket__http2_frames_parser(struct __sk_buff *skb) {
         goto delete_iteration;
     }
 
+    http2_telemetry_t *http2_tel = bpf_map_lookup_elem(&http2_telemetry, &zero);
+    if (http2_tel == NULL) {
+        return 0;
+    }
+
     http2_frame_with_offset *frames_array = tail_call_state->frames_array;
     http2_frame_with_offset current_frame;
 
@@ -686,7 +733,7 @@ int socket__http2_frames_parser(struct __sk_buff *skb) {
         http2_ctx->dynamic_index.tup = dispatcher_args_copy.tup;
         dispatcher_args_copy.skb_info.data_off = current_frame.offset;
 
-        parse_frame(skb, &dispatcher_args_copy.skb_info, &dispatcher_args_copy.tup, http2_ctx, &current_frame.frame);
+        parse_frame(skb, &dispatcher_args_copy.skb_info, &dispatcher_args_copy.tup, http2_ctx, &current_frame.frame, http2_tel);
     }
 
     if (tail_call_state->iteration < HTTP2_MAX_FRAMES_ITERATIONS && tail_call_state->iteration < tail_call_state->frames_count) {
