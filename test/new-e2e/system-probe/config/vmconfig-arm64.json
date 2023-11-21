@@ -24,7 +24,7 @@
                 {
                     "dir": "amzn2-kvm-2.0-arm64-4.14.qcow2",
                     "tag": "amzn_4.14",
-                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/master/amzn2-kvm-2.0-arm64-4.14.qcow2.xz"
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/bryce.kahle/amzn-414-headers/amzn2-kvm-2.0-arm64-4.14.qcow2.xz"
                 },
                 {
                     "dir": "amzn2-kvm-2.0-arm64-5.4.qcow2",
