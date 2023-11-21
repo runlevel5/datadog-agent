@@ -7,15 +7,17 @@ package cache
 
 import (
 	"fmt"
-	cconfig "github.com/DataDog/datadog-agent/comp/core/config"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
-	lru "github.com/hashicorp/golang-lru"
-	"go.uber.org/atomic"
 	"math"
 	"os"
 	"sync"
 	"time"
 	"unsafe"
+
+	lru "github.com/hashicorp/golang-lru"
+	"go.uber.org/atomic"
+
+	cconfig "github.com/DataDog/datadog-agent/comp/core/config"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 // initialInternerSize is the size of the LRU cache (in #strings).  This is HEAP, so
