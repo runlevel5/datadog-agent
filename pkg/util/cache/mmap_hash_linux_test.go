@@ -7,13 +7,14 @@ package cache
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"unsafe"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_mmap_hash(t *testing.T) {
-	table, err := newMmapHash("", 8192, "/tmp", false)
+	table, err := newMmapHash("", 8192, "/tmp", false, false)
 	assert.NoError(t, err)
 
 	foo, _ := table.lookupOrInsert([]byte("foo"))

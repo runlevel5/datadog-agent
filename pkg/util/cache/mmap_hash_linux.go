@@ -8,10 +8,6 @@ package cache
 import (
 	"errors"
 	"fmt"
-	"github.com/cihub/seelog"
-	"golang.org/x/exp/slices"
-	"golang.org/x/text/language"
-	"golang.org/x/text/message"
 	"hash/maphash"
 	"io"
 	"io/fs"
@@ -24,6 +20,11 @@ import (
 	"sync"
 	"syscall"
 	"unsafe"
+
+	"github.com/cihub/seelog"
+	"golang.org/x/exp/slices"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -159,6 +160,10 @@ var allMmaps = mmapAllRecord{
 	pointers: make(map[uintptr]failedPointer),
 }
 
+// sEnableDiagnostics (s for static) turns on/off all the checking code.  Defaults to off
+// but you can turn it on when debugging a reference-counting problem.
+var sEnableDiagnostics = false
+
 func normalizeOrigin(origin string) string {
 	result := strings.Builder{}
 	for _, c := range origin {
@@ -178,7 +183,8 @@ func normalizeOrigin(origin string) string {
 	return result.String()
 }
 
-func newMmapHash(origin string, fileSize int64, prefixPath string, closeOnRelease bool) (*mmapHash, error) {
+func newMmapHash(origin string, fileSize int64, prefixPath string, closeOnRelease, enableDiagnostics bool) (*mmapHash, error) {
+	sEnableDiagnostics = enableDiagnostics
 	if fileSize < hashPageSize {
 		return nil, errors.New("file size too small")
 	}
@@ -261,11 +267,13 @@ func (table *mmapHash) lookupOrInsert(key []byte) (string, bool) {
 				// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
 				keyLenF := float64(keyLen)
 				table.used += int64(keyLen)
-				table.valueCount++
-				delta := keyLenF - table.valueMean
-				table.valueMean += delta / float64(table.valueCount)
-				delta2 := keyLenF - table.valueMean
-				table.valueM2 += delta * delta2
+				if sEnableDiagnostics {
+					table.valueCount++
+					delta := keyLenF - table.valueMean
+					table.valueMean += delta / float64(table.valueCount)
+					delta2 := keyLenF - table.valueMean
+					table.valueM2 += delta * delta2
+				}
 			}
 			table.seedHist[n]++
 			return result, false
@@ -315,9 +323,11 @@ func (table *mmapHash) finalize() {
 	} else {
 		closeOnRelease = "NO"
 	}
-	log.Debugf(fmt.Sprintf("finalize(%s): Invalidating address %p-%p.  Close-on-release=%s",
-		table.Name(), address, unsafe.Add(unsafe.Pointer(address), len(table.mapping)),
-		closeOnRelease))
+	if sEnableDiagnostics {
+		log.Debugf(fmt.Sprintf("finalize(%s): Invalidating address %p-%p.  Close-on-release=%s",
+			table.Name(), address, unsafe.Add(unsafe.Pointer(address), len(table.mapping)),
+			closeOnRelease))
+	}
 	// Make the segment read-only, worry about actual deletion after we have
 	// better debugging around page faults.
 	var err error
@@ -435,6 +445,9 @@ func logFailedCheck(check mapCheck, callsite, tag string) string {
 
 // Check a string to make sure it's still valid.  Save a histogram of failures for tracking
 func Check(tag string) bool {
+	if !sEnableDiagnostics {
+		return true
+	}
 	allMmaps.lock.Lock()
 	defer allMmaps.lock.Unlock()
 
@@ -449,6 +462,9 @@ func Check(tag string) bool {
 // CheckDefault checks a string and returns it if it's valid, or returns an indicator of where
 // it was called for debugging.
 func CheckDefault(tag string) string {
+	if !sEnableDiagnostics {
+		return tag
+	}
 	allMmaps.lock.Lock()
 	defer allMmaps.lock.Unlock()
 	check := isMapped(tag)
@@ -460,6 +476,9 @@ func CheckDefault(tag string) string {
 
 // Report the active and dead mappings, their lookup depths, and all the failed lookup checks.
 func Report() {
+	if !sEnableDiagnostics {
+		return
+	}
 	level, err := log.GetLogLevel()
 	if err != nil {
 		// Weird, log the logging level.

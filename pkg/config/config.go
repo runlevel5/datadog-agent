@@ -539,10 +539,16 @@ func InitConfig(config Config) {
 	config.BindEnvAndSetDefault("dogstatsd_string_interner_size", 4096)
 	// Whether to unmap old interner pages.  Generally you do unless debugging something.
 	config.BindEnvAndSetDefault("dogstatsd_string_interner_mmap_preserve", false)
+	// Enable diagnostic checks and logging in the interner.
+	config.BindEnvAndSetDefault("dogstatsd_string_interner_diagnostics", false)
+	// Directory to hold interner temporary files.
 	config.BindEnvAndSetDefault("dogstatsd_string_interner_tmpdir", os.TempDir())
+	// Whether to intern strings within mmap'd temporary files.
 	config.BindEnvAndSetDefault("dogstatsd_string_interner_mmap_enable", false)
+	// Minimum size (per origin) for a string interner before using mmap'd temporary flies.
 	config.BindEnvAndSetDefault("dogstatsd_string_interner_mmap_minsizekb", 65536)
-	config.BindEnvAndSetDefault("dogstatsd_string_interner_origin_max_strings", 64)
+	// Initial size used for LRU string cache.
+	config.BindEnvAndSetDefault("dogstatsd_string_interner_origin_initial_size", 64)
 
 	// Enable check for Entity-ID presence when enriching Dogstatsd metrics with tags
 	config.BindEnvAndSetDefault("dogstatsd_entity_id_precedence", false)
