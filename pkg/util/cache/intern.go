@@ -34,6 +34,10 @@ const growthFactor = 1.5
 // noFileCache indicates that no mmap should be created.
 const noFileCache = ""
 
+// OriginInternal is every internal (non-container) origin.  When diagnostics
+// aren't enabled, we bundle them all up into one origin.
+const OriginInternal = "!Internal"
+
 // OriginTimeSampler marks allocations to the Time Sampler.
 const OriginTimeSampler = "!Timesampler"
 
@@ -288,6 +292,11 @@ func (i *KeyedInterner) loadOrStore(key []byte, origin string, retainer InternRe
 	// E.g., lock-free LRU.
 	i.lock.Lock()
 	defer i.lock.Unlock()
+
+	// When diagnostics are off, bucket all non-container origins into one.
+	if !sEnableDiagnostics && len(origin) > 0 && origin[0] == '!' {
+		origin = OriginInternal
+	}
 
 	if sEnableDiagnostics && i.lastReport.Before(time.Now().Add(-1*time.Minute)) {
 		log.Debugf("*** INTERNER *** Keyed Interner has %d interners.  closeOnRelease=%v, Total Query Count: %v, Total Failures: %v", i.interners.Len(), i.closeOnRelease,
