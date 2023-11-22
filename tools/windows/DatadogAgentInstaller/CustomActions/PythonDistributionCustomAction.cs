@@ -73,21 +73,21 @@ namespace Datadog.CustomActions
                 var embedded = Path.Combine(projectLocation, compressedDistributionFile);
                 var outputPath = Path.Combine(projectLocation, outputDirectoryName);
 
-                // ensure extract result directory is empty so that we don't merge the directories
-                // for different installs. The uninstaller should have already removed/backed up its
-                // embedded directories, so this is just in case the uninstaller failed to do so.
-                if (Directory.Exists(outputPath))
-                {
-                    session.Log($"Deleting directory \"{outputPath}\"");
-                    Directory.Delete(outputPath, true);
-                }
-                else
-                {
-                    session.Log($"{outputPath} not found, skip deletion.");
-                }
-
                 if (File.Exists(embedded))
                 {
+                    // ensure extract result directory is empty so that we don't merge the directories
+                    // for different installs. The uninstaller should have already removed/backed up its
+                    // embedded directories, so this is just in case the uninstaller failed to do so.
+                    if (Directory.Exists(outputPath))
+                    {
+                        session.Log($"Deleting directory \"{outputPath}\"");
+                        Directory.Delete(outputPath, true);
+                    }
+                    else
+                    {
+                        session.Log($"{outputPath} not found, skip deletion.");
+                    }
+
                     using var actionRecord = new Record(
                         "Decompress Python distribution",
                         $"Decompressing {pythonDistributionName} distribution",
@@ -110,10 +110,6 @@ namespace Datadog.CustomActions
                 }
                 else
                 {
-                    if (embedded.Contains("embedded3"))
-                    {
-                        throw new InvalidOperationException($"The file {embedded} doesn't exist, but it should");
-                    }
                     session.Log($"{embedded} not found, skipping decompression.");
                 }
             }

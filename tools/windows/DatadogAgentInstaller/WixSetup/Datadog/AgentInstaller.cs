@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
@@ -54,6 +55,28 @@ namespace WixSetup.Datadog
 
             _agentBinaries = new AgentBinaries(BinSource, InstallerSource);
             _agentInstallerUi = new AgentInstallerUI(this, _agentCustomActions);
+        }
+
+        static XElement CreateComponents(string path, string destination)
+        {
+            var targetPath = path.Substring(path.IndexOf(destination));
+            var dirName = new DirectoryInfo(path).Name;
+            var dirHash = (uint)Path.GetDirectoryName(targetPath).GetHashCode32();
+
+            var root = new XElement("Directory");
+            root.AddAttributes($"Id={targetPath.EscapeIllegalCharacters()}; Name={dirName}");
+
+            var compId = $"{targetPath.EscapeIllegalCharacters()}.{dirHash}";
+            XElement comp = root.AddElement("Component", $"Id={compId}; Guid={Guid.NewGuid()}");
+
+            Directory.EnumerateFiles(path).ForEach(f =>
+            {
+                var fileHash = (uint)f.GetHashCode32();
+                var fileName = Path.GetFileName(f).EscapeIllegalCharacters();
+                comp.AddElement("File", $"Id={fileName}.{fileHash}; KeyPath=no; Source={f}");
+            });
+            Directory.EnumerateDirectories(path).ForEach(d => root.AddElement(CreateComponents(d, destination)));
+            return root;
         }
 
         public Project ConfigureProject()
@@ -310,6 +333,24 @@ namespace WixSetup.Datadog
                         .First(x => x.HasAttribute("Id", value => value == "MainApplication"))
                         .AddElement("MergeRef", "Id=ddprocmoninstall");
                 }
+
+                XElement projectLocation = document
+                    .FindAll("Directory")
+                    .First(x => x.HasAttribute("Id", value => value == "PROJECTLOCATION"));
+                XElement mainAppFeature = document
+                    .FindAll("Feature")
+                    .First(x => x.HasAttribute("Id", value => value == "MainApplication"));
+
+                XElement emb3Comp = CreateComponents($@"{InstallerSource}\embedded3", "embedded3");
+                projectLocation.AddElement(emb3Comp);
+                emb3Comp.FindAll("Component").ForEach(c => mainAppFeature.AddElement("ComponentRef", $"Id={c.Attribute("Id")!.Value}"));
+
+                if (_agentPython.IncludePython2)
+                {
+                    XElement emb2Comp = CreateComponents($@"{InstallerSource}\embedded2", "embedded2");
+                    projectLocation.AddElement(emb2Comp);
+                    emb2Comp.FindAll("Component").ForEach(c => mainAppFeature.AddElement("ComponentRef", $"Id={c.Attribute("Id")!.Value}"));
+                }
             };
             project.WixSourceFormated += (ref string content) => WixSourceFormated?.Invoke(content);
             project.WixSourceSaved += name => WixSourceSaved?.Invoke(name);
@@ -362,15 +403,10 @@ namespace WixSetup.Datadog
                 new DirFiles($@"{InstallerSource}\LICENSE"),
                 new DirFiles($@"{InstallerSource}\*.json"),
                 new DirFiles($@"{InstallerSource}\*.txt"),
-                new CompressedDir(this, "embedded3", $@"{InstallerSource}\embedded3"),
                 // Recursively delete/backup all files/folders in PROJECTLOCATION, they will be restored
                 // on rollback. By default WindowsInstller only removes the files it tracks, and embedded3 isn't tracked
                 new RemoveFolderEx { On = InstallEvent.uninstall, Property = "PROJECTLOCATION" }
             );
-            if (_agentPython.IncludePython2)
-            {
-                datadogAgentFolder.AddFile(new CompressedDir(this, "embedded2", $@"{InstallerSource}\embedded2"));
-            }
 
             return new Dir(new Id("DatadogAppRoot"), "%ProgramFiles%\\Datadog", datadogAgentFolder);
         }
