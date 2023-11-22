@@ -362,14 +362,14 @@ namespace WixSetup.Datadog
                 new DirFiles($@"{InstallerSource}\LICENSE"),
                 new DirFiles($@"{InstallerSource}\*.json"),
                 new DirFiles($@"{InstallerSource}\*.txt"),
-                new CompressedDir(this, "embedded3", $@"{InstallerSource}\embedded3"),
+                new Dir("embedded3", new Files($@"{InstallerSource}\embedded3\*.*")),
                 // Recursively delete/backup all files/folders in PROJECTLOCATION, they will be restored
                 // on rollback. By default WindowsInstller only removes the files it tracks, and embedded3 isn't tracked
                 new RemoveFolderEx { On = InstallEvent.uninstall, Property = "PROJECTLOCATION" }
             );
             if (_agentPython.IncludePython2)
             {
-                datadogAgentFolder.AddFile(new CompressedDir(this, "embedded2", $@"{InstallerSource}\embedded2"));
+                datadogAgentFolder.AddDir(new Dir("embedded2", new Files($@"{InstallerSource}\embedded2\*.*")));
             }
 
             return new Dir(new Id("DatadogAppRoot"), "%ProgramFiles%\\Datadog", datadogAgentFolder);
