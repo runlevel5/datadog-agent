@@ -47,6 +47,11 @@
                     "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/master/amzn2-kvm-2.0-amd64-5.10.qcow2.xz"
                 },
                 {
+                    "dir": "amzn3-kvm-2.0-amd64-al3.qcow2.xz",
+                    "tag": "amzn_2023",
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/usama.saqib/amazon-2023/amzn3-kvm-2.0-amd64-al3.qcow2.xz"
+                },
+                {
                     "dir": "Fedora-Cloud-Base-37.amd64.qcow2",
                     "tag": "fedora_37",
                     "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/master/Fedora-Cloud-Base-37.amd64.qcow2.xz"
