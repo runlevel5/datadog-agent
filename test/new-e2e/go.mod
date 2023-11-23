@@ -32,10 +32,10 @@ require (
 	github.com/docker/cli v24.0.7+incompatible
 	github.com/docker/docker v24.0.7+incompatible
 	github.com/fatih/color v1.15.0
-	github.com/google/uuid v1.3.1
+	github.com/google/uuid v1.3.1 // indirect
 	github.com/kr/pretty v0.3.1
 	github.com/pkg/sftp v1.13.6
-	github.com/pulumi/pulumi/sdk/v3 v3.84.0
+	github.com/pulumi/pulumi/sdk/v3 v3.91.1
 	github.com/samber/lo v1.38.1
 	github.com/sethvargo/go-retry v0.2.4
 	github.com/stretchr/testify v1.8.5-0.20231013065317-89920137cdfa
@@ -161,8 +161,8 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkg/term v1.1.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/pulumi/pulumi-aws/sdk/v5 v5.42.0 // indirect
-	github.com/pulumi/pulumi-awsx/sdk v1.0.6 // indirect
+	github.com/pulumi/pulumi-aws/sdk/v5 v5.43.0
+	github.com/pulumi/pulumi-awsx/sdk v1.0.6
 	github.com/pulumi/pulumi-command/sdk v0.9.2 // indirect
 	github.com/pulumi/pulumi-docker/sdk/v3 v3.6.1 // indirect
 	github.com/pulumi/pulumi-eks/sdk v1.0.4 // indirect
@@ -193,14 +193,14 @@ require (
 	github.com/zorkian/go-datadog-api v2.30.0+incompatible // indirect
 	go.starlark.net v0.0.0-20230525235612-a134d8f9ddca // indirect
 	go.uber.org/atomic v1.11.0 // indirect
-	golang.org/x/exp v0.0.0-20230725093048-515e97ebf090 // indirect
-	golang.org/x/mod v0.12.0 // indirect
+	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
+	golang.org/x/mod v0.13.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.8.0 // indirect
-	golang.org/x/sync v0.3.0 // indirect
+	golang.org/x/sync v0.4.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	golang.org/x/tools v0.11.0 // indirect
+	golang.org/x/tools v0.14.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230731190214-cbb8c96f2d6d // indirect
 	google.golang.org/grpc v1.57.1 // indirect
@@ -223,12 +223,19 @@ require (
 	sourcegraph.com/sourcegraph/appdash v0.0.0-20211028080628-e2786a622600 // indirect
 )
 
+require github.com/DataDog/datadog-agent/pkg/security/secl v0.49.0
+
 require (
+	github.com/Masterminds/semver/v3 v3.2.1 // indirect
+	github.com/alecthomas/participle v0.7.1 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.5.4 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.2.9 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.10.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.2.9 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.16.9 // indirect
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.47.5 // indirect
-	github.com/pulumi/pulumi-tls/sdk/v4 v4.10.0 // indirect
+	github.com/hashicorp/golang-lru/v2 v2.0.6 // indirect
+	github.com/pulumi/esc v0.6.0 // indirect
+	github.com/pulumi/pulumi-tls/sdk/v4 v4.11.1 // indirect
+	github.com/skydive-project/go-debouncer v1.0.0 // indirect
 )
