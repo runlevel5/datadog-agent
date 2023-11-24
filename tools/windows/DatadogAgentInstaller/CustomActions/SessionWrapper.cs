@@ -40,9 +40,9 @@ namespace Datadog.CustomActions
 
         public FeatureInfoCollection Features => _session.Features;
 
-        public IFeatureInfo Feature(string FeatureName)
+        public IFeatureInfo Feature(string featureName)
         {
-            return new FeatureInfoAdapter(_session.Features[FeatureName]);
+            return new FeatureInfoAdapter(_session.Features[featureName]);
         }
 
         public CustomActionData CustomActionData => _session.CustomActionData;

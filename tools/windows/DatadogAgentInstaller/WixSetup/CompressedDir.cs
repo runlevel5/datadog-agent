@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -24,16 +23,6 @@ namespace WixSetup
 
         public void OnWixSourceGenerated(XDocument document)
         {
-#if DEBUG
-            // In debug mode, skip generating the file if it
-            // already exists. Delete the file to regenerate it.
-            if (File.Exists(Name))
-            {
-                return;
-            }
-#endif
-            var tar = $"{Name}.tar";
-
             var filesInSourceDir = new DirectoryInfo(_sourceDir)
                 .EnumerateFiles("*", SearchOption.AllDirectories)
                 .ToArray();
@@ -43,7 +32,17 @@ namespace WixSetup
                 .ToString();
             document
                 .Select("Wix/Product")
-                .AddElement("Property", $"Id={sourceDirName}_SIZE; Value={directorySize}");
+                .AddElement("Property", $"Id={sourceDirName.ToUpper()}_SIZE; Value={directorySize}");
+
+#if DEBUG
+            // In debug mode, skip generating the file if it
+            // already exists. Delete the file to regenerate it.
+            if (File.Exists(Name))
+            {
+                return;
+            }
+#endif
+            var tar = $"{Name}.tar";
 
             using (var outStream = File.Create(tar))
             {

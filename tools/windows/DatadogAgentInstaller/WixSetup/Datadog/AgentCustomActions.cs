@@ -31,8 +31,6 @@ namespace WixSetup.Datadog
 
         public ManagedAction ProcessDdAgentUserCredentialsUI { get; }
 
-        public ManagedAction PrepareDecompressPythonDistributions { get; }
-
         public ManagedAction DecompressPythonDistributions { get; }
 
         public ManagedAction CleanupOnRollback { get; }
@@ -229,20 +227,7 @@ namespace WixSetup.Datadog
                 Impersonate = false
             }
                 .SetProperties(
-                    "PROJECTLOCATION=[PROJECTLOCATION], embedded2_SIZE=[embedded2_SIZE], embedded3_SIZE=[embedded3_SIZE]");
-
-            PrepareDecompressPythonDistributions = new CustomAction<PythonDistributionCustomAction>(
-                new Id(nameof(PrepareDecompressPythonDistributions)),
-                PythonDistributionCustomAction.PrepareDecompressPythonDistributions,
-                Return.ignore,
-                When.Before,
-                new Step(DecompressPythonDistributions.Id),
-                Conditions.FirstInstall | Conditions.Upgrading | Conditions.Maintenance,
-                Sequence.InstallExecuteSequence
-            )
-            {
-                Execute = Execute.immediate
-            };
+                    "PROJECTLOCATION=[PROJECTLOCATION], EMBEDDED2_SIZE=[EMBEDDED2_SIZE], EMBEDDED3_SIZE=[EMBEDDED3_SIZE]");
 
             // Cleanup leftover files on uninstall
             CleanupOnUninstall = new CustomAction<CleanUpFilesCustomAction>(

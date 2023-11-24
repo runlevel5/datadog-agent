@@ -10,32 +10,27 @@ namespace Datadog.CustomActions
 {
     public class PythonDistributionCustomAction
     {
-        public static class MessageRecordFields
+        static void Decompress(
+            ISession session,
+            string compressedFileName,
+            string pythonDistributionName,
+            int pythonDistributionSize)
         {
-            /// <summary>
-            /// Resets progress bar and sets the expected total number of ticks in the bar.
-            /// </summary>
-            public const int MasterReset = 0;
+            using var progressRecordObj = new Record(2);
 
-            /// <summary>
-            /// Provides information related to progress messages to be sent by the current action.
-            /// </summary>
-            public const int ActionInfo = 1;
+            progressRecordObj.SetInteger(1, 2);
 
-            /// <summary>
-            /// Increments the progress bar.
-            /// </summary>
-            public const int ProgressReport = 1;
+            using var actionRecord = new Record(
+                "Decompress Python distribution",
+                $"Decompressing {pythonDistributionName} distribution",
+                "[1] of [2]"
+            );
+            session.Message(InstallMessage.ActionStart, actionRecord);
 
-            /// <summary>
-            /// Enables an action (such as CustomAction) to add ticks to the expected total number of progress of the progress bar.
-            /// </summary>
-            public const int ProgressAddition = 1;
-        }
+            actionRecord.SetInteger(2, pythonDistributionSize);
 
-        static void Decompress(ISession session, string compressedFileName)
-        {
             var decoder = new SevenZip.Compression.LZMA.Decoder();
+            Int64 total = 0;
             using (var inStream = File.OpenRead(compressedFileName))
             {
                 using (var outStream = File.Create($"{compressedFileName}.tar"))
@@ -45,8 +40,16 @@ namespace Datadog.CustomActions
                     var props = reader.ReadBytes(5);
                     decoder.SetDecoderProperties(props);
                     var length = reader.ReadInt64();
+
                     decoder.Code(inStream, outStream, inStream.Length, length, null);
                     outStream.Flush();
+                    total += length;
+
+                    actionRecord.SetInteger(1, (int)total);
+                    session.Message(InstallMessage.ActionData, actionRecord);
+
+                    progressRecordObj.SetInteger(2, (int)length);
+                    session.Message(InstallMessage.Progress, progressRecordObj);
                 }
             }
             var outputPath = Path.GetDirectoryName(Path.GetFullPath(compressedFileName));
@@ -88,25 +91,20 @@ namespace Datadog.CustomActions
 
                 if (File.Exists(embedded))
                 {
-                    using var actionRecord = new Record(
-                        "Decompress Python distribution",
-                        $"Decompressing {pythonDistributionName} distribution",
-                        ""
-                    );
-                    session.Message(InstallMessage.ActionStart, actionRecord);
+                    // ensure extract result directory is empty so that we don't merge the directories
+                    // for different installs. The uninstaller should have already removed/backed up its
+                    // embedded directories, so this is just in case the uninstaller failed to do so.
+                    if (Directory.Exists(outputPath))
+                    {
+                        session.Log($"Deleting directory \"{outputPath}\"");
+                        Directory.Delete(outputPath, true);
+                    }
+                    else
+                    {
+                        session.Log($"{outputPath} not found, skip deletion.");
+                    }
 
-                    {
-                        using var record = new Record(MessageRecordFields.ActionInfo,
-                            0,  // Number of ticks the progress bar moves for each ActionData message. This field is ignored if Field 3 is 0.
-                            0   // The current action will send explicit ProgressReport messages.
-                            );
-                        session.Message(InstallMessage.Progress, record);
-                    }
-                    Decompress(session, embedded);
-                    {
-                        using var record = new Record(MessageRecordFields.ProgressReport, pythonDistributionSize);
-                        session.Message(InstallMessage.Progress, record);
-                    }
+                    Decompress(session, embedded, pythonDistributionName, pythonDistributionSize);
                 }
                 else
                 {
@@ -129,7 +127,7 @@ namespace Datadog.CustomActions
         private static ActionResult DecompressPythonDistributions(ISession session)
         {
             var size = 0;
-            var embedded2Size = session.Property("embedded2_SIZE");
+            var embedded2Size = session.Property("EMBEDDED2_SIZE");
             if (!string.IsNullOrEmpty(embedded2Size))
             {
                 size = int.Parse(embedded2Size);
@@ -139,7 +137,7 @@ namespace Datadog.CustomActions
             {
                 return actionResult;
             }
-            var embedded3Size = session.Property("embedded3_SIZE");
+            var embedded3Size = session.Property("EMBEDDED3_SIZE");
             if (!string.IsNullOrEmpty(embedded3Size))
             {
                 size = int.Parse(embedded3Size);
@@ -150,7 +148,11 @@ namespace Datadog.CustomActions
         [CustomAction]
         public static ActionResult DecompressPythonDistributions(Session session)
         {
-            return DecompressPythonDistributions(new SessionWrapper(session));
+            if (session.GetMode(InstallRunMode.Scheduled))
+            {
+                return DecompressPythonDistributions(new SessionWrapper(session));
+            }
+            return PrepareDecompressPythonDistributions(new SessionWrapper(session));
         }
 
         private static ActionResult PrepareDecompressPythonDistributions(ISession session)
@@ -158,16 +160,17 @@ namespace Datadog.CustomActions
             try
             {
                 var total = 0;
-                var embedded2Size = session.Property("embedded2_SIZE");
+                var embedded2Size = session.Property("EMBEDDED2_SIZE");
                 if (!string.IsNullOrEmpty(embedded2Size))
                 {
                     total += int.Parse(embedded2Size);
                 }
-                var embedded3Size = session.Property("embedded3_SIZE");
+                var embedded3Size = session.Property("EMBEDDED3_SIZE");
                 if (!string.IsNullOrEmpty(embedded3Size))
                 {
                     total += int.Parse(embedded3Size);
                 }
+#if false
                 // Add embedded Python size to the progress bar size
                 // Even though we can't record accurate progress, it will look like it's
                 // moving every time we decompress a Python distribution.
@@ -177,6 +180,20 @@ namespace Datadog.CustomActions
                     session.Log("Could not set the progress bar size");
                     return ActionResult.Failure;
                 }
+#else
+                using var progressRecordObj = new Record(2);
+                progressRecordObj.SetInteger(1, 3);
+                progressRecordObj.SetInteger(2, total);
+                if (session.Message(InstallMessage.Progress, progressRecordObj) != MessageResult.OK)
+                {
+                    session.Log("Could not set the progress bar size");
+                    return ActionResult.Failure;
+                }
+                else
+                {
+                    session.Log($"Added {total} to the progress bar.");
+                }
+#endif
             }
             catch (Exception e)
             {
@@ -185,12 +202,6 @@ namespace Datadog.CustomActions
             }
 
             return ActionResult.Success;
-        }
-
-        [CustomAction]
-        public static ActionResult PrepareDecompressPythonDistributions(Session session)
-        {
-            return PrepareDecompressPythonDistributions(new SessionWrapper(session));
         }
     }
 }
