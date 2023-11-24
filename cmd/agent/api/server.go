@@ -28,6 +28,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/cmd/agent/api/internal/agent"
 	"github.com/DataDog/datadog-agent/cmd/agent/api/internal/check"
+	cfgcomp "github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/flare"
 	"github.com/DataDog/datadog-agent/comp/core/secrets"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
@@ -55,6 +56,7 @@ var listener net.Listener
 // StartServer creates the router and starts the HTTP server
 func StartServer(
 	configService *remoteconfig.Service,
+	cfg cfgcomp.Component,
 	flare flare.Component,
 	dogstatsdServer dogstatsdServer.Component,
 	capture replay.Component,
@@ -139,6 +141,7 @@ func StartServer(
 		http.StripPrefix("/agent",
 			agent.SetupHandlers(
 				agentMux,
+				cfg,
 				flare,
 				dogstatsdServer,
 				serverDebug,

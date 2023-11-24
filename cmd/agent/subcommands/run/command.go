@@ -249,6 +249,7 @@ func run(log log.Component,
 	}()
 
 	if err := startAgent(cliParams,
+		config,
 		log,
 		flare,
 		telemetry,
@@ -373,6 +374,7 @@ func getSharedFxOption() fx.Option {
 // startAgent Initializes the agent process
 func startAgent(
 	cliParams *cliParams,
+	cfg config.Component,
 	log log.Component,
 	flare flare.Component,
 	telemetry telemetry.Component,
@@ -532,6 +534,7 @@ func startAgent(
 	// start the cmd HTTP server
 	if err = api.StartServer(
 		configService,
+		cfg,
 		flare,
 		server,
 		capture,
