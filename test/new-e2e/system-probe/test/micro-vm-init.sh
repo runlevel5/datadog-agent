@@ -16,6 +16,12 @@ fi
 cat /proc/mounts
 ls /sys/kernel/tracing
 
+lsmod
+
+echo "KALLSYMS START!!!!"
+cat /proc/kallsyms
+echo "KALLSYMS END!!!!"
+
 # Start tests
 code=0
 /test-runner -retry "${retry_count}" "${@}" || code=$?
