@@ -13,6 +13,9 @@ if [[ -d "${docker_dir}" ]]; then
 fi
 # VM provisioning end !
 
+cat /proc/mounts
+ls /sys/kernel/tracing
+
 # Start tests
 code=0
 /test-runner -retry "${retry_count}" "${@}" || code=$?
