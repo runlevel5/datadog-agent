@@ -40,45 +40,9 @@ func TestStartDoesNotBlock(t *testing.T) {
 		SketchesBucketOffset: time.Second * 10,
 	}
 	defer metricAgent.Stop()
-	metricAgent.Start(10*time.Second, &MetricConfig{}, &MetricDogStatsD{})
+	metricAgent.Start(10 * time.Second)
 	assert.NotNil(t, metricAgent.Demux)
 	assert.True(t, metricAgent.IsReady())
-}
-
-type ValidMetricConfigMocked struct{}
-
-func (m *ValidMetricConfigMocked) GetMultipleEndpoints() (map[string][]string, error) {
-	return map[string][]string{"http://localhost:8888": {"value"}}, nil
-}
-
-type InvalidMetricConfigMocked struct{}
-
-func (m *InvalidMetricConfigMocked) GetMultipleEndpoints() (map[string][]string, error) {
-	return nil, fmt.Errorf("error")
-}
-
-func TestStartInvalidConfig(t *testing.T) {
-	metricAgent := &ServerlessMetricAgent{
-		SketchesBucketOffset: time.Second * 10,
-	}
-	defer metricAgent.Stop()
-	metricAgent.Start(1*time.Second, &InvalidMetricConfigMocked{}, &MetricDogStatsD{})
-	assert.False(t, metricAgent.IsReady())
-}
-
-type MetricDogStatsDMocked struct{}
-
-func (m *MetricDogStatsDMocked) NewServer(demux aggregator.Demultiplexer) (dogstatsdServer.Component, error) {
-	return nil, fmt.Errorf("error")
-}
-
-func TestStartInvalidDogStatsD(t *testing.T) {
-	metricAgent := &ServerlessMetricAgent{
-		SketchesBucketOffset: time.Second * 10,
-	}
-	defer metricAgent.Stop()
-	metricAgent.Start(1*time.Second, &MetricConfig{}, &MetricDogStatsDMocked{})
-	assert.False(t, metricAgent.IsReady())
 }
 
 func TestStartWithProxy(t *testing.T) {
@@ -93,7 +57,7 @@ func TestStartWithProxy(t *testing.T) {
 		SketchesBucketOffset: time.Second * 10,
 	}
 	defer metricAgent.Stop()
-	metricAgent.Start(10*time.Second, &MetricConfig{}, &MetricDogStatsD{})
+	metricAgent.Start(10 * time.Second)
 
 	expected := []string{
 		invocationsMetric,
@@ -109,7 +73,7 @@ func TestRaceFlushVersusAddSample(t *testing.T) {
 		SketchesBucketOffset: time.Second * 10,
 	}
 	defer metricAgent.Stop()
-	metricAgent.Start(10*time.Second, &ValidMetricConfigMocked{}, &MetricDogStatsD{})
+	metricAgent.Start(10 * time.Second)
 
 	assert.NotNil(t, metricAgent.Demux)
 

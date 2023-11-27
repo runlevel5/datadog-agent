@@ -120,7 +120,7 @@ func setupMetricAgent(tags map[string]string) *metrics.ServerlessMetricAgent {
 	// we don't want to add the container_id tag to metrics for cardinality reasons
 	tags = tag.WithoutContainerID(tags)
 	tagArray := tag.GetBaseTagsArrayWithMetadataTags(tags)
-	metricAgent.Start(5*time.Second, &metrics.MetricConfig{}, &metrics.MetricDogStatsD{})
+	metricAgent.Start(5 * time.Second)
 	metricAgent.SetExtraTags(tagArray)
 	return metricAgent
 }

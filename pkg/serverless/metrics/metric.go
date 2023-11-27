@@ -27,42 +27,13 @@ type ServerlessMetricAgent struct {
 	SketchesBucketOffset time.Duration
 }
 
-// MetricConfig abstacts the config package
-type MetricConfig struct {
-}
-
-// MetricDogStatsD abstracts the DogStatsD package
-type MetricDogStatsD struct {
-}
-
-// MultipleEndpointConfig abstracts the config package
-type MultipleEndpointConfig interface {
-	GetMultipleEndpoints() (map[string][]string, error)
-}
-
-// DogStatsDFactory allows create a new DogStatsD server
-type DogStatsDFactory interface {
-	NewServer(aggregator.Demultiplexer) (dogstatsdServer.Component, error)
-}
-
 const (
 	statsDMetricBlocklistKey = "statsd_metric_blocklist"
 	proxyEnabledEnvVar       = "DD_EXPERIMENTAL_ENABLE_PROXY"
 )
 
-// GetMultipleEndpoints returns the api keys per domain specified in the main agent config
-func (m *MetricConfig) GetMultipleEndpoints() (map[string][]string, error) {
-	return utils.GetMultipleEndpoints(config.Datadog)
-}
-
-// NewServer returns a running DogStatsD server
-func (m *MetricDogStatsD) NewServer(demux aggregator.Demultiplexer) (dogstatsdServer.Component, error) {
-	s := dogstatsdServer.NewServerlessServer()
-	return s, s.Start(demux)
-}
-
 // Start starts the DogStatsD agent
-func (c *ServerlessMetricAgent) Start(forwarderTimeout time.Duration, multipleEndpointConfig MultipleEndpointConfig, dogstatFactory DogStatsDFactory) {
+func (c *ServerlessMetricAgent) Start(forwarderTimeout time.Duration) {
 	// prevents any UDP packets from being stuck in the buffer and not parsed during the current invocation
 	// by setting this option to 1ms, all packets received will directly be sent to the parser
 	config.Datadog.Set("dogstatsd_packet_buffer_flush_timeout", 1*time.Millisecond, model.SourceAgentRuntime)
@@ -77,10 +48,11 @@ func (c *ServerlessMetricAgent) Start(forwarderTimeout time.Duration, multipleEn
 	} else {
 		config.Datadog.Set(statsDMetricBlocklistKey, buildMetricBlocklist(customerList), model.SourceAgentRuntime)
 	}
-	demux := buildDemultiplexer(multipleEndpointConfig, forwarderTimeout)
+	demux := buildDemultiplexer(forwarderTimeout)
 
 	if demux != nil {
-		statsd, err := dogstatFactory.NewServer(demux)
+		statsd := dogstatsdServer.NewServerlessServer()
+		err := statsd.Start(demux)
 		if err != nil {
 			log.Errorf("Unable to start the DogStatsD server: %s", err)
 		} else {
@@ -122,9 +94,9 @@ func (c *ServerlessMetricAgent) GetExtraTags() []string {
 	return c.tags
 }
 
-func buildDemultiplexer(multipleEndpointConfig MultipleEndpointConfig, forwarderTimeout time.Duration) aggregator.Demultiplexer {
+func buildDemultiplexer(forwarderTimeout time.Duration) aggregator.Demultiplexer {
 	log.Debugf("Using a SyncForwarder with a %v timeout", forwarderTimeout)
-	keysPerDomain, err := multipleEndpointConfig.GetMultipleEndpoints()
+	keysPerDomain, err := utils.GetMultipleEndpoints(config.Datadog)
 	if err != nil {
 		log.Errorf("Misconfiguration of agent endpoints: %s", err)
 		return nil
