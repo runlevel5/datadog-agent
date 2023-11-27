@@ -151,7 +151,7 @@ platforms:
       service ssh reload
     <% end %>
     <% if al2022 || al2023 || fedora %>
-      sudo dnf install -y libxcrypt-compat
+      dnf install -y libxcrypt-compat
     <% end %>
   <% if (ENV['KITCHEN_CI_MOUNT_PATH'] && ENV['KITCHEN_CI_ROOT_PATH']) || al2022 || al2023 || fedora %>
   lifecycle:
