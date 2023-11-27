@@ -272,6 +272,11 @@ func InitConfig(config Config) {
 	config.BindEnvAndSetDefault("fips.https", true)
 	config.BindEnvAndSetDefault("fips.tls_verify", true)
 
+	// DR
+	config.BindEnvAndSetDefault("disaster_recovery.enabled", false)
+	config.BindEnv("disaster_recovery.api_key")
+	config.BindEnv("disaster_recovery.dd_url")
+
 	// Remote config
 	config.BindEnvAndSetDefault("remote_configuration.enabled", true)
 	config.BindEnvAndSetDefault("remote_configuration.key", "")

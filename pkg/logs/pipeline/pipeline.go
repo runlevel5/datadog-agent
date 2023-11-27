@@ -94,6 +94,7 @@ func (p *Pipeline) Flush(ctx context.Context) {
 func getDestinations(endpoints *config.Endpoints, destinationsContext *client.DestinationsContext, pipelineID int, serverless bool) *client.Destinations {
 	reliable := []client.Destination{}
 	additionals := []client.Destination{}
+	disasterRecovery := []client.Destination{}
 
 	if endpoints.UseHTTP {
 		for i, endpoint := range endpoints.GetReliableEndpoints() {
@@ -104,7 +105,11 @@ func getDestinations(endpoints *config.Endpoints, destinationsContext *client.De
 			telemetryName := fmt.Sprintf("logs_%d_unreliable_%d", pipelineID, i)
 			additionals = append(additionals, http.NewDestination(endpoint, http.JSONContentType, destinationsContext, endpoints.BatchMaxConcurrentSend, false, telemetryName))
 		}
-		return client.NewDestinations(reliable, additionals)
+		for i, endpoint := range endpoints.GetDisasterRecoveryEndpoints() {
+			telemetryName := fmt.Sprintf("logs_%d_dr_%d", pipelineID, i)
+			disasterRecovery = append(disasterRecovery, http.NewDestination(endpoint, http.JSONContentType, destinationsContext, endpoints.BatchMaxConcurrentSend, false, telemetryName))
+		}
+		return client.NewDestinations(reliable, additionals, disasterRecovery)
 	}
 	for _, endpoint := range endpoints.GetReliableEndpoints() {
 		reliable = append(reliable, tcp.NewDestination(endpoint, endpoints.UseProto, destinationsContext, !serverless))
@@ -112,8 +117,10 @@ func getDestinations(endpoints *config.Endpoints, destinationsContext *client.De
 	for _, endpoint := range endpoints.GetUnReliableEndpoints() {
 		additionals = append(additionals, tcp.NewDestination(endpoint, endpoints.UseProto, destinationsContext, false))
 	}
-
-	return client.NewDestinations(reliable, additionals)
+	for _, endpoint := range endpoints.GetDisasterRecoveryEndpoints() {
+		disasterRecovery = append(disasterRecovery, tcp.NewDestination(endpoint, endpoints.UseProto, destinationsContext, false))
+	}
+	return client.NewDestinations(reliable, additionals, disasterRecovery)
 }
 
 func getStrategy(inputChan chan *message.Message, outputChan chan *message.Payload, flushChan chan struct{}, endpoints *config.Endpoints, serverless bool, pipelineID int) sender.Strategy {

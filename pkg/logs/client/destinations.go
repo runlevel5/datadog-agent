@@ -7,14 +7,16 @@ package client
 
 // Destinations encapsulates a set of log destinations, distinguishing reliable vs unreliable destinations
 type Destinations struct {
-	Reliable   []Destination
-	Unreliable []Destination
+	Reliable         []Destination
+	Unreliable       []Destination
+	DisasterRecovery []Destination
 }
 
 // NewDestinations returns a new destinations composite.
-func NewDestinations(reliable []Destination, unreliable []Destination) *Destinations {
+func NewDestinations(reliable []Destination, unreliable []Destination, disasterRecovery []Destination) *Destinations {
 	return &Destinations{
-		Reliable:   reliable,
-		Unreliable: unreliable,
+		Reliable:         reliable,
+		Unreliable:       unreliable,
+		DisasterRecovery: disasterRecovery,
 	}
 }

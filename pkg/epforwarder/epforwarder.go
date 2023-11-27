@@ -391,7 +391,12 @@ func newHTTPPassthroughPipeline(desc passthroughPipelineDesc, destinationsContex
 		telemetryName := fmt.Sprintf("%s_%d_unreliable_%d", desc.eventType, pipelineID, i)
 		additionals = append(additionals, http.NewDestination(endpoint, desc.contentType, destinationsContext, endpoints.BatchMaxConcurrentSend, false, telemetryName))
 	}
-	destinations := client.NewDestinations(reliable, additionals)
+	disasterRecovery := []client.Destination{}
+	for i, endpoint := range endpoints.GetDisasterRecoveryEndpoints() {
+		telemetryName := fmt.Sprintf("%s_%d_dr_%d", desc.eventType, pipelineID, i)
+		disasterRecovery = append(disasterRecovery, http.NewDestination(endpoint, desc.contentType, destinationsContext, endpoints.BatchMaxConcurrentSend, false, telemetryName))
+	}
+	destinations := client.NewDestinations(reliable, additionals, disasterRecovery)
 	inputChan := make(chan *message.Message, endpoints.InputChanSize)
 	senderInput := make(chan *message.Payload, 1) // Only buffer 1 message since payloads can be large
 

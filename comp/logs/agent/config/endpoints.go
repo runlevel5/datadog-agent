@@ -42,6 +42,7 @@ type Endpoint struct {
 	CompressionLevel        int  `mapstructure:"compression_level" json:"compression_level"`
 	ProxyAddress            string
 	IsReliable              *bool `mapstructure:"is_reliable" json:"is_reliable"`
+	IsDisasterRecovery      *bool `mapstructure:"is_dr" json:"is_dr"`
 	ConnectionResetInterval time.Duration
 
 	BackoffFactor    float64
@@ -98,6 +99,10 @@ func (e *Endpoint) GetIsReliable() bool {
 	return e.IsReliable == nil || *e.IsReliable
 }
 
+func (e *Endpoint) GetIsDisasterRecovery() bool {
+	return e.IsDisasterRecovery != nil && *e.IsDisasterRecovery
+}
+
 // Endpoints holds the main endpoint and additional ones to dualship logs.
 type Endpoints struct {
 	Main                   Endpoint
@@ -120,14 +125,17 @@ func (e *Endpoints) GetStatus() []string {
 	for _, endpoint := range e.GetUnReliableEndpoints() {
 		result = append(result, endpoint.GetStatus("Unreliable: ", e.UseHTTP))
 	}
+	for _, endpoint := range e.GetDisasterRecoveryEndpoints() {
+		result = append(result, endpoint.GetStatus("DR: ", e.UseHTTP))
+	}
 	return result
 }
 
 // NewEndpoints returns a new endpoints composite with default batching settings
-func NewEndpoints(main Endpoint, additionalEndpoints []Endpoint, useProto bool, useHTTP bool) *Endpoints {
+func NewEndpoints(main Endpoint, additionalEndpoints []Endpoint, drEndpoints []Endpoint, useProto bool, useHTTP bool) *Endpoints {
 	return &Endpoints{
 		Main:                   main,
-		Endpoints:              append([]Endpoint{main}, additionalEndpoints...),
+		Endpoints:              append(append([]Endpoint{main}, additionalEndpoints...), drEndpoints...),
 		UseProto:               useProto,
 		UseHTTP:                useHTTP,
 		BatchWait:              config.DefaultBatchWait,
@@ -139,11 +147,11 @@ func NewEndpoints(main Endpoint, additionalEndpoints []Endpoint, useProto bool, 
 }
 
 // NewEndpointsWithBatchSettings returns a new endpoints composite with non-default batching settings specified
-func NewEndpointsWithBatchSettings(main Endpoint, additionalEndpoints []Endpoint, useProto bool, useHTTP bool, batchWait time.Duration, batchMaxConcurrentSend int, batchMaxSize int, batchMaxContentSize int, inputChanSize int) *Endpoints {
+func NewEndpointsWithBatchSettings(main Endpoint, additionalEndpoints []Endpoint, drEndpoints []Endpoint, useProto bool, useHTTP bool, batchWait time.Duration, batchMaxConcurrentSend int, batchMaxSize int, batchMaxContentSize int, inputChanSize int) *Endpoints {
 
 	return &Endpoints{
 		Main:                   main,
-		Endpoints:              append([]Endpoint{main}, additionalEndpoints...),
+		Endpoints:              append(append([]Endpoint{main}, additionalEndpoints...), drEndpoints...),
 		UseProto:               useProto,
 		UseHTTP:                useHTTP,
 		BatchWait:              batchWait,
@@ -159,7 +167,7 @@ func NewEndpointsWithBatchSettings(main Endpoint, additionalEndpoints []Endpoint
 func (e *Endpoints) GetReliableEndpoints() []Endpoint {
 	endpoints := []Endpoint{}
 	for _, endpoint := range e.Endpoints {
-		if endpoint.GetIsReliable() {
+		if endpoint.GetIsReliable() && !endpoint.GetIsDisasterRecovery() {
 			endpoints = append(endpoints, endpoint)
 		}
 	}
@@ -170,7 +178,18 @@ func (e *Endpoints) GetReliableEndpoints() []Endpoint {
 func (e *Endpoints) GetUnReliableEndpoints() []Endpoint {
 	endpoints := []Endpoint{}
 	for _, endpoint := range e.Endpoints {
-		if !endpoint.GetIsReliable() {
+		if !endpoint.GetIsReliable() && !endpoint.GetIsDisasterRecovery() {
+			endpoints = append(endpoints, endpoint)
+		}
+	}
+	return endpoints
+}
+
+// GetDisasterRecoveryEndpoints is TODO
+func (e *Endpoints) GetDisasterRecoveryEndpoints() []Endpoint {
+	endpoints := []Endpoint{}
+	for _, endpoint := range e.Endpoints {
+		if endpoint.GetIsDisasterRecovery() {
 			endpoints = append(endpoints, endpoint)
 		}
 	}

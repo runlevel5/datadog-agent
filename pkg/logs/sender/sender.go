@@ -9,9 +9,11 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/logs/client"
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 var (
@@ -63,6 +65,7 @@ func (s *Sender) run() {
 
 	sink := additionalDestinationsSink(s.bufferSize)
 	unreliableDestinations := buildDestinationSenders(s.destinations.Unreliable, sink, s.bufferSize)
+	drDestinations := buildDestinationSenders(s.destinations.DisasterRecovery, sink, s.bufferSize)
 
 	for payload := range s.inputChan {
 		var startInUse = time.Now()
@@ -99,6 +102,19 @@ func (s *Sender) run() {
 			if !destSender.NonBlockingSend(payload) {
 				tlmPayloadsDropped.Inc("false", strconv.Itoa(i))
 				tlmMessagesDropped.Add(float64(len(payload.Messages)), "false", strconv.Itoa(i))
+			}
+		}
+
+		// Send to disaster recovery destinations if DR is enabled
+		// Considered as unreliable for this PoC, but really should be reliable
+		if config.Datadog.GetBool("disaster_recovery.enabled") {
+			log.Error("datad0g disaster recovery enabled")
+
+			for i, destSender := range drDestinations {
+				if !destSender.NonBlockingSend(payload) {
+					tlmPayloadsDropped.Inc("true", strconv.Itoa(i))
+					tlmMessagesDropped.Add(float64(len(payload.Messages)), "false", strconv.Itoa(i))
+				}
 			}
 		}
 

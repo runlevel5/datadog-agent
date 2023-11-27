@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/config"
 	pkgConfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/utils"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -179,7 +180,26 @@ func buildTCPEndpoints(coreConfig pkgConfig.Reader, logsConfig *LogsConfigKeys) 
 		additionals[i].ProxyAddress = proxyAddress
 		additionals[i].APIKey = utils.SanitizeAPIKey(additionals[i].APIKey)
 	}
-	return NewEndpoints(main, additionals, useProto, false), nil
+
+	disasterRecovery := []Endpoint{}
+
+	if disasterRecoveryddURL := config.Datadog.GetString("disaster_recovery.dd_url"); disasterRecoveryddURL != "" {
+		host, port, err := parseAddress(disasterRecoveryddURL)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse %s: %v", disasterRecoveryddURL, err)
+		}
+		isDR := true
+		disasterRecovery = append(disasterRecovery, Endpoint{
+			Host:               host,
+			Port:               port,
+			UseSSL:             main.UseSSL,
+			APIKey:             utils.SanitizeAPIKey(config.Datadog.GetString("disaster_recovery.api_key")),
+			IsDisasterRecovery: &isDR,
+		})
+
+	}
+
+	return NewEndpoints(main, additionals, disasterRecovery, useProto, false), nil
 }
 
 // BuildHTTPEndpoints returns the HTTP endpoints to send logs to.
@@ -268,13 +288,33 @@ func BuildHTTPEndpointsWithConfig(coreConfig pkgConfig.Reader, logsConfig *LogsC
 		}
 	}
 
+	disasterRecovery := []Endpoint{}
+
+	if disasterRecoveryddURL := config.Datadog.GetString("disaster_recovery.dd_url"); disasterRecoveryddURL != "" {
+		host, port, err := parseAddress(disasterRecoveryddURL)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse %s: %v", disasterRecoveryddURL, err)
+		}
+
+		isDR := true
+
+		disasterRecovery = append(disasterRecovery, Endpoint{
+			Host:               host,
+			Port:               port,
+			UseSSL:             main.UseSSL,
+			APIKey:             utils.SanitizeAPIKey(config.Datadog.GetString("disaster_recovery.api_key")),
+			IsDisasterRecovery: &isDR,
+		})
+
+	}
+
 	batchWait := logsConfig.batchWait()
 	batchMaxConcurrentSend := logsConfig.batchMaxConcurrentSend()
 	batchMaxSize := logsConfig.batchMaxSize()
 	batchMaxContentSize := logsConfig.batchMaxContentSize()
 	inputChanSize := logsConfig.inputChanSize()
 
-	return NewEndpointsWithBatchSettings(main, additionals, false, true, batchWait, batchMaxConcurrentSend, batchMaxSize, batchMaxContentSize, inputChanSize), nil
+	return NewEndpointsWithBatchSettings(main, additionals, disasterRecovery, false, true, batchWait, batchMaxConcurrentSend, batchMaxSize, batchMaxContentSize, inputChanSize), nil
 }
 
 type defaultParseAddressFunc func(string) (host string, port int, err error)

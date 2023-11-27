@@ -40,7 +40,7 @@ func TestSender(t *testing.T) {
 	destinationsCtx.Start()
 
 	destination := tcp.AddrToDestination(l.Addr(), destinationsCtx)
-	destinations := client.NewDestinations([]client.Destination{destination}, nil)
+	destinations := client.NewDestinations([]client.Destination{destination}, nil, nil)
 
 	sender := NewSender(input, output, destinations, 0)
 	sender.Start()
@@ -66,7 +66,7 @@ func TestSenderSingleDestination(t *testing.T) {
 
 	server := http.NewTestServerWithOptions(200, 0, true, respondChan)
 
-	destinations := client.NewDestinations([]client.Destination{server.Destination}, nil)
+	destinations := client.NewDestinations([]client.Destination{server.Destination}, nil, nil)
 
 	sender := NewSender(input, output, destinations, 10)
 	sender.Start()
@@ -94,7 +94,7 @@ func TestSenderDualReliableDestination(t *testing.T) {
 	respondChan2 := make(chan int)
 	server2 := http.NewTestServerWithOptions(200, 0, true, respondChan2)
 
-	destinations := client.NewDestinations([]client.Destination{server1.Destination, server2.Destination}, nil)
+	destinations := client.NewDestinations([]client.Destination{server1.Destination, server2.Destination}, nil, nil)
 
 	sender := NewSender(input, output, destinations, 10)
 	sender.Start()
@@ -127,7 +127,7 @@ func TestSenderUnreliableAdditionalDestination(t *testing.T) {
 	respondChan2 := make(chan int)
 	server2 := http.NewTestServerWithOptions(200, 0, false, respondChan2)
 
-	destinations := client.NewDestinations([]client.Destination{server1.Destination}, []client.Destination{server2.Destination})
+	destinations := client.NewDestinations([]client.Destination{server1.Destination}, []client.Destination{server2.Destination}, nil)
 
 	sender := NewSender(input, output, destinations, 10)
 	sender.Start()
@@ -158,7 +158,7 @@ func TestSenderUnreliableStopsWhenMainFails(t *testing.T) {
 	unreliableRespond := make(chan int)
 	unreliableServer := http.NewTestServerWithOptions(200, 0, false, unreliableRespond)
 
-	destinations := client.NewDestinations([]client.Destination{reliableServer.Destination}, []client.Destination{unreliableServer.Destination})
+	destinations := client.NewDestinations([]client.Destination{reliableServer.Destination}, []client.Destination{unreliableServer.Destination}, nil)
 
 	sender := NewSender(input, output, destinations, 10)
 	sender.Start()
@@ -205,7 +205,7 @@ func TestSenderReliableContinuseWhenOneFails(t *testing.T) {
 	reliableRespond2 := make(chan int)
 	reliableServer2 := http.NewTestServerWithOptions(200, 0, false, reliableRespond2)
 
-	destinations := client.NewDestinations([]client.Destination{reliableServer1.Destination, reliableServer2.Destination}, nil)
+	destinations := client.NewDestinations([]client.Destination{reliableServer1.Destination, reliableServer2.Destination}, nil, nil)
 
 	sender := NewSender(input, output, destinations, 10)
 	sender.Start()
@@ -249,7 +249,7 @@ func TestSenderReliableWhenOneFailsAndRecovers(t *testing.T) {
 	reliableRespond2 := make(chan int)
 	reliableServer2 := http.NewTestServerWithOptions(200, 0, false, reliableRespond2)
 
-	destinations := client.NewDestinations([]client.Destination{reliableServer1.Destination, reliableServer2.Destination}, nil)
+	destinations := client.NewDestinations([]client.Destination{reliableServer1.Destination, reliableServer2.Destination}, nil, nil)
 
 	sender := NewSender(input, output, destinations, 10)
 	sender.Start()
