@@ -62,7 +62,7 @@ const (
 	parserTailCall                   = "socket__http2_frames_parser"
 	eventStream                      = "http2"
 	terminatedConnectionsEventStream = "terminated_http2"
-	telemetryMap                     = "http2_telemetry"
+	TelemetryMap                     = "http2_telemetry"
 )
 
 var Spec = &protocols.ProtocolSpec{
@@ -220,7 +220,7 @@ func (p *protocol) PostStart(mgr *manager.Manager) error {
 }
 
 func (p *protocol) updateKernelTelemetry(mgr *manager.Manager) {
-	mp, _, err := mgr.GetMap(telemetryMap)
+	mp, _, err := mgr.GetMap(TelemetryMap)
 	if err != nil {
 		log.Warnf("unable to get http2 telemetry map: %s", err)
 		return

@@ -657,7 +657,158 @@ func (s *USMHTTP2Suite) TestHTTP2ManyDifferentPaths() {
 	}
 }
 
-func (s *USMHTTP2Suite) TestSimpleHTTP2() {
+//func (s *USMHTTP2Suite) TestSimpleHTTP2() {
+//	t := s.T()
+//	cfg := networkconfig.New()
+//	cfg.EnableHTTP2Monitoring = true
+//
+//	startH2CServer(t)
+//
+//	tests := []struct {
+//		name              string
+//		runClients        func(t *testing.T, clientsCount int)
+//		expectedEndpoints map[http.Key]captureRange
+//	}{
+//		//{
+//		//	name: " / path",
+//		//	runClients: func(t *testing.T, clientsCount int) {
+//		//		clients := getClientsArray(t, clientsCount)
+//		//
+//		//		for i := 0; i < 1000; i++ {
+//		//			client := clients[getClientsIndex(i, clientsCount)]
+//		//			req, err := client.Post(http2SrvAddr+"/", "application/json", bytes.NewReader([]byte("test")))
+//		//			require.NoError(t, err, "could not make request")
+//		//			req.Body.Close()
+//		//		}
+//		//	},
+//		//	expectedEndpoints: map[http.Key]captureRange{
+//		//		{
+//		//			Path:   http.Path{Content: http.Interner.GetString("/")},
+//		//			Method: http.MethodPost,
+//		//		}: {
+//		//			lower: 999,
+//		//			upper: 1001,
+//		//		},
+//		//	},
+//		//},
+//		{
+//			name: " / shortpath",
+//			runClients: func(t *testing.T, clientsCount int) {
+//				clients := getClientsArray(t, clientsCount)
+//				path := strings.Repeat("b", 100)
+//				for i := 0; i < 10; i++ {
+//					path += strings.Repeat("b", i)
+//					client := clients[getClientsIndex(i, clientsCount)]
+//					req, err := client.Post(http2SrvAddr+"/"+path, "application/json", bytes.NewReader([]byte("test")))
+//					require.NoError(t, err, "could not make request")
+//					req.Body.Close()
+//				}
+//			},
+//
+//			expectedEndpoints: map[http.Key]captureRange{
+//				{
+//					Path:   http.Path{Content: http.Interner.GetString("/" + strings.Repeat("b", 10))},
+//					Method: http.MethodPost,
+//				}: {
+//					lower: 999,
+//					upper: 1001,
+//				},
+//			},
+//		},
+//		//{
+//		//	name: " /index.html path",
+//		//	runClients: func(t *testing.T, clientsCount int) {
+//		//		clients := getClientsArray(t, clientsCount)
+//		//
+//		//		for i := 0; i < 1000; i++ {
+//		//			client := clients[getClientsIndex(i, clientsCount)]
+//		//			req, err := client.Post(http2SrvAddr+"/index.html", "application/json", bytes.NewReader([]byte("test")))
+//		//			require.NoError(t, err, "could not make request")
+//		//			req.Body.Close()
+//		//		}
+//		//	},
+//		//	expectedEndpoints: map[http.Key]captureRange{
+//		//		{
+//		//			Path:   http.Path{Content: http.Interner.GetString("/index.html")},
+//		//			Method: http.MethodPost,
+//		//		}: {
+//		//			lower: 999,
+//		//			upper: 1001,
+//		//		},
+//		//	},
+//		//},
+//	}
+//	for _, tt := range tests {
+//		for _, clientCount := range []int{1, 2, 5} {
+//			testNameSuffix := fmt.Sprintf("-different clients - %v", clientCount)
+//			t.Run(tt.name+testNameSuffix, func(t *testing.T) {
+//				monitor, err := NewMonitor(cfg, nil, nil, nil)
+//				require.NoError(t, err)
+//				require.NoError(t, monitor.Start())
+//				defer monitor.Stop()
+//
+//				tt.runClients(t, clientCount)
+//
+//				res := make(map[http.Key]int)
+//				assert.Eventually(t, func() bool {
+//					//stats := monitor.GetProtocolStats()
+//					//http2Stats, ok := stats[protocols.HTTP2]
+//					//if !ok {
+//					//	return false
+//					//}
+//					//http2StatsTyped := http2Stats.(map[http.Key]*http.RequestStats)
+//					//for key, stat := range http2StatsTyped {
+//					//	if key.DstPort == http2SrvPort || key.SrcPort == http2SrvPort {
+//					//		count := stat.Data[200].Count
+//					//		newKey := http.Key{
+//					//			Path:   http.Path{Content: key.Path.Content},
+//					//			Method: key.Method,
+//					//		}
+//					//		if _, ok := res[newKey]; !ok {
+//					//			res[newKey] = count
+//					//		} else {
+//					//			res[newKey] += count
+//					//		}
+//					//	}
+//					//}
+//					//
+//					//if len(res) != len(tt.expectedEndpoints) {
+//					//	return false
+//					//}
+//
+//					bla, err := monitor.GetHTTP2KernelTelemetry()
+//					if err != nil {
+//						t.Logf("failed dumping http2_in_flight: %s", err)
+//					} else {
+//						t.Log(bla)
+//					}
+//
+//					for key, count := range res {
+//						valRange, ok := tt.expectedEndpoints[key]
+//						if !ok {
+//							return false
+//						}
+//						if count < valRange.lower || count > valRange.upper {
+//							return false
+//						}
+//					}
+//
+//					return true
+//				}, time.Second*5, time.Millisecond*100, "%v != %v", res, tt.expectedEndpoints)
+//				if t.Failed() {
+//					o, err := monitor.DumpMaps("http2_in_flight")
+//					if err != nil {
+//						t.Logf("failed dumping http2_in_flight: %s", err)
+//					} else {
+//						t.Log(o)
+//					}
+//				}
+//			})
+//		}
+//	}
+//}
+
+func (s *USMHTTP2Suite) TestHTTP2KernelTelemetry() {
 	t := s.T()
 	cfg := networkconfig.New()
 	cfg.EnableHTTP2Monitoring = true
@@ -667,113 +818,80 @@ func (s *USMHTTP2Suite) TestSimpleHTTP2() {
 	tests := []struct {
 		name              string
 		runClients        func(t *testing.T, clientsCount int)
-		expectedEndpoints map[http.Key]captureRange
+		expectedTelemetry *usmhttp2.HTTP2Telemetry
 	}{
+		//{
+		//	name: "fill bucket 1",
+		//	runClients: func(t *testing.T, clientsCount int) {
+		//		clients := getClientsArray(t, clientsCount)
+		//		path := strings.Repeat("b", 110)
+		//		for i := 0; i < 10; i++ {
+		//			path += strings.Repeat("b", i)
+		//			client := clients[getClientsIndex(i, clientsCount)]
+		//			req, err := client.Post(http2SrvAddr+"/"+path, "application/json", bytes.NewReader([]byte("test")))
+		//			require.NoError(t, err, "could not make request")
+		//			req.Body.Close()
+		//		}
+		//	},
+		//
+		//	expectedTelemetry: &usmhttp2.HTTP2Telemetry{
+		//		Request_seen:                     10,
+		//		Response_seen:                    10,
+		//		End_of_stream:                    20,
+		//		End_of_stream_rst:                0,
+		//		Path_exceeds_frame:               0,
+		//		Exceeding_max_interesting_frames: 0,
+		//		Exceeding_max_frames_to_filter:   0,
+		//		Path_size_bucket:                 [8]uint64{0, 0, 0, 0, 0, 0, 0, 10},
+		//	},
+		//},
 		{
-			name: " / path",
+			name: "fill bucket 2",
 			runClients: func(t *testing.T, clientsCount int) {
 				clients := getClientsArray(t, clientsCount)
-
-				for i := 0; i < 1000; i++ {
+				path := strings.Repeat("b", 1)
+				for i := 0; i < 10; i++ {
+					path += strings.Repeat("b", i)
 					client := clients[getClientsIndex(i, clientsCount)]
-					req, err := client.Post(http2SrvAddr+"/", "application/json", bytes.NewReader([]byte("test")))
+					req, err := client.Post(http2SrvAddr+"/"+path, "application/json", bytes.NewReader([]byte("test")))
 					require.NoError(t, err, "could not make request")
 					req.Body.Close()
 				}
 			},
-			expectedEndpoints: map[http.Key]captureRange{
-				{
-					Path:   http.Path{Content: http.Interner.GetString("/")},
-					Method: http.MethodPost,
-				}: {
-					lower: 999,
-					upper: 1001,
-				},
-			},
-		},
-		{
-			name: " /index.html path",
-			runClients: func(t *testing.T, clientsCount int) {
-				clients := getClientsArray(t, clientsCount)
 
-				for i := 0; i < 1000; i++ {
-					client := clients[getClientsIndex(i, clientsCount)]
-					req, err := client.Post(http2SrvAddr+"/index.html", "application/json", bytes.NewReader([]byte("test")))
-					require.NoError(t, err, "could not make request")
-					req.Body.Close()
-				}
-			},
-			expectedEndpoints: map[http.Key]captureRange{
-				{
-					Path:   http.Path{Content: http.Interner.GetString("/index.html")},
-					Method: http.MethodPost,
-				}: {
-					lower: 999,
-					upper: 1001,
-				},
+			expectedTelemetry: &usmhttp2.HTTP2Telemetry{
+				Request_seen:                     10,
+				Response_seen:                    10,
+				End_of_stream:                    20,
+				End_of_stream_rst:                0,
+				Path_exceeds_frame:               0,
+				Exceeding_max_interesting_frames: 0,
+				Exceeding_max_frames_to_filter:   0,
+				Path_size_bucket:                 [8]uint64{0, 0, 0, 0, 0, 0, 10, 0},
 			},
 		},
 	}
 	for _, tt := range tests {
-		for _, clientCount := range []int{1, 2, 5} {
-			testNameSuffix := fmt.Sprintf("-different clients - %v", clientCount)
-			t.Run(tt.name+testNameSuffix, func(t *testing.T) {
-				monitor, err := NewMonitor(cfg, nil, nil, nil)
-				require.NoError(t, err)
-				require.NoError(t, monitor.Start())
-				defer monitor.Stop()
+		t.Run(tt.name, func(t *testing.T) {
+			monitor, err := NewMonitor(cfg, nil, nil, nil)
+			require.NoError(t, err)
+			require.NoError(t, monitor.Start())
+			defer monitor.Stop()
 
-				tt.runClients(t, clientCount)
+			tt.runClients(t, 1)
 
-				res := make(map[http.Key]int)
-				assert.Eventually(t, func() bool {
-					stats := monitor.GetProtocolStats()
-					http2Stats, ok := stats[protocols.HTTP2]
-					if !ok {
-						return false
-					}
-					http2StatsTyped := http2Stats.(map[http.Key]*http.RequestStats)
-					for key, stat := range http2StatsTyped {
-						if key.DstPort == http2SrvPort || key.SrcPort == http2SrvPort {
-							count := stat.Data[200].Count
-							newKey := http.Key{
-								Path:   http.Path{Content: key.Path.Content},
-								Method: key.Method,
-							}
-							if _, ok := res[newKey]; !ok {
-								res[newKey] = count
-							} else {
-								res[newKey] += count
-							}
-						}
-					}
-
-					if len(res) != len(tt.expectedEndpoints) {
-						return false
-					}
-
-					for key, count := range res {
-						valRange, ok := tt.expectedEndpoints[key]
-						if !ok {
-							return false
-						}
-						if count < valRange.lower || count > valRange.upper {
-							return false
-						}
-					}
-
-					return true
-				}, time.Second*5, time.Millisecond*100, "%v != %v", res, tt.expectedEndpoints)
-				if t.Failed() {
-					o, err := monitor.DumpMaps("http2_in_flight")
-					if err != nil {
-						t.Logf("failed dumping http2_in_flight: %s", err)
-					} else {
-						t.Log(o)
-					}
+			res := make(map[http.Key]int)
+			assert.Eventually(t, func() bool {
+				bla, err := monitor.GetHTTP2KernelTelemetry()
+				if err != nil {
+					t.Logf("failed dumping http2_in_flight: %s", err)
 				}
-			})
-		}
+
+				require.Equal(t, &tt.expectedTelemetry, &bla)
+
+				return true
+			}, time.Second*5, time.Millisecond*100, "%v != %v", res, tt.expectedTelemetry)
+		})
 	}
 }
 

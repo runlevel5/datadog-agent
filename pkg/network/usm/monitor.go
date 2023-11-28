@@ -10,8 +10,10 @@ package usm
 import (
 	"errors"
 	"fmt"
+	"github.com/DataDog/datadog-agent/pkg/network/protocols/http2"
 	"syscall"
 	"time"
+	"unsafe"
 
 	"github.com/cilium/ebpf"
 	"go.uber.org/atomic"
@@ -193,4 +195,22 @@ func (m *Monitor) Stop() {
 // DumpMaps dumps the maps associated with the monitor
 func (m *Monitor) DumpMaps(maps ...string) (string, error) {
 	return m.ebpfProgram.DumpMaps(maps...)
+}
+
+// GetHTTP2KernelTelemetry returns the HTTP2 kernel telemetry
+func (m *Monitor) GetHTTP2KernelTelemetry() (*http2.HTTP2Telemetry, error) {
+	http2Telemetry := &http2.HTTP2Telemetry{}
+	var zero uint32
+
+	mp, _, err := m.ebpfProgram.Manager.GetMap(http2.TelemetryMap)
+	if err != nil {
+		log.Errorf("unable to get http2 telemetry map: %s", err)
+		return nil, err
+	}
+
+	if err := mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(http2Telemetry)); err != nil {
+		log.Errorf("unable to lookup http2 telemetry map: %s", err)
+		return nil, err
+	}
+	return http2Telemetry, nil
 }

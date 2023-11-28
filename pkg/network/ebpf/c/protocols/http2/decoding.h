@@ -122,6 +122,7 @@ static __always_inline void update_path_size_telemetry(http2_telemetry_t *http2_
     __s64 bucket_idx = (size - HTTP2_TELEMETRY_MAX_PATH_LEN) / HTTP2_TELEMETRY_PATH_BUCKETS_SIZE;
     bucket_idx = bucket_idx > HTTP2_TELEMETRY_PATH_BUCKETS ? HTTP2_TELEMETRY_PATH_BUCKETS : bucket_idx;
     bucket_idx = bucket_idx < 0 ? 0 : bucket_idx;
+//    bpf_printk("tasik");
 
     __sync_fetch_and_add(&http2_tel->path_size_bucket[bucket_idx], 1);
 }
