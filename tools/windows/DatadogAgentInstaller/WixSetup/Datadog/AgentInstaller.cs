@@ -310,6 +310,16 @@ namespace WixSetup.Datadog
                         .First(x => x.HasAttribute("Id", value => value == "MainApplication"))
                         .AddElement("MergeRef", "Id=ddprocmoninstall");
                 }
+
+                document
+                    .FindAll("Directory")
+                    .Where(d => d.Attribute("Id")!.Value.StartsWith("__pycache__"))
+                    .Remove();
+
+                document
+                    .FindAll("ComponentRef")
+                    .Where(d => d.Attribute("Id")!.Value.StartsWith("Component.__pycache__"))
+                    .Remove();
             };
             project.WixSourceFormated += (ref string content) => WixSourceFormated?.Invoke(content);
             project.WixSourceSaved += name => WixSourceSaved?.Invoke(name);
