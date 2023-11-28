@@ -14,7 +14,10 @@ import (
 	"syscall"
 	"time"
 
+	"go.uber.org/fx"
+
 	logConfig "github.com/DataDog/datadog-agent/comp/logs/agent/config"
+	"github.com/DataDog/datadog-agent/comp/serverless/serverlessmetric/serverlessmetricimpl"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/model"
 	configUtils "github.com/DataDog/datadog-agent/pkg/config/utils"
@@ -71,8 +74,14 @@ const (
 )
 
 func main() {
+	metricAgentParams := &serverlessmetricimpl.Params{
+		SketchesBucketOffset: time.Second * 10,
+	}
+
 	// run the agent
-	err := fxutil.OneShot(runAgent)
+	err := fxutil.OneShot(runAgent,
+		fx.Supply(metricAgentParams),
+		serverlessmetricimpl.Module)
 
 	if err != nil {
 		log.Error(err)
@@ -80,7 +89,7 @@ func main() {
 	}
 }
 
-func runAgent() (err error) {
+func runAgent(serverlessMetricAgent *serverlessmetricimpl.ServerlessMetricAgent) (err error) {
 
 	startTime := time.Now()
 
@@ -204,7 +213,8 @@ func runAgent() (err error) {
 		SketchesBucketOffset: time.Second * 10,
 	}
 	metricAgent.Start(daemon.FlushTimeout)
-	serverlessDaemon.SetStatsdServer(metricAgent)
+	serverlessDaemon.SetStatsdServer(serverlessMetricAgent)
+	test := serverlessMetricAgent.Demux
 	serverlessDaemon.SetupLogCollectionHandler(logsAPICollectionRoute, logChannel, config.Datadog.GetBool("serverless.logs_enabled"), config.Datadog.GetBool("enhanced_metrics"), lambdaInitMetricChan)
 
 	// Concurrently start heavyweight features

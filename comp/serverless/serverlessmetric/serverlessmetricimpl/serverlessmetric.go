@@ -64,8 +64,7 @@ type dependencies struct {
 	fx.In
 	Lc fx.Lifecycle
 
-	DogStatsDServer dogstatsdServer.Component
-	Params          Params
+	Params Params
 }
 
 // ServerlessMetricAgent represents the DogStatsD server and the aggregator
@@ -94,7 +93,6 @@ func newServerlessMetricAgent(deps dependencies) serverlessmetric.Component {
 
 	serverlessMetricAgent := &ServerlessMetricAgent{
 		Demux:                buildDemultiplexer(deps.Params.SketchesBucketOffset),
-		dogStatsDServer:      deps.DogStatsDServer,
 		sketchesBucketOffset: deps.Params.SketchesBucketOffset,
 		tags:                 []string{},
 	}

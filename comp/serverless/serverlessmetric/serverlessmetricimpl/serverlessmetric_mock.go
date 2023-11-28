@@ -10,8 +10,13 @@ package serverlessmetricimpl
 import (
 	"go.uber.org/fx"
 
+	"github.com/DataDog/datadog-agent/comp/serverless/serverlessmetric"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
+
+func newMock() serverlessmetric.Component {
+	return nil
+}
 
 // MockModule defines the fx options for the mock component.
 var MockModule = fxutil.Component(
