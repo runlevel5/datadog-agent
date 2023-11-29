@@ -105,7 +105,7 @@ func origTypeToBasicType(kind string) string {
 
 func isBasicType(kind string) bool {
 	switch kind {
-	case "string", "bool", "int", "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "net.IPNet":
+	case "string", "bool", "int", "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "net.IPNet", "eval.Packet":
 		return true
 	}
 	return false
@@ -828,6 +828,8 @@ func getDefaultValueOfType(returnType string) string {
 			return "[]time.Time{}"
 		}
 		return "time.Time{}"
+	} else if baseType == "eval.Packet" {
+		return "&zeroPacketEvent"
 	} else {
 		if isArray {
 			return "[]string{}"
