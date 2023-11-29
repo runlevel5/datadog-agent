@@ -597,12 +597,12 @@ type BaseExtraFieldHandlers interface {
 }
 
 // ResolveProcessCacheEntry stub implementation
-func (dfh *DefaultFieldHandlers) ResolveProcessCacheEntry(ev *Event) (*ProcessCacheEntry, bool) {
+func (dfh *DefaultFieldHandlers) ResolveProcessCacheEntry(_ *Event) (*ProcessCacheEntry, bool) {
 	return nil, false
 }
 
 // ResolveContainerContext stub implementation
-func (dfh *DefaultFieldHandlers) ResolveContainerContext(ev *Event) (*ContainerContext, bool) {
+func (dfh *DefaultFieldHandlers) ResolveContainerContext(_ *Event) (*ContainerContext, bool) {
 	return nil, false
 }
 
@@ -612,7 +612,7 @@ func (dfh *DefaultFieldHandlers) ResolveEventTime(ev *Event) time.Time {
 }
 
 // GetProcessService stub implementation
-func (dfh *DefaultFieldHandlers) GetProcessService(ev *Event) string {
+func (dfh *DefaultFieldHandlers) GetProcessService(_ *Event) string {
 	return ""
 }
 
