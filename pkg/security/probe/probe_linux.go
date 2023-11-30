@@ -49,6 +49,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/probe/eventstream/ringbuffer"
 	"github.com/DataDog/datadog-agent/pkg/security/probe/kfilters"
 	"github.com/DataDog/datadog-agent/pkg/security/probe/managerhelper"
+	"github.com/DataDog/datadog-agent/pkg/security/probe/packet"
 	"github.com/DataDog/datadog-agent/pkg/security/resolvers"
 	"github.com/DataDog/datadog-agent/pkg/security/resolvers/mount"
 	"github.com/DataDog/datadog-agent/pkg/security/resolvers/netns"
@@ -93,6 +94,7 @@ type PlatformProbe struct {
 	// internals
 	monitors        *Monitors
 	profileManagers *SecurityProfileManagers
+	packetManager   *packet.Manager
 
 	// Ring
 	eventStream EventStream
@@ -289,6 +291,12 @@ func (p *Probe) Init() error {
 	if err != nil {
 		return err
 	}
+
+	flowPidMap, err := managerhelper.Map(p.Manager, "flow_pid")
+	if err != nil {
+		return err
+	}
+	p.packetManager = packet.NewManager(p.ctx, flowPidMap, NewEvent(p.fieldHandlers), p.DispatchEvent)
 
 	return nil
 }
@@ -1415,6 +1423,13 @@ func (p *Probe) ApplyRuleSet(rs *rules.RuleSet) (*kfilters.ApplyRuleSetReport, e
 	}
 
 	for eventType, report := range ars.Policies {
+		et := config.ParseEvalEventType(eventType)
+		if et == model.UnknownEventType {
+			return nil, errors.New("unable to parse the eval event type")
+		}
+		if et > model.LastEventType {
+			continue
+		}
 		if err := p.ApplyFilterPolicy(eventType, report.Mode, report.Flags); err != nil {
 			return nil, err
 		}
@@ -1448,6 +1463,16 @@ func (p *Probe) ApplyRuleSet(rs *rules.RuleSet) (*kfilters.ApplyRuleSetReport, e
 		if err := p.monitors.syscallsMonitor.Enable(); err != nil {
 			return nil, err
 		}
+	}
+
+	var pktFilterExpressions []string
+	for _, rule := range rs.GetRules() {
+		if slices.Contains(rule.GetEvaluator().EventTypes, model.PacketEventType.String()) && rule.GetEvaluator().PacketFilter != nil {
+			pktFilterExpressions = append(pktFilterExpressions, rule.GetEvaluator().PacketFilter.GetExpression())
+		}
+	}
+	if err := p.PlatformProbe.packetManager.UpdatePacketFilter(pktFilterExpressions); err != nil {
+		return nil, err
 	}
 
 	return ars, nil

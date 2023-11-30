@@ -189,7 +189,7 @@ func (m *Manager) start(tpacket *afpacket.TPacket) {
 				event.Packet.Packet = packet
 
 				// TODO: ipv6 pid resolution
-				var pid uint32
+				pid := uint32(0)
 				networkFlowType := packet.NetworkLayer().NetworkFlow().EndpointType()
 				transportFlowType := packet.TransportLayer().TransportFlow().EndpointType()
 				if networkFlowType == layers.EndpointIPv4 && (transportFlowType == layers.EndpointUDPPort || transportFlowType == layers.EndpointTCPPort) {
