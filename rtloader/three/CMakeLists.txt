@@ -1,12 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-find_package (Python3 COMPONENTS Interpreter Development)
-
-if(Python3_VERSION_MINOR LESS "7")
-  message(
-    FATAL_ERROR
-    "Python3 version found is too old: found ${Python3_EXECUTABLE} (version \"${Python3_VERSION}\"), minimum required version is 3.7"
-  )
-endif()
+pkg_check_modules(Python3 REQUIRED "python3 >= 3.11")
 
 project(datadog-agent-three VERSION 0.1.0 DESCRIPTION "CPython backend for the Datadog Agent")
 

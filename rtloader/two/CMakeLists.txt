@@ -1,12 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-find_package (Python2 COMPONENTS Interpreter Development)
-
-if(Python2_VERSION_MINOR LESS "7")
-  message(
-    FATAL_ERROR
-    "Python2 version found is too old: found ${Python2_EXECUTABLE} (version \"${Python2_VERSION}\"), minimum required version is 2.7"
-  )
-endif()
+pkg_check_modules(Python2 REQUIRED "python2 >= 2.7")
 
 project(datadog-agent-two VERSION 0.1.0 DESCRIPTION "CPython backend for the Datadog Agent")
 
