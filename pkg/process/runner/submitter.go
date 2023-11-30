@@ -131,7 +131,7 @@ func NewSubmitter(config config.Component, log log.Component, forwarders forward
 		return nil, err
 	}
 
-	podForwarderOpts := forwarder.NewOptionsWithResolvers(config, log, resolver.NewSingleDomainResolvers(apicfg.KeysPerDomains(orchestrator.OrchestratorEndpoints)))
+	podForwarderOpts := forwarder.NewOptionsWithResolvers(config, log, resolver.NewSingleDomainResolvers(apicfg.KeysPerDomains(orchestrator.OrchestratorEndpoints), false))
 	podForwarderOpts.DisableAPIKeyChecking = true
 	podForwarderOpts.RetryQueuePayloadsTotalMaxSize = queueBytes // Allow more in-flight requests than the default
 	podForwarder := forwarder.NewDefaultForwarder(config, log, podForwarderOpts)

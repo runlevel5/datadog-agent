@@ -108,8 +108,7 @@ func (s *Sender) run() {
 		// Send to disaster recovery destinations if DR is enabled
 		// Considered as unreliable for this PoC, but really should be reliable
 		if config.Datadog.GetBool("disaster_recovery.enabled") {
-			log.Error("datad0g disaster recovery enabled")
-
+			log.Info("Disaster recovery logs endpoint active") // For demo :) let's remove it later
 			for i, destSender := range drDestinations {
 				if !destSender.NonBlockingSend(payload) {
 					tlmPayloadsDropped.Inc("true", strconv.Itoa(i))

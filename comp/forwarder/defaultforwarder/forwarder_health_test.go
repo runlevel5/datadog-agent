@@ -36,7 +36,7 @@ func TestHasValidAPIKey(t *testing.T) {
 	}
 	log := fxutil.Test[log.Component](t, log.MockModule)
 	cfg := fxutil.Test[config.Component](t, config.MockModule)
-	fh := forwarderHealth{log: log, config: cfg, domainResolvers: resolver.NewSingleDomainResolvers(keysPerDomains)}
+	fh := forwarderHealth{log: log, config: cfg, domainResolvers: resolver.NewSingleDomainResolvers(keysPerDomains, false)}
 	fh.init()
 	assert.True(t, fh.hasValidAPIKey())
 
@@ -76,7 +76,7 @@ func TestComputeDomainsURL(t *testing.T) {
 		sort.Strings(keys)
 	}
 	log := fxutil.Test[log.Component](t, log.MockModule)
-	fh := forwarderHealth{log: log, domainResolvers: resolver.NewSingleDomainResolvers(keysPerDomains)}
+	fh := forwarderHealth{log: log, domainResolvers: resolver.NewSingleDomainResolvers(keysPerDomains, false)}
 	fh.init()
 
 	// lexicographical sort for assert

@@ -62,7 +62,7 @@ func (sender *diagnoseSenderManager) LazyGetSenderManager() (sender.SenderManage
 
 	log := sender.deps.Log
 	config := sender.deps.Config
-	forwarder := defaultforwarder.NewDefaultForwarder(config, log, defaultforwarder.NewOptions(config, log, nil))
+	forwarder := defaultforwarder.NewDefaultForwarder(config, log, defaultforwarder.NewOptions(config, log, nil, nil))
 	senderManager = aggregator.InitAndStartAgentDemultiplexer(
 		log,
 		forwarder,

@@ -183,7 +183,7 @@ func buildTCPEndpoints(coreConfig pkgConfig.Reader, logsConfig *LogsConfigKeys) 
 
 	disasterRecovery := []Endpoint{}
 
-	if disasterRecoveryddURL := config.Datadog.GetString("disaster_recovery.dd_url"); disasterRecoveryddURL != "" {
+	if disasterRecoveryddURL := config.Datadog.GetString("disaster_recovery.logs.dd_url"); disasterRecoveryddURL != "" {
 		host, port, err := parseAddress(disasterRecoveryddURL)
 		if err != nil {
 			return nil, fmt.Errorf("could not parse %s: %v", disasterRecoveryddURL, err)
@@ -290,7 +290,7 @@ func BuildHTTPEndpointsWithConfig(coreConfig pkgConfig.Reader, logsConfig *LogsC
 
 	disasterRecovery := []Endpoint{}
 
-	if disasterRecoveryddURL := config.Datadog.GetString("disaster_recovery.dd_url"); disasterRecoveryddURL != "" {
+	if disasterRecoveryddURL := config.Datadog.GetString("disaster_recovery.logs.dd_url"); disasterRecoveryddURL != "" {
 		host, port, err := parseAddress(disasterRecoveryddURL)
 		if err != nil {
 			return nil, fmt.Errorf("could not parse %s: %v", disasterRecoveryddURL, err)

@@ -120,8 +120,11 @@ func ToggleFeature(features, flag Features) Features { return features ^ flag }
 func HasFeature(features, flag Features) bool { return features&flag != 0 }
 
 // NewOptions creates new Options with default values
-func NewOptions(config config.Component, log log.Component, keysPerDomain map[string][]string) *Options {
-	resolvers := resolver.NewSingleDomainResolvers(keysPerDomain)
+func NewOptions(config config.Component, log log.Component, keysPerDomain map[string][]string, drKeys map[string][]string) *Options {
+	resolvers := resolver.NewSingleDomainResolvers(keysPerDomain, false)
+	for name, resolver := range resolver.NewSingleDomainResolvers(drKeys, true) {
+		resolvers[name] = resolver
+	}
 	vectorMetricsURL, err := pkgconfig.GetObsPipelineURL(pkgconfig.Metrics)
 	if err != nil {
 		log.Error("Misconfiguration of agent observability_pipelines_worker endpoint for metrics: ", err)
@@ -440,6 +443,12 @@ func (f *DefaultForwarder) createAdvancedHTTPTransactions(endpoint transaction.E
 
 	for _, payload := range payloads {
 		for domain, dr := range f.domainResolvers {
+			if dr.IsDisasterRecovery() && !f.config.GetBool("disaster_recovery.enabled") {
+				continue
+			}
+			if dr.IsDisasterRecovery() && f.config.GetBool("disaster_recovery.enabled") {
+				f.log.Info("Disaster recovery forwarder endpoint(s) active") // For demo :) let's remove it later
+			}
 			for _, apiKey := range dr.GetAPIKeys() {
 				t := transaction.NewHTTPTransaction()
 				t.Domain, _ = dr.Resolve(endpoint)

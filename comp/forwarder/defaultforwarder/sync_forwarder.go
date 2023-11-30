@@ -27,11 +27,11 @@ type SyncForwarder struct {
 }
 
 // NewSyncForwarder returns a new synchronous forwarder.
-func NewSyncForwarder(config config.Component, log log.Component, keysPerDomain map[string][]string, timeout time.Duration) *SyncForwarder {
+func NewSyncForwarder(config config.Component, log log.Component, keysPerDomain map[string][]string, drKeys map[string][]string, timeout time.Duration) *SyncForwarder {
 	return &SyncForwarder{
 		config:           config,
 		log:              log,
-		defaultForwarder: NewDefaultForwarder(config, log, NewOptions(config, log, keysPerDomain)),
+		defaultForwarder: NewDefaultForwarder(config, log, NewOptions(config, log, keysPerDomain, drKeys)),
 		client: &http.Client{
 			Timeout:   timeout,
 			Transport: utilhttp.CreateHTTPTransport(config),

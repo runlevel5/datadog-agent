@@ -56,7 +56,7 @@ func diagnose(diagCfg diagnosis.Config, _ sender.DiagnoseSenderManager) []diagno
 	}
 
 	var diagnoses []diagnosis.Diagnosis
-	domainResolvers := resolver.NewSingleDomainResolvers(keysPerDomain)
+	domainResolvers := resolver.NewSingleDomainResolvers(keysPerDomain, false)
 	client := forwarder.NewHTTPClient(config.Datadog)
 
 	// Create diagnosis for logs

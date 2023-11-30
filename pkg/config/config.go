@@ -276,6 +276,7 @@ func InitConfig(config Config) {
 	config.BindEnvAndSetDefault("disaster_recovery.enabled", false)
 	config.BindEnv("disaster_recovery.api_key")
 	config.BindEnv("disaster_recovery.dd_url")
+	config.BindEnv("disaster_recovery.logs.dd_url")
 
 	// Remote config
 	config.BindEnvAndSetDefault("remote_configuration.enabled", true)

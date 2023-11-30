@@ -36,27 +36,31 @@ type DomainResolver interface {
 	GetAlternateDomains() []string
 	// SetBaseDomain sets the base domain to a new value
 	SetBaseDomain(domain string)
+	// IsDisasterRecovery returns whether the resolver is to be used on disaster recovery
+	IsDisasterRecovery() bool
 }
 
 // SingleDomainResolver will always return the same host
 type SingleDomainResolver struct {
-	domain  string
-	apiKeys []string
+	domain             string
+	apiKeys            []string
+	isDisasterRecovery bool
 }
 
 // NewSingleDomainResolver creates a SingleDomainResolver with its destination domain & API keys
-func NewSingleDomainResolver(domain string, apiKeys []string) *SingleDomainResolver {
+func NewSingleDomainResolver(domain string, apiKeys []string, isDR bool) *SingleDomainResolver {
 	return &SingleDomainResolver{
-		domain,
-		apiKeys,
+		domain:             domain,
+		apiKeys:            apiKeys,
+		isDisasterRecovery: isDR,
 	}
 }
 
 // NewSingleDomainResolvers converts a map of domain/api keys into a map of SingleDomainResolver
-func NewSingleDomainResolvers(keysPerDomain map[string][]string) map[string]DomainResolver {
+func NewSingleDomainResolvers(keysPerDomain map[string][]string, isDR bool) map[string]DomainResolver {
 	resolvers := make(map[string]DomainResolver)
 	for domain, keys := range keysPerDomain {
-		resolvers[domain] = NewSingleDomainResolver(domain, keys)
+		resolvers[domain] = NewSingleDomainResolver(domain, keys, isDR)
 	}
 	return resolvers
 }
@@ -86,6 +90,10 @@ func (r *SingleDomainResolver) GetAlternateDomains() []string {
 	return []string{}
 }
 
+func (r *SingleDomainResolver) IsDisasterRecovery() bool {
+	return r.isDisasterRecovery
+}
+
 type destination struct {
 	domain string
 	dType  DestinationType
@@ -97,15 +105,17 @@ type MultiDomainResolver struct {
 	apiKeys             []string
 	overrides           map[string]destination
 	alternateDomainList []string
+	isDisasterRecovery  bool
 }
 
 // NewMultiDomainResolver initializes a MultiDomainResolver with its API keys and base destination
-func NewMultiDomainResolver(baseDomain string, apiKeys []string) *MultiDomainResolver {
+func NewMultiDomainResolver(baseDomain string, apiKeys []string, isDR bool) *MultiDomainResolver {
 	return &MultiDomainResolver{
-		baseDomain,
-		apiKeys,
-		make(map[string]destination),
-		[]string{},
+		baseDomain:          baseDomain,
+		apiKeys:             apiKeys,
+		overrides:           make(map[string]destination),
+		alternateDomainList: []string{},
+		isDisasterRecovery:  isDR,
 	}
 }
 
@@ -137,6 +147,10 @@ func (r *MultiDomainResolver) GetAlternateDomains() []string {
 	return r.alternateDomainList
 }
 
+func (r *MultiDomainResolver) IsDisasterRecovery() bool {
+	return r.isDisasterRecovery
+}
+
 // RegisterAlternateDestination adds an alternate destination to a MultiDomainResolver.
 // The resolver will match transaction.Endpoint.Name against forwarderName to check if the request shall
 // be diverted.
@@ -156,7 +170,7 @@ func (r *MultiDomainResolver) RegisterAlternateDestination(domain string, forwar
 
 // NewDomainResolverWithMetricToVector initialize a resolver with metrics diverted to a vector endpoint
 func NewDomainResolverWithMetricToVector(mainEndpoint string, apiKeys []string, vectorEndpoint string) *MultiDomainResolver {
-	r := NewMultiDomainResolver(mainEndpoint, apiKeys)
+	r := NewMultiDomainResolver(mainEndpoint, apiKeys, false)
 	r.RegisterAlternateDestination(vectorEndpoint, endpoints.V1SeriesEndpoint.Name, Vector)
 	r.RegisterAlternateDestination(vectorEndpoint, endpoints.SeriesEndpoint.Name, Vector)
 	r.RegisterAlternateDestination(vectorEndpoint, endpoints.SketchSeriesEndpoint.Name, Vector)

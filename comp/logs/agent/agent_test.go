@@ -149,7 +149,7 @@ func (suite *AgentTestSuite) TestAgentTcp() {
 	defer l.Close()
 
 	endpoint := tcp.AddrToEndPoint(l.Addr())
-	endpoints := config.NewEndpoints(endpoint, nil, true, false)
+	endpoints := config.NewEndpoints(endpoint, nil, nil, true, false)
 
 	suite.testAgent(endpoints)
 }
@@ -157,14 +157,14 @@ func (suite *AgentTestSuite) TestAgentTcp() {
 func (suite *AgentTestSuite) TestAgentHttp() {
 	server := http.NewTestServer(200)
 	defer server.Stop()
-	endpoints := config.NewEndpoints(server.Endpoint, nil, false, true)
+	endpoints := config.NewEndpoints(server.Endpoint, nil, nil, false, true)
 
 	suite.testAgent(endpoints)
 }
 
 func (suite *AgentTestSuite) TestAgentStopsWithWrongBackendTcp() {
 	endpoint := config.Endpoint{Host: "fake:", Port: 0}
-	endpoints := config.NewEndpoints(endpoint, []config.Endpoint{}, true, false)
+	endpoints := config.NewEndpoints(endpoint, []config.Endpoint{}, []config.Endpoint{}, true, false)
 
 	coreConfig.SetFeatures(suite.T(), coreConfig.Docker, coreConfig.Kubernetes)
 
@@ -196,7 +196,7 @@ func (suite *AgentTestSuite) TestGetPipelineProvider() {
 	defer l.Close()
 
 	endpoint := tcp.AddrToEndPoint(l.Addr())
-	endpoints := config.NewEndpoints(endpoint, nil, true, false)
+	endpoints := config.NewEndpoints(endpoint, nil, nil, true, false)
 
 	agent, _, _ := createAgent(suite, endpoints)
 	agent.Start()

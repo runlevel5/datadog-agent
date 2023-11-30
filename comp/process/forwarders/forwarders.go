@@ -62,7 +62,12 @@ func newForwarders(deps dependencies) (Component, error) {
 }
 
 func createParams(config config.Component, log log.Component, queueBytes int, endpoints []apicfg.Endpoint) defaultforwarder.Params {
-	forwarderOpts := defaultforwarder.NewOptionsWithResolvers(config, log, resolver.NewSingleDomainResolvers(apicfg.KeysPerDomains(endpoints)))
+	resolvers := resolver.NewSingleDomainResolvers(apicfg.KeysPerDomains(endpoints), false)
+	drDomain := config.GetString("disaster_recovery.dd_url")
+	drAPIKey := config.GetString("disaster_recovery.api_key")
+	resolvers[drDomain] = resolver.NewSingleDomainResolver(drDomain, []string{drAPIKey}, true)
+
+	forwarderOpts := defaultforwarder.NewOptionsWithResolvers(config, log, resolvers)
 	forwarderOpts.DisableAPIKeyChecking = true
 	forwarderOpts.RetryQueuePayloadsTotalMaxSize = queueBytes // Allow more in-flight requests than the default
 	return defaultforwarder.Params{Options: forwarderOpts}

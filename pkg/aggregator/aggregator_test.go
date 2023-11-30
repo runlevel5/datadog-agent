@@ -72,7 +72,7 @@ func getAggregator() *BufferedAggregator {
 	opts.FlushInterval = 1 * time.Hour
 	opts.DontStartForwarders = true
 	log := log.NewTemporaryLoggerWithoutInit()
-	forwarder := defaultforwarder.NewDefaultForwarder(pkgconfig.Datadog, log, defaultforwarder.NewOptions(pkgconfig.Datadog, log, nil))
+	forwarder := defaultforwarder.NewDefaultForwarder(pkgconfig.Datadog, log, defaultforwarder.NewOptions(pkgconfig.Datadog, log, nil, nil))
 	demux := InitAndStartAgentDemultiplexer(log, forwarder, opts, defaultHostname)
 
 	demux.Aggregator().tlmContainerTagsEnabled = false // do not use a ContainerImpl

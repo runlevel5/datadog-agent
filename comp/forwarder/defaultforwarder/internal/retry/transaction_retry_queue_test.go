@@ -183,7 +183,7 @@ func newOnDiskRetryQueueTest(t *testing.T, a *assert.Assertions) *onDiskRetryQue
 	log := fxutil.Test[log.Component](t, log.MockModule)
 	q, err := newOnDiskRetryQueue(
 		log,
-		NewHTTPTransactionsSerializer(log, resolver.NewSingleDomainResolver("", nil)),
+		NewHTTPTransactionsSerializer(log, resolver.NewSingleDomainResolver("", nil, false)),
 		path,
 		diskUsageLimit,
 		newOnDiskRetryQueueTelemetry("domain"),

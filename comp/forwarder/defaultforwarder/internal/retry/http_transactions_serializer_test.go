@@ -26,11 +26,11 @@ const domain = "domain"
 const vectorDomain = "vectorDomain"
 
 func TestHTTPSerializeDeserialize(t *testing.T) {
-	r := resolver.NewSingleDomainResolver(domain, []string{apiKey1, apiKey2})
+	r := resolver.NewSingleDomainResolver(domain, []string{apiKey1, apiKey2}, false)
 	runTestHTTPSerializeDeserializeWithResolver(t, domain, r)
 }
 func TestHTTPSerializeDeserializeWithResolverOverride(t *testing.T) {
-	r := resolver.NewMultiDomainResolver(domain, []string{apiKey1, apiKey2})
+	r := resolver.NewMultiDomainResolver(domain, []string{apiKey1, apiKey2}, false)
 	r.RegisterAlternateDestination(vectorDomain, "name", resolver.Vector)
 	runTestHTTPSerializeDeserializeWithResolver(t, vectorDomain, r)
 }
@@ -65,7 +65,7 @@ func TestPartialDeserialize(t *testing.T) {
 	a := assert.New(t)
 	initialTransaction := createHTTPTransactionTests(domain)
 	log := fxutil.Test[log.Component](t, log.MockModule)
-	serializer := NewHTTPTransactionsSerializer(log, resolver.NewSingleDomainResolver(domain, nil))
+	serializer := NewHTTPTransactionsSerializer(log, resolver.NewSingleDomainResolver(domain, nil, false))
 
 	a.NoError(serializer.Add(initialTransaction))
 	a.NoError(serializer.Add(initialTransaction))
@@ -87,7 +87,7 @@ func TestPartialDeserialize(t *testing.T) {
 func TestHTTPTransactionSerializerMissingAPIKey(t *testing.T) {
 	r := require.New(t)
 	log := fxutil.Test[log.Component](t, log.MockModule)
-	serializer := NewHTTPTransactionsSerializer(log, resolver.NewSingleDomainResolver(domain, []string{apiKey1, apiKey2}))
+	serializer := NewHTTPTransactionsSerializer(log, resolver.NewSingleDomainResolver(domain, []string{apiKey1, apiKey2}, false))
 
 	r.NoError(serializer.Add(createHTTPTransactionWithHeaderTests(http.Header{"Key": []string{apiKey1}}, domain)))
 	r.NoError(serializer.Add(createHTTPTransactionWithHeaderTests(http.Header{"Key": []string{apiKey2}}, domain)))
@@ -98,7 +98,7 @@ func TestHTTPTransactionSerializerMissingAPIKey(t *testing.T) {
 	r.NoError(err)
 	r.Equal(0, errorCount)
 
-	serializerMissingAPIKey := NewHTTPTransactionsSerializer(log, resolver.NewSingleDomainResolver(domain, []string{apiKey1}))
+	serializerMissingAPIKey := NewHTTPTransactionsSerializer(log, resolver.NewSingleDomainResolver(domain, []string{apiKey1}, false))
 	_, errorCount, err = serializerMissingAPIKey.Deserialize(bytes)
 	r.NoError(err)
 	r.Equal(1, errorCount)

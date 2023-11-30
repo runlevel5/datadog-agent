@@ -135,7 +135,7 @@ func newTestOnDiskRetryQueue(t *testing.T, a *assert.Assertions, path string, ma
 		}}
 	diskUsageLimit := NewDiskUsageLimit("", disk, maxSizeInBytes, 1)
 	log := fxutil.Test[log.Component](t, log.MockModule)
-	storage, err := newOnDiskRetryQueue(log, NewHTTPTransactionsSerializer(log, resolver.NewSingleDomainResolver(domainName, nil)), path, diskUsageLimit, telemetry, NewPointCountTelemetryMock())
+	storage, err := newOnDiskRetryQueue(log, NewHTTPTransactionsSerializer(log, resolver.NewSingleDomainResolver(domainName, nil, false)), path, diskUsageLimit, telemetry, NewPointCountTelemetryMock())
 	a.NoError(err)
 	return storage
 }

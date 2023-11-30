@@ -24,7 +24,7 @@ func benchmarkAddBucket(bucketValue int64, b *testing.B) {
 	// For some reasons using InitAggregator[WithInterval] doesn't fix the problem,
 	// but this do.
 	log := fxutil.Test[log.Component](b, log.MockModule)
-	forwarderOpts := forwarder.NewOptionsWithResolvers(config.Datadog, log, resolver.NewSingleDomainResolvers(map[string][]string{"hello": {"world"}}))
+	forwarderOpts := forwarder.NewOptionsWithResolvers(config.Datadog, log, resolver.NewSingleDomainResolvers(map[string][]string{"hello": {"world"}}, false))
 	options := DefaultAgentDemultiplexerOptions()
 	options.DontStartForwarders = true
 	sharedForwarder := forwarder.NewDefaultForwarder(config.Datadog, log, forwarderOpts)

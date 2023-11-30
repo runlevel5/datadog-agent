@@ -21,12 +21,18 @@ type Params struct {
 }
 
 func NewParams(config config.Component, log log.Component) Params {
-	return Params{Options: NewOptions(config, log, getMultipleEndpoints(config, log))}
+	drDomain := pkgconfig.Datadog.GetString("disaster_recovery.dd_url")
+	drAPIKey := pkgconfig.Datadog.GetString("disaster_recovery.api_key")
+	return Params{Options: NewOptions(config, log, getMultipleEndpoints(config, log), map[string][]string{drDomain: {drAPIKey}})}
 }
 
 func NewParamsWithResolvers(config config.Component, log log.Component) Params {
 	keysPerDomain := getMultipleEndpoints(config, log)
-	return Params{Options: NewOptionsWithResolvers(config, log, resolver.NewSingleDomainResolvers(keysPerDomain))}
+	resolvers := resolver.NewSingleDomainResolvers(keysPerDomain, false)
+	drDomain := pkgconfig.Datadog.GetString("disaster_recovery.dd_url")
+	drAPIKey := pkgconfig.Datadog.GetString("disaster_recovery.api_key")
+	resolvers[drDomain] = resolver.NewSingleDomainResolver(drDomain, []string{drAPIKey}, true)
+	return Params{Options: NewOptionsWithResolvers(config, log, resolvers)}
 }
 
 func getMultipleEndpoints(_ config.Component, log log.Component) map[string][]string {
