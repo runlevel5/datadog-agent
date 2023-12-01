@@ -42,6 +42,8 @@ if ohai["platform"] != "windows"
     # 2.0 is the license version here, not the python version
     license "Python-2.0"
 
+    patch source: "0001-disable-multiarch.patch"
+
     # We need to build a native python executable which will be used
     # when cross compiling python immediatly after.
     # Since both python version *must* be identical, it's easier to manage
