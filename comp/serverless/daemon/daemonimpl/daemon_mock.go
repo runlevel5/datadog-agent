@@ -76,4 +76,5 @@ func (d *Daemon) GetTellDaemonRuntimeDoneOnce() *sync.Once {
 // SetInvocationProcessor sets the value for InvocationProcessor
 func (d *Daemon) SetInvocationProcessor(m invocationlifecycle.InvocationProcessor) {
 	d.InvocationProcessor = m
+	// testing
 }
