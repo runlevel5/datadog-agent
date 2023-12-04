@@ -11,7 +11,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
-// team: serverless-agent
+// team: serverless
 
 // Bundle defines the fx options for this bundle.
 var Bundle = fxutil.Bundle(

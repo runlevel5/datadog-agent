@@ -16,7 +16,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/serverless/registration"
 )
 
-// team: serverless-agent
+// team: serverless
 
 // Component is the component type.
 type Component interface {
