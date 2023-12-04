@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/cilium/ebpf"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/afpacket"
 	"github.com/google/gopacket/layers"
@@ -26,6 +27,7 @@ import (
 
 const (
 	captureLen = 65536
+	netnsIno   = 4026531840
 )
 
 type state int
@@ -41,6 +43,7 @@ type Manager struct {
 	mu sync.Mutex
 
 	ctx                           context.Context
+	flowPidMap                    *ebpf.Map
 	state                         state
 	stateChan                     chan state
 	stopChan                      chan struct{}
@@ -53,14 +56,33 @@ type Manager struct {
 	pktBytesCaptured *atomic.Uint64
 }
 
+type flowPidKey struct {
+	netns uint32
+	addr  []byte
+	port  []byte
+}
+
+func (k *flowPidKey) write(buffer []byte) {
+	copy(buffer[0:], k.addr)
+	model.ByteOrder.PutUint32(buffer[16:20], k.netns)
+	copy(buffer[20:], k.port)
+}
+
+func (k *flowPidKey) MarshalBinary() ([]byte, error) {
+	if len(k.addr) != 4 && len(k.addr) != 16 {
+		return nil, fmt.Errorf("invalid address length: %d", len(k.addr))
+	}
+	bytes := make([]byte, 24)
+	k.write(bytes)
+	return bytes, nil
+}
+
 // NewManager returns a new Manager
-func NewManager(ctx context.Context, eventStub *model.Event, onPacketEvent func(*model.Event)) *Manager {
+func NewManager(ctx context.Context, flowPidMap *ebpf.Map, eventStub *model.Event, onPacketEvent func(*model.Event)) *Manager {
 	eventStub.Type = uint32(model.PacketEventType)
-	entry, _ := eventStub.FieldHandlers.ResolveProcessCacheEntry(eventStub)
-	eventStub.ProcessCacheEntry = entry
-	eventStub.ProcessContext = &eventStub.ProcessCacheEntry.ProcessContext
 	return &Manager{
 		ctx:              ctx,
+		flowPidMap:       flowPidMap,
 		state:            stateInit,
 		stateChan:        make(chan state),
 		stopChan:         make(chan struct{}),
@@ -115,6 +137,23 @@ func (m *Manager) Stop() {
 	m.stop()
 }
 
+func (m *Manager) resolvePid(netns uint32, addr []byte, port []byte) uint32 {
+	key := flowPidKey{
+		netns: netns,
+		addr:  addr,
+		port:  port,
+	}
+	var pid uint32
+	if err := m.flowPidMap.Lookup(&key, &pid); err == nil {
+		return pid
+	}
+	key.addr = make([]byte, len(addr))
+	if err := m.flowPidMap.Lookup(&key, &pid); err == nil {
+		return pid
+	}
+	return 0
+}
+
 func (m *Manager) start(tpacket *afpacket.TPacket) {
 	packetSource := gopacket.NewPacketSource(tpacket, layers.LayerTypeEthernet)
 	packetSource.NoCopy = true
@@ -144,9 +183,31 @@ func (m *Manager) start(tpacket *afpacket.TPacket) {
 
 				m.pktCaptured.Inc()
 				m.pktBytesCaptured.Add(uint64(metadata.CaptureInfo.Length))
-				m.eventStub.Timestamp = metadata.CaptureInfo.Timestamp
-				m.eventStub.Packet.Packet = packet
-				m.onPacketEvent(m.eventStub)
+
+				event := m.eventStub
+				event.Timestamp = metadata.CaptureInfo.Timestamp
+				event.Packet.Packet = packet
+
+				// TODO: ipv6 pid resolution
+				var pid uint32
+				networkFlowType := packet.NetworkLayer().NetworkFlow().EndpointType()
+				transportFlowType := packet.TransportLayer().TransportFlow().EndpointType()
+				if networkFlowType == layers.EndpointIPv4 && (transportFlowType == layers.EndpointUDPPort || transportFlowType == layers.EndpointTCPPort) {
+					ipv4Src, ipv4Dst := packet.NetworkLayer().NetworkFlow().Endpoints()
+					transportSrc, transportDst := packet.TransportLayer().TransportFlow().Endpoints()
+					pid = m.resolvePid(netnsIno, ipv4Src.Raw(), transportSrc.Raw())
+					if pid == 0 {
+						pid = m.resolvePid(netnsIno, ipv4Dst.Raw(), transportDst.Raw())
+					}
+				}
+
+				event.PIDContext.Pid = pid
+				event.PIDContext.Tid = pid
+				entry, _ := event.FieldHandlers.ResolveProcessCacheEntry(event)
+				event.ProcessCacheEntry = entry
+				event.ProcessContext = &event.ProcessCacheEntry.ProcessContext
+
+				m.onPacketEvent(event)
 			}
 		}
 	}()

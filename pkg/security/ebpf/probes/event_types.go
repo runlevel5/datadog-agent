@@ -440,6 +440,15 @@ func GetSelectorsPerEventType(fentry bool) map[eval.EventType][]manager.ProbesSe
 				kprobeOrFentry("security_socket_bind", fentry),
 			}},
 		},
+
+		// List of probes required to handle packet events
+		"packet": {
+			&manager.AllOf{Selectors: []manager.ProbesSelector{
+				&manager.AllOf{Selectors: NetworkSelectors(fentry)},
+				&manager.AllOf{Selectors: NetworkVethSelectors(fentry)},
+				kprobeOrFentry("security_socket_bind", fentry),
+			}},
+		},
 	}
 
 	// add probes depending on loaded modules
