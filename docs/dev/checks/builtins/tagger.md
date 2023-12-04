@@ -5,7 +5,7 @@
 > [dedicated docs](https://datadog-checks-base.readthedocs.io/en/latest/) for
 > more details.
 
-The module exposes [tagger](/pkg/tagger) functionalities to Python integrations.
+The module exposes [tagger](/comp/core/tagger) functionalities to Python integrations.
 
 ## Implementation
 
