@@ -289,23 +289,25 @@ func BuildHTTPEndpointsWithConfig(coreConfig pkgConfig.Reader, logsConfig *LogsC
 	}
 
 	disasterRecovery := []Endpoint{}
-
-	if disasterRecoveryddURL := config.Datadog.GetString("ha.logs.dd_url"); disasterRecoveryddURL != "" {
-		host, port, err := parseAddress(disasterRecoveryddURL)
+	if config.Datadog.GetBool("ha.enabled") {
+		addr := utils.GetMainHAEndpoint(coreConfig, endpointPrefix, logsConfig.getConfigKey("ha.logs.dd_url"))
+		host, port, useSSL, err := parseAddressWithScheme(addr, logsConfig.devModeNoSSL(), parseAddressAsHost)
 		if err != nil {
-			return nil, fmt.Errorf("could not parse %s: %v", disasterRecoveryddURL, err)
+			return nil, fmt.Errorf("could not parse %s: %v", addr, err)
+		}
+
+		if !config.Datadog.IsSet("ha.api_key") {
+			return nil, fmt.Errorf("ha.api_key is not set")
 		}
 
 		isDR := true
-
 		disasterRecovery = append(disasterRecovery, Endpoint{
 			Host:               host,
 			Port:               port,
-			UseSSL:             main.UseSSL,
+			UseSSL:             useSSL,
 			APIKey:             utils.SanitizeAPIKey(config.Datadog.GetString("ha.api_key")),
 			IsDisasterRecovery: &isDR,
 		})
-
 	}
 
 	batchWait := logsConfig.batchWait()

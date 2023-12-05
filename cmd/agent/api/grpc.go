@@ -42,6 +42,7 @@ type serverSecure struct {
 	taggerServer       *taggerserver.Server
 	workloadmetaServer *workloadmetaServer.Server
 	configService      *remoteconfig.Service
+	configServiceHA    *remoteconfig.Service
 	dogstatsdServer    dogstatsdServer.Component
 	capture            dsdReplay.Component
 }
@@ -132,6 +133,22 @@ func (s *serverSecure) GetConfigState(ctx context.Context, e *emptypb.Empty) (*p
 		return nil, rcNotInitializedErr
 	}
 	return s.configService.ConfigGetState()
+}
+
+func (s *serverSecure) ClientGetConfigsHA(ctx context.Context, in *pb.ClientGetConfigsRequest) (*pb.ClientGetConfigsResponse, error) {
+	if s.configServiceHA == nil {
+		log.Debug(rcNotInitializedErr.Error())
+		return nil, rcNotInitializedErr
+	}
+	return s.configServiceHA.ClientGetConfigs(ctx, in)
+}
+
+func (s *serverSecure) GetConfigStateHA(ctx context.Context, e *emptypb.Empty) (*pb.GetStateConfigResponse, error) {
+	if s.configServiceHA == nil {
+		log.Debug(rcNotInitializedErr.Error())
+		return nil, rcNotInitializedErr
+	}
+	return s.configServiceHA.ConfigGetState()
 }
 
 // WorkloadmetaStreamEntities streams entities from the workloadmeta store applying the given filter

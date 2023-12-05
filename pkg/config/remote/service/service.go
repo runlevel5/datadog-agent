@@ -33,6 +33,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config/remote/meta"
 	"github.com/DataDog/datadog-agent/pkg/config/remote/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/config/remote/uptane"
+	"github.com/DataDog/datadog-agent/pkg/config/utils"
 	configUtils "github.com/DataDog/datadog-agent/pkg/config/utils"
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/DataDog/datadog-agent/pkg/util/backoff"
@@ -134,6 +135,26 @@ func init() {
 
 // NewService instantiates a new remote configuration management service
 func NewService() (*Service, error) {
+	apiKey := config.Datadog.GetString("api_key")
+	if config.Datadog.IsSet("remote_configuration.api_key") {
+		apiKey = config.Datadog.GetString("remote_configuration.api_key")
+	}
+	runPath := config.Datadog.GetString("run_path")
+	baseRawURL := utils.GetMainEndpoint(config.Datadog, "https://config.", "remote_configuration.rc_dd_url")
+
+	return newService(apiKey, runPath, baseRawURL)
+}
+
+// NewHAService instantiates a new remote configuration management service for HA
+func NewHAService() (*Service, error) {
+	apiKey := config.Datadog.GetString("ha.api_key")
+	runPath := config.Datadog.GetString("ha.run_path")
+	baseRawURL := utils.GetMainHAEndpoint(config.Datadog, "https://config.", "ha.rc_dd_url")
+
+	return newService(apiKey, runPath, baseRawURL)
+}
+
+func newService(apiKey string, runPath string, baseRawURL string) (*Service, error) {
 	refreshIntervalOverrideAllowed := false // If a user provides a value we don't want to override
 
 	var refreshInterval time.Duration
@@ -178,17 +199,13 @@ func NewService() (*Service, error) {
 	backoffPolicy := backoff.NewExpBackoffPolicy(minBackoffFactor, baseBackoffTime,
 		maxBackoffTime.Seconds(), recoveryInterval, recoveryReset)
 
-	apiKey := config.Datadog.GetString("api_key")
-	if config.Datadog.IsSet("remote_configuration.api_key") {
-		apiKey = config.Datadog.GetString("remote_configuration.api_key")
-	}
 	apiKey = configUtils.SanitizeAPIKey(apiKey)
 	rcKey := config.Datadog.GetString("remote_configuration.key")
 	authKeys, err := getRemoteConfigAuthKeys(apiKey, rcKey)
 	if err != nil {
 		return nil, err
 	}
-	http, err := api.NewHTTPClient(authKeys.apiAuth())
+	http, err := api.NewHTTPClient(baseRawURL, authKeys.apiAuth())
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +213,7 @@ func NewService() (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	dbPath := path.Join(config.Datadog.GetString("run_path"), "remote-config.db")
+	dbPath := path.Join(runPath, "remote-config.db")
 	db, err := openCacheDB(dbPath)
 	if err != nil {
 		return nil, err

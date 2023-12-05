@@ -110,9 +110,25 @@ func GetMainEndpoint(c config.Reader, prefix string, ddURLKey string) string {
 	return prefix + config.DefaultSite
 }
 
+// GetMainHAEndpoint returns the main DD URL defined in the config, based on `site` and the prefix, or ddURLKey
+func GetMainHAEndpoint(c config.Reader, prefix string, ddURLKey string) string {
+	// value under ddURLKey takes precedence over 'site'
+	if c.IsSet(ddURLKey) && c.GetString(ddURLKey) != "" {
+		return getResolvedDDUrl(c, ddURLKey)
+	} else if c.GetString("ha.site") != "" {
+		return prefix + strings.TrimSpace(c.GetString("ha.site"))
+	}
+	return prefix + config.DefaultSite
+}
+
 // GetInfraEndpoint returns the main DD Infra URL defined in config, based on the value of `site` and `dd_url`
 func GetInfraEndpoint(c config.Reader) string {
 	return GetMainEndpoint(c, infraURLPrefix, "dd_url")
+}
+
+// GetInfraHAEndpoint returns the main DD Infra URL defined in config, based on the value of `site` and `dd_url`
+func GetInfraHAEndpoint(c config.Reader) string {
+	return GetMainHAEndpoint(c, infraURLPrefix, "ha.dd_url")
 }
 
 // ddURLRegexp determines if an URL belongs to Datadog or not. If the URL belongs to Datadog it's prefixed with the Agent

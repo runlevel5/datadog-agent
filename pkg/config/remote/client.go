@@ -43,9 +43,7 @@ const (
 
 // ConfigUpdater defines the interface that an agent client uses to get config updates
 // from the core remote-config service
-type ConfigUpdater interface {
-	ClientGetConfigs(context.Context, *pbgo.ClientGetConfigsRequest) (*pbgo.ClientGetConfigsResponse, error)
-}
+type ConfigUpdater func(context.Context, *pbgo.ClientGetConfigsRequest) (*pbgo.ClientGetConfigsResponse, error)
 
 // Client is a remote-configuration client to obtain configurations from the local API
 type Client struct {
@@ -70,7 +68,7 @@ type Client struct {
 	backoffPolicy     backoff.Policy
 	backoffErrorCount int
 
-	updater ConfigUpdater
+	getClientConfigs ConfigUpdater
 
 	state *state.Repository
 
@@ -115,6 +113,24 @@ func (g *agentGRPCConfigFetcher) ClientGetConfigs(ctx context.Context, request *
 	return g.client.ClientGetConfigs(ctx, request)
 }
 
+// ClientGetConfigsHA implements the ConfigUpdater interface for agentGRPCConfigFetcher
+func (g *agentGRPCConfigFetcher) ClientGetConfigsHA(ctx context.Context, request *pbgo.ClientGetConfigsRequest) (*pbgo.ClientGetConfigsResponse, error) {
+	// When communicating with the core service via grpc, the auth token is handled
+	// by the core-agent, which runs independently. It's not guaranteed it starts before us,
+	// or that if it restarts that the auth token remains the same. Thus we need to do this every request.
+	token, err := security.FetchAuthToken()
+	if err != nil {
+		return nil, errors.Wrap(err, "could not acquire agent auth token")
+	}
+	md := metadata.MD{
+		"authorization": []string{fmt.Sprintf("Bearer %s", token)},
+	}
+
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	return g.client.ClientGetConfigsHA(ctx, request)
+}
+
 // NewClient creates a new client
 func NewClient(agentName string, updater ConfigUpdater, agentVersion string, products []data.Product, pollInterval time.Duration) (*Client, error) {
 	return newClient(agentName, updater, true, agentVersion, products, pollInterval)
@@ -127,7 +143,7 @@ func NewGRPCClient(agentName string, agentVersion string, products []data.Produc
 		return nil, err
 	}
 
-	return newClient(agentName, grpcClient, true, agentVersion, products, pollInterval)
+	return newClient(agentName, grpcClient.ClientGetConfigs, true, agentVersion, products, pollInterval)
 }
 
 // NewUnverifiedGRPCClient creates a new client that does not perform any TUF verification
@@ -137,7 +153,17 @@ func NewUnverifiedGRPCClient(agentName string, agentVersion string, products []d
 		return nil, err
 	}
 
-	return newClient(agentName, grpcClient, false, agentVersion, products, pollInterval)
+	return newClient(agentName, grpcClient.ClientGetConfigs, false, agentVersion, products, pollInterval)
+}
+
+// NewHAGRPCClient creates a new client that does not perform any TUF verification and is used for HA
+func NewHAGRPCClient(agentName string, agentVersion string, products []data.Product, pollInterval time.Duration) (*Client, error) {
+	grpcClient, err := NewAgentGRPCConfigFetcher()
+	if err != nil {
+		return nil, err
+	}
+
+	return newClient(agentName, grpcClient.ClientGetConfigsHA, false, agentVersion, products, pollInterval)
 }
 
 func newClient(agentName string, updater ConfigUpdater, doTufVerification bool, agentVersion string, products []data.Product, pollInterval time.Duration) (*Client, error) {
@@ -184,21 +210,21 @@ func newClient(agentName string, updater ConfigUpdater, doTufVerification bool, 
 	ctx, close := context.WithCancel(context.Background())
 
 	return &Client{
-		ID:            generateID(),
-		startupSync:   sync.Once{},
-		ctx:           ctx,
-		close:         close,
-		agentName:     agentName,
-		agentVersion:  agentVersion,
-		clusterName:   clusterName,
-		clusterID:     clusterID,
-		cwsWorkloads:  make([]string, 0),
-		products:      data.ProductListToString(products),
-		state:         repository,
-		pollInterval:  pollInterval,
-		backoffPolicy: backoffPolicy,
-		listeners:     make(map[string][]func(update map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus))),
-		updater:       updater,
+		ID:               generateID(),
+		startupSync:      sync.Once{},
+		ctx:              ctx,
+		close:            close,
+		agentName:        agentName,
+		agentVersion:     agentVersion,
+		clusterName:      clusterName,
+		clusterID:        clusterID,
+		cwsWorkloads:     make([]string, 0),
+		products:         data.ProductListToString(products),
+		state:            repository,
+		pollInterval:     pollInterval,
+		backoffPolicy:    backoffPolicy,
+		listeners:        make(map[string][]func(update map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus))),
+		getClientConfigs: updater,
 	}, nil
 }
 
@@ -322,7 +348,7 @@ func (c *Client) update() error {
 		return err
 	}
 
-	response, err := c.updater.ClientGetConfigs(c.ctx, req)
+	response, err := c.getClientConfigs(c.ctx, req)
 	if err != nil {
 		return err
 	}

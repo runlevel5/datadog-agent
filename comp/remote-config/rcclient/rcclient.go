@@ -6,6 +6,7 @@
 package rcclient
 
 import (
+	"encoding/json"
 	"sync"
 	"time"
 
@@ -40,6 +41,7 @@ type RCListener map[data.Product]func(updates map[string]state.RawConfig, applyS
 
 type rcClient struct {
 	client        *remote.Client
+	clientHA      *remote.Client
 	m             *sync.Mutex
 	taskProcessed map[string]bool
 
@@ -66,11 +68,19 @@ func newRemoteConfigClient(deps dependencies) (Component, error) {
 		return nil, err
 	}
 
+	cHA, err := remote.NewHAGRPCClient(
+		"unknown", version.AgentVersion, []data.Product{}, 5*time.Second,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	rc := rcClient{
 		listeners:     deps.Listeners,
 		taskListeners: deps.TaskListeners,
 		m:             &sync.Mutex{},
 		client:        c,
+		clientHA:      cHA,
 	}
 
 	return rc, nil
@@ -91,7 +101,50 @@ func (rc rcClient) Start(agentName string) error {
 
 	rc.client.Start()
 
+	// HA
+	rc.clientHA.SetAgentName(agentName)
+	rc.clientHA.Subscribe(state.ProductDebug, rc.haUpdateCallback)
+	rc.clientHA.Start()
+
 	return nil
+}
+
+type haUpdate struct {
+	Failover *bool `json:"failover"`
+}
+
+func (rc rcClient) haUpdateCallback(updates map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)) {
+	var failover *bool
+	for _, update := range updates {
+		var haUpdate haUpdate
+		err := json.Unmarshal(update.Config, &haUpdate)
+		if err != nil {
+			pkglog.Errorf("HA update unmarshal failed: %s", err)
+			continue
+		}
+
+		if haUpdate.Failover != nil {
+			failover = haUpdate.Failover
+		}
+	}
+
+	if failover == nil {
+		shouldLog := false
+		if config.Datadog.GetSource("ha.failover") == model.SourceRC {
+			shouldLog = true
+		}
+		config.Datadog.UnsetForSource("ha.failover", model.SourceRC)
+		if shouldLog {
+			pkglog.Infof("Falling back to `ha.failover:%t`", config.Datadog.GetBool("ha.failover"))
+		}
+	} else {
+		pkglog.Infof("Setting `ha.failover:%t` through remote config", *failover)
+		err := settings.SetRuntimeSetting("ha_failover", *failover, model.SourceRC)
+		if err != nil {
+			pkglog.Errorf("HA failover update failed: %s", err)
+		}
+	}
+
 }
 
 func (rc rcClient) SubscribeAgentTask() {

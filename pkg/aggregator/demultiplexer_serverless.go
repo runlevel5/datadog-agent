@@ -40,9 +40,10 @@ type ServerlessDemultiplexer struct {
 func InitAndStartServerlessDemultiplexer(keysPerDomain map[string][]string, forwarderTimeout time.Duration) *ServerlessDemultiplexer {
 	bufferSize := config.Datadog.GetInt("aggregator_buffer_size")
 	log := log.NewTemporaryLoggerWithoutInit()
-	drDomain := config.Datadog.GetString("ha.dd_url")
-	drAPIKey := config.Datadog.GetString("ha.api_key")
-	forwarder := forwarder.NewSyncForwarder(config.Datadog, log, keysPerDomain, map[string][]string{drDomain: {drAPIKey}}, forwarderTimeout)
+	drKeysPerDomain := map[string][]string{
+		utils.GetInfraHAEndpoint(config.Datadog): {config.Datadog.GetString("ha.api_key")},
+	}
+	forwarder := forwarder.NewSyncForwarder(config.Datadog, log, keysPerDomain, drKeysPerDomain, forwarderTimeout)
 	serializer := serializer.NewSerializer(forwarder, nil)
 	metricSamplePool := metrics.NewMetricSamplePool(MetricSamplePoolBatchSize, utils.IsTelemetryEnabled())
 	tagsStore := tags.NewStore(config.Datadog.GetBool("aggregator_use_tags_store"), "timesampler")

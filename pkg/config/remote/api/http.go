@@ -17,7 +17,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
-	"github.com/DataDog/datadog-agent/pkg/config/utils"
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	httputils "github.com/DataDog/datadog-agent/pkg/util/http"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -62,7 +61,7 @@ type HTTPClient struct {
 }
 
 // NewHTTPClient returns a new HTTP configuration client
-func NewHTTPClient(auth Auth) (*HTTPClient, error) {
+func NewHTTPClient(baseRawURL string, auth Auth) (*HTTPClient, error) {
 	header := http.Header{
 		"Content-Type": []string{"application/x-protobuf"},
 		"DD-Api-Key":   []string{auth.ApiKey},
@@ -77,7 +76,6 @@ func NewHTTPClient(auth Auth) (*HTTPClient, error) {
 	httpClient := &http.Client{
 		Transport: transport,
 	}
-	baseRawURL := utils.GetMainEndpoint(config.Datadog, "https://config.", "remote_configuration.rc_dd_url")
 	baseURL, err := url.Parse(baseRawURL)
 	if err != nil {
 		return nil, err

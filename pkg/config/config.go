@@ -274,7 +274,12 @@ func InitConfig(config Config) {
 
 	// HAMR
 	config.BindEnvAndSetDefault("ha.failover", false)
+	config.BindEnvAndSetDefault("ha.enabled", false)
 	config.BindEnv("ha.api_key")
+	config.BindEnv("ha.site")
+	config.BindEnvAndSetDefault("ha.run_path", defaultRunPath + "-ha")
+
+	config.BindEnv("ha.rc_dd_url")
 	config.BindEnv("ha.dd_url")
 	config.BindEnv("ha.logs.dd_url")
 
