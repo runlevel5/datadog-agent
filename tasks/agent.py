@@ -690,6 +690,7 @@ def omnibus_build(
     python_mirror=None,
     pip_config_file="pip.conf",
     host_distribution=None,
+    fips_mode=False,
 ):
     """
     Build the Agent packages with Omnibus Installer.
@@ -719,6 +720,9 @@ def omnibus_build(
         flavor=flavor,
         pip_config_file=pip_config_file,
     )
+
+    if fips_mode:
+        env["GOEXPERIMENT"] = "boringcrypto"
 
     target_project = "agent"
     if flavor.is_iot():
