@@ -177,7 +177,7 @@ agent_rpm-x64-a6:
     !reference [.on_a6]
   stage: package_build
   tags: ["arch:amd64"]
-  needs: ["agent-linux-x64-a6"]
+  needs: ["agent-build-linux-x64-a6"]
   variables:
     AGENT_MAJOR_VERSION: 6
     PYTHON_RUNTIMES: '2,3'
@@ -193,7 +193,7 @@ agent_rpm-x64-a7:
     !reference [.on_a7]
   stage: package_build
   tags: ["arch:amd64"]
-  needs: ["agent-linux-x64-a7"]
+  needs: ["agent-build-linux-x64-a7"]
   variables:
     AGENT_MAJOR_VERSION: 7
     PYTHON_RUNTIMES: '3'
@@ -203,11 +203,13 @@ agent_rpm-x64-a7:
     - export RELEASE_VERSION=$RELEASE_VERSION_7
 
 iot_agent_rpm-x64:
-  extends: .iot_agent_build_common_rpm
+  extends: .agent_package_common_rpm
   rules:
     !reference [.on_a7]
   stage: package_build
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/rpm_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   tags: ["arch:amd64"]
-  needs: ["go_mod_tidy_check", "go_deps"]
+  needs: ["iot-agent-build-linux-x64-a7"]
+  variables:
+    PACKAGE_ARCH: amd64
+    FLAVOR: iot
 
