@@ -39,7 +39,7 @@
       - $OMNIBUS_PACKAGE_DIR
 
 .agent_package_common_deb:
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/linux_glibc_2_17_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/linux-glibc-2-17-x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   script: |-
     source /root/.bashrc
     export DEB_FILE="${OMNIBUS_PACKAGE_DIR}/datadog${FLAVOR:+-$FLAVOR}-agent_*_${PACKAGE_ARCH}.deb"
@@ -62,7 +62,7 @@ agent_deb-x64-a6:
   rules:
     !reference [.on_a6]
   stage: package_build
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/linux_glibc_2_17_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/linux-glibc-2-17-x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   tags: ["arch:amd64"]
   needs: ["agent-build-linux-x64-a6"]
   variables:
@@ -74,7 +74,7 @@ agent_deb-x64-a7:
   rules:
     !reference [.on_a7]
   stage: package_build
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/linux_glibc_2_17_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/linux-glibc-2-17-x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   tags: ["arch:amd64"]
   needs: ["agent-build-linux-x64-a7"]
   variables:
@@ -127,7 +127,7 @@ iot_agent_deb-x64:
     DESTINATION_DEB: 'datadog-iot-agent_7_amd64.deb'
 
 .iot_agent_build_common_deb:
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/linux_glibc_2_17_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/linux-glibc-2-17-x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   script:
     - source /root/.bashrc
     - !reference [.setup_ruby_mirror_linux]
