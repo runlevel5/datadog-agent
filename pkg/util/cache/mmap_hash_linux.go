@@ -55,6 +55,8 @@ const MaxValueSize = hashPageSize - 16 - backBufferSize
 // MaxProbes is the maximum number of probes going into the hash table.
 const MaxProbes = 8
 
+const adviseFrequency = 8
+
 const maxFailedPointers = 2000000
 const maxFailedPointersToPrint = 50
 
@@ -123,15 +125,16 @@ func (hp *hashPage) lookupOrInsert(hcode uint64, key []byte) (string, bool) {
 }
 
 type mmapHash struct {
-	name           string
-	closed         bool
-	fd             fs.File
-	used, capacity int64 // Bytes used and capacity for strings in the
-	seeds          []maphash.Seed
-	seedHist       []uint64 // Histograms of lookups that succeeded with the Nth seed.
-	pages          []hashPage
-	mapping        []byte // This is virtual address space, not memory used.
-	closeOnRelease bool
+	name            string
+	closed          bool
+	fd              fs.File
+	used, capacity  int64 // Bytes used and capacity for strings in the
+	seeds           []maphash.Seed
+	seedHist        []uint64 // Histograms of lookups that succeeded with the Nth seed.
+	pages           []hashPage
+	mapping         []byte // This is virtual address space, not memory used.
+	closeOnRelease  bool
+	adviseCountdown int // initialized to defaultAdviseFrequency, counts down to 0, then we madvise again and reset.
 	// value-length statistics, Welford's online variance algorithm
 	valueCount uint64
 	valueMean  float64
@@ -216,27 +219,46 @@ func newMmapHash(origin string, fileSize int64, prefixPath string, closeOnReleas
 	if err != nil {
 		return nil, err
 	}
+	err = syscall.Madvise(mappedAddresses, syscall.MADV_RANDOM|syscall.MADV_DONTNEED)
+	if err != nil {
+		return nil, err
+	}
 	seeds := make([]maphash.Seed, 0, MaxProbes)
 	for i := 0; i < MaxProbes; i++ {
 		seeds = append(seeds, maphash.MakeSeed())
 	}
 
 	h := &mmapHash{
-		name:           origin,
-		closed:         false,
-		fd:             file,
-		used:           0,
-		capacity:       fileSize,
-		mapping:        mappedAddresses,
-		pages:          unsafe.Slice((*hashPage)(unsafe.Pointer(&mappedAddresses[0])), fileSize/hashPageSize),
-		seeds:          seeds,
-		seedHist:       make([]uint64, len(seeds)),
-		closeOnRelease: closeOnRelease,
+		name:            origin,
+		closed:          false,
+		fd:              file,
+		used:            0,
+		capacity:        fileSize,
+		mapping:         mappedAddresses,
+		adviseCountdown: adviseFrequency,
+		pages:           unsafe.Slice((*hashPage)(unsafe.Pointer(&mappedAddresses[0])), fileSize/hashPageSize),
+		seeds:           seeds,
+		seedHist:        make([]uint64, len(seeds)),
+		closeOnRelease:  closeOnRelease,
 	}
 
 	allMmaps.hashes = append(allMmaps.hashes, h)
 
 	return h, nil
+}
+
+// pagesTouched is called to periodically flush mmap pages from the kernel active list.
+func (table *mmapHash) pagesTouched() {
+	if table.adviseCountdown > 1 {
+		table.adviseCountdown--
+	} else {
+		table.adviseCountdown = adviseFrequency
+		err := syscall.Madvise(table.mapping, syscall.MADV_DONTNEED)
+		if err != nil {
+			_ = log.Error("Failed madvise: ", err)
+			return
+		}
+	}
 }
 
 // lookupOrInsert returns a pre-existing or newly created string with the value of key.  It also
@@ -276,6 +298,7 @@ func (table *mmapHash) lookupOrInsert(key []byte) (string, bool) {
 				}
 			}
 			table.seedHist[n]++
+			table.pagesTouched()
 			return result, false
 		}
 	}

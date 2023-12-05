@@ -140,8 +140,12 @@ func (i *stringInterner) loadOrStore(key []byte) string {
 }
 
 func (i *stringInterner) used() int64 {
-	used, _ := i.fileBacking.sizes()
-	return used
+	if i.fileBacking != nil {
+		used, _ := i.fileBacking.sizes()
+		return used
+	} else {
+		return -1
+	}
 }
 
 // Retain some references
@@ -161,7 +165,9 @@ func (i *stringInterner) Release(n int32) {
 	}
 	if i.refcount > 0 && i.refcount-n < 1 {
 		log.Debugf("Finalizing backing, refcount=%d, n=%d", i.refcount, n)
-		i.fileBacking.finalize()
+		if i.fileBacking != nil {
+			i.fileBacking.finalize()
+		}
 		i.cache = newLruStringCache(0, false)
 		i.maxStringCount = 0
 	}
@@ -199,7 +205,7 @@ func NewKeyedStringInterner(cfg cconfig.Component) *KeyedInterner {
 		closeOnRelease := !cfg.GetBool("dogstatsd_string_interner_mmap_preserve")
 		tempPath := cfg.GetString("dogstatsd_string_interner_tmpdir")
 		minSizeKb := cfg.GetInt("dogstatsd_string_interner_mmap_minsizekb")
-		maxStringsPerInterner := cfg.GetInt("dogstatsd_string_interner_per_origin_max_strings")
+		maxStringsPerInterner := cfg.GetInt("dogstatsd_string_interner_origin_initial_size")
 		enableDiagnostics := cfg.GetBool("dogstatsd_string_interner_diagnostics")
 		return NewKeyedStringInternerVals(stringInternerCacheSize, closeOnRelease, tempPath, minSizeKb, maxStringsPerInterner, enableDiagnostics)
 	}

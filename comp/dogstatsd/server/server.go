@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"expvar"
 	"fmt"
-	"github.com/DataDog/datadog-agent/pkg/util/cache"
 	"net"
 	"os"
 	"path"
@@ -20,6 +19,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/DataDog/datadog-agent/pkg/util/cache"
+
+	"go.uber.org/atomic"
+	"go.uber.org/fx"
 
 	configComponent "github.com/DataDog/datadog-agent/comp/core/config"
 	logComponent "github.com/DataDog/datadog-agent/comp/core/log"
@@ -37,8 +41,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util"
 	"github.com/DataDog/datadog-agent/pkg/util/hostname"
-	"go.uber.org/atomic"
-	"go.uber.org/fx"
 )
 
 var (
@@ -501,7 +503,8 @@ func (s *server) Start(demultiplexer aggregator.Demultiplexer) error {
 		}
 	}
 
-	go s.dumpProfiles()
+	// Is this causing my OOMs?
+	// go s.dumpProfiles()
 	return nil
 }
 
