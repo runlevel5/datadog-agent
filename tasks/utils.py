@@ -15,6 +15,7 @@ from types import SimpleNamespace
 from invoke import task
 from invoke.exceptions import Exit
 
+from .flavor import AgentFlavor
 from .libs.common.color import color_message
 
 # constants
@@ -34,6 +35,11 @@ else:
     RTLOADER_LIB_NAME = "libdatadog-agent-rtloader.so"
 RTLOADER_HEADER_NAME = "datadog_agent_rtloader.h"
 AGENT_VERSION_CACHE_NAME = "agent-version.cache"
+BUNDLED_AGENTS = {
+    # system-probe requires a working compilation environment for eBPF so we do not
+    # enable it by default but we enable it in the released artifacts.
+    AgentFlavor.base: ["process-agent", "trace-agent", "security-agent"],
+}
 
 
 def get_all_allowed_repo_branches():

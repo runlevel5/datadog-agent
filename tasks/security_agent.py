@@ -11,6 +11,7 @@ from subprocess import check_output
 from invoke import task
 from invoke.exceptions import Exit
 
+from .agent import build as agent_build
 from .build_tags import get_default_build_tags
 from .go import run_golangci_lint
 from .go_test import environ
@@ -57,13 +58,21 @@ def build(
     go_mod="mod",
     skip_assets=False,
     static=False,
+    bundle=True,
 ):
     """
     Build the security agent
     """
+    if bundle and sys.platform != "win32":
+        return agent_build(
+            ctx,
+            race=race,
+            arch=arch,
+            go_mod=go_mod,
+        )
+
     ldflags, gcflags, env = get_build_flags(ctx, major_version=major_version, python_runtimes='3', static=static)
 
-    # TODO use pkg/version for this
     main = "main."
     ld_vars = {
         "Version": get_version(ctx, major_version=major_version),
@@ -90,11 +99,11 @@ def build(
         )
 
     ldflags += ' '.join([f"-X '{main + key}={value}'" for key, value in ld_vars.items()])
-    build_tags += get_default_build_tags(
-        build="security-agent"
-    )  # TODO/FIXME: Arch not passed to preserve build tags. Should this be fixed?
+    build_tags += get_default_build_tags(build="security-agent")
 
-    # TODO static option
+    if os.path.exists(BIN_PATH):
+        os.remove(BIN_PATH)
+
     cmd = 'go build -mod={go_mod} {race_opt} {build_type} -tags "{go_build_tags}" '
     cmd += '-o {agent_bin} -gcflags="{gcflags}" -ldflags="{ldflags}" {REPO_PATH}/cmd/security-agent'
 

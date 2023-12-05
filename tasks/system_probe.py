@@ -16,11 +16,13 @@ import requests
 from invoke import task
 from invoke.exceptions import Exit
 
+from .agent import build as agent_build
 from .build_tags import UNIT_TEST_TAGS, get_default_build_tags
+from .flavor import AgentFlavor
 from .go_test import environ
 from .libs.common.color import color_message
 from .libs.ninja_syntax import NinjaWriter
-from .utils import REPO_PATH, bin_name, get_build_flags, get_gobin, get_version_numeric_only
+from .utils import BUNDLED_AGENTS, REPO_PATH, bin_name, get_build_flags, get_gobin, get_version_numeric_only
 from .windows_resources import MESSAGESTRINGS_MC_PATH, arch_to_windres_target
 
 BIN_DIR = os.path.join(".", "bin", "system-probe")
@@ -495,6 +497,7 @@ def build(
     strip_object_files=False,
     strip_binary=False,
     with_unit_test=False,
+    bundle=True,
 ):
     """
     Build the system-probe
@@ -520,6 +523,7 @@ def build(
         race=race,
         incremental_build=incremental_build,
         strip_binary=strip_binary,
+        bundle=bundle,
     )
 
 
@@ -549,7 +553,19 @@ def build_sysprobe_binary(
     binary=BIN_PATH,
     bundle_ebpf=False,
     strip_binary=False,
+    bundle=True,
 ):
+    if bundle and not is_windows:
+        return agent_build(
+            ctx,
+            race=race,
+            major_version=major_version,
+            python_runtimes=python_runtimes,
+            arch=arch,
+            go_mod=go_mod,
+            bundle=BUNDLED_AGENTS[AgentFlavor.base] + ["system-probe"],
+        )
+
     ldflags, gcflags, env = get_build_flags(
         ctx,
         major_version=major_version,
@@ -561,6 +577,9 @@ def build_sysprobe_binary(
         build_tags.append(BUNDLE_TAG)
     if strip_binary:
         ldflags += ' -s -w'
+
+    if os.path.exists(binary):
+        os.remove(binary)
 
     cmd = 'go build -mod={go_mod}{race_opt}{build_type} -tags "{go_build_tags}" '
     cmd += '-o {agent_bin} -gcflags="{gcflags}" -ldflags="{ldflags}" {REPO_PATH}/cmd/system-probe'
