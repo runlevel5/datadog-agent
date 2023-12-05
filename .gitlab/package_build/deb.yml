@@ -47,7 +47,10 @@
     rm -f artifacts/datadog*.zst
     fpm -t deb -s dir \
       -n "datadog${FLAVOR:+-$FLAVOR}-agent" \
-      --package $DEB_FILE
+      --package $DEB_FILE \
+      --maintainer 'Datadog, Inc <package@datadoghq.com>' \
+      --depends glibc \
+      --deb-priority extra
     packaging/sign_deb.rb
     $S3_CP_CMD ${DEB_FILE} $S3_ARTIFACTS_URI/$DESTINATION_DEB
   artifacts:

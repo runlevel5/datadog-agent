@@ -32,39 +32,6 @@
     paths:
       - $OMNIBUS_PACKAGE_DIR
 
-# build Agent package for rpm-x64
-agent_rpm-x64-a6:
-  extends: .agent_build_common_rpm
-  rules:
-    !reference [.on_a6]
-  stage: package_build
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/rpm_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
-  tags: ["arch:amd64"]
-  needs: ["go_mod_tidy_check", "build_system-probe-x64", "go_deps", "generate_minimized_btfs_x64"]
-  variables:
-    AGENT_MAJOR_VERSION: 6
-    PYTHON_RUNTIMES: '2,3'
-    PACKAGE_ARCH: amd64
-  before_script:
-    - source /root/.bashrc
-    - export RELEASE_VERSION=$RELEASE_VERSION_6
-
-# build Agent package for rpm-x64
-agent_rpm-x64-a7:
-  extends: .agent_build_common_rpm
-  rules:
-    !reference [.on_a7]
-  stage: package_build
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/rpm_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
-  tags: ["arch:amd64"]
-  needs: ["go_mod_tidy_check", "build_system-probe-x64", "go_deps", "generate_minimized_btfs_x64"]
-  variables:
-    AGENT_MAJOR_VERSION: 7
-    PYTHON_RUNTIMES: '3'
-    PACKAGE_ARCH: amd64
-  before_script:
-    - source /root/.bashrc
-    - export RELEASE_VERSION=$RELEASE_VERSION_7
 
 # build Agent package for rpm-arm64
 agent_rpm-arm64-a6:
@@ -132,15 +99,6 @@ agent_rpm-arm64-a7:
     paths:
       - $OMNIBUS_PACKAGE_DIR
 
-iot_agent_rpm-x64:
-  extends: .iot_agent_build_common_rpm
-  rules:
-    !reference [.on_a7]
-  stage: package_build
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/rpm_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
-  tags: ["arch:amd64"]
-  needs: ["go_mod_tidy_check", "go_deps"]
-
 iot_agent_rpm-arm64:
   extends: .iot_agent_build_common_rpm
   rules:
@@ -194,3 +152,62 @@ dogstatsd_rpm-x64:
     expire_in: 2 weeks
     paths:
       - $OMNIBUS_PACKAGE_DIR
+
+.agent_package_common_rpm:
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/linux_glibc_2_17_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
+  script: |-
+    source /root/.bashrc
+    export RPM_FILE="${OMNIBUS_PACKAGE_DIR}/datadog${FLAVOR:+-$FLAVOR}-agent_*_${PACKAGE_ARCH}.rpm"
+    tar -xf artifacts/datadog*.zst
+    rm -f artifacts/datadog*.zst
+    fpm -t rpm -s dir \
+      -n "datadog${FLAVOR:+-$FLAVOR}-agent" \
+      --package $RPM_FILE \
+      --maintainer 'Datadog, Inc <package@datadoghq.com>' \
+      --depends glibc-common
+    packaging/sign_rpm.rb
+  artifacts:
+    paths:
+      - "artifacts/*.rpm"
+
+# build Agent package for rpm-x64
+agent_rpm-x64-a6:
+  extends: .agent_package_common_rpm
+  rules:
+    !reference [.on_a6]
+  stage: package_build
+  tags: ["arch:amd64"]
+  needs: ["agent-linux-x64-a6"]
+  variables:
+    AGENT_MAJOR_VERSION: 6
+    PYTHON_RUNTIMES: '2,3'
+    PACKAGE_ARCH: amd64
+  before_script:
+    - source /root/.bashrc
+    - export RELEASE_VERSION=$RELEASE_VERSION_6
+
+# build Agent package for rpm-x64
+agent_rpm-x64-a7:
+  extends: .agent_package_common_rpm
+  rules:
+    !reference [.on_a7]
+  stage: package_build
+  tags: ["arch:amd64"]
+  needs: ["agent-linux-x64-a7"]
+  variables:
+    AGENT_MAJOR_VERSION: 7
+    PYTHON_RUNTIMES: '3'
+    PACKAGE_ARCH: amd64
+  before_script:
+    - source /root/.bashrc
+    - export RELEASE_VERSION=$RELEASE_VERSION_7
+
+iot_agent_rpm-x64:
+  extends: .iot_agent_build_common_rpm
+  rules:
+    !reference [.on_a7]
+  stage: package_build
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/rpm_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
+  tags: ["arch:amd64"]
+  needs: ["go_mod_tidy_check", "go_deps"]
+
