@@ -623,6 +623,8 @@ def omnibus_run_task(
         if host_distribution:
             overrides_cmd += f" host_distribution:{host_distribution}"
         overrides_cmd += ' host:x86_64-unknown-linux-gnu'
+        overrides_cmd += ' skip_packaging:true'
+
         if overrides_cmd:
             overrides_cmd = f'--override {overrides_cmd}'
 
