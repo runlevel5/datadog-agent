@@ -272,11 +272,11 @@ func InitConfig(config Config) {
 	config.BindEnvAndSetDefault("fips.https", true)
 	config.BindEnvAndSetDefault("fips.tls_verify", true)
 
-	// DR
-	config.BindEnvAndSetDefault("disaster_recovery.enabled", false)
-	config.BindEnv("disaster_recovery.api_key")
-	config.BindEnv("disaster_recovery.dd_url")
-	config.BindEnv("disaster_recovery.logs.dd_url")
+	// HAMR
+	config.BindEnvAndSetDefault("ha.failover", false)
+	config.BindEnv("ha.api_key")
+	config.BindEnv("ha.dd_url")
+	config.BindEnv("ha.logs.dd_url")
 
 	// Remote config
 	config.BindEnvAndSetDefault("remote_configuration.enabled", true)

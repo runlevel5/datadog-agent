@@ -443,11 +443,11 @@ func (f *DefaultForwarder) createAdvancedHTTPTransactions(endpoint transaction.E
 
 	for _, payload := range payloads {
 		for domain, dr := range f.domainResolvers {
-			if dr.IsDisasterRecovery() && !f.config.GetBool("disaster_recovery.enabled") {
+			if dr.IsDisasterRecovery() && !f.config.GetBool("ha.failover") {
 				continue
 			}
-			if dr.IsDisasterRecovery() && f.config.GetBool("disaster_recovery.enabled") {
-				f.log.Info("Disaster recovery forwarder endpoint(s) active") // For demo :) let's remove it later
+			if dr.IsDisasterRecovery() && f.config.GetBool("ha.failover") {
+				f.log.Info("High availability failover forwarder endpoint(s) active") // For demo :) let's remove it later
 			}
 			for _, apiKey := range dr.GetAPIKeys() {
 				t := transaction.NewHTTPTransaction()

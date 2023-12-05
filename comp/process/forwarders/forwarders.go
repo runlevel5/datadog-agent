@@ -63,8 +63,8 @@ func newForwarders(deps dependencies) (Component, error) {
 
 func createParams(config config.Component, log log.Component, queueBytes int, endpoints []apicfg.Endpoint) defaultforwarder.Params {
 	resolvers := resolver.NewSingleDomainResolvers(apicfg.KeysPerDomains(endpoints), false)
-	drDomain := config.GetString("disaster_recovery.dd_url")
-	drAPIKey := config.GetString("disaster_recovery.api_key")
+	drDomain := config.GetString("ha.dd_url")
+	drAPIKey := config.GetString("ha.api_key")
 	resolvers[drDomain] = resolver.NewSingleDomainResolver(drDomain, []string{drAPIKey}, true)
 
 	forwarderOpts := defaultforwarder.NewOptionsWithResolvers(config, log, resolvers)

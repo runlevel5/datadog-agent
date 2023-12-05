@@ -183,7 +183,7 @@ func buildTCPEndpoints(coreConfig pkgConfig.Reader, logsConfig *LogsConfigKeys) 
 
 	disasterRecovery := []Endpoint{}
 
-	if disasterRecoveryddURL := config.Datadog.GetString("disaster_recovery.logs.dd_url"); disasterRecoveryddURL != "" {
+	if disasterRecoveryddURL := config.Datadog.GetString("ha.logs.dd_url"); disasterRecoveryddURL != "" {
 		host, port, err := parseAddress(disasterRecoveryddURL)
 		if err != nil {
 			return nil, fmt.Errorf("could not parse %s: %v", disasterRecoveryddURL, err)
@@ -193,7 +193,7 @@ func buildTCPEndpoints(coreConfig pkgConfig.Reader, logsConfig *LogsConfigKeys) 
 			Host:               host,
 			Port:               port,
 			UseSSL:             main.UseSSL,
-			APIKey:             utils.SanitizeAPIKey(config.Datadog.GetString("disaster_recovery.api_key")),
+			APIKey:             utils.SanitizeAPIKey(config.Datadog.GetString("ha.api_key")),
 			IsDisasterRecovery: &isDR,
 		})
 
@@ -290,7 +290,7 @@ func BuildHTTPEndpointsWithConfig(coreConfig pkgConfig.Reader, logsConfig *LogsC
 
 	disasterRecovery := []Endpoint{}
 
-	if disasterRecoveryddURL := config.Datadog.GetString("disaster_recovery.logs.dd_url"); disasterRecoveryddURL != "" {
+	if disasterRecoveryddURL := config.Datadog.GetString("ha.logs.dd_url"); disasterRecoveryddURL != "" {
 		host, port, err := parseAddress(disasterRecoveryddURL)
 		if err != nil {
 			return nil, fmt.Errorf("could not parse %s: %v", disasterRecoveryddURL, err)
@@ -302,7 +302,7 @@ func BuildHTTPEndpointsWithConfig(coreConfig pkgConfig.Reader, logsConfig *LogsC
 			Host:               host,
 			Port:               port,
 			UseSSL:             main.UseSSL,
-			APIKey:             utils.SanitizeAPIKey(config.Datadog.GetString("disaster_recovery.api_key")),
+			APIKey:             utils.SanitizeAPIKey(config.Datadog.GetString("ha.api_key")),
 			IsDisasterRecovery: &isDR,
 		})
 

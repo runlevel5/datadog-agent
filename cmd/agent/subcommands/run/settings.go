@@ -35,7 +35,7 @@ func initRuntimeSettings(serverDebug dogstatsddebug.Component) error {
 	if err := commonsettings.RegisterRuntimeSetting(commonsettings.NewProfilingGoroutines()); err != nil {
 		return err
 	}
-	if err := commonsettings.RegisterRuntimeSetting(commonsettings.NewDisasterRecoveryRuntimeSetting()); err != nil {
+	if err := commonsettings.RegisterRuntimeSetting(commonsettings.NewHARuntimeSetting()); err != nil {
 		return err
 	}
 	return commonsettings.RegisterRuntimeSetting(commonsettings.NewProfilingRuntimeSetting("internal_profiling", "datadog-agent"))
