@@ -141,6 +141,7 @@ DEFAULT_MODULES = {
     "internal/tools": GoModule("internal/tools", condition=lambda: False, should_tag=False),
     "internal/tools/proto": GoModule("internal/tools/proto", condition=lambda: False, should_tag=False),
     "internal/tools/modparser": GoModule("internal/tools/modparser", condition=lambda: False, should_tag=False),
+    "internal/tools/smarttest": GoModule("internal/tools/smarttest", condition=lambda: False, should_tag=False),
     "test/e2e/containers/otlp_sender": GoModule(
         "test/e2e/containers/otlp_sender", condition=lambda: False, should_tag=False
     ),
