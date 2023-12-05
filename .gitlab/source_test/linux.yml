@@ -67,6 +67,24 @@ tests_deb-x64-py2:
     PYTHON_RUNTIMES: '2'
     CONDA_ENV: ddpy2
 
+smarttest_deb-x64:
+  stage: source_test
+  variables:
+    KUBERNETES_CPU_REQUEST: 16
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+  extends:
+    - .linux_x64
+    - .rtloader_tests
+  script:
+    - !reference [.retrieve_linux_go_tools_deps]
+    - inv -e install-tools
+    - go run internal/tools/smarttest/main.go --mode compute --commit-sha $CI_COMMIT_SHORT_SHA
+  cache: 
+    - key: cache-smarttest-$CI_COMMIT_SHORT_SHA
+      paths:
+        - packageToTest.json
+
 tests_deb-x64-py3:
   extends:
     - .rtloader_tests
