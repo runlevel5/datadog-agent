@@ -57,7 +57,7 @@ build do
 
   rtloader_extra_args = ""
   if Omnibus::Config.host
-    rtloader_extra_args = " --force-toolchain=true"
+    rtloader_extra_args = " --force-toolchain"
   end
 
   # include embedded path (mostly for `pkg-config` binary)
