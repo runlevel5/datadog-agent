@@ -79,9 +79,9 @@ smarttest_deb-x64:
   script:
     - !reference [.retrieve_linux_go_tools_deps]
     - inv -e install-tools
-    - go run internal/tools/smarttest/main.go --mode compute --commit-sha $CI_COMMIT_SHORT_SHA
+    - go run internal/tools/smarttest/main.go --mode test --commit-sha a2628fb5
   cache: 
-    - key: cache-smarttest-$CI_COMMIT_SHORT_SHA
+    - key: cache-smarttest-a2628fb5
       paths:
         - packageToTest.json
 
