@@ -158,13 +158,15 @@ dogstatsd_rpm-x64:
   script: |-
     source /root/.bashrc
     export RPM_FILE="${OMNIBUS_PACKAGE_DIR}/datadog${FLAVOR:+-$FLAVOR}-agent_*_${PACKAGE_ARCH}.rpm"
-    tar -xf ${OMNIBUS_PACKAGE_DIR}/datadog*.zst
+    mkdir -p /tmp/package_input
+    tar -xf ${OMNIBUS_PACKAGE_DIR}/datadog*.zst -C /tmp/package_input
     rm -f ${OMNIBUS_PACKAGE_DIR}/datadog*.zst
     fpm -t rpm -s dir \
       -n "datadog${FLAVOR:+-$FLAVOR}-agent" \
       --package $RPM_FILE \
       --maintainer 'Datadog, Inc <package@datadoghq.com>' \
-      --depends glibc-common
+      --depends glibc-common \
+      /tmp/package_input
     packaging/sign_rpm.rb
   artifacts:
     paths:
