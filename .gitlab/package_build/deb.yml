@@ -43,8 +43,8 @@
   script: |-
     source /root/.bashrc
     export DEB_FILE="${OMNIBUS_PACKAGE_DIR}/datadog${FLAVOR:+-$FLAVOR}-agent_*_${PACKAGE_ARCH}.deb"
-    tar -xf artifacts/datadog*.zst
-    rm -f artifacts/datadog*.zst
+    tar -xf ${OMNIBUS_PACKAGE_DIR}/datadog*.zst
+    rm -f ${OMNIBUS_PACKAGE_DIR}/datadog*.zst
     fpm -t deb -s dir \
       -n "datadog${FLAVOR:+-$FLAVOR}-agent" \
       --package $DEB_FILE \
@@ -56,7 +56,7 @@
     $S3_CP_CMD ${DEB_FILE} $S3_ARTIFACTS_URI/$DESTINATION_DEB
   artifacts:
     paths:
-      - "artifacts/*.deb"
+      - "${OMNIBUS_PACKAGE_DIR}/*.deb"
 
 agent_deb-x64-a6:
   extends: .agent_package_common_deb

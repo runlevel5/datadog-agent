@@ -158,8 +158,8 @@ dogstatsd_rpm-x64:
   script: |-
     source /root/.bashrc
     export RPM_FILE="${OMNIBUS_PACKAGE_DIR}/datadog${FLAVOR:+-$FLAVOR}-agent_*_${PACKAGE_ARCH}.rpm"
-    tar -xf artifacts/datadog*.zst
-    rm -f artifacts/datadog*.zst
+    tar -xf ${OMNIBUS_PACKAGE_DIR}/datadog*.zst
+    rm -f ${OMNIBUS_PACKAGE_DIR}/datadog*.zst
     fpm -t rpm -s dir \
       -n "datadog${FLAVOR:+-$FLAVOR}-agent" \
       --package $RPM_FILE \
@@ -168,7 +168,7 @@ dogstatsd_rpm-x64:
     packaging/sign_rpm.rb
   artifacts:
     paths:
-      - "artifacts/*.rpm"
+      - "${OMNIBUS_PACKAGE_DIR}/*.rpm"
 
 # build Agent package for rpm-x64
 agent_rpm-x64-a6:
