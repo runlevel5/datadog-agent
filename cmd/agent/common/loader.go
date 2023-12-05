@@ -7,14 +7,9 @@ package common
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 
 	"github.com/DataDog/datadog-agent/cmd/agent/common/path"
-	"github.com/DataDog/datadog-agent/comp/core/tagger"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/local"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/remote"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/scheduler"
 	"github.com/DataDog/datadog-agent/pkg/collector"
@@ -22,37 +17,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/sbom/scanner"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
-
-// GetWorkloadmetaInit provides the InitHelper for workloadmeta so it can be injected as a Param
-// at workloadmeta comp fx injection.
-func GetWorkloadmetaInit() workloadmeta.InitHelper {
-	return workloadmeta.InitHelper(func(ctx context.Context, wm workloadmeta.Component) error {
-		var t tagger.Tagger
-		var e error
-		if config.IsCLCRunner() {
-			options, err := remote.CLCRunnerOptions()
-			if err != nil {
-				e = fmt.Errorf("unable to configure the remote tagger: %s", err)
-				t = local.NewFakeTagger()
-			} else if options.Disabled {
-				// TODO(components): log the remote tagger being disabled.
-				// wm.log.Info("remote tagger is disabled")
-				t = local.NewFakeTagger()
-			} else {
-				t = remote.NewTagger(options)
-			}
-		} else {
-			t = local.NewTagger(wm)
-		}
-
-		tagger.SetDefaultTagger(t)
-		if err := tagger.Init(ctx); err != nil {
-			e = fmt.Errorf("failed to start the tagger: %s", err)
-		}
-
-		return e
-	})
-}
 
 // LoadComponents configures several common Agent components:
 // tagger, collector, scheduler and autodiscovery

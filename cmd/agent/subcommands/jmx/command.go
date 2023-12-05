@@ -27,6 +27,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
+	"github.com/DataDog/datadog-agent/comp/core/tagger"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta/collectors"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
@@ -103,10 +104,15 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 			diagnosesendermanagerimpl.Module,
 			// workloadmeta setup
 			collectors.GetCatalog(),
-			fx.Supply(workloadmeta.Params{
-				InitHelper: common.GetWorkloadmetaInit(),
-			}),
+			fx.Supply(workloadmeta.NewParams()),
 			workloadmeta.Module,
+			fx.Provide(func(config config.Component) tagger.Params {
+				if pkgconfig.IsCLCRunner() {
+					return tagger.Params{TaggerAgentType: tagger.CLCRunnerRemoteTaggerAgent}
+				}
+				return tagger.Params{TaggerAgentType: tagger.LocalTaggerAgent}
+			}),
+			tagger.Module,
 		)
 	}
 

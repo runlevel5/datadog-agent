@@ -45,6 +45,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig"
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig/sysprobeconfigimpl"
+	"github.com/DataDog/datadog-agent/comp/core/tagger"
 	"github.com/DataDog/datadog-agent/comp/core/telemetry"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta/collectors"
@@ -303,12 +304,17 @@ func getSharedFxOption() fx.Option {
 			}
 
 			return workloadmeta.Params{
-				AgentType:  agentType,
-				InitHelper: common.GetWorkloadmetaInit(),
+				AgentType: agentType,
 			}
 		}),
 		workloadmeta.Module,
-
+		fx.Provide(func(config config.Component) tagger.Params {
+			if pkgconfig.IsCLCRunner() {
+				return tagger.Params{TaggerAgentType: tagger.CLCRunnerRemoteTaggerAgent}
+			}
+			return tagger.Params{TaggerAgentType: tagger.LocalTaggerAgent}
+		}),
+		tagger.Module,
 		dogstatsd.Bundle,
 		otelcol.Bundle,
 		rcclient.Module,
