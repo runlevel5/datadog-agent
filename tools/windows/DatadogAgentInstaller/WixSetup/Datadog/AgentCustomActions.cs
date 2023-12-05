@@ -1,4 +1,6 @@
+using System;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using Datadog.CustomActions;
 using Datadog.CustomActions.Interfaces;
 using Datadog.CustomActions.Rollback;
@@ -229,7 +231,7 @@ namespace WixSetup.Datadog
                 Impersonate = false
             }
                 .SetProperties(
-                    "PROJECTLOCATION=[PROJECTLOCATION], embedded2_SIZE=[embedded2_SIZE], embedded3_SIZE=[embedded3_SIZE]");
+                    "PROJECTLOCATION=[PROJECTLOCATION], EMBEDDED2_SIZE=[EMBEDDED2_SIZE], EMBEDDED3_SIZE=[EMBEDDED3_SIZE]");
 
             PrepareDecompressPythonDistributions = new CustomAction<PythonDistributionCustomAction>(
                 new Id(nameof(PrepareDecompressPythonDistributions)),

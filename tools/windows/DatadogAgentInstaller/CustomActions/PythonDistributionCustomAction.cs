@@ -2,9 +2,7 @@ using Microsoft.Deployment.WindowsInstaller;
 using System;
 using System.IO;
 using Datadog.CustomActions.Extensions;
-using System.Text;
 using Datadog.CustomActions.Interfaces;
-using ICSharpCode.SharpZipLib.Tar;
 
 namespace Datadog.CustomActions
 {
@@ -33,32 +31,6 @@ namespace Datadog.CustomActions
             public const int ProgressAddition = 1;
         }
 
-        static void Decompress(ISession session, string compressedFileName)
-        {
-            var decoder = new SevenZip.Compression.LZMA.Decoder();
-            using (var inStream = File.OpenRead(compressedFileName))
-            {
-                using (var outStream = File.Create($"{compressedFileName}.tar"))
-                {
-                    var reader = new BinaryReader(inStream, Encoding.UTF8);
-                    // Properties of the stream are encoded on 5 bytes
-                    var props = reader.ReadBytes(5);
-                    decoder.SetDecoderProperties(props);
-                    var length = reader.ReadInt64();
-                    decoder.Code(inStream, outStream, inStream.Length, length, null);
-                    outStream.Flush();
-                }
-            }
-            var outputPath = Path.GetDirectoryName(Path.GetFullPath(compressedFileName));
-            using (var inStream = File.OpenRead($"{compressedFileName}.tar"))
-            using (var tarArchive = TarArchive.CreateInputTarArchive(inStream, Encoding.UTF8))
-            {
-                tarArchive.ExtractContents(outputPath);
-            }
-            File.Delete($"{compressedFileName}.tar");
-            File.Delete($"{compressedFileName}");
-        }
-
         private static ActionResult DecompressPythonDistribution(
             ISession session,
             string outputDirectoryName,
@@ -67,7 +39,7 @@ namespace Datadog.CustomActions
             int pythonDistributionSize)
         {
             var projectLocation = session.Property("PROJECTLOCATION");
-
+            IDecompressionStrategy decompressionStrategy = new SevenZipSharpDecompressionStrategy();
             try
             {
                 var embedded = Path.Combine(projectLocation, compressedDistributionFile);
@@ -102,7 +74,7 @@ namespace Datadog.CustomActions
                             );
                         session.Message(InstallMessage.Progress, record);
                     }
-                    Decompress(session, embedded);
+                    decompressionStrategy.Decompress(session, embedded);
                     {
                         using var record = new Record(MessageRecordFields.ProgressReport, pythonDistributionSize);
                         session.Message(InstallMessage.Progress, record);
@@ -129,7 +101,7 @@ namespace Datadog.CustomActions
         private static ActionResult DecompressPythonDistributions(ISession session)
         {
             var size = 0;
-            var embedded2Size = session.Property("embedded2_SIZE");
+            var embedded2Size = session.Property("EMBEDDED2_SIZE");
             if (!string.IsNullOrEmpty(embedded2Size))
             {
                 size = int.Parse(embedded2Size);
@@ -139,7 +111,7 @@ namespace Datadog.CustomActions
             {
                 return actionResult;
             }
-            var embedded3Size = session.Property("embedded3_SIZE");
+            var embedded3Size = session.Property("EMBEDDED3_SIZE");
             if (!string.IsNullOrEmpty(embedded3Size))
             {
                 size = int.Parse(embedded3Size);
@@ -158,12 +130,12 @@ namespace Datadog.CustomActions
             try
             {
                 var total = 0;
-                var embedded2Size = session.Property("embedded2_SIZE");
+                var embedded2Size = session.Property("EMBEDDED2_SIZE");
                 if (!string.IsNullOrEmpty(embedded2Size))
                 {
                     total += int.Parse(embedded2Size);
                 }
-                var embedded3Size = session.Property("embedded3_SIZE");
+                var embedded3Size = session.Property("EMBEDDED3_SIZE");
                 if (!string.IsNullOrEmpty(embedded3Size))
                 {
                     total += int.Parse(embedded3Size);

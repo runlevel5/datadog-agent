@@ -127,6 +127,8 @@ namespace WixSetup.Datadog
                 {
                     Win64 = true
                 }
+                // This file will exists temporarily in the %PROJECTLOCATION%\agent folder, and will be removed once the installation has completed.
+                //, new Binary(new Id(SevenZipSharpDecompressionStrategy.SevenZipDllId), Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "x64", "7z.dll"))
             );
 
             // Conditionally include the PROCMON MSM while it is in active development to make it easier
@@ -362,14 +364,14 @@ namespace WixSetup.Datadog
                 new DirFiles($@"{InstallerSource}\LICENSE"),
                 new DirFiles($@"{InstallerSource}\*.json"),
                 new DirFiles($@"{InstallerSource}\*.txt"),
-                new CompressedDir(this, "embedded3", $@"{InstallerSource}\embedded3"),
+                new CompressedDir<SevenZipSharpCompressionStrategy>(this, "embedded3", $@"{InstallerSource}\embedded3"),
                 // Recursively delete/backup all files/folders in PROJECTLOCATION, they will be restored
                 // on rollback. By default WindowsInstller only removes the files it tracks, and embedded3 isn't tracked
                 new RemoveFolderEx { On = InstallEvent.uninstall, Property = "PROJECTLOCATION" }
             );
             if (_agentPython.IncludePython2)
             {
-                datadogAgentFolder.AddFile(new CompressedDir(this, "embedded2", $@"{InstallerSource}\embedded2"));
+                datadogAgentFolder.AddFile(new CompressedDir<SevenZipSharpCompressionStrategy>(this, "embedded2", $@"{InstallerSource}\embedded2"));
             }
 
             return new Dir(new Id("DatadogAppRoot"), "%ProgramFiles%\\Datadog", datadogAgentFolder);
@@ -515,7 +517,6 @@ namespace WixSetup.Datadog
                         EventMessageFile = $"[AGENT]{Path.GetFileName(_agentBinaries.TraceAgent)}",
                         AttributesDefinition = "SupportsErrors=yes; SupportsInformationals=yes; SupportsWarnings=yes; KeyPath=yes"
                     }
-
             );
             if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WINDOWS_DDPROCMON_DRIVER")))
             {
