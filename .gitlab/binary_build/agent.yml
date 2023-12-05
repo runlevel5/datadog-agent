@@ -1,5 +1,6 @@
 .iot_agent_build_common_linux:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/linux-glibc-2-17-x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
+  stage: binary_build
   script:
     - source /root/.bashrc
     - !reference [.setup_ruby_mirror_linux]
@@ -27,6 +28,7 @@
 
 .agent_build_common_linux:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/linux-glibc-2-17-x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
+  stage: binary_build
   script:
     - source /root/.bashrc
     - !reference [.setup_ruby_mirror_linux]
@@ -59,7 +61,6 @@ agent-build-linux-x64-a6:
   extends: .agent_build_common_linux
   rules:
     !reference [.on_a6]
-  stage: package_build
   tags: ["arch:amd64"]
   needs: ["go_mod_tidy_check", "build_system-probe-x64", "go_deps", "generate_minimized_btfs_x64"]
   variables:
@@ -73,7 +74,6 @@ agent-build-linux-x64-a7:
   extends: .agent_build_common_linux
   rules:
     !reference [.on_a7]
-  stage: package_build
   tags: ["arch:amd64"]
   needs: ["go_mod_tidy_check", "build_system-probe-x64", "go_deps", "generate_minimized_btfs_x64"]
   variables:
@@ -87,7 +87,6 @@ iot-agent-build-linux-x64-a7:
   extends: .iot_agent_build_common_linux
   rules:
     !reference [.on_a7]
-  stage: package_build
   tags: ["arch:amd64"]
   needs: ["go_mod_tidy_check", "go_deps"]
   variables:
