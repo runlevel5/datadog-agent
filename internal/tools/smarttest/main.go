@@ -16,7 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"k8s.io/kubectl/pkg/util/slice"
+	"golang.org/x/exp/slices"
 )
 
 func main() {
@@ -32,7 +32,7 @@ func main() {
 	flag.StringVar(&modifiedFiles, "modified-files", "", "List of modified files")
 	flag.Parse()
 
-	if !slice.ContainsString([]string{"compute", "test"}, mode, nil) {
+	if slices.Contains([]string{"compute", "test"}, mode) {
 		log.Fatal("Mode must be either compute or test")
 	}
 
