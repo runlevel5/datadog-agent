@@ -17,10 +17,6 @@
 name "systemd"
 default_version "253"
 
-dependency 'nettle'
-dependency 'gmp'
-dependency 'libtasn1'
-
 license "GPLv2"
 license "LGPL-2.1"
 license_file "LICENSE.GPL2"
@@ -36,8 +32,6 @@ source url: "https://github.com/systemd/systemd/archive/refs/tags/v#{version}.ta
 relative_path "#{name}-#{version}"
 
 build do
-  env = with_standard_compiler_flags(with_embedded_path)
-
   # We only need the headers for coreos/go-systemd, and building
   # libsystemd itself would be fairly complicated as our toolchain doesn't
   # default include `/usr/include` in its default include path, while systemd
