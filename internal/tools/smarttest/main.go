@@ -32,7 +32,7 @@ func main() {
 	flag.StringVar(&modifiedFiles, "modified-files", "", "List of modified files")
 	flag.Parse()
 
-	if slices.Contains([]string{"compute", "test"}, mode) {
+	if !slices.Contains([]string{"compute", "test"}, mode) {
 		log.Fatal("Mode must be either compute or test")
 	}
 
