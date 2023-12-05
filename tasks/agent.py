@@ -614,7 +614,15 @@ def get_omnibus_env(
 
 
 def omnibus_run_task(
-    ctx, task, target_project, base_dir, env, omnibus_s3_cache=False, log_level="info", host_distribution=None
+    ctx,
+    task,
+    target_project,
+    base_dir,
+    env,
+    omnibus_s3_cache=False,
+    log_level="info",
+    host_distribution=None,
+    skip_packaging=False,
 ):
     with ctx.cd("omnibus"):
         overrides_cmd = ""
@@ -623,7 +631,8 @@ def omnibus_run_task(
         if host_distribution:
             overrides_cmd += f" host_distribution:{host_distribution}"
         overrides_cmd += ' host:x86_64-unknown-linux-gnu'
-        overrides_cmd += ' skip_packaging:true'
+        if skip_packaging:
+            overrides_cmd += ' skip_packaging:true'
 
         if overrides_cmd:
             overrides_cmd = f'--override {overrides_cmd}'
@@ -694,6 +703,7 @@ def omnibus_build(
     python_mirror=None,
     pip_config_file="pip.conf",
     host_distribution=None,
+    skip_packaging=False,
 ):
     """
     Build the Agent packages with Omnibus Installer.
@@ -753,6 +763,7 @@ def omnibus_build(
             omnibus_s3_cache=omnibus_s3_cache,
             log_level=log_level,
             host_distribution=host_distribution,
+            skip_packaging=skip_packaging,
         )
 
     # Delete the temporary pip.conf file once the build is done
