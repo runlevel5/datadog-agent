@@ -64,7 +64,7 @@ agent_deb-x64-a6:
   stage: package_build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/linux_glibc_2_17_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   tags: ["arch:amd64"]
-  needs: ["agent-linux-x64-a6"]
+  needs: ["agent-build-linux-x64-a6"]
   variables:
     PACKAGE_ARCH: amd64
     DESTINATION_DEB: 'datadog-agent_6_amd64.deb'
@@ -76,7 +76,7 @@ agent_deb-x64-a7:
   stage: package_build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/linux_glibc_2_17_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   tags: ["arch:amd64"]
-  needs: ["agent-linux-x64-a7"]
+  needs: ["agent-build-linux-x64-a7"]
   variables:
     PACKAGE_ARCH: amd64
     DESTINATION_DEB: 'datadog-agent_7_amd64.deb'
@@ -121,7 +121,7 @@ iot_agent_deb-x64:
     !reference [.on_a7]
   stage: package_build
   tags: ["arch:amd64"]
-  needs: ["iot-agent-linux-x64-a7"]
+  needs: ["iot-agent-build-linux-x64-a7"]
   variables:
     PACKAGE_ARCH: amd64
     DESTINATION_DEB: 'datadog-iot-agent_7_amd64.deb'

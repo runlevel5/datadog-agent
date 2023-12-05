@@ -55,7 +55,7 @@
     paths:
       - $OMNIBUS_PACKAGE_DIR
 
-agent-linux-x64-a6:
+agent-build-linux-x64-a6:
   extends: .agent_build_common_linux
   rules:
     !reference [.on_a6]
@@ -69,7 +69,7 @@ agent-linux-x64-a6:
   before_script:
     - export RELEASE_VERSION=$RELEASE_VERSION_6
 
-agent-linux-x64-a7:
+agent-build-linux-x64-a7:
   extends: .agent_build_common_linux
   rules:
     !reference [.on_a7]
@@ -83,7 +83,7 @@ agent-linux-x64-a7:
   before_script:
     - export RELEASE_VERSION=$RELEASE_VERSION_7
 
-iot-agent-linux-x64-a7:
+iot-agent-build-linux-x64-a7:
   extends: .iot_agent_build_common_linux
   rules:
     !reference [.on_a7]
