@@ -164,7 +164,7 @@ dogstatsd_rpm-x64:
     rm -f ${OMNIBUS_PACKAGE_DIR}/datadog*.zst
     fpm -t rpm -s dir \
       -n "datadog${FLAVOR:+-$FLAVOR}-agent" \
-      --package $RPM_FILE \
+      --package ${RPM_FILE} \
       --maintainer 'Datadog, Inc <package@datadoghq.com>' \
       --depends glibc-common \
       /tmp/package_input
