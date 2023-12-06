@@ -32,8 +32,6 @@ gpg = if shellout('which gpg2').status.success?
         raise 'no gpg found'
       end
 
-puts("GPG executable: #{gpg}")
-
 rpm_file = File.expand_path(require_env('RPM_FILE'))
 rpm_gpg_key_name = require_env('RPM_GPG_KEY_NAME')
 rpm_gpg_key_ssm_name = require_env('RPM_GPG_KEY_SSM_NAME')
