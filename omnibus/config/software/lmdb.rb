@@ -15,12 +15,12 @@ build do
     env["PREFIX"] = "#{install_dir}/embedded/"
 
     # https://www.linuxfromscratch.org/blfs/view/8.3/server/lmdb.html
-    command "make -j #{workers}", :env => env
     if mac_os_x?
         # MacOS' sed requires `-i ''` rather than just `-i`
         command "sed -i '' 's| liblmdb.a||' Makefile", :env => env
     else
         command "sed -i 's| liblmdb.a||' Makefile", :env => env
     end
+    command "make -j #{workers}", :env => env
     command "make install"
 end
