@@ -13,13 +13,11 @@ import (
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 
-	"github.com/DataDog/datadog-agent/comp/core/config"
-	"github.com/DataDog/datadog-agent/comp/core/log"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics/provider"
-	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/pointer"
 	"github.com/DataDog/datadog-agent/pkg/util/system"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
+	workloadmetaTesting "github.com/DataDog/datadog-agent/pkg/workloadmeta/testing"
 
 	wstats "github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/stats"
 	"github.com/containerd/containerd/api/types"
@@ -27,7 +25,6 @@ import (
 	"github.com/containerd/typeurl/v2"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/fx"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -103,13 +100,7 @@ func TestGetContainerStats_Containerd(t *testing.T) {
 
 			// The container needs to exist in the workloadmeta store and have a
 			// namespace.
-			workloadmetaStore := fxutil.Test[workloadmeta.Mock](t, fx.Options(
-				log.MockModule,
-				config.MockModule,
-				fx.Supply(workloadmeta.NewParams()),
-				workloadmeta.MockModuleV2,
-			))
-
+			workloadmetaStore := workloadmetaTesting.NewStore()
 			workloadmetaStore.Set(&workloadmeta.Container{
 				EntityID: workloadmeta.EntityID{
 					Kind: workloadmeta.KindContainer,
@@ -170,13 +161,7 @@ func TestGetContainerNetworkStats_Containerd(t *testing.T) {
 
 			// The container needs to exist in the workloadmeta store and have a
 			// namespace.
-			workloadmetaStore := fxutil.Test[workloadmeta.Mock](t, fx.Options(
-				log.MockModule,
-				config.MockModule,
-				fx.Supply(workloadmeta.NewParams()),
-				workloadmeta.MockModuleV2,
-			))
-
+			workloadmetaStore := workloadmetaTesting.NewStore()
 			workloadmetaStore.Set(&workloadmeta.Container{
 				EntityID: workloadmeta.EntityID{
 					Kind: workloadmeta.KindContainer,

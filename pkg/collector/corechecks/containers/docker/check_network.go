@@ -16,7 +16,6 @@ import (
 
 	dockerTypes "github.com/docker/docker/api/types"
 
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/generic"
 	"github.com/DataDog/datadog-agent/pkg/config"
@@ -25,6 +24,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/system"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 )
 
 const (

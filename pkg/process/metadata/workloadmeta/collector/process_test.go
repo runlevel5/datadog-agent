@@ -15,14 +15,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/fx"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/DataDog/datadog-agent/comp/core"
-	compcfg "github.com/DataDog/datadog-agent/comp/core/config"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
-	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/process/checks"
 	workloadmetaExtractor "github.com/DataDog/datadog-agent/pkg/process/metadata/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/process/procutil"
@@ -30,7 +26,7 @@ import (
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/process"
 	"github.com/DataDog/datadog-agent/pkg/trace/testutil"
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
-	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 )
 
 const testCid = "containersAreAwesome"
@@ -39,7 +35,7 @@ type collectorTest struct {
 	probe     *mocks.Probe
 	clock     *clock.Mock
 	collector *Collector
-	store     workloadmeta.Mock
+	store     *workloadmeta.MockStore
 	stream    pbgo.ProcessEntityStream_StreamEntitiesClient
 }
 
@@ -71,36 +67,24 @@ func setUpCollectorTest(t *testing.T) *collectorTest {
 
 	setFlavor(t, flavor.ProcessAgent)
 
+	cfg := config.Mock(t)
 	port, err := testutil.FindTCPPort()
 	require.NoError(t, err)
+	cfg.SetWithoutSource("process_config.language_detection.grpc_port", port)
+	cfg.SetWithoutSource("language_detection.enabled", true)
 
-	overrides := map[string]interface{}{
-		"process_config.language_detection.grpc_port":              port,
-		"workloadmeta.remote_process_collector.enabled":            true,
-		"workloadmeta.local_process_collector.collection_interval": 15 * time.Second,
-	}
-
-	store := fxutil.Test[workloadmeta.Mock](t, fx.Options(
-		core.MockBundle,
-		fx.Replace(compcfg.MockParams{Overrides: overrides}),
-		fx.Supply(context.Background()),
-		fx.Supply(workloadmeta.NewParams()),
-		workloadmeta.MockModuleV2,
-	))
-	workloadmeta.SetGlobalStore(store)
-	defer workloadmeta.SetGlobalStore(nil)
-
-	// pass actual config component
-	wlmExtractor := workloadmetaExtractor.NewWorkloadMetaExtractor(store.GetConfig())
-	grpcServer := workloadmetaExtractor.NewGRPCServer(store.GetConfig(), wlmExtractor)
+	wlmExtractor := workloadmetaExtractor.NewWorkloadMetaExtractor(cfg)
+	grpcServer := workloadmetaExtractor.NewGRPCServer(cfg, wlmExtractor)
 
 	mockProcessData, probe := checks.NewProcessDataWithMockProbe(t)
 	mockProcessData.Register(wlmExtractor)
 
+	store := workloadmeta.NewMockStore()
+
 	mockClock := clock.NewMock()
 
 	c := &Collector{
-		ddConfig:        store.GetConfig(),
+		ddConfig:        cfg,
 		processData:     mockProcessData,
 		wlmExtractor:    wlmExtractor,
 		grpcServer:      grpcServer,
@@ -118,7 +102,6 @@ func setUpCollectorTest(t *testing.T) *collectorTest {
 		store:     store,
 		stream:    acquireStream(t, port),
 	}
-
 }
 
 func (c *collectorTest) setupProcs() {
@@ -134,15 +117,15 @@ func (c *collectorTest) setupProcs() {
 func (c *collectorTest) waitForContainerUpdate(t *testing.T, cont *workloadmeta.Container) {
 	t.Helper()
 
-	c.store.Set(cont)
+	c.store.SetEntity(cont)
 	require.EventuallyWithT(t, func(collect *assert.CollectT) {
 		assert.Contains(t, c.collector.pidToCid, cont.PID)
-	}, 15*time.Second, 1*time.Second)
+	}, 5*time.Second, 1*time.Second)
 }
 
 // Tick sets up the collector to collect processes by advancing the clock
 func (c *collectorTest) tick() {
-	c.clock.Add(c.store.GetConfig().GetDuration("workloadmeta.local_process_collector.collection_interval"))
+	c.clock.Add(config.DefaultLocalProcessCollectorInterval)
 }
 
 func TestProcessCollector(t *testing.T) {
@@ -150,14 +133,12 @@ func TestProcessCollector(t *testing.T) {
 	c.setupProcs()
 
 	// Fast-forward through sync message
-	resp, err := c.stream.Recv()
+	_, err := c.stream.Recv()
 	require.NoError(t, err)
-	fmt.Printf("1: %v\n", resp.String())
 
 	c.tick()
-	resp, err = c.stream.Recv()
+	resp, err := c.stream.Recv()
 	assert.NoError(t, err)
-	fmt.Printf("2: %v\n", resp.String())
 
 	require.Len(t, resp.SetEvents, 1)
 	evt := resp.SetEvents[0]
@@ -176,13 +157,12 @@ func TestProcessCollector(t *testing.T) {
 	c.tick()
 	resp, err = c.stream.Recv()
 	assert.NoError(t, err)
-	fmt.Printf("3: %v\n", resp.String())
 
 	require.Len(t, resp.SetEvents, 1)
 	evt = resp.SetEvents[0]
 	assert.EqualValues(t, 1, evt.Pid)
 	assert.EqualValues(t, 1, evt.CreationTime)
-	assert.Equal(t, testCid, evt.ContainerID)
+	assert.Equal(t, testCid, evt.ContainerId)
 }
 
 // Assert that the collector is only enabled if the process check is disabled and
@@ -223,7 +203,7 @@ func TestEnabled(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			setFlavor(t, tc.flavor)
 
-			cfg := pkgconfig.Mock(t)
+			cfg := config.Mock(t)
 			cfg.SetWithoutSource("process_config.process_collection.enabled", tc.processCollectionEnabled)
 			cfg.SetWithoutSource("language_detection.enabled", tc.remoteProcessCollectorEnabled)
 

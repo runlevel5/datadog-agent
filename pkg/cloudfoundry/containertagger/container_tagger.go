@@ -13,12 +13,12 @@ import (
 
 	"code.cloudfoundry.org/garden"
 
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	hostMetadataUtils "github.com/DataDog/datadog-agent/comp/metadata/host/utils"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/tagger/utils"
 	"github.com/DataDog/datadog-agent/pkg/util/cloudproviders/cloudfoundry"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 )
 
 const (
@@ -31,7 +31,7 @@ const (
 // with the previously injected tags.
 type ContainerTagger struct {
 	gardenUtil            cloudfoundry.GardenUtilInterface
-	store                 workloadmeta.Component
+	store                 workloadmeta.Store
 	seen                  map[string]struct{}
 	tagsHashByContainerID map[string]string
 	retryCount            int
@@ -50,8 +50,7 @@ func NewContainerTagger() (*ContainerTagger, error) {
 	retryInterval := time.Second * time.Duration(config.Datadog.GetInt("cloud_foundry_container_tagger.retry_interval"))
 
 	return &ContainerTagger{
-		gardenUtil: gu,
-		// TODO)components): stop using global and rely instead on injected workloadmeta component.
+		gardenUtil:            gu,
 		store:                 workloadmeta.GetGlobalStore(),
 		seen:                  make(map[string]struct{}),
 		tagsHashByContainerID: make(map[string]string),

@@ -46,8 +46,6 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig"
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig/sysprobeconfigimpl"
 	"github.com/DataDog/datadog-agent/comp/core/telemetry"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta/collectors"
 	"github.com/DataDog/datadog-agent/comp/dogstatsd"
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/replay"
 	dogstatsdServer "github.com/DataDog/datadog-agent/comp/dogstatsd/server"
@@ -86,7 +84,6 @@ import (
 	pkgTelemetry "github.com/DataDog/datadog-agent/pkg/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util"
 	"github.com/DataDog/datadog-agent/pkg/util/cloudproviders"
-	pkgcommon "github.com/DataDog/datadog-agent/pkg/util/common"
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/hostname"
@@ -191,7 +188,6 @@ func run(log log.Component,
 	capture replay.Component,
 	serverDebug dogstatsddebug.Component,
 	forwarder defaultforwarder.Component,
-	wmeta workloadmeta.Component,
 	rcclient rcclient.Component,
 	metadataRunner runner.Component,
 	demultiplexer demultiplexer.Component,
@@ -244,7 +240,7 @@ func run(log log.Component,
 		}
 	}()
 
-	if err := startAgent(cliParams, log, flare, telemetry, sysprobeconfig, server, capture, serverDebug, wmeta, rcclient, logsAgent, forwarder, sharedSerializer, otelcollector, demultiplexer, hostMetadata, invAgent); err != nil {
+	if err := startAgent(cliParams, log, flare, telemetry, sysprobeconfig, server, capture, serverDebug, rcclient, logsAgent, forwarder, sharedSerializer, otelcollector, demultiplexer, hostMetadata, invAgent); err != nil {
 		return err
 	}
 
@@ -272,24 +268,6 @@ func getSharedFxOption() fx.Option {
 			params.Options.EnabledFeatures = pkgforwarder.SetFeature(params.Options.EnabledFeatures, pkgforwarder.CoreFeatures)
 			return params
 		}),
-
-		// workloadmeta setup
-		collectors.GetCatalog(),
-		fx.Provide(func(config config.Component) workloadmeta.Params {
-			var agentType workloadmeta.AgentType
-			if flavor.GetFlavor() == flavor.ClusterAgent {
-				agentType = workloadmeta.ClusterAgent
-			} else {
-				agentType = workloadmeta.NodeAgent
-			}
-
-			return workloadmeta.Params{
-				AgentType:  agentType,
-				InitHelper: common.GetWorkloadmetaInit(),
-			}
-		}),
-		workloadmeta.Module,
-
 		dogstatsd.Bundle,
 		otelcol.Bundle,
 		rcclient.Module,
@@ -297,18 +275,14 @@ func getSharedFxOption() fx.Option {
 		// TODO: (components) - some parts of the agent (such as the logs agent) implicitly depend on the global state
 		// set up by LoadComponents. In order for components to use lifecycle hooks that also depend on this global state, we
 		// have to ensure this code gets run first. Once the common package is made into a component, this can be removed.
-		//
-		// Workloadmeta component needs to be initialized before this hook is executed, and thus is included
-		// in the function args to order the execution. This pattern might be worth revising because it is
-		// error prone.
-		fx.Invoke(func(lc fx.Lifecycle, demultiplexer demultiplexer.Component, _ workloadmeta.Component) {
+		fx.Invoke(func(lc fx.Lifecycle, demultiplexer demultiplexer.Component) {
 			lc.Append(fx.Hook{
 				OnStart: func(ctx context.Context) error {
 					// Main context passed to components
-					mainCtx, _ := pkgcommon.GetMainCtxCancel()
+					common.MainCtx, common.MainCtxCancel = context.WithCancel(context.Background())
 
 					// create and setup the Autoconfig instance
-					common.LoadComponents(mainCtx, demultiplexer, pkgconfig.Datadog.GetString("confd_path"))
+					common.LoadComponents(common.MainCtx, demultiplexer, pkgconfig.Datadog.GetString("confd_path"))
 					return nil
 				},
 			})
@@ -346,7 +320,6 @@ func startAgent(
 	server dogstatsdServer.Component,
 	capture replay.Component,
 	serverDebug dogstatsddebug.Component,
-	wmeta workloadmeta.Component,
 	rcclient rcclient.Component,
 	logsAgent optional.Option[logsAgent.Component],
 	sharedForwarder defaultforwarder.Component,
@@ -423,10 +396,9 @@ func startAgent(
 	}()
 
 	// Setup healthcheck port
-	ctx, _ := pkgcommon.GetMainCtxCancel()
 	healthPort := pkgconfig.Datadog.GetInt("health_port")
 	if healthPort > 0 {
-		err := healthprobe.Serve(ctx, healthPort)
+		err := healthprobe.Serve(common.MainCtx, healthPort)
 		if err != nil {
 			return log.Errorf("Error starting health port, exiting: %v", err)
 		}
@@ -441,7 +413,7 @@ func startAgent(
 		log.Infof("pid '%d' written to pid file '%s'", os.Getpid(), cliParams.pidfilePath)
 	}
 
-	err = manager.ConfigureAutoExit(ctx, pkgconfig.Datadog)
+	err = manager.ConfigureAutoExit(common.MainCtx, pkgconfig.Datadog)
 	if err != nil {
 		return log.Errorf("Unable to configure auto-exit, err: %v", err)
 	}
@@ -489,7 +461,7 @@ func startAgent(
 		if err != nil {
 			log.Errorf("Failed to create Cloud Foundry container tagger: %v", err)
 		} else {
-			containerTagger.Start(ctx)
+			containerTagger.Start(common.MainCtx)
 		}
 	}
 
@@ -500,7 +472,6 @@ func startAgent(
 		server,
 		capture,
 		serverDebug,
-		wmeta,
 		logsAgent,
 		demultiplexer,
 		hostMetadata,
@@ -521,7 +492,7 @@ func startAgent(
 
 	// Create the Leader election engine without initializing it
 	if pkgconfig.Datadog.GetBool("leader_election") {
-		leaderelection.CreateGlobalLeaderEngine(ctx)
+		leaderelection.CreateGlobalLeaderEngine(common.MainCtx)
 	}
 
 	// start the GUI server
@@ -570,7 +541,7 @@ func startAgent(
 	}
 
 	// load and run all configs in AD
-	common.AC.LoadAndRun(ctx)
+	common.AC.LoadAndRun(common.MainCtx)
 
 	// check for common misconfigurations and report them to log
 	misconfig.ToLog(misconfig.CoreAgent)
@@ -640,8 +611,7 @@ func stopAgent(cliParams *cliParams, server dogstatsdServer.Component, demultipl
 	os.Remove(cliParams.pidfilePath)
 
 	// gracefully shut down any component
-	_, cancel := pkgcommon.GetMainCtxCancel()
-	cancel()
+	common.MainCtxCancel()
 
 	pkglog.Info("See ya!")
 	pkglog.Flush()

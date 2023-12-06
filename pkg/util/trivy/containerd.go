@@ -30,7 +30,7 @@ import (
 	"github.com/samber/lo"
 	"golang.org/x/xerrors"
 
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 )
 
 // ContainerdCollector defines the conttainerd collector name

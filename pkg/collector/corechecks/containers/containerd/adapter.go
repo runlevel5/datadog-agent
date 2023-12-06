@@ -7,7 +7,9 @@
 
 package containerd
 
-import "github.com/DataDog/datadog-agent/comp/core/workloadmeta"
+import (
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
+)
 
 var metricsNameMapping = map[string]string{
 	"container.uptime":                         "containerd.uptime",

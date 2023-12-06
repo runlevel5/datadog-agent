@@ -10,7 +10,6 @@ package container
 import (
 	"context"
 
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/logs/auditor"
 	"github.com/DataDog/datadog-agent/pkg/logs/launchers"
 	"github.com/DataDog/datadog-agent/pkg/logs/launchers/container/tailerfactory"
@@ -20,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/tailers"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/startstop"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 )
 
 // containerSourceTypes are the values of source.Config.Type for which this

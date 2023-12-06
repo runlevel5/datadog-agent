@@ -27,8 +27,6 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta/collectors"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/cli/standalone"
 	"github.com/DataDog/datadog-agent/pkg/collector"
@@ -101,12 +99,6 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 			fx.Supply(params),
 			core.Bundle,
 			diagnosesendermanagerimpl.Module,
-			// workloadmeta setup
-			collectors.GetCatalog(),
-			fx.Supply(workloadmeta.Params{
-				InitHelper: common.GetWorkloadmetaInit(),
-			}),
-			workloadmeta.Module,
 		)
 	}
 
@@ -235,8 +227,8 @@ func disableCmdPort() {
 
 // runJmxCommandConsole sets up the common utils necessary for JMX, and executes the command
 // with the Console reporter
-func runJmxCommandConsole(config config.Component, cliParams *cliParams, wmeta workloadmeta.Component, diagnoseSendermanager diagnosesendermanager.Component) error {
-	// This prevents log-spam from "comp/core/workloadmeta/collectors/internal/remote/process_collector/process_collector.go"
+func runJmxCommandConsole(config config.Component, cliParams *cliParams, diagnoseSendermanager diagnosesendermanager.Component) error {
+	// This prevents log-spam from "pkg/workloadmeta/collectors/internal/remote/process_collector/process_collector.go"
 	// It appears that this collector creates some contention in AD.
 	// Disabling it is both more efficient and gets rid of this log spam
 	pkgconfig.Datadog.Set("language_detection.enabled", "false", model.SourceAgentRuntime)
@@ -250,8 +242,6 @@ func runJmxCommandConsole(config config.Component, cliParams *cliParams, wmeta w
 	if err != nil {
 		return err
 	}
-	// The Autoconfig instance setup happens in the workloadmeta start hook
-	// create and setup the Collector and others.
 	common.LoadComponents(context.Background(), senderManager, config.GetString("confd_path"))
 	common.AC.LoadAndRun(context.Background())
 
@@ -274,7 +264,7 @@ func runJmxCommandConsole(config config.Component, cliParams *cliParams, wmeta w
 		return err
 	}
 
-	err = standalone.ExecJMXCommandConsole(cliParams.command, cliParams.cliSelectedChecks, cliParams.jmxLogLevel, allConfigs, wmeta, diagnoseSendermanager)
+	err = standalone.ExecJMXCommandConsole(cliParams.command, cliParams.cliSelectedChecks, cliParams.jmxLogLevel, allConfigs, diagnoseSendermanager)
 
 	if runtime.GOOS == "windows" {
 		standalone.PrintWindowsUserWarning("jmx")
