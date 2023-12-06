@@ -119,6 +119,19 @@ docker_build_agent7:
     TAG_SUFFIX: -7
     BUILD_ARG: --target test --build-arg PYTHON_VERSION=3 --build-arg DD_AGENT_ARTIFACT=datadog-agent_7*_amd64.deb
 
+docker_build_agent7-fips:
+  extends: .docker_build_job_definition_amd64
+  rules:
+    !reference [.on_a7]
+  needs:
+    - job: agent_deb-x64-a7-fips
+      artifacts: false
+  variables:
+    IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent/agent
+    BUILD_CONTEXT: Dockerfiles/agent
+    TAG_SUFFIX: -7
+    BUILD_ARG: --target test --build-arg PYTHON_VERSION=3 --build-arg DD_AGENT_ARTIFACT=datadog-agent_7*_amd64.deb --build-arg FIPS_MODE=1
+
 single_machine_performance-amd64-a7:
   extends: .docker_publish_job_definition
   stage: container_build

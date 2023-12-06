@@ -76,6 +76,20 @@ dev_branch_multiarch-a7:
       - IMG_SOURCES: ${SRC_AGENT}:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-7-jmx-amd64,${SRC_AGENT}:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-7-jmx-arm64
         IMG_DESTINATIONS: agent-dev:${CI_COMMIT_REF_SLUG}-py3-jmx
 
+dev_branch_fips-a7:
+  extends: .docker_publish_job_definition
+  stage: dev_container_deploy
+  rules:
+    !reference [.on_a7_manual]
+  needs:
+    - docker_build_agent7-fips
+  variables:
+    IMG_REGISTRIES: dev
+    IMG_SOURCES: ${SRC_AGENT}:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-7-amd64
+    IMG_DESTINATIONS: agent-dev:${CI_COMMIT_REF_SLUG}-py3
+
+
+
 dev_branch_multiarch-dogstatsd:
   extends: .docker_publish_job_definition
   stage: dev_container_deploy
