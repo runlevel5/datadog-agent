@@ -8,11 +8,15 @@
 package module
 
 import (
+	"kernel.org/pub/linux/libs/security/libcap/cap"
+
 	"github.com/DataDog/datadog-agent/cmd/system-probe/config"
 	"github.com/DataDog/datadog-agent/pkg/ebpf"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-func preRegister(_ *config.Config) error {
+func preRegister(cfg *config.Config) error {
+	log.Infof("process capabilities: %s", cap.GetProc().String())
 	return ebpf.Setup(ebpf.NewConfig())
 }
 
