@@ -59,7 +59,7 @@ func TestConfigEndpoint(t *testing.T) {
 			rcv := api.NewHTTPReceiver(config.New(), sampler.NewDynamicConfig(), make(chan *api.Payload, 5000), nil, telemetry.NewNoopCollector())
 			mux := http.NewServeMux()
 			cfg := &config.AgentConfig{}
-			mux.Handle("/v0.7/config", ConfigHandler(rcv, &grpc, cfg))
+			mux.Handle("/v0.7/config", ConfigHandler(rcv, grpc.ClientGetConfigs, cfg))
 			server := httptest.NewServer(mux)
 			if tc.valid {
 				var request pbgo.ClientGetConfigsRequest
@@ -139,7 +139,7 @@ func TestUpstreamRequest(t *testing.T) {
 			grpc.On("ClientGetConfigs", mock.Anything, &request, mock.Anything).Return(&pbgo.ClientGetConfigsResponse{Targets: []byte("test")}, nil)
 
 			mux := http.NewServeMux()
-			mux.Handle("/v0.7/config", ConfigHandler(rcv, &grpc, tc.cfg))
+			mux.Handle("/v0.7/config", ConfigHandler(rcv, grpc.ClientGetConfigs, tc.cfg))
 			server := httptest.NewServer(mux)
 
 			req, _ := http.NewRequest("POST", server.URL+"/v0.7/config", strings.NewReader(tc.tracerReq))
@@ -165,7 +165,7 @@ func TestForwardErrors(t *testing.T) {
 		Return(nil, status.Error(codes.Unimplemented, "not implemented"))
 
 	mux := http.NewServeMux()
-	mux.Handle("/v0.7/config", ConfigHandler(rcv, &grpc, &config.AgentConfig{}))
+	mux.Handle("/v0.7/config", ConfigHandler(rcv, grpc.ClientGetConfigs, &config.AgentConfig{}))
 	server := httptest.NewServer(mux)
 
 	req, _ := http.NewRequest("POST", server.URL+"/v0.7/config", strings.NewReader(`{"client":{"id":"test_client","is_tracer":true,"client_tracer":{"service":"test","tags":["foo:bar"]}}}`))

@@ -36,31 +36,31 @@ type DomainResolver interface {
 	GetAlternateDomains() []string
 	// SetBaseDomain sets the base domain to a new value
 	SetBaseDomain(domain string)
-	// IsDisasterRecovery returns whether the resolver is to be used on disaster recovery
-	IsDisasterRecovery() bool
+	// IsHA returns whether the resolver is to be used on disaster recovery
+	IsHA() bool
 }
 
 // SingleDomainResolver will always return the same host
 type SingleDomainResolver struct {
-	domain             string
-	apiKeys            []string
-	isDisasterRecovery bool
+	domain  string
+	apiKeys []string
+	isHA    bool
 }
 
 // NewSingleDomainResolver creates a SingleDomainResolver with its destination domain & API keys
-func NewSingleDomainResolver(domain string, apiKeys []string, isDR bool) *SingleDomainResolver {
+func NewSingleDomainResolver(domain string, apiKeys []string, isHA bool) *SingleDomainResolver {
 	return &SingleDomainResolver{
-		domain:             domain,
-		apiKeys:            apiKeys,
-		isDisasterRecovery: isDR,
+		domain:  domain,
+		apiKeys: apiKeys,
+		isHA:    isHA,
 	}
 }
 
 // NewSingleDomainResolvers converts a map of domain/api keys into a map of SingleDomainResolver
-func NewSingleDomainResolvers(keysPerDomain map[string][]string, isDR bool) map[string]DomainResolver {
+func NewSingleDomainResolvers(keysPerDomain map[string][]string, isHA bool) map[string]DomainResolver {
 	resolvers := make(map[string]DomainResolver)
 	for domain, keys := range keysPerDomain {
-		resolvers[domain] = NewSingleDomainResolver(domain, keys, isDR)
+		resolvers[domain] = NewSingleDomainResolver(domain, keys, isHA)
 	}
 	return resolvers
 }
@@ -90,8 +90,8 @@ func (r *SingleDomainResolver) GetAlternateDomains() []string {
 	return []string{}
 }
 
-func (r *SingleDomainResolver) IsDisasterRecovery() bool {
-	return r.isDisasterRecovery
+func (r *SingleDomainResolver) IsHA() bool {
+	return r.isHA
 }
 
 type destination struct {
@@ -105,17 +105,17 @@ type MultiDomainResolver struct {
 	apiKeys             []string
 	overrides           map[string]destination
 	alternateDomainList []string
-	isDisasterRecovery  bool
+	isHA                bool
 }
 
 // NewMultiDomainResolver initializes a MultiDomainResolver with its API keys and base destination
-func NewMultiDomainResolver(baseDomain string, apiKeys []string, isDR bool) *MultiDomainResolver {
+func NewMultiDomainResolver(baseDomain string, apiKeys []string, isHA bool) *MultiDomainResolver {
 	return &MultiDomainResolver{
 		baseDomain:          baseDomain,
 		apiKeys:             apiKeys,
 		overrides:           make(map[string]destination),
 		alternateDomainList: []string{},
-		isDisasterRecovery:  isDR,
+		isHA:                isHA,
 	}
 }
 
@@ -147,8 +147,8 @@ func (r *MultiDomainResolver) GetAlternateDomains() []string {
 	return r.alternateDomainList
 }
 
-func (r *MultiDomainResolver) IsDisasterRecovery() bool {
-	return r.isDisasterRecovery
+func (r *MultiDomainResolver) IsHA() bool {
+	return r.isHA
 }
 
 // RegisterAlternateDestination adds an alternate destination to a MultiDomainResolver.

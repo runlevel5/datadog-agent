@@ -93,7 +93,9 @@ func runAgentSidekicks(ctx context.Context, cfg config.Component, wmeta workload
 		}
 		api.AttachEndpoint(api.Endpoint{
 			Pattern: "/v0.7/config",
-			Handler: func(r *api.HTTPReceiver) http.Handler { return remotecfg.ConfigHandler(r, rcClient, tracecfg) },
+			Handler: func(r *api.HTTPReceiver) http.Handler {
+				return remotecfg.ConfigHandler(r, rcClient.ClientGetConfigs, tracecfg)
+			},
 		})
 	}
 

@@ -183,7 +183,8 @@ func buildTCPEndpoints(coreConfig pkgConfig.Reader, logsConfig *LogsConfigKeys) 
 
 	disasterRecovery := []Endpoint{}
 
-	if disasterRecoveryddURL := config.Datadog.GetString("ha.logs.dd_url"); disasterRecoveryddURL != "" {
+	if config.Datadog.GetBool("ha.enabled") {
+		disasterRecoveryddURL := utils.GetMainHAEndpoint(coreConfig, tcpEndpointPrefix, logsConfig.getConfigKey("ha.logs_dd_url"))
 		host, port, err := parseAddress(disasterRecoveryddURL)
 		if err != nil {
 			return nil, fmt.Errorf("could not parse %s: %v", disasterRecoveryddURL, err)
@@ -290,7 +291,7 @@ func BuildHTTPEndpointsWithConfig(coreConfig pkgConfig.Reader, logsConfig *LogsC
 
 	disasterRecovery := []Endpoint{}
 	if config.Datadog.GetBool("ha.enabled") {
-		addr := utils.GetMainHAEndpoint(coreConfig, endpointPrefix, logsConfig.getConfigKey("ha.logs.dd_url"))
+		addr := utils.GetMainHAEndpoint(coreConfig, endpointPrefix, logsConfig.getConfigKey("ha.logs_dd_url"))
 		host, port, useSSL, err := parseAddressWithScheme(addr, logsConfig.devModeNoSSL(), parseAddressAsHost)
 		if err != nil {
 			return nil, fmt.Errorf("could not parse %s: %v", addr, err)

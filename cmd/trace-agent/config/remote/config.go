@@ -42,7 +42,7 @@ func putBuffer(buffer *bytes.Buffer) {
 	bufferPool.Put(buffer)
 }
 
-func ConfigHandler(r *api.HTTPReceiver, client remote.ConfigUpdater, cfg *config.AgentConfig) http.Handler {
+func ConfigHandler(r *api.HTTPReceiver, configUpdater remote.ConfigUpdater, cfg *config.AgentConfig) http.Handler {
 	cidProvider := api.NewIDProvider(cfg.ContainerProcRoot)
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		defer timing.Since("datadog.trace_agent.receiver.config_process_ms", time.Now())
@@ -74,7 +74,7 @@ func ConfigHandler(r *api.HTTPReceiver, client remote.ConfigUpdater, cfg *config
 			}
 			configsRequest.Client.ClientTracer.Tags = append(configsRequest.Client.ClientTracer.Tags, getContainerTags(req, cfg, cidProvider)...)
 		}
-		cfg, err := client.ClientGetConfigs(req.Context(), &configsRequest)
+		cfg, err := configUpdater(req.Context(), &configsRequest)
 		if err != nil {
 			if e, ok := status.FromError(err); ok {
 				switch e.Code() {

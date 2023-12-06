@@ -277,11 +277,11 @@ func InitConfig(config Config) {
 	config.BindEnvAndSetDefault("ha.enabled", false)
 	config.BindEnv("ha.api_key")
 	config.BindEnv("ha.site")
-	config.BindEnvAndSetDefault("ha.run_path", defaultRunPath + "-ha")
 
 	config.BindEnv("ha.rc_dd_url")
 	config.BindEnv("ha.dd_url")
-	config.BindEnv("ha.logs.dd_url")
+	config.BindEnv("ha.logs_dd_url")
+	config.BindEnv("ha.apm_dd_url")
 
 	// Remote config
 	config.BindEnvAndSetDefault("remote_configuration.enabled", true)

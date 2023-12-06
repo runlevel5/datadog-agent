@@ -69,7 +69,7 @@ func newRemoteConfigClient(deps dependencies) (Component, error) {
 	}
 
 	cHA, err := remote.NewHAGRPCClient(
-		"unknown", version.AgentVersion, []data.Product{}, 5*time.Second,
+		"unknown", version.AgentVersion, 5*time.Second,
 	)
 	if err != nil {
 		return nil, err

@@ -21,6 +21,7 @@ import (
 
 	"go.uber.org/atomic"
 
+	pkgConfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/trace/config"
 	"github.com/DataDog/datadog-agent/pkg/trace/log"
 	"github.com/DataDog/datadog-agent/pkg/trace/metrics"
@@ -52,6 +53,7 @@ func newSenders(cfg *config.AgentConfig, r eventRecorder, path string, climit, q
 			apiKey:     endpoint.APIKey,
 			recorder:   r,
 			userAgent:  fmt.Sprintf("Datadog Trace Agent/%s/%s", cfg.AgentVersion, cfg.GitCommit),
+			isHA:       endpoint.IsHA,
 		})
 	}
 	return senders
@@ -134,6 +136,8 @@ type senderConfig struct {
 	recorder eventRecorder
 	// userAgent is the computed user agent we'll use when communicating with Datadog
 	userAgent string
+	// isHA specifies whether this sender is part of the HA endpoints
+	isHA bool
 }
 
 // sender is responsible for sending payloads to a given URL. It uses a size-limited
@@ -168,8 +172,13 @@ func newSender(cfg *senderConfig) *sender {
 // loop runs the main sender loop.
 func (s *sender) loop() {
 	for p := range s.queue {
-		s.backoff()
-		s.sendPayload(p)
+		if !s.cfg.isHA || (s.cfg.isHA && pkgConfig.Datadog.GetBool("ha.failover")) {
+			if s.cfg.isHA {
+				log.Infof("High availability failover forwarder APM endpoint(s) active") // For demo :) let's remove it later
+			}
+			s.backoff()
+			s.sendPayload(p)
+		}
 	}
 }
 

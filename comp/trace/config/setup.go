@@ -23,6 +23,7 @@ import (
 	corecompcfg "github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/otelcol/otlp"
 	coreconfig "github.com/DataDog/datadog-agent/pkg/config"
+	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/model"
 	"github.com/DataDog/datadog-agent/pkg/config/remote"
 	"github.com/DataDog/datadog-agent/pkg/config/remote/data"
@@ -118,6 +119,18 @@ func prepareConfig(c corecompcfg.Component) (*config.AgentConfig, error) {
 			cfg.RemoteConfigClient = client
 		}
 	}
+	if coreconfig.Datadog.GetBool("ha.enabled") {
+		client, err := remote.NewHAGRPCClient(
+			rcClientName,
+			version.AgentVersion,
+			rcClientPollInterval,
+		)
+		if err != nil {
+			log.Errorf("Error when subscribing to HA remote config management %v", err)
+		} else {
+			cfg.RemoteConfigClientHA = client
+		}
+	}
 	cfg.ContainerTags = containerTagsFunc
 	cfg.ContainerProcRoot = coreConfigObject.GetString("container_proc_root")
 	return cfg, nil
@@ -171,6 +184,15 @@ func applyDatadogConfig(c *config.AgentConfig, core corecompcfg.Component) error
 		c.Endpoints[0].Host = utils.GetMainEndpoint(coreconfig.Datadog, apiEndpointPrefix, "apm_config.apm_dd_url")
 	}
 	c.Endpoints = appendEndpoints(c.Endpoints, "apm_config.additional_endpoints")
+
+	// Add high availability failover endpoints
+	if coreconfig.Datadog.GetBool("ha.enabled") {
+		c.Endpoints = append(c.Endpoints, &config.Endpoint{
+			IsHA:   true,
+			APIKey: configUtils.SanitizeAPIKey(coreconfig.Datadog.GetString("ha.api_key")),
+			Host:   utils.GetMainHAEndpoint(coreconfig.Datadog, apiEndpointPrefix, "ha.apm_dd_url"),
+		})
+	}
 
 	if core.IsSet("proxy.no_proxy") {
 		proxyList := core.GetStringSlice("proxy.no_proxy")
@@ -866,6 +888,12 @@ func SetHandler() http.Handler {
 				}
 				coreconfig.Datadog.Set("log_level", lvl, model.SourceAgentRuntime)
 				log.Infof("Switched log level to %s", lvl)
+			case "ha_failover":
+				if value == "nil" {
+					pkgconfig.Datadog.UnsetForSource("ha.failover", model.SourceRC)
+				} else {
+					pkgconfig.Datadog.Set("ha.failover", value, model.SourceRC)
+				}
 			default:
 				log.Infof("Unsupported config change requested (key: %q).", key)
 			}

@@ -56,7 +56,6 @@ func newConfig(deps dependencies) (Component, error) {
 		coreConfig:  deps.Config,
 	}
 	c.SetMaxMemCPU(pkgconfig.IsContainerized())
-
 	return &c, nil
 }
 
@@ -92,6 +91,12 @@ func (c *cfg) SetHandler() http.Handler {
 				}
 				pkgconfig.Datadog.Set("log_level", lvl, model.SourceAgentRuntime)
 				log.Infof("Switched log level to %s", lvl)
+			case "ha_failover":
+				if value == "nil" {
+					pkgconfig.Datadog.UnsetForSource("ha.failover", model.SourceRC)
+				} else {
+					pkgconfig.Datadog.Set("ha.failover", value, model.SourceRC)
+				}
 			default:
 				log.Infof("Unsupported config change requested (key: %q).", key)
 			}

@@ -34,6 +34,8 @@ type Endpoint struct {
 	// NoProxy will be set to true when the proxy setting for the trace API endpoint
 	// needs to be ignored (e.g. it is part of the "no_proxy" list in the yaml settings).
 	NoProxy bool
+
+	IsHA bool
 }
 
 // TelemetryEndpointPrefix specifies the prefix of the telemetry endpoint URL.
@@ -423,7 +425,8 @@ type AgentConfig struct {
 	MaxCatalogEntries int
 
 	// RemoteConfigClient retrieves sampling updates from the remote config backend
-	RemoteConfigClient RemoteClient `json:"-"`
+	RemoteConfigClient   RemoteClient `json:"-"`
+	RemoteConfigClientHA RemoteClient `json:"-"`
 
 	// ContainerTags ...
 	ContainerTags func(cid string) ([]string, error) `json:"-"`

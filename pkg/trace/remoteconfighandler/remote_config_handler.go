@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"strconv"
 
+	pkgConfig "github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/config/model"
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state/products/apmsampling"
 	"github.com/DataDog/datadog-agent/pkg/trace/config"
@@ -37,12 +39,14 @@ type rareSampler interface {
 // RemoteConfigHandler holds pointers to samplers that need to be updated when APM remote config changes
 type RemoteConfigHandler struct {
 	remoteClient                  config.RemoteClient
+	remoteClientHA                config.RemoteClient
 	prioritySampler               prioritySampler
 	errorsSampler                 errorsSampler
 	rareSampler                   rareSampler
 	agentConfig                   *config.AgentConfig
 	configState                   *state.AgentConfigState
 	configSetEndpointFormatString string
+	configSetHAFormatString       string
 }
 
 func New(conf *config.AgentConfig, prioritySampler prioritySampler, rareSampler rareSampler, errorsSampler errorsSampler) *RemoteConfigHandler {
@@ -58,6 +62,7 @@ func New(conf *config.AgentConfig, prioritySampler prioritySampler, rareSampler 
 
 	return &RemoteConfigHandler{
 		remoteClient:    conf.RemoteConfigClient,
+		remoteClientHA:  conf.RemoteConfigClientHA,
 		prioritySampler: prioritySampler,
 		rareSampler:     rareSampler,
 		errorsSampler:   errorsSampler,
@@ -67,6 +72,9 @@ func New(conf *config.AgentConfig, prioritySampler prioritySampler, rareSampler 
 		},
 		configSetEndpointFormatString: fmt.Sprintf(
 			"http://%s/config/set?log_level=%%s", net.JoinHostPort(conf.ReceiverHost, strconv.Itoa(conf.ReceiverPort)),
+		),
+		configSetHAFormatString: fmt.Sprintf(
+			"http://%s/config/set?ha_failover=%%s", net.JoinHostPort(conf.ReceiverHost, strconv.Itoa(conf.ReceiverPort)),
 		),
 	}
 }
@@ -79,6 +87,53 @@ func (h *RemoteConfigHandler) Start() {
 	h.remoteClient.Start()
 	h.remoteClient.Subscribe(state.ProductAPMSampling, h.onUpdate)
 	h.remoteClient.Subscribe(state.ProductAgentConfig, h.onAgentConfigUpdate)
+
+	if h.remoteClientHA != nil {
+		h.remoteClientHA.Start()
+		h.remoteClientHA.Subscribe(state.ProductDebug, h.haUpdateCallback)
+	}
+}
+
+// TODO: conglomerate this with the other HA code
+type haUpdate struct {
+	Failover *bool `json:"failover"`
+}
+
+func (h *RemoteConfigHandler) haUpdateCallback(updates map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)) {
+	var failover *bool
+	for _, update := range updates {
+		var haUpdate haUpdate
+		err := json.Unmarshal(update.Config, &haUpdate)
+		if err != nil {
+			pkglog.Errorf("HA update unmarshal failed: %s", err)
+			continue
+		}
+
+		if haUpdate.Failover != nil {
+			failover = haUpdate.Failover
+		}
+	}
+
+	if failover == nil {
+		if pkgConfig.Datadog.GetSource("ha.failover") == model.SourceRC {
+			resp, err := http.Post(fmt.Sprintf(h.configSetHAFormatString, "nil"), "", nil)
+			if err == nil {
+				resp.Body.Close()
+				pkglog.Infof("Falling back to `ha.failover:%t`", pkgConfig.Datadog.GetBool("ha.failover"))
+			} else {
+				pkglog.Errorf("HA failover update failed: %s", err)
+			}
+		}
+	} else {
+		resp, err := http.Post(fmt.Sprintf(h.configSetHAFormatString, fmt.Sprintf("%t", *failover)), "", nil)
+		if err == nil {
+			resp.Body.Close()
+			pkglog.Infof("Setting `ha.failover:%t` through remote config", *failover)
+		} else {
+			pkglog.Errorf("HA failover update failed: %s", err)
+		}
+	}
+
 }
 
 func (h *RemoteConfigHandler) onAgentConfigUpdate(updates map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)) {

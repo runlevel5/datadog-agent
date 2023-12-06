@@ -139,22 +139,22 @@ func NewService() (*Service, error) {
 	if config.Datadog.IsSet("remote_configuration.api_key") {
 		apiKey = config.Datadog.GetString("remote_configuration.api_key")
 	}
-	runPath := config.Datadog.GetString("run_path")
+	dbName := "remote-config.db"
 	baseRawURL := utils.GetMainEndpoint(config.Datadog, "https://config.", "remote_configuration.rc_dd_url")
 
-	return newService(apiKey, runPath, baseRawURL)
+	return newService(apiKey, dbName, baseRawURL)
 }
 
 // NewHAService instantiates a new remote configuration management service for HA
 func NewHAService() (*Service, error) {
 	apiKey := config.Datadog.GetString("ha.api_key")
-	runPath := config.Datadog.GetString("ha.run_path")
+	dbName := "remote-config-ha.db"
 	baseRawURL := utils.GetMainHAEndpoint(config.Datadog, "https://config.", "ha.rc_dd_url")
 
-	return newService(apiKey, runPath, baseRawURL)
+	return newService(apiKey, dbName, baseRawURL)
 }
 
-func newService(apiKey string, runPath string, baseRawURL string) (*Service, error) {
+func newService(apiKey string, dbName string, baseRawURL string) (*Service, error) {
 	refreshIntervalOverrideAllowed := false // If a user provides a value we don't want to override
 
 	var refreshInterval time.Duration
@@ -213,7 +213,7 @@ func newService(apiKey string, runPath string, baseRawURL string) (*Service, err
 	if err != nil {
 		return nil, err
 	}
-	dbPath := path.Join(runPath, "remote-config.db")
+	dbPath := path.Join(config.Datadog.GetString("run_path"), dbName)
 	db, err := openCacheDB(dbPath)
 	if err != nil {
 		return nil, err

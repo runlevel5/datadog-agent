@@ -157,13 +157,13 @@ func NewUnverifiedGRPCClient(agentName string, agentVersion string, products []d
 }
 
 // NewHAGRPCClient creates a new client that does not perform any TUF verification and is used for HA
-func NewHAGRPCClient(agentName string, agentVersion string, products []data.Product, pollInterval time.Duration) (*Client, error) {
+func NewHAGRPCClient(agentName string, agentVersion string, pollInterval time.Duration) (*Client, error) {
 	grpcClient, err := NewAgentGRPCConfigFetcher()
 	if err != nil {
 		return nil, err
 	}
 
-	return newClient(agentName, grpcClient.ClientGetConfigsHA, false, agentVersion, products, pollInterval)
+	return newClient(agentName, grpcClient.ClientGetConfigsHA, true, agentVersion, []data.Product{}, pollInterval)
 }
 
 func newClient(agentName string, updater ConfigUpdater, doTufVerification bool, agentVersion string, products []data.Product, pollInterval time.Duration) (*Client, error) {
