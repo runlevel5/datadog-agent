@@ -82,50 +82,105 @@ def run(
     if parsedParams:
         envVars["E2E_STACK_PARAMS"] = json.dumps(parsedParams)
 
-    gotestsum_format = "standard-verbose" if verbose else "pkgname"
-    coverage_opt = ""
-    coverage_path = "coverage.out"
-    if coverage:
-        coverage_opt = f"-cover -covermode=count -coverprofile={coverage_path} -coverpkg=./...,github.com/DataDog/test-infra-definitions/..."
-
-    test_run_arg = ""
-    if test_run_name != "":
-        test_run_arg = f"-run {test_run_name}"
-
     junit_file_name = "junit-out-{flavor.name}.xml" if junit_tar else None
 
-    cmd = f'gotestsum --format {gotestsum_format} '
-    cmd += '{junit_file_flag} --packages="{packages}" -- -ldflags="-X {REPO_PATH}/test/new-e2e/tests/containers.GitCommit={commit}" {verbose} -mod={go_mod} -vet=off -timeout {timeout} -tags "{go_build_tags}" {nocache} {run} {skip} {coverage_opt} {test_run_arg} -args {osversion} {platform} {major_version} {arch} {flavor} {cws_supported_osversion} {keep_stacks}'
+    coverage_path = "coverage.out" if coverage else ""
 
-    args = {
-        "junit_file_flag": f'--junit-file {junit_file_name}' if junit_file_name else '',
-        "go_mod": "mod",
-        "timeout": "4h",
-        "verbose": '-v' if verbose else '',
-        "nocache": '-count=1' if not cache else '',
-        "REPO_PATH": REPO_PATH,
-        "commit": get_git_commit(),
-        "run": '-test.run ' + run if run else '',
-        "skip": '-test.skip ' + skip if skip else '',
-        "coverage_opt": coverage_opt,
-        "test_run_arg": test_run_arg,
-        "osversion": f"-osversion {osversion}" if osversion else '',
-        "platform": f"-platform {platform}" if platform else '',
-        "arch": f"-arch {arch}" if arch else '',
-        "flavor": f"-flavor {flavor}" if flavor else '',
-        "major_version": f"-major-version {major_version}" if major_version else '',
-        "cws_supported_osversion": f"-cws-supported-osversion {cws_supported_osversion}"
-        if cws_supported_osversion
-        else '',
-        "keep_stacks": '-keep-stacks' if keep_stacks else '',
-    }
+    def get_gotestsum_options(
+        verbose,
+        junit_file_name,
+    ):
+        cmd = ""
+        cmd += f"--format {'standard-verbose' if verbose else 'pkgname'} "
+
+        if junit_tar:
+            cmd += f"--junitfile {junit_file_name} "
+
+        return cmd
+
+    gotestsum_options = get_gotestsum_options(
+        verbose=verbose,
+        junit_file_name=junit_file_name,
+    )
+
+    def get_gotest_options(
+        commit: str,
+        verbose: bool = False,
+        cache: bool = False,
+        build_tags: List[str] = None,
+        coverage_path: str = None,
+        run: str = None,
+        skip: str = None,
+        test_run_name: str = None,
+        osversion: str = None,
+        platform: str = None,
+        major_version: str = None,
+        arch: str = None,
+        flavor: str = None,
+        cws_supported_osversion: str = None,
+        keep_stacks: str = None,
+    ):
+        cmd = (
+            f'-ldflags="-X {REPO_PATH}/test/new-e2e/tests/containers.GitCommit={commit}" -mod=mod -vet=off -timeout 4h'
+        )
+        if verbose:
+            cmd += "-v "
+        if coverage_path:
+            cmd += f"-cover -covermode=count -coverprofile={coverage_path} -coverpkg=./...,github.com/DataDog/test-infra-definitions/... "
+        if not cache:
+            cmd += "-count=1 "
+        if build_tags:
+            cmd += f'-tags "{" ".join(build_tags)}"'
+        if run:
+            cmd += f"-test.run {run}"
+        if skip:
+            cmd += f"-test.skip {skip}"
+        if test_run_name:
+            cmd += f"-run {test_run_name} "
+
+        cmd += "-args "
+        if osversion:
+            cmd += f"-osversion {osversion}"
+        if platform:
+            cmd += f"-platform {platform}"
+        if major_version:
+            cmd += f"-major-version {major_version}"
+        if arch:
+            cmd += f"-arch {arch}"
+        if flavor:
+            cmd += f"-flavor {flavor}"
+        if cws_supported_osversion:
+            cmd += f"-cws-supported-osversion {cws_supported_osversion}"
+        if keep_stacks:
+            cmd += f"-keep-stacks {keep_stacks}"
+
+        return cmd
+
+    gotest_options = get_gotest_options(
+        commit=get_git_commit(),
+        verbose=verbose,
+        coverage_path=coverage_path,
+        cache=cache,
+        build_tags=tags,
+        run=run,
+        skip=skip,
+        test_run_name=test_run_name,
+        osversion=osversion,
+        platform=platform,
+        major_version=major_version,
+        arch=arch,
+        flavor=flavor,
+        cws_supported_osversion=cws_supported_osversion,
+        keep_stacks=keep_stacks,
+    )
+
+    cmd = f'gotestsum {gotestsum_options} --packages="{{packages}}" -- {gotest_options}'
 
     test_res = test_flavor(
         ctx,
         flavor=AgentFlavor.base,
         build_tags=tags,
         modules=[e2e_module],
-        args=args,
         cmd=cmd,
         env=envVars,
         junit_file_name=junit_file_name,

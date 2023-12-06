@@ -358,7 +358,6 @@ def test_flavor(
     modules: List[GoModule],
     cmd: str,
     env: Dict[str, str],
-    args: Dict[str, str],
     junit_file_name: str,
     save_result_json: str,
     test_profiler: TestProfiler,
@@ -370,9 +369,7 @@ def test_flavor(
     def command(test_results, module, module_result):
         with ctx.cd(module.full_path()):
             res = ctx.run(
-                cmd.format(
-                    packages=' '.join(f"{t}/..." if not t.endswith("/...") else t for t in module.targets), **args
-                ),
+                cmd.format(packages=' '.join(f"{t}/..." if not t.endswith("/...") else t for t in module.targets)),
                 env=env,
                 out_stream=test_profiler,
                 warn=True,
@@ -567,8 +564,8 @@ def test(
     junit_file_name = "junit-out-{flavor.name}.xml" if junit_tar else None
 
     def get_gotestsum_options(
-        rerun_fails,
-        junit_file_name,
+        rerun_fails: str = None,
+        junit_file_name: str = None,
     ):
         cmd = f'--jsonfile "{GO_TEST_RESULT_TMP_JSON}" --format pkgname '
         if rerun_fails:
@@ -584,14 +581,16 @@ def test(
     )
 
     def get_go_options(
-        cpus,
-        gcflags,
-        ldflags,
-        verbose,
-        go_mod,
-        unit_tests_tags,
+        verbose: bool = None,
+        cpus: str = None,
+        gcflags: str = None,
+        ldflags: str = None,
+        go_mod: str = None,
+        unit_tests_tags: str = None,
     ):
         cmd = ""
+        if verbose:
+            cmd += "-v "
         if go_mod:
             cmd += f"-mod={go_mod} "
         if cpus:
@@ -600,25 +599,23 @@ def test(
             cmd += f'-gcflags "{gcflags}" '
         if ldflags:
             cmd += f'-ldflags "{ldflags}" '
-        if verbose:
-            cmd += "-v "
         if unit_tests_tags:
             cmd += f'-tags "{" ".join(unit_tests_tags)}" '
 
         return cmd
 
     def get_gotest_options(
-        race,
-        coverage,
-        cpus,
-        cache,
-        timeout,
-        gcflags,
-        ldflags,
-        verbose,
-        go_mod,
-        test_run_name,
-        unit_tests_tags,
+        verbose: bool = False,
+        race: bool = False,
+        coverage: bool = False,
+        cache: bool = False,
+        cpus: str = None,
+        timeout: str = None,
+        gcflags: str = None,
+        ldflags: str = None,
+        go_mod: str = None,
+        test_run_name: str = None,
+        unit_tests_tags: List[str] = None,
     ):
         cmd = "-short -vet=off "
 
@@ -668,7 +665,6 @@ def test(
         os.remove(save_result_json)
 
     stdlib_build_cmd = f"go build {gobuild_options} std cmd"
-    test_cmd = f'gotestsum {gotestsum_options} --packages="{{packages}}" -- {gotest_options}'
 
     # Test
     build_stdlib(
@@ -681,13 +677,14 @@ def test(
     if only_modified_packages:
         modules = get_modified_packages(ctx)
 
+    test_cmd = f'gotestsum {gotestsum_options} --packages="{{packages}}" -- {gotest_options}'
+
     test_results = test_flavor(
         ctx,
         flavor=flavor,
         modules=modules,
         cmd=test_cmd,
         env=env,
-        args={},
         junit_file_name=junit_file_name,
         save_result_json=save_result_json,
         test_profiler=test_profiler,
