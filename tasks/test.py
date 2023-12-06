@@ -333,10 +333,8 @@ def lint_flavor(
 
 def build_stdlib(
     ctx,
-    build_tags: List[str],
     cmd: str,
     env: Dict[str, str],
-    args: Dict[str, str],
     test_profiler: TestProfiler,
 ):
     """
@@ -346,10 +344,8 @@ def build_stdlib(
     To avoid a perfomance overhead when running tests, we pre-compile the standard library and cache it.
     We must use the same build flags as the one we are using when compiling tests to not invalidate the cache.
     """
-    args["go_build_tags"] = " ".join(build_tags)
-
     ctx.run(
-        cmd.format(**args),
+        cmd,
         env=env,
         out_stream=test_profiler,
         warn=True,
@@ -359,25 +355,17 @@ def build_stdlib(
 def test_flavor(
     ctx,
     flavor: AgentFlavor,
-    build_tags: List[str],
     modules: List[GoModule],
     cmd: str,
     env: Dict[str, str],
     args: Dict[str, str],
-    junit_tar: str,
+    junit_file_name: str,
     save_result_json: str,
     test_profiler: TestProfiler,
 ):
     """
     Runs unit tests for given flavor, build tags, and modules.
     """
-    args["go_build_tags"] = " ".join(build_tags)
-
-    junit_file_flag = ""
-    junit_file = f"junit-out-{flavor.name}.xml"
-    if junit_tar:
-        junit_file_flag = "--junitfile " + junit_file
-    args["junit_file_flag"] = junit_file_flag
 
     def command(test_results, module, module_result):
         with ctx.cd(module.full_path()):
@@ -407,8 +395,8 @@ def test_flavor(
             with open(save_result_json, 'ab') as json_file, open(module_result.result_json_path, 'rb') as module_file:
                 json_file.write(module_file.read())
 
-        if junit_tar:
-            module_result.junit_file_path = os.path.join(module.full_path(), junit_file)
+        if junit_file_name:
+            module_result.junit_file_path = os.path.join(module.full_path(), junit_file_name)
             add_flavor_to_junitxml(module_result.junit_file_path, flavor)
 
         test_results.append(module_result)
@@ -576,14 +564,102 @@ def test(
     # Use stdout if no profile is set
     test_profiler = TestProfiler() if profile else None
 
-    race_opt = "-race" if race else ""
-    # atomic is quite expensive but it's the only way to run both the coverage and the race detector at the same time without getting false positives from the cover counter
-    covermode_opt = "-covermode=" + ("atomic" if race else "count") if coverage else ""
-    build_cpus_opt = f"-p {cpus}" if cpus else ""
+    junit_file_name = "junit-out-{flavor.name}.xml" if junit_tar else None
 
-    coverprofile = f"-coverprofile={PROFILE_COV}" if coverage else ""
+    def get_gotestsum_options(
+        rerun_fails,
+        junit_file_name,
+    ):
+        cmd = f'--jsonfile "{GO_TEST_RESULT_TMP_JSON}" --format pkgname '
+        if rerun_fails:
+            cmd += f"--rerun-fails={rerun_fails} "
+        if junit_tar:
+            cmd += f"--junitfile {junit_file_name} "
 
-    nocache = '-count=1' if not cache else ''
+        return cmd
+
+    gotestsum_options = get_gotestsum_options(
+        rerun_fails,
+        junit_file_name,
+    )
+
+    def get_go_options(
+        cpus,
+        gcflags,
+        ldflags,
+        verbose,
+        go_mod,
+        unit_tests_tags,
+    ):
+        cmd = ""
+        if go_mod:
+            cmd += f"-mod={go_mod} "
+        if cpus:
+            cmd += f"-p {cpus} "
+        if gcflags:
+            cmd += f'-gcflags "{gcflags}" '
+        if ldflags:
+            cmd += f'-ldflags "{ldflags}" '
+        if verbose:
+            cmd += "-v "
+        if unit_tests_tags:
+            cmd += f'-tags "{" ".join(unit_tests_tags)}" '
+
+        return cmd
+
+    def get_gotest_options(
+        race,
+        coverage,
+        cpus,
+        cache,
+        timeout,
+        gcflags,
+        ldflags,
+        verbose,
+        go_mod,
+        test_run_name,
+        unit_tests_tags,
+    ):
+        cmd = "-short -vet=off "
+
+        cmd += f"{get_go_options(cpus, gcflags, ldflags, verbose, go_mod, unit_tests_tags)} "
+        if race:
+            cmd += "-race "
+        if coverage:
+            cmd += f"-coverprofile={PROFILE_COV} "
+            # atomic is quite expensive but it's the only way to run both the coverage and the race detector at the same time without getting false positives from the cover counter
+            cmd += f"-covermode={('atomic' if race else 'count')} "
+        if timeout:
+            cmd += f"-timeout {timeout}s "
+        if not cache:
+            cmd += "-count=1 "
+        if test_run_name:
+            cmd += f"-run {test_run_name} "
+
+        return cmd
+
+    gobuild_options = get_go_options(
+        cpus=cpus,
+        gcflags=gcflags,
+        ldflags=ldflags,
+        verbose=verbose,
+        go_mod=go_mod,
+        unit_tests_tags=unit_tests_tags,
+    )
+
+    gotest_options = get_gotest_options(
+        race=race,
+        coverage=coverage,
+        cpus=cpus,
+        gcflags=gcflags,
+        ldflags=ldflags,
+        cache=cache,
+        timeout=timeout,
+        verbose=verbose,
+        go_mod=go_mod,
+        test_run_name=test_run_name,
+        unit_tests_tags=unit_tests_tags,
+    )
 
     if save_result_json and os.path.isfile(save_result_json):
         # Remove existing file since we append to it.
@@ -591,50 +667,28 @@ def test(
         print(f"Removing existing '{save_result_json}' file")
         os.remove(save_result_json)
 
-    test_run_arg = f"-run {test_run_name}" if test_run_name else ""
-
-    stdlib_build_cmd = 'go build {verbose} -mod={go_mod} -tags "{go_build_tags}" -gcflags="{gcflags}" '
-    stdlib_build_cmd += '-ldflags="{ldflags}" {build_cpus} {race_opt} std cmd'
-    cmd = 'gotestsum {junit_file_flag} {json_flag} --format pkgname {rerun_fails} --packages="{packages}" -- {verbose} -mod={go_mod} -vet=off -timeout {timeout}s -tags "{go_build_tags}" -gcflags="{gcflags}" '
-    cmd += '-ldflags="{ldflags}" {build_cpus} {race_opt} -short {covermode_opt} {coverprofile} {nocache} {test_run_arg}'
-    args = {
-        "go_mod": go_mod,
-        "gcflags": gcflags,
-        "ldflags": ldflags,
-        "race_opt": race_opt,
-        "build_cpus": build_cpus_opt,
-        "covermode_opt": covermode_opt,
-        "coverprofile": coverprofile,
-        "test_run_arg": test_run_arg,
-        "timeout": int(timeout),
-        "verbose": '-v' if verbose else '',
-        "nocache": nocache,
-        # Used to print failed tests at the end of the go test command
-        "json_flag": f'--jsonfile "{GO_TEST_RESULT_TMP_JSON}" ',
-        "rerun_fails": f"--rerun-fails={rerun_fails}" if rerun_fails else "",
-    }
+    stdlib_build_cmd = f"go build {gobuild_options} std cmd"
+    test_cmd = f'gotestsum {gotestsum_options} --packages="{{packages}}" -- {gotest_options}'
 
     # Test
     build_stdlib(
         ctx,
-        build_tags=unit_tests_tags,
         cmd=stdlib_build_cmd,
         env=env,
-        args=args,
         test_profiler=test_profiler,
     )
+
     if only_modified_packages:
         modules = get_modified_packages(ctx)
 
     test_results = test_flavor(
         ctx,
         flavor=flavor,
-        build_tags=unit_tests_tags,
         modules=modules,
-        cmd=cmd,
+        cmd=test_cmd,
         env=env,
-        args=args,
-        junit_tar=junit_tar,
+        args={},
+        junit_file_name=junit_file_name,
         save_result_json=save_result_json,
         test_profiler=test_profiler,
     )

@@ -92,10 +92,13 @@ def run(
     if test_run_name != "":
         test_run_arg = f"-run {test_run_name}"
 
+    junit_file_name = "junit-out-{flavor.name}.xml" if junit_tar else None
+
     cmd = f'gotestsum --format {gotestsum_format} '
     cmd += '{junit_file_flag} --packages="{packages}" -- -ldflags="-X {REPO_PATH}/test/new-e2e/tests/containers.GitCommit={commit}" {verbose} -mod={go_mod} -vet=off -timeout {timeout} -tags "{go_build_tags}" {nocache} {run} {skip} {coverage_opt} {test_run_arg} -args {osversion} {platform} {major_version} {arch} {flavor} {cws_supported_osversion} {keep_stacks}'
 
     args = {
+        "junit_file_flag": f'--junit-file {junit_file_name}' if junit_file_name else '',
         "go_mod": "mod",
         "timeout": "4h",
         "verbose": '-v' if verbose else '',
@@ -125,7 +128,7 @@ def run(
         args=args,
         cmd=cmd,
         env=envVars,
-        junit_tar=junit_tar,
+        junit_file_name=junit_file_name,
         save_result_json="",
         test_profiler=None,
     )
