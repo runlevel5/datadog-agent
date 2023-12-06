@@ -21,7 +21,7 @@ type Params struct {
 }
 
 func NewParams(config config.Component, log log.Component) Params {
-	haDomain := pkgconfig.Datadog.GetString("ha.dd_url")
+	haDomain := utils.GetInfraHAEndpoint(pkgconfig.Datadog)
 	haAPIKey := pkgconfig.Datadog.GetString("ha.api_key")
 	return Params{Options: NewOptions(config, log, getMultipleEndpoints(config, log), map[string][]string{haDomain: {haAPIKey}})}
 }

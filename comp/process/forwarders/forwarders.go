@@ -11,6 +11,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
 	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/resolver"
+	"github.com/DataDog/datadog-agent/pkg/config/utils"
 	"github.com/DataDog/datadog-agent/pkg/process/runner/endpoint"
 	apicfg "github.com/DataDog/datadog-agent/pkg/process/util/api/config"
 	"go.uber.org/fx"
@@ -63,7 +64,7 @@ func newForwarders(deps dependencies) (Component, error) {
 
 func createParams(config config.Component, log log.Component, queueBytes int, endpoints []apicfg.Endpoint) defaultforwarder.Params {
 	resolvers := resolver.NewSingleDomainResolvers(apicfg.KeysPerDomains(endpoints), false)
-	drDomain := config.GetString("ha.dd_url")
+	drDomain := utils.GetInfraHAEndpoint(config)
 	drAPIKey := config.GetString("ha.api_key")
 	resolvers[drDomain] = resolver.NewSingleDomainResolver(drDomain, []string{drAPIKey}, true)
 

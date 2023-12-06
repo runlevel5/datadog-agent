@@ -108,8 +108,8 @@ func (s *Sender) run() {
 		// Send to disaster recovery destinations if DR is enabled
 		// Considered as unreliable for this PoC, but really should be reliable
 		if config.Datadog.GetBool("ha.failover") {
-			log.Info("High availability failover logs endpoint active") // For demo :) let's remove it later
 			for i, destSender := range drDestinations {
+				log.Info("High availability failover logs endpoint active") // For demo :) let's remove it later
 				if !destSender.NonBlockingSend(payload) {
 					tlmPayloadsDropped.Inc("true", strconv.Itoa(i))
 					tlmMessagesDropped.Add(float64(len(payload.Messages)), "false", strconv.Itoa(i))
