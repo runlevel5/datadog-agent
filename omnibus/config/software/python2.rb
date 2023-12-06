@@ -60,6 +60,7 @@ if ohai["platform"] != "windows"
     patch :source => "python2.7_2.7.18-cve-2019-20907.diff" unless windows_target?
     patch :source => "python2.7_2.7.18-cve-2020-8492.diff" unless windows_target?
     patch :source => "python2.7_2.7.18-cve-2021-3177.diff" unless windows_target?
+    patch :source => "disable-multiarch.diff"
 
     configure(*python_configure_options, :env => env)
     command "make -j #{workers}", :env => env
