@@ -21,6 +21,78 @@ from .test import test_flavor
 from .utils import REPO_PATH, get_git_commit
 
 
+def get_gotestsum_args(
+    verbose: bool = False,
+    junit_file_name: str = "",
+):
+    """
+    Builds the gotestsum command arguments for the invoke new-e2e-tests.run task.
+    """
+    cmd = ""
+    cmd += f"--format {'standard-verbose' if verbose else 'pkgname'} "
+
+    if junit_file_name:
+        cmd += f"--junitfile {junit_file_name} "
+
+    return cmd
+
+
+def get_gotest_args(
+    commit: str,
+    verbose: bool = False,
+    cache: bool = True,
+    build_tags: List[str] = None,
+    coverage_path: str = "",
+    run: str = "",
+    skip: str = "",
+    test_run_name: str = "",
+    osversion: str = "",
+    platform: str = "",
+    major_version: str = "",
+    arch: str = "",
+    flavor: str = "",
+    cws_supported_osversion: str = "",
+    keep_stacks: str = "",
+):
+    """
+    Builds the go test command arguments for the invoke new-e2e-tests.run task.
+    """
+
+    cmd = f'-ldflags="-X {REPO_PATH}/test/new-e2e/tests/containers.GitCommit={commit}" -mod=mod -vet=off -timeout 4h '
+    if verbose:
+        cmd += "-v "
+    if coverage_path:
+        cmd += f"-cover -covermode=count -coverprofile={coverage_path} -coverpkg=./...,github.com/DataDog/test-infra-definitions/... "
+    if not cache:
+        cmd += "-count=1 "
+    if build_tags:
+        cmd += f'-tags "{" ".join(build_tags)}" '
+    if run:
+        cmd += f"-test.run {run} "
+    if skip:
+        cmd += f"-test.skip {skip} "
+    if test_run_name:
+        cmd += f"-run {test_run_name} "
+
+    cmd += "-args "
+    if osversion:
+        cmd += f"-osversion {osversion} "
+    if platform:
+        cmd += f"-platform {platform} "
+    if major_version:
+        cmd += f"-major-version {major_version} "
+    if arch:
+        cmd += f"-arch {arch} "
+    if flavor:
+        cmd += f"-flavor {flavor} "
+    if cws_supported_osversion:
+        cmd += f"-cws-supported-osversion {cws_supported_osversion} "
+    if keep_stacks:
+        cmd += f"-keep-stacks {keep_stacks} "
+
+    return cmd
+
+
 @task(
     iterable=['tags', 'targets', 'configparams'],
     help={
@@ -86,77 +158,12 @@ def run(
 
     coverage_path = "coverage.out" if coverage else ""
 
-    def get_gotestsum_options(
-        verbose,
-        junit_file_name,
-    ):
-        cmd = ""
-        cmd += f"--format {'standard-verbose' if verbose else 'pkgname'} "
-
-        if junit_tar:
-            cmd += f"--junitfile {junit_file_name} "
-
-        return cmd
-
-    gotestsum_options = get_gotestsum_options(
+    gotestsum_args = get_gotestsum_args(
         verbose=verbose,
         junit_file_name=junit_file_name,
     )
 
-    def get_gotest_options(
-        commit: str,
-        verbose: bool = False,
-        cache: bool = False,
-        build_tags: List[str] = None,
-        coverage_path: str = "",
-        run: str = "",
-        skip: str = "",
-        test_run_name: str = "",
-        osversion: str = "",
-        platform: str = "",
-        major_version: str = "",
-        arch: str = "",
-        flavor: str = "",
-        cws_supported_osversion: str = "",
-        keep_stacks: str = "",
-    ):
-        cmd = (
-            f'-ldflags="-X {REPO_PATH}/test/new-e2e/tests/containers.GitCommit={commit}" -mod=mod -vet=off -timeout 4h'
-        )
-        if verbose:
-            cmd += "-v "
-        if coverage_path:
-            cmd += f"-cover -covermode=count -coverprofile={coverage_path} -coverpkg=./...,github.com/DataDog/test-infra-definitions/... "
-        if not cache:
-            cmd += "-count=1 "
-        if build_tags:
-            cmd += f'-tags "{" ".join(build_tags)}"'
-        if run:
-            cmd += f"-test.run {run}"
-        if skip:
-            cmd += f"-test.skip {skip}"
-        if test_run_name:
-            cmd += f"-run {test_run_name} "
-
-        cmd += "-args "
-        if osversion:
-            cmd += f"-osversion {osversion}"
-        if platform:
-            cmd += f"-platform {platform}"
-        if major_version:
-            cmd += f"-major-version {major_version}"
-        if arch:
-            cmd += f"-arch {arch}"
-        if flavor:
-            cmd += f"-flavor {flavor}"
-        if cws_supported_osversion:
-            cmd += f"-cws-supported-osversion {cws_supported_osversion}"
-        if keep_stacks:
-            cmd += f"-keep-stacks {keep_stacks}"
-
-        return cmd
-
-    gotest_options = get_gotest_options(
+    gotest_args = get_gotest_args(
         commit=get_git_commit(),
         verbose=verbose,
         coverage_path=coverage_path,
@@ -174,7 +181,7 @@ def run(
         keep_stacks=keep_stacks,
     )
 
-    cmd = f'gotestsum {gotestsum_options} --packages="{{packages}}" -- {gotest_options}'
+    cmd = f'gotestsum {gotestsum_args} --packages="{{packages}}" -- {gotest_args}'
 
     test_res = test_flavor(
         ctx,

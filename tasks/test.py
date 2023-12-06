@@ -498,6 +498,80 @@ def sanitize_env_vars():
             del os.environ[env]
 
 
+def get_gotestsum_args(
+    rerun_fails: str = None,
+    junit_file_name: str = None,
+):
+    """
+    Builds the gotestsum command arguments for the invoke test task.
+    """
+    cmd = f'--jsonfile "{GO_TEST_RESULT_TMP_JSON}" --format pkgname '
+    if rerun_fails:
+        cmd += f"--rerun-fails={rerun_fails} "
+    if junit_file_name:
+        cmd += f"--junitfile {junit_file_name} "
+
+    return cmd
+
+
+def get_go_args(
+    verbose: bool = False,
+    cpus: str = "",
+    gcflags: str = "",
+    ldflags: str = "",
+    go_mod: str = "mod",
+    tags: List[str] = None,
+):
+    """
+    Builds the core go command arguments for the invoke test task.
+    """
+    cmd = f'-mod={go_mod} -gcflags "{gcflags}" -ldflags "{ldflags}" '
+    if verbose:
+        cmd += "-v "
+    if cpus:
+        cmd += f"-p {cpus} "
+    if tags:
+        cmd += f'-tags "{" ".join(tags)}" '
+
+    return cmd
+
+
+def get_gotest_args(
+    verbose: bool = False,
+    race: bool = False,
+    coverage: bool = False,
+    cache: bool = True,
+    cpus: str = "",
+    timeout: str = "",
+    gcflags: str = "",
+    ldflags: str = "",
+    go_mod: str = "mod",
+    test_run_name: str = "",
+    unit_tests_tags: List[str] = None,
+):
+    """
+    Builds the go test command arguments for the invoke test task.
+    """
+
+    cmd = "-short -vet=off "
+
+    cmd += f"{get_go_args(cpus=cpus, gcflags=gcflags, ldflags=ldflags, verbose=verbose, go_mod=go_mod, tags=unit_tests_tags)} "
+    if race:
+        cmd += "-race "
+    if coverage:
+        cmd += f"-coverprofile={PROFILE_COV} "
+        # atomic is quite expensive but it's the only way to run both the coverage and the race detector at the same time without getting false positives from the cover counter
+        cmd += f"-covermode={('atomic' if race else 'count')} "
+    if timeout:
+        cmd += f"-timeout {timeout}s "
+    if not cache:
+        cmd += "-count=1 "
+    if test_run_name:
+        cmd += f"-run {test_run_name} "
+
+    return cmd
+
+
 @task
 def test(
     ctx,
@@ -563,73 +637,12 @@ def test(
 
     junit_file_name = f"junit-out-{flavor.name}.xml" if junit_tar else None
 
-    def get_gotestsum_options(
-        rerun_fails: str = None,
-        junit_file_name: str = None,
-    ):
-        cmd = f'--jsonfile "{GO_TEST_RESULT_TMP_JSON}" --format pkgname '
-        if rerun_fails:
-            cmd += f"--rerun-fails={rerun_fails} "
-        if junit_tar:
-            cmd += f"--junitfile {junit_file_name} "
-
-        return cmd
-
-    gotestsum_options = get_gotestsum_options(
+    gotestsum_args = get_gotestsum_args(
         rerun_fails,
         junit_file_name,
     )
 
-    def get_go_options(
-        verbose: bool = False,
-        cpus: str = "",
-        gcflags: str = "",
-        ldflags: str = "",
-        go_mod: str = "mod",
-        unit_tests_tags: List[str] = None,
-    ):
-        cmd = f'-mod={go_mod} -gcflags "{gcflags}" -ldflags "{ldflags}" '
-        if verbose:
-            cmd += "-v "
-        if cpus:
-            cmd += f"-p {cpus} "
-        if unit_tests_tags:
-            cmd += f'-tags "{" ".join(unit_tests_tags)}" '
-
-        return cmd
-
-    def get_gotest_options(
-        verbose: bool = False,
-        race: bool = False,
-        coverage: bool = False,
-        cache: bool = False,
-        cpus: str = "",
-        timeout: str = "",
-        gcflags: str = "",
-        ldflags: str = "",
-        go_mod: str = "",
-        test_run_name: str = "",
-        unit_tests_tags: List[str] = None,
-    ):
-        cmd = "-short -vet=off "
-
-        cmd += f"{get_go_options(cpus=cpus, gcflags=gcflags, ldflags=ldflags, verbose=verbose, go_mod=go_mod, unit_tests_tags=unit_tests_tags)} "
-        if race:
-            cmd += "-race "
-        if coverage:
-            cmd += f"-coverprofile={PROFILE_COV} "
-            # atomic is quite expensive but it's the only way to run both the coverage and the race detector at the same time without getting false positives from the cover counter
-            cmd += f"-covermode={('atomic' if race else 'count')} "
-        if timeout:
-            cmd += f"-timeout {timeout}s "
-        if not cache:
-            cmd += "-count=1 "
-        if test_run_name:
-            cmd += f"-run {test_run_name} "
-
-        return cmd
-
-    gobuild_options = get_go_options(
+    gobuild_args = get_go_args(
         cpus=cpus,
         gcflags=gcflags,
         ldflags=ldflags,
@@ -638,7 +651,7 @@ def test(
         unit_tests_tags=unit_tests_tags,
     )
 
-    gotest_options = get_gotest_options(
+    gotest_args = get_gotest_args(
         race=race,
         coverage=coverage,
         cpus=cpus,
@@ -658,7 +671,7 @@ def test(
         print(f"Removing existing '{save_result_json}' file")
         os.remove(save_result_json)
 
-    stdlib_build_cmd = f"go build {gobuild_options} std cmd"
+    stdlib_build_cmd = f"go build {gobuild_args} std cmd"
 
     # Test
     build_stdlib(
@@ -671,7 +684,7 @@ def test(
     if only_modified_packages:
         modules = get_modified_packages(ctx)
 
-    test_cmd = f'gotestsum {gotestsum_options} --packages="{{packages}}" -- {gotest_options}'
+    test_cmd = f'gotestsum {gotestsum_args} --packages="{{packages}}" -- {gotest_args}'
 
     test_results = test_flavor(
         ctx,
