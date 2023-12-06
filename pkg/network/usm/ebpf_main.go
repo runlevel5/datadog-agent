@@ -113,7 +113,7 @@ func newEBPFProgram(c *config.Config, sockFD, connectionProtocolMap *ebpf.Map, b
 	}
 
 	program := &ebpfProgram{
-		Manager:               errtelemetry.NewManager(mgr, bpfTelemetry),
+		Manager:               errtelemetry.NewManager(mgr, bpfTelemetry, c.BPFDir),
 		cfg:                   c,
 		connectionProtocolMap: connectionProtocolMap,
 	}

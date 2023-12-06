@@ -182,7 +182,7 @@ func LoadTracer(cfg *config.Config, mgrOpts manager.Options, perfHandlerTCP *dde
 }
 
 func loadTracerFromAsset(buf bytecode.AssetReader, runtimeTracer, coreTracer bool, config *config.Config, mgrOpts manager.Options, perfHandlerTCP *ddebpf.PerfHandler, bpfTelemetry *errtelemetry.EBPFTelemetry) (*manager.Manager, func(), error) {
-	m := errtelemetry.NewManager(&manager.Manager{}, bpfTelemetry)
+	m := errtelemetry.NewManager(&manager.Manager{}, bpfTelemetry, config.BPFDir)
 	if err := initManager(m, perfHandlerTCP, runtimeTracer); err != nil {
 		return nil, nil, fmt.Errorf("could not initialize manager: %w", err)
 	}

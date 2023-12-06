@@ -33,7 +33,7 @@ func LoadTracer(config *config.Config, mgrOpts manager.Options, perfHandlerTCP *
 		return nil, nil, ErrorNotSupported
 	}
 
-	m := errtelemetry.NewManager(&manager.Manager{}, bpfTelemetry)
+	m := errtelemetry.NewManager(&manager.Manager{}, bpfTelemetry, config.BPFDir)
 	err := ddebpf.LoadCOREAsset(netebpf.ModuleFileName("tracer-fentry", config.BPFDebug), func(ar bytecode.AssetReader, o manager.Options) error {
 		o.RLimit = mgrOpts.RLimit
 		o.MapSpecEditors = mgrOpts.MapSpecEditors

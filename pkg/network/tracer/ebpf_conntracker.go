@@ -419,7 +419,7 @@ func getManager(cfg *config.Config, buf io.ReaderAt, bpfTelemetry *nettelemetry.
 				MatchFuncName: "^ctnetlink_fill_info(\\.constprop\\.0)?$",
 			},
 		},
-	}, bpfTelemetry)
+	}, bpfTelemetry, cfg.BPFDir)
 
 	kprobeAttachMethod := manager.AttachKprobeWithPerfEventOpen
 	if cfg.AttachKprobesWithKprobeEventsABI {

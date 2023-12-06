@@ -143,7 +143,7 @@ func newEBPFProgram(c *config.Config) (*manager.Manager, error) {
 				},
 			},
 		},
-	}, bpfTelemetry)
+	}, bpfTelemetry, c.BPFDir)
 	options := manager.Options{
 		RLimit: &unix.Rlimit{
 			Cur: math.MaxUint64,

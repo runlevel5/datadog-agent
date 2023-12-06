@@ -73,7 +73,7 @@ func newEBPFProgram(c *config.Config, bpfTelemetry *errtelemetry.EBPFTelemetry) 
 
 	return &ebpfProgram{
 		cfg:         c,
-		Manager:     errtelemetry.NewManager(mgr, bpfTelemetry),
+		Manager:     errtelemetry.NewManager(mgr, bpfTelemetry, c.BPFDir),
 		perfHandler: perfHandler,
 	}
 }

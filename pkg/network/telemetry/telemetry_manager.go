@@ -17,19 +17,21 @@ import (
 type Manager struct {
 	*manager.Manager
 	bpfTelemetry *EBPFTelemetry
+	bpfDir       string
 }
 
 // NewManager creates a Manager
-func NewManager(mgr *manager.Manager, bt *EBPFTelemetry) *Manager {
+func NewManager(mgr *manager.Manager, bt *EBPFTelemetry, bpfDir string) *Manager {
 	return &Manager{
 		Manager:      mgr,
 		bpfTelemetry: bt,
+		bpfDir:       bpfDir,
 	}
 }
 
 // InitWithOptions is a wrapper around ebpf-manager.Manager.InitWithOptions
 func (m *Manager) InitWithOptions(bytecode io.ReaderAt, opts manager.Options) error {
-	if err := setupForTelemetry(m.Manager, &opts, m.bpfTelemetry); err != nil {
+	if err := setupForTelemetry(m.Manager, &opts, m.bpfTelemetry, m.bpfDir); err != nil {
 		return err
 	}
 

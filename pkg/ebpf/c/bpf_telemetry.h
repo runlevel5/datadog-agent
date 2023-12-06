@@ -5,14 +5,27 @@
 #include "telemetry_types.h"
 #include "map-defs.h"
 
+
+#define MAX_HASH_MAPS 128
+#define MAX_PROGRAMS 256
+#define STACK_SIZE 512
+
+struct telemetry_blob {
+    map_err_telemetry_t map_err_telemetry[MAX_HASH_MAPS];
+    helper_err_telemetry_t helper_err_telemetry[MAX_PROGRAMS];
+};
+
+BPF_ARRAY_MAP(bpf_telemetry_map, struct telemetry_blob, 1);
+
 #define STR(x) #x
 #define MK_KEY(key) STR(key##_telemetry_key)
 
 BPF_HASH_MAP(map_err_telemetry_map, unsigned long, map_err_telemetry_t, 128)
 BPF_HASH_MAP(helper_err_telemetry_map, unsigned long, helper_err_telemetry_t, 256)
 
-#define PATCH_TARGET_TELEMETRY -1
+#define PATCH_TARGET_TELEMETRY -2
 static void *(*bpf_telemetry_update_patch)(unsigned long, ...) = (void *)PATCH_TARGET_TELEMETRY;
+
 
 #define map_update_with_telemetry(fn, map, args...)                                \
     ({                                                                             \

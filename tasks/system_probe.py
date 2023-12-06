@@ -214,6 +214,9 @@ def ninja_security_ebpf_programs(nw, build_dir, debug, kernel_release):
     nw.build(rule="phony", inputs=outfiles, outputs=["cws"])
 
 
+def ninja_telemetry_ebpf_program(nw, infile, outfile, flags):
+    ninja_ebpf_program(nw, infile, outfile, {"flags": flags})
+
 def ninja_network_ebpf_program(nw, infile, outfile, flags):
     ninja_ebpf_program(nw, infile, outfile, {"flags": flags})
     root, ext = os.path.splitext(outfile)
@@ -226,11 +229,24 @@ def ninja_network_ebpf_co_re_program(nw, infile, outfile, flags):
     ninja_ebpf_co_re_program(nw, infile, f"{root}-debug{ext}", {"flags": flags + " -DDEBUG=1"})
 
 
+def ninja_ebpf_telemetry_programs(nw, build_dir):
+    telemetry_bpf_dir = os.path.join("pkg", "network", "telemetry", "c")
+    telemetry_flags = "-Ipkg/network/telemetry/c -g"
+    telemetry_programs = [
+        "ebpf_instrumentation",
+    ]
+
+    for prog in telemetry_programs:
+        infile = os.path.join(telemetry_bpf_dir, f"{prog}.c")
+        outfile = os.path.join(build_dir, f"{prog}.o")
+        ninja_telemetry_ebpf_program(nw, infile, outfile, telemetry_flags)
+
+
 def ninja_network_ebpf_programs(nw, build_dir, co_re_build_dir):
     network_bpf_dir = os.path.join("pkg", "network", "ebpf")
     network_c_dir = os.path.join(network_bpf_dir, "c")
 
-    network_flags = "-Ipkg/network/ebpf/c -g"
+    network_flags = "-Ipkg/network/ebpf/c -g -pg"
     network_programs = [
         "prebuilt/dns",
         "prebuilt/offset-guess",
@@ -250,7 +266,7 @@ def ninja_network_ebpf_programs(nw, build_dir, co_re_build_dir):
     for prog_path in network_co_re_programs:
         prog = os.path.basename(prog_path)
         src_dir = os.path.join(network_c_dir, os.path.dirname(prog_path))
-        network_co_re_flags = f"-I{src_dir} -Ipkg/network/ebpf/c"
+        network_co_re_flags = f"-I{src_dir} -Ipkg/network/ebpf/c -pg"
 
         infile = os.path.join(src_dir, f"{prog}.c")
         outfile = os.path.join(co_re_build_dir, f"{prog}.o")
@@ -475,6 +491,7 @@ def ninja_generate(
             ninja_security_ebpf_programs(nw, build_dir, debug, kernel_release)
             ninja_container_integrations_ebpf_programs(nw, co_re_build_dir)
             ninja_runtime_compilation_files(nw, gobin)
+            ninja_ebpf_telemetry_programs(nw, build_dir)
 
         ninja_cgo_type_files(nw, windows)
 
