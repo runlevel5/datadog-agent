@@ -52,13 +52,12 @@ Dir.mktmpdir do |tmp|
     end
     gpg_extra_args = ''
 
-    rpm_gpg = shellout!("rpm --eval '%__gpg'").strip
-
     gpg_path = "#{ENV['HOME']}/.gnupg"
     rpmmacros = <<~MACROS
       %_signature gpg
       %_gpg_name #{rpm_gpg_key_name}
       %_gpg_path #{gpg_path}
+      %_gpgbin #{gpg}
 
       # Necessary since RPM 4.11 (CentOS 7), otherwise the GPG signing
       # machinery in RPM will ask for password via pinentry.
