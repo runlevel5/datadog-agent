@@ -12,7 +12,8 @@ build do
     license_file "https://raw.githubusercontent.com/LMDB/lmdb/LMDB_#{version}/libraries/liblmdb/COPYRIGHT"
     patch source: "allow-makefile-override-vars.diff"
     env = with_standard_compiler_flags(with_embedded_path)
-    env["PREFIX"] = "#{install_dir}/embedded/"
+    env["prefix"] = "#{install_dir}/embedded/"
+    env["XCFLAGS"] = env["CFLAGS"]
 
     # https://www.linuxfromscratch.org/blfs/view/8.3/server/lmdb.html
     if mac_os_x?
@@ -22,5 +23,6 @@ build do
         command "sed -i 's| liblmdb.a||' Makefile", :env => env
     end
     command "make -j #{workers}", :env => env
-    command "make install"
+    command "make install", :env => env
+
 end
