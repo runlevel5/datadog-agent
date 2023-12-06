@@ -24,6 +24,16 @@ def require_env(name)
   val
 end
 
+gpg = if shellout('which gpg2').status.success?
+        'gpg2'
+      elsif shellout('which gpg').status.success?
+        'gpg'
+      else
+        raise 'no gpg found'
+      end
+
+puts("GPG executable: #{gpg}")
+
 rpm_file = File.expand_path(require_env('RPM_FILE'))
 rpm_gpg_key_name = require_env('RPM_GPG_KEY_NAME')
 rpm_gpg_key_ssm_name = require_env('RPM_GPG_KEY_SSM_NAME')
@@ -53,7 +63,7 @@ Dir.mktmpdir do |tmp|
       # Necessary since RPM 4.11 (CentOS 7), otherwise the GPG signing
       # machinery in RPM will ask for password via pinentry.
       %__gpg_sign_cmd %{__gpg} \
-          gpg --pinentry-mode loopback --yes --no-tty --no-verbose --no-armor --batch \
+          gpg --pinentry-mode loopback --yes --no-tty --verbose --no-armor --batch \
           --passphrase-file #{gpg_passphrase_file} --digest-algo sha256 \
           --no-secmem-warning -u "%{_gpg_name}" -sbo %{__signature_filename} \
           %{__plaintext_filename}
