@@ -167,6 +167,7 @@ dogstatsd_rpm-x64:
       --package ${RPM_FILE} \
       --maintainer 'Datadog, Inc <package@datadoghq.com>' \
       --depends glibc-common \
+      --debug \
       /tmp/package_input
     packaging/sign_rpm.rb
   artifacts:
