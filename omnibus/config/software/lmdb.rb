@@ -10,6 +10,7 @@ relative_path "lmdb-LMDB_#{version}/libraries/liblmdb"
 build do
     license "OpenLDAP Public License"
     license_file "https://raw.githubusercontent.com/LMDB/lmdb/LMDB_#{version}/libraries/liblmdb/COPYRIGHT"
+    patch source: "allow-makefile-override-vars.diff"
     env = with_standard_compiler_flags(with_embedded_path)
 
     # https://www.linuxfromscratch.org/blfs/view/8.3/server/lmdb.html
