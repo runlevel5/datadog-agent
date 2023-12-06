@@ -12,6 +12,7 @@ build do
     license_file "https://raw.githubusercontent.com/LMDB/lmdb/LMDB_#{version}/libraries/liblmdb/COPYRIGHT"
     patch source: "allow-makefile-override-vars.diff"
     env = with_standard_compiler_flags(with_embedded_path)
+    env["PREFIX"] = "#{install_dir}/embedded/"
 
     # https://www.linuxfromscratch.org/blfs/view/8.3/server/lmdb.html
     command "make -j #{workers}", :env => env
@@ -21,13 +22,5 @@ build do
     else
         command "sed -i 's| liblmdb.a||' Makefile", :env => env
     end
-
-    # We have to manually move the files into the correct directories because the Makefile for lmdb hardcodes the install directory to `/usr/local`, although we need this to be `#{install_dir}/embedded`
-    copy "liblmdb.so", "#{install_dir}/embedded/lib/liblmdb.so"
-    copy "lmdb.h", "#{install_dir}/embedded/include/lmdb.h"
-    copy "mdb_stat", "#{install_dir}/embedded/bin/mdb_stat"
-    copy "mdb_copy", "#{install_dir}/embedded/bin/mdb_copy"
-    copy "mdb_dump", "#{install_dir}/embedded/bin/mdb_dump"
-    copy "mdb_load", "#{install_dir}/embedded/bin/mdb_load"
-
+    command "make install"
 end
