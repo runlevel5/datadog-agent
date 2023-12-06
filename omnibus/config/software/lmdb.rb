@@ -10,11 +10,7 @@ relative_path "lmdb-LMDB_#{version}/libraries/liblmdb"
 build do
     license "OpenLDAP Public License"
     license_file "https://raw.githubusercontent.com/LMDB/lmdb/LMDB_#{version}/libraries/liblmdb/COPYRIGHT"
-    env = {
-        "LDFLAGS" => "-L#{install_dir}/embedded/lib -I#{install_dir}/embedded/include",
-        "CFLAGS" => "-L#{install_dir}/embedded/lib -I#{install_dir}/embedded/include",
-        "LD_RUN_PATH" => "#{install_dir}/embedded/lib",
-    }
+    env = with_standard_compiler_flags(with_embedded_path)
 
     # https://www.linuxfromscratch.org/blfs/view/8.3/server/lmdb.html
     command "make -j #{workers}", :env => env
