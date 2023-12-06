@@ -561,7 +561,7 @@ def test(
     # Use stdout if no profile is set
     test_profiler = TestProfiler() if profile else None
 
-    junit_file_name = "junit-out-{flavor.name}.xml" if junit_tar else None
+    junit_file_name = f"junit-out-{flavor.name}.xml" if junit_tar else None
 
     def get_gotestsum_options(
         rerun_fails: str = None,
@@ -581,24 +581,18 @@ def test(
     )
 
     def get_go_options(
-        verbose: bool = None,
-        cpus: str = None,
-        gcflags: str = None,
-        ldflags: str = None,
-        go_mod: str = None,
-        unit_tests_tags: str = None,
+        verbose: bool = False,
+        cpus: str = "",
+        gcflags: str = "",
+        ldflags: str = "",
+        go_mod: str = "mod",
+        unit_tests_tags: List[str] = None,
     ):
-        cmd = ""
+        cmd = f'-mod={go_mod} -gcflags "{gcflags}" -ldflags "{ldflags}" '
         if verbose:
             cmd += "-v "
-        if go_mod:
-            cmd += f"-mod={go_mod} "
         if cpus:
             cmd += f"-p {cpus} "
-        if gcflags:
-            cmd += f'-gcflags "{gcflags}" '
-        if ldflags:
-            cmd += f'-ldflags "{ldflags}" '
         if unit_tests_tags:
             cmd += f'-tags "{" ".join(unit_tests_tags)}" '
 
@@ -609,17 +603,17 @@ def test(
         race: bool = False,
         coverage: bool = False,
         cache: bool = False,
-        cpus: str = None,
-        timeout: str = None,
-        gcflags: str = None,
-        ldflags: str = None,
-        go_mod: str = None,
-        test_run_name: str = None,
+        cpus: str = "",
+        timeout: str = "",
+        gcflags: str = "",
+        ldflags: str = "",
+        go_mod: str = "",
+        test_run_name: str = "",
         unit_tests_tags: List[str] = None,
     ):
         cmd = "-short -vet=off "
 
-        cmd += f"{get_go_options(cpus, gcflags, ldflags, verbose, go_mod, unit_tests_tags)} "
+        cmd += f"{get_go_options(cpus=cpus, gcflags=gcflags, ldflags=ldflags, verbose=verbose, go_mod=go_mod, unit_tests_tags=unit_tests_tags)} "
         if race:
             cmd += "-race "
         if coverage:

@@ -82,7 +82,7 @@ def run(
     if parsedParams:
         envVars["E2E_STACK_PARAMS"] = json.dumps(parsedParams)
 
-    junit_file_name = "junit-out-{flavor.name}.xml" if junit_tar else None
+    junit_file_name = f"junit-out-{flavor.name}.xml" if junit_tar else None
 
     coverage_path = "coverage.out" if coverage else ""
 
@@ -108,17 +108,17 @@ def run(
         verbose: bool = False,
         cache: bool = False,
         build_tags: List[str] = None,
-        coverage_path: str = None,
-        run: str = None,
-        skip: str = None,
-        test_run_name: str = None,
-        osversion: str = None,
-        platform: str = None,
-        major_version: str = None,
-        arch: str = None,
-        flavor: str = None,
-        cws_supported_osversion: str = None,
-        keep_stacks: str = None,
+        coverage_path: str = "",
+        run: str = "",
+        skip: str = "",
+        test_run_name: str = "",
+        osversion: str = "",
+        platform: str = "",
+        major_version: str = "",
+        arch: str = "",
+        flavor: str = "",
+        cws_supported_osversion: str = "",
+        keep_stacks: str = "",
     ):
         cmd = (
             f'-ldflags="-X {REPO_PATH}/test/new-e2e/tests/containers.GitCommit={commit}" -mod=mod -vet=off -timeout 4h'
