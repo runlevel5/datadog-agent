@@ -12,8 +12,7 @@
  THREADS = -pthread
  OPT = -O2 -g
  CFLAGS	= $(THREADS) $(OPT) $(W) $(XCFLAGS)
--LDLIBS	=
-+LDLIBS	?=
+ LDLIBS	=
  SOLIBS	=
  SOEXT	= .so
 -prefix	= /usr/local
