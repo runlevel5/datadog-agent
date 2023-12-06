@@ -62,7 +62,7 @@ Dir.mktmpdir do |tmp|
       # Necessary since RPM 4.11 (CentOS 7), otherwise the GPG signing
       # machinery in RPM will ask for password via pinentry.
       %__gpg_sign_cmd %{__gpg} \
-          gpg --pinentry-mode loopback --yes --no-tty --verbose --no-armor --batch \
+          gpg --pinentry-mode loopback --yes --no-tty --no-verbose --no-armor --batch \
           --passphrase-file #{gpg_passphrase_file} --digest-algo sha256 \
           --no-secmem-warning -u "%{_gpg_name}" -sbo %{__signature_filename} \
           %{__plaintext_filename}
