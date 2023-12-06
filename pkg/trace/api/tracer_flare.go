@@ -34,6 +34,7 @@ type tracerFlareTransport struct {
 }
 
 func getServerlessFlareEndpoint(url *url.URL, agentVersion string) {
+	log.Debug("##################################\n\nFlare endpoint for url: %v (%s)\n\n###############\n", url, url.String())
 	// The DNS doesn't redirect to the proper endpoint when a subdomain is not present in the baseUrl.
 	// Adding app. subdomain here for site like datadoghq.com
 	if !ddURLRegexp.MatchString(url.Host) {
