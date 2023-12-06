@@ -167,10 +167,10 @@ dogstatsd_rpm-x64:
       --package ${RPM_FILE} \
       --maintainer 'Datadog, Inc <package@datadoghq.com>' \
       --depends glibc-common \
-      --before-install omnibus/package-scripts/${FLAVOR:+-$FLAVOR}-agent-rpm/preinst \
-      --after-install omnibus/package-scripts/${FLAVOR:+-$FLAVOR}-agent-rpm/postinst \
-      --before-remove omnibus/package-scripts/${FLAVOR:+-$FLAVOR}-agent-rpm/prerm \
-      --after-remove omnibus/package-scripts/${FLAVOR:+-$FLAVOR}-agent-rpm/postrm \
+      --before-install omnibus/package-scripts/${FLAVOR:+$FLAVOR-}agent-rpm/preinst \
+      --after-install omnibus/package-scripts/${FLAVOR:+$FLAVOR-}agent-rpm/postinst \
+      --before-remove omnibus/package-scripts/${FLAVOR:+$FLAVOR-}agent-rpm/prerm \
+      --after-remove omnibus/package-scripts/${FLAVOR:+$FLAVOR-}agent-rpm/postrm \
       /tmp/package_input
     packaging/sign_rpm.rb
   artifacts:
