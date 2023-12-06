@@ -129,6 +129,7 @@ iot_agent_deb-x64:
   variables:
     PACKAGE_ARCH: amd64
     DESTINATION_DEB: 'datadog-iot-agent_7_amd64.deb'
+    FLAVOR: iot
 
 .iot_agent_build_common_deb:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/linux-glibc-2-17-x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
