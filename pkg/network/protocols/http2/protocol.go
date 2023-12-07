@@ -36,7 +36,7 @@ type protocol struct {
 	// TODO: Do we need to duplicate?
 	statkeeper     *http.StatKeeper
 	mapCleaner     *ddebpf.MapCleaner
-	eventsConsumer *events.Consumer
+	eventsConsumer *events.Consumer[EbpfTx]
 }
 
 const (
@@ -221,10 +221,12 @@ func (p *protocol) DumpMaps(output *strings.Builder, mapName string, currentMap 
 	}
 }
 
-func (p *protocol) processHTTP2(data []byte) {
-	tx := (*EbpfTx)(unsafe.Pointer(&data[0]))
-	p.telemetry.Count(tx)
-	p.statkeeper.Process(tx)
+func (p *protocol) processHTTP2(events []EbpfTx) {
+	for i := range events {
+		tx := &events[i]
+		p.telemetry.Count(tx)
+		p.statkeeper.Process(tx)
+	}
 }
 
 func (p *protocol) setupMapCleaner(mgr *manager.Manager) {
