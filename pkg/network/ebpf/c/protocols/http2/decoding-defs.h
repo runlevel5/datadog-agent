@@ -103,6 +103,7 @@ typedef struct {
     __u8 request_method;
     __u8 path_size;
     bool request_end_of_stream;
+    bool is_huffman;
 
     __u8 request_path[HTTP2_MAX_PATH_LEN] __attribute__((aligned(8)));
 } http2_stream_t;
@@ -127,6 +128,7 @@ typedef struct {
     __u32 index;
     __u32 new_dynamic_value_offset;
     __u32 new_dynamic_value_size;
+    bool is_huffman;
     http2_header_type_t type;
 } http2_header_t;
 
