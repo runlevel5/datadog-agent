@@ -8,6 +8,7 @@
 package common
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -36,6 +37,12 @@ var (
 
 	// MetadataScheduler is responsible to orchestrate metadata collection
 	MetadataScheduler *metadata.Scheduler
+
+	// MainCtx is the main agent context passed to components
+	MainCtx context.Context
+
+	// MainCtxCancel cancels the main agent context
+	MainCtxCancel context.CancelFunc
 )
 
 // GetPythonPaths returns the paths (in order of precedence) from where the agent

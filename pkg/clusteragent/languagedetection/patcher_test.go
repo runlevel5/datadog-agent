@@ -12,15 +12,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/DataDog/datadog-agent/comp/core"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/languagedetection/languagemodels"
 	langUtil "github.com/DataDog/datadog-agent/pkg/languagedetection/util"
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/process"
-	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 	"github.com/stretchr/testify/assert"
-
-	"go.uber.org/fx"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,7 +25,7 @@ import (
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 )
 
-func newMockLanguagePatcher(mockClient dynamic.Interface, mockStore workloadmeta.Mock) LanguagePatcher {
+func newMockLanguagePatcher(mockClient dynamic.Interface, mockStore *workloadmeta.MockStore) LanguagePatcher {
 	return LanguagePatcher{
 		k8sClient: mockClient,
 		store:     mockStore,
@@ -210,13 +206,9 @@ func TestGetOwnersLanguages(t *testing.T) {
 }
 
 func TestDetectedNewLanguages(t *testing.T) {
-	mockStore := fxutil.Test[workloadmeta.Mock](t, fx.Options(
-		core.MockBundle,
-		fx.Supply(workloadmeta.NewParams()),
-		workloadmeta.MockModuleV2,
-	))
+	mockStore := workloadmeta.NewMockStore()
 
-	mockStore.Set(&workloadmeta.KubernetesDeployment{
+	mockStore.SetEntity(&workloadmeta.KubernetesDeployment{
 		EntityID: workloadmeta.EntityID{
 			Kind: workloadmeta.KindKubernetesDeployment,
 			ID:   "default/dummy",
@@ -257,14 +249,8 @@ func TestDetectedNewLanguages(t *testing.T) {
 }
 
 func TestPatchOwner(t *testing.T) {
-
-	mockStore := fxutil.Test[workloadmeta.Mock](t, fx.Options(
-		core.MockBundle,
-		fx.Supply(workloadmeta.NewParams()),
-		workloadmeta.MockModuleV2,
-	))
 	mockK8sClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
-	lp := newMockLanguagePatcher(mockK8sClient, mockStore)
+	lp := newMockLanguagePatcher(mockK8sClient, workloadmeta.NewMockStore())
 
 	deploymentName := "test-deployment"
 	ns := "test-namespace"
@@ -322,13 +308,8 @@ func TestPatchOwner(t *testing.T) {
 }
 
 func TestPatchAllOwners(t *testing.T) {
-	mockStore := fxutil.Test[workloadmeta.Mock](t, fx.Options(
-		core.MockBundle,
-		fx.Supply(workloadmeta.NewParams()),
-		workloadmeta.MockModuleV2,
-	))
 	mockK8sClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
-	lp := newMockLanguagePatcher(mockK8sClient, mockStore)
+	lp := newMockLanguagePatcher(mockK8sClient, workloadmeta.NewMockStore())
 
 	gvr := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
 

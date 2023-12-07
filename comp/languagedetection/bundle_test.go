@@ -11,7 +11,6 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/comp/core/telemetry"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/comp/languagedetection/client"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
@@ -26,8 +25,6 @@ func TestBundleDependencies(t *testing.T) {
 		telemetry.Module,
 		log.Module,
 		fx.Supply(log.Params{}),
-		workloadmeta.Module,
-		fx.Supply(workloadmeta.NewParams()),
 		fx.Invoke(func(client.Component) {}),
 		Bundle,
 	))

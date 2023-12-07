@@ -8,7 +8,6 @@
 package probe
 
 import (
-	"context"
 	"errors"
 	"os"
 	"reflect"
@@ -16,11 +15,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/fx"
 
-	"github.com/DataDog/datadog-agent/comp/core"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta/collectors"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/common/types"
 	checkid "github.com/DataDog/datadog-agent/pkg/collector/check/id"
@@ -29,7 +24,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/tagger"
 	"github.com/DataDog/datadog-agent/pkg/tagger/local"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
-	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/kubelet/mock"
 )
 
@@ -260,14 +254,6 @@ func TestProvider_Provide(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var err error
 
-			store := fxutil.Test[workloadmeta.Mock](t, fx.Options(
-				core.MockBundle,
-				fx.Supply(context.Background()),
-				collectors.GetCatalog(),
-				fx.Supply(workloadmeta.NewParams()),
-				workloadmeta.MockModuleV2,
-			))
-
 			mockSender := mocksender.NewMockSender(checkid.ID(t.Name()))
 			mockSender.SetupAcceptAll()
 
@@ -277,7 +263,7 @@ func TestProvider_Provide(t *testing.T) {
 			}
 			tagger.SetDefaultTagger(fakeTagger)
 
-			err = commontesting.StorePopulatedFromFile(store, tt.podsFile, common.NewPodUtils())
+			store, err := commontesting.StorePopulatedFromFile(tt.podsFile, common.NewPodUtils())
 			if err != nil {
 				t.Errorf("unable to populate store from file at: %s, err: %v", tt.podsFile, err)
 			}

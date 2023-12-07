@@ -3,8 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build test
-
 package listeners
 
 import (
@@ -19,25 +17,21 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"go.uber.org/fx"
 
-	"github.com/DataDog/datadog-agent/comp/core"
-	compcfg "github.com/DataDog/datadog-agent/comp/core/config"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta/collectors"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/listeners"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/tagger"
 	"github.com/DataDog/datadog-agent/pkg/tagger/local"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
-	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 	"github.com/DataDog/datadog-agent/test/integration/utils"
+
+	_ "github.com/DataDog/datadog-agent/pkg/workloadmeta/collectors"
 )
 
 type DockerListenerTestSuite struct {
 	suite.Suite
-	store      workloadmeta.Component
 	compose    utils.ComposeConf
 	listener   listeners.ServiceListener
 	dockerutil *docker.DockerUtil
@@ -48,6 +42,8 @@ type DockerListenerTestSuite struct {
 }
 
 func (suite *DockerListenerTestSuite) SetupSuite() {
+	config.Datadog.SetDefault("ac_include", []string{"name:.*redis.*"})
+	config.Datadog.SetDefault("ac_exclude", []string{"image:datadog/docker-library:redis.*"})
 	containers.ResetSharedFilter()
 
 	config.SetupLogger(
@@ -60,26 +56,13 @@ func (suite *DockerListenerTestSuite) SetupSuite() {
 		false,
 	)
 
-	overrides := map[string]interface{}{
-		"ac_include": []string{"name:.*redis.*"},
-		"ac_exclude": []string{"image:datadog/docker-library:redis.*"},
-	}
+	store := workloadmeta.CreateGlobalStore(workloadmeta.NodeAgentCatalog)
+	store.Start(context.Background())
 
-	var err error
-	suite.store = fxutil.Test[workloadmeta.Component](suite.T(), fx.Options(
-		core.MockBundle,
-		fx.Replace(compcfg.MockParams{
-			Overrides: overrides,
-			Features:  []config.Feature{config.Docker},
-		}),
-		fx.Supply(workloadmeta.NewParams()),
-		collectors.GetCatalog(),
-		workloadmeta.Module,
-	))
-
-	tagger.SetDefaultTagger(local.NewTagger(suite.store))
+	tagger.SetDefaultTagger(local.NewTagger(store))
 	tagger.Init(context.Background())
 
+	var err error
 	suite.dockerutil, err = docker.GetDockerUtil()
 	require.Nil(suite.T(), err, "can't connect to docker")
 
@@ -90,6 +73,8 @@ func (suite *DockerListenerTestSuite) SetupSuite() {
 }
 
 func (suite *DockerListenerTestSuite) TearDownSuite() {
+	config.Datadog.SetDefault("ac_include", []string{})
+	config.Datadog.SetDefault("ac_exclude", []string{})
 	containers.ResetSharedFilter()
 }
 
@@ -278,5 +263,6 @@ func (suite *DockerListenerTestSuite) commonSection(containerIDs []string) {
 }
 
 func TestDockerListenerSuite(t *testing.T) {
+	config.SetFeatures(t, config.Docker)
 	suite.Run(t, &DockerListenerTestSuite{})
 }

@@ -12,11 +12,11 @@ import (
 
 	"github.com/DataDog/agent-payload/v5/contlcycle"
 
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	types "github.com/DataDog/datadog-agent/pkg/containerlifecycle"
 	"github.com/DataDog/datadog-agent/pkg/epforwarder"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -25,10 +25,10 @@ type processor struct {
 	sender          sender.Sender
 	podsQueue       *queue
 	containersQueue *queue
-	store           workloadmeta.Component
+	store           workloadmeta.Store
 }
 
-func newProcessor(sender sender.Sender, chunkSize int, store workloadmeta.Component) *processor {
+func newProcessor(sender sender.Sender, chunkSize int, store workloadmeta.Store) *processor {
 	return &processor{
 		sender:          sender,
 		podsQueue:       newQueue(chunkSize),

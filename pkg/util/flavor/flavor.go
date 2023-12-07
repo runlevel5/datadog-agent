@@ -25,8 +25,6 @@ const (
 	HerokuAgent = "heroku_agent"
 	// ProcessAgent is the Process Agent flavor
 	ProcessAgent = "process_agent"
-	// TraceAgent is the Trace Agent flavor
-	TraceAgent = "trace_agent"
 )
 
 var agentFlavor = DefaultAgent

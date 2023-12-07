@@ -225,7 +225,7 @@ func processEntityToEventSet(proc *ProcessEntity) *pbgo.ProcessEventSet {
 
 	return &pbgo.ProcessEventSet{
 		Pid:          proc.Pid,
-		ContainerID:  proc.ContainerId,
+		ContainerId:  proc.ContainerId,
 		Nspid:        proc.NsPid,
 		CreationTime: proc.CreationTime,
 		Language:     language,
