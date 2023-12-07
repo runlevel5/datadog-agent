@@ -28,6 +28,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/tagger/collectors"
 	"github.com/DataDog/datadog-agent/pkg/tagger/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/tagger/types"
+	"github.com/DataDog/datadog-agent/pkg/tagger/utils"
 	"github.com/DataDog/datadog-agent/pkg/tagset"
 	"github.com/DataDog/datadog-agent/pkg/util/clusteragent"
 	grpcutil "github.com/DataDog/datadog-agent/pkg/util/grpc"
@@ -174,7 +175,7 @@ func (t *Tagger) Tag(entityID string, cardinality collectors.TagCardinality) ([]
 	entity := t.store.getEntity(entityID)
 	if entity != nil {
 		telemetry.QueriesByCardinality(cardinality).Success.Inc()
-		return entity.GetTags(cardinality), nil
+		return utils.FilterTagArray(entity.GetTags(cardinality)), nil
 	}
 
 	telemetry.QueriesByCardinality(cardinality).EmptyTags.Inc()
@@ -188,7 +189,7 @@ func (t *Tagger) AccumulateTagsFor(entityID string, cardinality collectors.TagCa
 	if err != nil {
 		return err
 	}
-	tb.Append(tags...)
+	tb.Append(utils.FilterTagArray(tags)...)
 	return nil
 }
 
@@ -315,10 +316,10 @@ func (t *Tagger) processResponse(response *pb.StreamTagsResponse) error {
 			EventType: eventType,
 			Entity: types.Entity{
 				ID:                          convertEntityID(entity.Id),
-				HighCardinalityTags:         entity.HighCardinalityTags,
-				OrchestratorCardinalityTags: entity.OrchestratorCardinalityTags,
-				LowCardinalityTags:          entity.LowCardinalityTags,
-				StandardTags:                entity.StandardTags,
+				HighCardinalityTags:         utils.FilterTagArray(entity.HighCardinalityTags),
+				OrchestratorCardinalityTags: utils.FilterTagArray(entity.OrchestratorCardinalityTags),
+				LowCardinalityTags:          utils.FilterTagArray(entity.LowCardinalityTags),
+				StandardTags:                utils.FilterTagArray(entity.StandardTags),
 			},
 		})
 	}

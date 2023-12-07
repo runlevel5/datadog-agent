@@ -8,6 +8,8 @@ package tagset
 import (
 	"encoding/json"
 	"strings"
+
+	"github.com/DataDog/datadog-agent/pkg/tagger/utils"
 )
 
 // CompositeTags stores read-only views of two tag sets and provides methods to iterate them easily.
@@ -58,7 +60,7 @@ func CombineCompositeTagsAndSlice(compositeTags CompositeTags, tags []string) Co
 // modifying the slices after calling this function. Slices contained in t are not modified, but may
 // be copied. Prefer constructing a complete value in one go with NewCompositeTags instead.
 func (t *CompositeTags) CombineWithSlice(tags []string) {
-	*t = CombineCompositeTagsAndSlice(*t, tags)
+	*t = CombineCompositeTagsAndSlice(*t, utils.FilterTagArray(tags))
 }
 
 // ForEach applies `callback` to each tag

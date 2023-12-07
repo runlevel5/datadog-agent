@@ -11,6 +11,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/config"
 	configUtils "github.com/DataDog/datadog-agent/pkg/config/utils"
+	"github.com/DataDog/datadog-agent/pkg/tagger/utils"
 	"github.com/DataDog/datadog-agent/pkg/util/fargate"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/clustername"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -66,7 +67,7 @@ func GetStaticTagsSlice(ctx context.Context) []string {
 		}
 	}
 
-	return tags
+	return utils.FilterTagArray(tags)
 }
 
 // GetStaticTags is similar to GetStaticTagsSlice, but returning a map[string]string containing
