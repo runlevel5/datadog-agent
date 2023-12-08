@@ -3,16 +3,19 @@ package telemetry
 import (
 	"debug/elf"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/DataDog/datadog-agent/pkg/util/native"
 	"github.com/cilium/ebpf"
 )
 
-const lowerOrder7Mask = 0x7f
-const higherOrderBit = 0x80
+const (
+	lowerOrder7Mask = 0x7f
+	higherOrderBit  = 0x80
+	BPFStackLimit   = 512
+)
 
 // https://en.wikipedia.org/wiki/LEB128
 func decodeULEB128(in io.Reader) (uint64, error) {
@@ -33,17 +36,16 @@ func decodeULEB128(in io.Reader) (uint64, error) {
 type stackSizes map[string]uint64
 
 type symbolKey struct {
-	index int
-	value uint64
+	index int    // section index for the section containing this symbol
+	value uint64 // offset into section
 }
 
-func parseStackSizesSections(bytecode io.ReaderAt, programSpecs map[string]*ebpf.ProgramSpec) (stackSizes, error) {
-	objFile, err := elf.NewFile(bytecode)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open bytecode: %w", err)
-	}
-
-	syms, err := objFile.Symbols()
+// This function finds all the symbols matching the program names, and indexes them by
+// their section index, and offset into section. The offset into the section is needed to
+// deduplicate programs in the same section. This may happen for example when there are multiple
+// kprobes on the same function.
+func findFunctionSymbols(elfFile *elf.File, programSpecs map[string]*ebpf.ProgramSpec) (map[symbolKey]string, error) {
+	syms, err := elfFile.Symbols()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read elf symbols: %w", err)
 	}
@@ -51,9 +53,28 @@ func parseStackSizesSections(bytecode io.ReaderAt, programSpecs map[string]*ebpf
 	symbols := make(map[symbolKey]string, len(programSpecs))
 	for _, sym := range syms {
 		if _, ok := programSpecs[sym.Name]; ok {
-			fmt.Printf("Insert symbol %v -> %s. Size: %d\n", symbolKey{int(sym.Section), sym.Value}, sym.Name, sym.Size)
 			symbols[symbolKey{int(sym.Section), sym.Value}] = sym.Name
 		}
+	}
+
+	return symbols, nil
+}
+
+// This function parses the '.stack_sizes' section and records the stack usage of each function.
+// It assumes that each function will have a corresponding '.stack_sizes' section. It returns an error otherwise.
+// The '.stack_sizes' section contains an unsigned 64 bit integer and an ULEB128 integer.
+// The unsigned 64 bit integer corresponds to the 'st_value' field of the symbol. For functions this is the offset
+// in the section to the start of the function.
+// The ULEB128 integer represents the stack size of the function.
+func parseStackSizesSections(bytecode io.ReaderAt, programSpecs map[string]*ebpf.ProgramSpec) (stackSizes, error) {
+	objFile, err := elf.NewFile(bytecode)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open bytecode: %w", err)
+	}
+
+	symbols, err := findFunctionSymbols(objFile, programSpecs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find function symbols: %v", err)
 	}
 
 	sizes := make(stackSizes, len(programSpecs))
@@ -78,22 +99,24 @@ func parseStackSizesSections(bytecode io.ReaderAt, programSpecs map[string]*ebpf
 			}
 
 			if _, ok := symbols[symbolKey{int(section.Link), s}]; ok {
-				name := symbols[symbolKey{int(section.Link), s}]
-				fmt.Printf("Stack size for program %s is %d\n", name, size)
-				sizes[name] = size
+				sizes[symbols[symbolKey{int(section.Link), s}]] = size
 			}
 		}
 	}
 
-	if len(sizes) != len(programSpecs) {
-		for _, p := range programSpecs {
-			if _, ok := sizes[p.Name]; !ok {
-				fmt.Printf("%s program not found in sizes\n", p.Name)
-			}
+	var notFound []string
+	for pName, _ := range programSpecs {
+		if _, ok := sizes[pName]; !ok {
+			notFound = append(notFound, pName)
 		}
-		fmt.Println(symbols)
-		return nil, errors.New("failed to find stack sizes of all programs")
+	}
+	if notFound != nil {
+		return nil, fmt.Errorf("failed to find stack sizes for programs: [%s]", strings.Join(notFound, ' '))
 	}
 
 	return sizes, nil
+}
+
+func (sizes stackSizes) stackHas8BytesFree(function string) bool {
+	return sizes[function] <= (BPFStackLimit - 8)
 }
