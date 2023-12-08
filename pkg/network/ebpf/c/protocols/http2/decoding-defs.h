@@ -56,6 +56,9 @@
 
 #define MAX_FRAME_SIZE 16384
 
+// Special indexes to indicate the root path and the index path.
+#define HTTP_ROOT_PATH_INDEX    0xffffffffffffff00
+#define HTTP_INDEX_PATH_INDEX   0xffffffffffffff01
 // Huffman-encoded strings for paths "/" and "/index.html". Needed for HTTP2
 // decoding, as these two paths are in the static table, we need to add the
 // encoded string ourselves instead of reading them from the Header.
@@ -99,6 +102,7 @@ typedef struct {
     __u64 response_last_seen;
     __u64 request_started;
 
+    __u64 path_index;
     __u16 response_status_code;
     __u8 request_method;
     __u8 path_size;
