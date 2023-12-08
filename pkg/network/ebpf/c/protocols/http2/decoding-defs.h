@@ -60,13 +60,6 @@
 // Special indexes to indicate the root path and the index path.
 #define HTTP_ROOT_PATH_INDEX    0xffffffffffffff00
 #define HTTP_INDEX_PATH_INDEX   0xffffffffffffff01
-// Huffman-encoded strings for paths "/" and "/index.html". Needed for HTTP2
-// decoding, as these two paths are in the static table, we need to add the
-// encoded string ourselves instead of reading them from the Header.
-#define HTTP_ROOT_PATH      "\x63"
-#define HTTP_ROOT_PATH_LEN  (sizeof(HTTP_ROOT_PATH) - 1)
-#define HTTP_INDEX_PATH     "\x60\xd5\x48\x5f\x2b\xce\x9a\x68"
-#define HTTP_INDEX_PATH_LEN (sizeof(HTTP_INDEX_PATH) - 1)
 
 typedef enum {
     kGET = 2,
@@ -107,10 +100,7 @@ typedef struct {
     __u64 path_index;
     __u16 response_status_code;
     __u8 request_method;
-    __u8 path_size;
     bool request_end_of_stream;
-
-    __u8 request_path[HTTP2_MAX_PATH_LEN] __attribute__((aligned(8)));
 } http2_stream_t;
 
 typedef struct {

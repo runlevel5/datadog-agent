@@ -182,7 +182,7 @@ func (tx *ebpfTXWrapper) String() string {
 	output.WriteString("http2.ebpfTx{")
 	output.WriteString(fmt.Sprintf("[%s] [%s ⇄ %s] ", tx.family(), tx.sourceEndpoint(), tx.destEndpoint()))
 	output.WriteString(" Method: '" + tx.Method().String() + "', ")
-	buf := make([]byte, len(tx.Stream.Request_path))
+	buf := make([]byte, 2*maxHTTP2Path)
 	path, ok := tx.Path(buf)
 	if ok {
 		output.WriteString("Path: '" + string(path) + "'")
