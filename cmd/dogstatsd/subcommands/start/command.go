@@ -21,7 +21,6 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	logComponent "github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/comp/core/tagger"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/local"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta/collectors"
 	"github.com/DataDog/datadog-agent/comp/dogstatsd"
@@ -123,10 +122,10 @@ func RunDogstatsdFct(cliParams *CLIParams, defaultConfPath string, defaultLogFil
 		}),
 		workloadmeta.OptionalModule,
 		fx.Provide(func(config config.Component) tagger.Params {
-			if pkgconfig.IsCLCRunner() {
-				return tagger.Params{TaggerAgentType: tagger.CLCRunnerRemoteTaggerAgent}
+			if config.GetBool("dogstatsd_origin_detection") {
+				return tagger.Params{TaggerAgentType: tagger.LocalTaggerAgent}
 			}
-			return tagger.Params{TaggerAgentType: tagger.LocalTaggerAgent}
+			return tagger.Params{TaggerAgentType: tagger.FakeTagger}
 		}),
 		tagger.Module,
 		demultiplexer.Module,
@@ -242,15 +241,6 @@ func RunDogstatsd(ctx context.Context, cliParams *CLIParams, config config.Compo
 	components.MetaScheduler = pkgmetadata.NewScheduler(demultiplexer) //nolint:staticcheck
 	if err = pkgmetadata.SetupInventories(components.MetaScheduler, nil); err != nil {
 		return
-	}
-
-	// container tagging initialisation if origin detection is on
-	if config.GetBool("dogstatsd_origin_detection") && components.WorkloadMeta != nil {
-
-		tagger.SetDefaultTagger(local.NewTagger(components.WorkloadMeta))
-		if err := tagger.Init(ctx); err != nil {
-			log.Errorf("failed to start the tagger: %s", err)
-		}
 	}
 
 	err = components.DogstatsdServer.Start(demultiplexer)

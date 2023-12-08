@@ -25,8 +25,6 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig"
 	"github.com/DataDog/datadog-agent/comp/core/tagger"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/local"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/remote"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta/collectors"
 	hostMetadataUtils "github.com/DataDog/datadog-agent/comp/metadata/host/utils"
@@ -105,7 +103,13 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 
 					return workloadmeta.Params{AgentType: catalog}
 				}),
-
+				// Tagger must be initialized after agent config has been setup
+				fx.Provide(func(c config.Component) tagger.Params {
+					if c.GetBool("process_config.remote_tagger") {
+						return tagger.Params{TaggerAgentType: tagger.NodeRemoteTaggerAgent}
+					}
+					return tagger.Params{TaggerAgentType: tagger.LocalTaggerAgent}
+				}),
 				processComponent.Bundle,
 			)
 		},
@@ -127,27 +131,6 @@ func runCheckCmd(deps dependencies) error {
 	deps.Log.Infof("running on platform: %s", hostMetadataUtils.GetPlatformName())
 	agentVersion, _ := version.Agent()
 	deps.Log.Infof("running version: %s", agentVersion.GetNumberAndPre())
-
-	// Tagger must be initialized after agent config has been setup
-	// TODO: (Components) Add to dependencies once tagger is migrated to components
-	var t tagger.Tagger
-	if deps.Config.GetBool("process_config.remote_tagger") {
-		options, err := remote.NodeAgentOptions()
-		if err != nil {
-			_ = deps.Log.Errorf("unable to configure the remote tagger: %s", err)
-		} else {
-			t = remote.NewTagger(options)
-		}
-	} else {
-		t = local.NewTagger(deps.WorkloadMeta)
-	}
-
-	tagger.SetDefaultTagger(t)
-	err := tagger.Init(ctx)
-	if err != nil {
-		_ = deps.Log.Errorf("failed to start the tagger: %s", err)
-	}
-	defer tagger.Stop() //nolint:errcheck
 
 	cleanups := make([]func(), 0)
 	defer func() {
@@ -174,9 +157,6 @@ func runCheckCmd(deps dependencies) error {
 			continue
 		}
 
-		if err = ch.Init(cfg, deps.Hostinfo.Object(), true); err != nil {
-			return err
-		}
 		cleanups = append(cleanups, ch.Cleanup)
 		return runCheck(deps.Log, deps.CliParams, ch)
 	}

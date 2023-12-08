@@ -14,6 +14,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/DataDog/datadog-agent/comp/core"
+	"github.com/DataDog/datadog-agent/comp/core/tagger"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/comp/trace/agent"
 	"github.com/DataDog/datadog-agent/comp/trace/config"
@@ -53,6 +54,8 @@ func TestMockBundleDependencies(t *testing.T) {
 		fx.Provide(func(cfg config.Component) telemetry.TelemetryCollector { return telemetry.NewCollector(cfg.Object()) }),
 		fx.Supply(&agent.Params{}),
 		fx.Invoke(func(_ agent.Component) {}),
+		tagger.Module,
+		fx.Supply(tagger.NewTaggerParams()),
 		MockBundle,
 	))
 

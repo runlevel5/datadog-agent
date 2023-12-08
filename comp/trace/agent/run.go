@@ -17,9 +17,6 @@ import (
 
 	"github.com/DataDog/datadog-agent/cmd/manager"
 	remotecfg "github.com/DataDog/datadog-agent/cmd/trace-agent/config/remote"
-	"github.com/DataDog/datadog-agent/comp/core/tagger"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/local"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/remote"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/comp/trace/config"
 	coreconfig "github.com/DataDog/datadog-agent/pkg/config"
@@ -67,30 +64,6 @@ func runAgentSidekicks(ctx context.Context, cfg config.Component, wmeta workload
 	metrics.Count("datadog.trace_agent.started", 1, nil, 1)
 
 	rand.Seed(time.Now().UTC().UnixNano())
-
-	remoteTagger := coreconfig.Datadog.GetBool("apm_config.remote_tagger")
-	if remoteTagger {
-		options, err := remote.NodeAgentOptions()
-		if err != nil {
-			log.Errorf("Unable to configure the remote tagger: %s", err)
-			remoteTagger = false
-		} else {
-			tagger.SetDefaultTagger(remote.NewTagger(options))
-			if err := tagger.Init(ctx); err != nil {
-				log.Infof("Starting remote tagger failed. Falling back to local tagger: %s", err)
-				remoteTagger = false
-			}
-		}
-	}
-
-	// starts the local tagger if apm_config says so, or if starting the
-	// remote tagger has failed.
-	if !remoteTagger {
-		tagger.SetDefaultTagger(local.NewTagger(wmeta))
-		if err := tagger.Init(ctx); err != nil {
-			log.Errorf("failed to start the tagger: %s", err)
-		}
-	}
 
 	if coreconfig.IsRemoteConfigEnabled(coreconfig.Datadog) {
 		// Auth tokens are handled by the rcClient
@@ -178,10 +151,6 @@ func stopAgentSidekicks(cfg config.Component) {
 	metrics.Flush()
 
 	timing.Stop()
-	err := tagger.Stop()
-	if err != nil {
-		log.Error(err)
-	}
 	tracecfg := cfg.Object()
 	if pcfg := profilingConfig(tracecfg); pcfg != nil {
 		profiling.Stop()

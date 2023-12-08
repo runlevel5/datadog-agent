@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/trace/watchdog"
 	"go.uber.org/fx"
 
+	"github.com/DataDog/datadog-agent/comp/core/tagger"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/comp/trace/config"
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
@@ -46,6 +47,7 @@ type dependencies struct {
 	Params             *Params
 	TelemetryCollector telemetry.TelemetryCollector
 	Workloadmeta       workloadmeta.Component
+	Tagger             tagger.Component
 }
 
 type component struct{}
@@ -59,6 +61,7 @@ type agent struct {
 	params             *Params
 	shutdowner         fx.Shutdowner
 	workloadmeta       workloadmeta.Component
+	tagger             tagger.Component
 	telemetryCollector telemetry.TelemetryCollector
 	wg                 sync.WaitGroup
 }
@@ -87,6 +90,7 @@ func newAgent(deps dependencies) Component {
 		shutdowner:         deps.Shutdowner,
 		workloadmeta:       deps.Workloadmeta,
 		telemetryCollector: deps.TelemetryCollector,
+		tagger:             deps.Tagger,
 		wg:                 sync.WaitGroup{},
 	}
 	deps.Lc.Append(fx.Hook{

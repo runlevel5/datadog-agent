@@ -21,7 +21,6 @@ import (
 	"github.com/DataDog/datadog-agent/comp/trace"
 	"github.com/DataDog/datadog-agent/comp/trace/agent"
 	"github.com/DataDog/datadog-agent/comp/trace/config"
-	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/trace/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
@@ -77,8 +76,8 @@ func runFx(ctx context.Context, cliParams *RunParams, defaultConfPath string) er
 		}),
 		workloadmeta.Module,
 		fx.Provide(func(coreConfig coreconfig.Component) tagger.Params {
-			if pkgconfig.IsCLCRunner() {
-				return tagger.Params{TaggerAgentType: tagger.CLCRunnerRemoteTaggerAgent}
+			if coreConfig.GetBool("apm_config.remote_tagger") {
+				return tagger.Params{TaggerAgentType: tagger.NodeRemoteTaggerAgent}
 			}
 			return tagger.Params{TaggerAgentType: tagger.LocalTaggerAgent}
 		}),
