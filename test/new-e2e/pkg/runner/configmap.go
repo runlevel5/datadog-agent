@@ -113,10 +113,10 @@ func BuildStackParameters(profile Profile, scenarioConfig ConfigMap) (ConfigMap,
 	if err != nil {
 		return nil, err
 	}
-	err = SetConfigMapFromParameter(profile.ParamStore(), cm, parameters.PipelineID, AgentPipelineID)
-	if err != nil {
-		return nil, err
-	}
+	// err = SetConfigMapFromParameter(profile.ParamStore(), cm, parameters.PipelineID, AgentPipelineID)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	// Secret parameters from profile store
 	err = SetConfigMapFromSecret(profile.SecretStore(), cm, parameters.APIKey, AgentAPIKey)
 	if err != nil {
