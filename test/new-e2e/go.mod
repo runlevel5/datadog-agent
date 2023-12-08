@@ -227,9 +227,5 @@ require (
 	github.com/pgavlin/fx v0.1.6 // indirect
 	github.com/pulumi/appdash v0.0.0-20231130102222-75f619a67231 // indirect
 	github.com/pulumi/esc v0.6.0 // indirect
-	github.com/pulumi/pulumi-azure-native-sdk v1.104.0 // indirect
-	github.com/pulumi/pulumi-azure-native-sdk/compute v1.104.0 // indirect
-	github.com/pulumi/pulumi-azure-native-sdk/containerservice v1.104.0 // indirect
-	github.com/pulumi/pulumi-azure-native-sdk/network v1.104.0 // indirect
 	github.com/pulumi/pulumi-tls/sdk/v4 v4.11.1 // indirect
 )
