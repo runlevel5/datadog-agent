@@ -648,7 +648,7 @@ def test(
         ldflags=ldflags,
         verbose=verbose,
         go_mod=go_mod,
-        unit_tests_tags=unit_tests_tags,
+        tags=unit_tests_tags,
     )
 
     gotest_args = get_gotest_args(
