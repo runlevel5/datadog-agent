@@ -44,5 +44,5 @@ func getRuntimeCompiledPrograms(config *config.Config, useSyscallWrapper, useFen
 
 	cflags = append(cflags, "-g")
 
-	return runtime.RuntimeSecurity.Compile(&config.Config, cflags, client)
+	return runtime.RuntimeSecurity.Compile(&config.Config, cflags, nil /* llc flags */, client)
 }
