@@ -222,11 +222,10 @@ func (p *protocol) DumpMaps(output *strings.Builder, mapName string, currentMap 
 }
 
 func (p *protocol) processHTTP2(events []EbpfTx) {
-	for i := range events {
-		tx := &events[i]
-		p.telemetry.Count(tx)
-		p.statkeeper.Process(tx)
-	}
+	transactions, done := http.GetTransactionSlice[EbpfTx, *EbpfTx](events)
+	defer done()
+
+	p.statkeeper.Process(transactions)
 }
 
 func (p *protocol) setupMapCleaner(mgr *manager.Manager) {
