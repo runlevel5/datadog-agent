@@ -3,11 +3,12 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-// Package fargate_test contains e2e tests for fargate
-package fargate_test
+// Package fargate contains e2e tests for fargate
+package fargate
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -23,11 +24,12 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	configCommon "github.com/DataDog/test-infra-definitions/common/config"
-	agentComponent "github.com/DataDog/test-infra-definitions/components/datadog/agent"
 	awsResources "github.com/DataDog/test-infra-definitions/resources/aws"
 	ecsResources "github.com/DataDog/test-infra-definitions/resources/aws/ecs"
 
+	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/utils/infra"
+	cws "github.com/DataDog/datadog-agent/test/new-e2e/tests/cws/e2e/lib"
 )
 
 const (
@@ -41,7 +43,10 @@ type ECSFargateSuite struct {
 	suite.Suite
 	ctx       context.Context
 	stackName string
+	runID     string
 
+	apiClient      *cws.APIClient
+	ddHostname     string
 	ecsClusterArn  string
 	ecsClusterName string
 	fgTaskDefArn   string
@@ -51,11 +56,24 @@ func TestECSFargate(t *testing.T) {
 	suite.Run(t, &ECSFargateSuite{
 		ctx:       context.Background(),
 		stackName: "cws-tests-ecs-fg-dev",
+		runID:     cws.RandomString(4),
 	})
 }
 
 func (s *ECSFargateSuite) SetupSuite() {
+	s.apiClient = cws.NewAPIClient()
+
+	ruleDefs := []*rules.RuleDefinition{
+		{
+			ID:         "selftest_exec",
+			Expression: `exec.file.path == \"/usr/bin/date\"`,
+		},
+	}
+	selftestsPolicy, err := getPolicyContent(nil, ruleDefs)
+	s.Require().NoError(err)
+
 	_, result, err := infra.GetStackManager().GetStack(s.ctx, s.stackName, nil, func(ctx *pulumi.Context) error {
+		ddHostname := fmt.Sprintf("cws-tests-ecs-fg-task-%s", s.runID)
 		awsEnv, err := awsResources.NewEnvironment(ctx)
 		if err != nil {
 			return err
@@ -91,17 +109,37 @@ func (s *ECSFargateSuite) SetupSuite() {
 		taskDef, err := ecs.NewFargateTaskDefinition(ctx, "cws-task", &ecs.FargateTaskDefinitionArgs{
 			Containers: map[string]ecs.TaskDefinitionContainerDefinitionArgs{
 				"datadog-agent": {
-					Cpu:       pulumi.IntPtr(0),
-					Name:      pulumi.String("datadog-agent"),
-					Image:     pulumi.Sprintf(agentComponent.DockerAgentFullImagePath(awsEnv.CommonEnvironment, "public.ecr.aws/datadog/agent")),
+					Cpu:   pulumi.IntPtr(0),
+					Name:  pulumi.String("datadog-agent"),
+					Image: pulumi.String("docker.io/datadog/agent-dev:safchain-refact-tracer-py3"),
+					Command: pulumi.ToStringArray([]string{
+						"sh",
+						"-c",
+						fmt.Sprintf("echo \"%s\" > /etc/datadog-agent/runtime-security.d/selftests.policy ; /bin/entrypoint.sh", selftestsPolicy),
+					}),
+					// LinuxParameters: &ecs.TaskDefinitionLinuxParametersArgs{
+					// 	Capabilities: &ecs.TaskDefinitionKernelCapabilitiesArgs{
+					// 		Add: pulumi.StringArray{
+					// 			pulumi.String("SYS_RESOURCE"),
+					// 		},
+					// 	},
+					// },
 					Essential: pulumi.BoolPtr(true),
 					Environment: ecs.TaskDefinitionKeyValuePairArray{
 						ecs.TaskDefinitionKeyValuePairArgs{
 							Name:  pulumi.StringPtr("DD_HOSTNAME"),
-							Value: pulumi.StringPtr("cws-tests-fg-task"),
+							Value: pulumi.StringPtr(ddHostname),
 						},
 						ecs.TaskDefinitionKeyValuePairArgs{
 							Name:  pulumi.StringPtr("ECS_FARGATE"),
+							Value: pulumi.StringPtr("true"),
+						},
+						ecs.TaskDefinitionKeyValuePairArgs{
+							Name:  pulumi.StringPtr("DD_RUNTIME_SECURITY_CONFIG_ENABLED"),
+							Value: pulumi.StringPtr("true"),
+						},
+						ecs.TaskDefinitionKeyValuePairArgs{
+							Name:  pulumi.StringPtr("DD_RUNTIME_SECURITY_CONFIG_EBPFLESS_ENABLED"),
 							Value: pulumi.StringPtr("true"),
 						},
 					},
@@ -124,7 +162,7 @@ func (s *ECSFargateSuite) SetupSuite() {
 							"Name":           pulumi.String("datadog"),
 							"Host":           pulumi.String("http-intake.logs.datadoghq.com"),
 							"TLS":            pulumi.String("on"),
-							"dd_service":     pulumi.String("datadog-agent"),
+							"dd_service":     pulumi.Sprintf("cws-tests-ecs-fg-task"),
 							"dd_source":      pulumi.String("datadog-agent"),
 							"dd_message_key": pulumi.String("log"),
 							"provider":       pulumi.String("ecs"),
@@ -179,6 +217,7 @@ func (s *ECSFargateSuite) SetupSuite() {
 		// Export task definition's properties
 		ctx.Export(fgTaskDefArnKey, taskDef.TaskDefinition.Arn())
 
+		s.ddHostname = ddHostname
 		return nil
 	}, false)
 	s.Require().NoError(err)
@@ -297,4 +336,13 @@ func (s *ECSFargateSuite) Test00UpAndRunning() {
 		}, 5*time.Minute, 10*time.Second, "Failed to wait for fargate tasks to become ready")
 		s.Require().True(ready, "Tasks aren't ready, stopping tests here")
 	})
+}
+
+func (s *ECSFargateSuite) Test01RulesetLoaded() {
+	query := fmt.Sprintf("host:%s rule_id:ruleset_loaded @policies.name:selftests.policy", s.ddHostname)
+	result, err := cws.WaitAppLogs(s.apiClient, query)
+	s.Require().NoError(err, "could not get new ruleset_loaded event log")
+	agentContext, ok := result.Attributes["agent"].(map[string]interface{})
+	s.Assert().True(ok, "unexpected agent context")
+	s.Assert().EqualValues("ruleset_loaded", agentContext["rule_id"], "unexpected agent rule_id")
 }

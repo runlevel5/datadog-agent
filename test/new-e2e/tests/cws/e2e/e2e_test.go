@@ -134,7 +134,7 @@ func (a *agentSuite) TestOpenSignal() {
 	a.Env().VM.Execute(fmt.Sprintf("sudo %s runtime policy reload", cws.SecurityAgentPath))
 
 	// Check `downloaded` ruleset_loaded
-	result, err := cws.WaitAppLogs(a.apiClient, "rule_id:ruleset_loaded")
+	result, err := cws.WaitAppLogs(a.apiClient, "host:cws-new-e2e-test-host rule_id:ruleset_loaded")
 	require.NoError(a.T(), err, "could not get new ruleset")
 
 	agentContext := result.Attributes["agent"].(map[string]interface{})

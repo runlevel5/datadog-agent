@@ -7,7 +7,6 @@ package e2e_test
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/DataDog/datadog-api-client-go/api/v2/datadog"
@@ -16,7 +15,6 @@ import (
 
 // WaitAppLogs waits for the app log corresponding to the query
 func WaitAppLogs(apiClient *APIClient, query string) (*datadog.LogAttributes, error) {
-	query = fmt.Sprintf("host:cws-new-e2e-test-host %s", query)
 	var resp *datadog.LogAttributes
 	err := backoff.Retry(func() error {
 		tmpResp, err := apiClient.GetAppLog(query)
