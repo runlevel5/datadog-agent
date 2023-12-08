@@ -69,7 +69,7 @@ trace-agent-v05-2cpus-normal_load-fixed_sps:
     DD_APM_MAX_CPU_PERCENT: 0
     DD_APM_MAX_MEMORY: 0
     DD_BENCHMARKS_CONFIGURATION: trace-agent-v05-2cpus-normal_load-fixed_sps
-    SCENARIO: >
+    SCENARIOS: >
       normal_load-10traces210spans-65ksps|
       normal_load-500traces8617spans-65ksps|
       normal_load-3885traces3891spans-65ksps
