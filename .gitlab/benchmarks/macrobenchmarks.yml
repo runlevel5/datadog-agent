@@ -23,6 +23,7 @@ variables:
     expire_in: 3 months
   variables:
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true" # Important tweak for stability of benchmarks
+    DEBUG_RUN: "true"
 
     # Uncomment to force k8s memory limits for CI job container.
     # KUBERNETES_MEMORY_REQUEST: "4Gi"
