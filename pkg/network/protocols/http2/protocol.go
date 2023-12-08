@@ -50,7 +50,6 @@ type Protocol struct {
 
 const (
 	inFlightMap                 = "http2_in_flight"
-	dynamicTable                = "http2_dynamic_table"
 	interestingDynamicTableSet  = "http2_interesting_dynamic_table_set"
 	dynamicTableCounter         = "http2_dynamic_counter_table"
 	http2IterationsTable        = "http2_iterations"
@@ -69,9 +68,6 @@ var Spec = &protocols.ProtocolSpec{
 	Maps: []*manager.Map{
 		{
 			Name: inFlightMap,
-		},
-		{
-			Name: dynamicTable,
 		},
 		{
 			Name: interestingDynamicTableSet,
@@ -166,10 +162,6 @@ func (p *Protocol) ConfigureOptions(mgr *manager.Manager, opts *manager.Options)
 	}
 	opts.MapSpecEditors[interestingDynamicTableSet] = manager.MapSpecEditor{
 		MaxEntries: p.cfg.MaxUSMConcurrentRequests,
-		EditorFlag: manager.EditMaxEntries,
-	}
-	opts.MapSpecEditors[dynamicTable] = manager.MapSpecEditor{
-		MaxEntries: dynamicMapSizeValue,
 		EditorFlag: manager.EditMaxEntries,
 	}
 	opts.MapSpecEditors[dynamicTableCounter] = manager.MapSpecEditor{
@@ -289,14 +281,6 @@ func (p *Protocol) DumpMaps(output *strings.Builder, mapName string, currentMap 
 		iter := currentMap.Iterate()
 		var key http2StreamKey
 		var value EbpfTx
-		for iter.Next(unsafe.Pointer(&key), unsafe.Pointer(&value)) {
-			output.WriteString(spew.Sdump(key, value))
-		}
-	} else if mapName == dynamicTable {
-		output.WriteString("Map: '" + mapName + "', key: 'ConnTuple', value: 'httpTX'\n")
-		iter := currentMap.Iterate()
-		var key http2DynamicTableIndex
-		var value http2DynamicTableEntry
 		for iter.Next(unsafe.Pointer(&key), unsafe.Pointer(&value)) {
 			output.WriteString(spew.Sdump(key, value))
 		}
