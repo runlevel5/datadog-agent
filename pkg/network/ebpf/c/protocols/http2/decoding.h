@@ -122,7 +122,7 @@ static __always_inline void parse_field_indexed(dynamic_table_index_t *dynamic_i
     headers_to_process->type = kExistingDynamicHeader;
     // If the entry exists, increase the counter. If the entry is missing, then we won't increase the counter.
     // This is a simple trick to spare if-clause, to reduce pressure on the complexity of the program.
-    *interesting_headers_counter += bpf_map_lookup_elem(&http2_dynamic_table, dynamic_index) != NULL;
+    *interesting_headers_counter += bpf_map_lookup_elem(&http2_interesting_dynamic_table_set, dynamic_index) != NULL;
     return;
 }
 
@@ -276,6 +276,7 @@ static __always_inline __u8 filter_relevant_headers(struct __sk_buff *skb, skb_i
 // process_headers processes the headers that were filtered in filter_relevant_headers,
 // looking for requests path, status code, and method.
 static __always_inline void process_headers(struct __sk_buff *skb, dynamic_table_index_t *dynamic_index, http2_stream_t *current_stream, http2_header_t *headers_to_process, __u8 interesting_headers,  http2_telemetry_t *http2_tel) {
+    bool dummy_value = true;
     http2_header_t *current_header;
     dynamic_table_entry_t dynamic_value = {};
 
@@ -323,6 +324,7 @@ static __always_inline void process_headers(struct __sk_buff *skb, dynamic_table
             current_stream->path_size = dynamic_value->string_len;
             bpf_memcpy(current_stream->request_path, dynamic_value->buffer, HTTP2_MAX_PATH_LEN);
         } else {
+            bpf_map_update_elem(&http2_interesting_dynamic_table_set, dynamic_index, &dummy_value, BPF_ANY);
             dynamic_value.string_len = current_header->new_dynamic_value_size;
 
             // create the new dynamic value which will be added to the internal table.

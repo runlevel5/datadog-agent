@@ -49,16 +49,17 @@ type Protocol struct {
 }
 
 const (
-	inFlightMap               = "http2_in_flight"
-	dynamicTable              = "http2_dynamic_table"
-	dynamicTableCounter       = "http2_dynamic_counter_table"
-	http2IterationsTable      = "http2_iterations"
-	staticTable               = "http2_static_table"
-	firstFrameHandlerTailCall = "socket__http2_handle_first_frame"
-	filterTailCall            = "socket__http2_filter"
-	parserTailCall            = "socket__http2_frames_parser"
-	eventStream               = "http2"
-	telemetryMap              = "http2_telemetry"
+	inFlightMap                = "http2_in_flight"
+	dynamicTable               = "http2_dynamic_table"
+	interestingDynamicTableSet = "http2_interesting_dynamic_table_set"
+	dynamicTableCounter        = "http2_dynamic_counter_table"
+	http2IterationsTable       = "http2_iterations"
+	staticTable                = "http2_static_table"
+	firstFrameHandlerTailCall  = "socket__http2_handle_first_frame"
+	filterTailCall             = "socket__http2_filter"
+	parserTailCall             = "socket__http2_frames_parser"
+	eventStream                = "http2"
+	telemetryMap               = "http2_telemetry"
 )
 
 // Spec is the protocol spec for HTTP/2.
@@ -70,6 +71,9 @@ var Spec = &protocols.ProtocolSpec{
 		},
 		{
 			Name: dynamicTable,
+		},
+		{
+			Name: interestingDynamicTableSet,
 		},
 		{
 			Name: staticTable,
@@ -159,7 +163,10 @@ func (p *Protocol) ConfigureOptions(mgr *manager.Manager, opts *manager.Options)
 		MaxEntries: p.cfg.MaxUSMConcurrentRequests,
 		EditorFlag: manager.EditMaxEntries,
 	}
-
+	opts.MapSpecEditors[interestingDynamicTableSet] = manager.MapSpecEditor{
+		MaxEntries: p.cfg.MaxUSMConcurrentRequests,
+		EditorFlag: manager.EditMaxEntries,
+	}
 	opts.MapSpecEditors[dynamicTable] = manager.MapSpecEditor{
 		MaxEntries: dynamicMapSizeValue,
 		EditorFlag: manager.EditMaxEntries,
