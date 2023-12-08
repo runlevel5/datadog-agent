@@ -1,5 +1,4 @@
-// under the Apache License Version 2.0.
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// under the Apache License Version 2.0. This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
 //go:build linux_bpf
@@ -11,6 +10,7 @@ import (
 	"fmt"
 	"hash"
 	"hash/fnv"
+	"io"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -36,10 +36,26 @@ const (
 	ebpfMapTelemetryNS    = "ebpf_maps"
 	ebpfHelperTelemetryNS = "ebpf_helpers"
 
-	ebpfEntryTrampolinePatchCall = -1 // patch constant for trampoline instruction
-	ebpfTelemetryPatchCall       = -2
-	maxTrampolineOffset          = 2
+	maxTrampolineOffset = 2
 )
+
+type eBPFPatchCall int
+
+const (
+	ebpfEntryTrampolinePatchCall eBPFPatchCall = -1 // patch constant for trampoline instruction
+	ebpfTelemetryMapErrors       eBPFPatchCall = -2
+	ebpfTelemetryHelperErrors    eBPFPatchCall = -3
+)
+
+type eBPFInstrumentation struct {
+	callSite    eBPFPatchCall
+	programName string
+}
+
+var instrumentation = []eBPFInstrumentation{
+	{ebpfEntryTrampolinePatchCall, "ebpf_instrumentation__trampoline_handler"},
+	{ebpfTelemetryPatchCall, "ebpf_instrumentation__map_error_telemetry"},
+}
 
 const (
 	readIndx int = iota
@@ -63,26 +79,13 @@ var helperNames = map[int]string{
 // EBPFTelemetry struct contains all the maps that
 // are registered to have their telemetry collected.
 type EBPFTelemetry struct {
-	mtx          sync.Mutex
-	mapErrMap    *ebpf.Map
-	helperErrMap *ebpf.Map
-	mapKeys      map[string]uint64
-	probeKeys    map[string]uint64
-	Config       *config.Config
-}
-
-type eBPFInstrumentation struct {
-	filename  string
-	functions []string
-}
-
-var instrumentation = []eBPFInstrumentation{
-	{
-		"ebpf_instrumentation",
-		[]string{
-			"ebpf_telemetry__trampoline_handler",
-		},
-	},
+	mtx             sync.Mutex
+	mapErrMap       *ebpf.Map
+	helperErrMap    *ebpf.Map
+	bpfTelemetryMap *ebpf.Map
+	mapKeys         map[string]uint64
+	probeKeys       map[string]uint64
+	Config          *config.Config
 }
 
 // NewEBPFTelemetry initializes a new EBPFTelemetry object
@@ -108,6 +111,9 @@ func (b *EBPFTelemetry) populateMapsWithKeys(m *manager.Manager) error {
 	}
 	if b.helperErrMap == nil {
 		b.helperErrMap, _, _ = m.GetMap(probes.HelperErrTelemetryMap)
+	}
+	if b.bpfTelemetryMap == nil {
+		b.bpfTelemetryMap, _, _ = m.GetMap(probes.EBPFTelemetryMap)
 	}
 
 	if err := b.initializeMapErrTelemetryMap(m.Maps); err != nil {
@@ -252,7 +258,7 @@ func (b *EBPFTelemetry) initializeHelperErrTelemetryMap() error {
 	return nil
 }
 
-func countRawBPFIns(ins *asm.Instruction) int {
+func countRawBPFIns(ins *asm.Instruction) uint64 {
 	if ins.OpCode.IsDWordLoad() {
 		return 2
 	}
@@ -260,7 +266,13 @@ func countRawBPFIns(ins *asm.Instruction) int {
 	return 1
 }
 
-func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelemetry, bpfDir string) error {
+type patchSite struct {
+	ins      *asm.Instruction
+	callsite uint64
+	insIndex int
+}
+
+func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelemetry, bpfDir string, bytecode io.ReaderAt) error {
 	const symbol = "telemetry_program_id_key"
 	newIns := asm.Mov.Reg(asm.R1, asm.R1)
 	if enable {
@@ -274,11 +286,47 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 		return err
 	}
 
+	// The instrumentation code relies on there being 8 bytes of space available on the stack which we can steal to
+	// cache the pointer to the telemetry data.
+	// In EBPF there cannot be any dynamic allocations on the stack. We utilize this guarantee to get the stack usage
+	// of each function; to determine whether there are 8 bytes free for us to use. If not available, we cannot have telemetry
+	// and so patch nops at our trampolines.
+	//
+	// The stack size of each function is obtained from the `.stack_sizes` section in the ELF file. This section is emitted
+	// when the `-stack-size-section` argument is passed to llc. Details of this section are documented here:
+	// - https://releases.llvm.org/9.0.0/docs/CodeGenerator.html#emitting-function-stack-size-information
+	//
+	// Confusingly the docs mention:
+	// "The stack size values only include the space allocated in the function prologue. Functions with dynamic stack allocations are not included."
+	// This seems to suggest that this option relies on an explicit prologue to get the stack space. There is no prologue present in EBPF bytecode
+	// since the frame pointer is read-only.
+	// According to the LLVM source code however, there is no explicit requirement of the prologue. This is deduced in two way:
+	// 1. Looking at the LLVM source code which tracks BPF stack size and ensures it is less than 512 bytes, and the source code
+	//    for calculating stack sizes. As can be seen in the following links, both functions track fixed size allocations on the
+	//    stack to determine the size. The ebpf code checks each allocation to make sure it does not cross the 512 byte limit,
+	//    and the function calculating the `StackSize` loops over all stack allocations to calculate the stack size.
+	//    - BPF stack size check: https://github.com/llvm/llvm-project/blob/llvmorg-12.0.1/llvm/lib/Target/BPF/BPFRegisterInfo.cpp#L96-L102
+	//    - `StackSize` calculation: https://github.com/llvm/llvm-project/blob/llvmorg-12.0.1/llvm/lib/CodeGen/PrologEpilogInserter.cpp#L1104
+	//    - Emit stack_sizes section: https://github.com/llvm/llvm-project/blob/llvmorg-12.0.1/llvm/lib/CodeGen/AsmPrinter/AsmPrinter.cpp#L1137
+	//
+	// 2. By parsing the `.stack_sizes` sections in the object files and validating that it reports the correct stack usage.
+	sizes, err := parseStackSizesSections(bytecode, progs)
+	if err != nil {
+		return fmt.Errorf("failed to parse '.stack_sizes' section in file: %w", err)
+	}
+
 	for fn, p := range progs {
+		space := sizes.stackHas8BytesFree(fn)
+		if !space {
+			log.Warnf("Function %s does not have enough free stack space for instrumentation", fn)
+		}
+
+		turnOn := enable && bpfTelemetry != nil && space
+
 		// do constant editing of programs for helper errors post-init
 		ins := p.Instructions
-		if enable && bpfTelemetry != nil {
-			offsets := ins.ReferenceOffsets()
+		offsets := ins.ReferenceOffsets()
+		if turnOn {
 			indices := offsets[symbol]
 			if len(indices) > 0 {
 				for _, index := range indices {
@@ -294,17 +342,15 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 		}
 
 		// patch telemetry helper calls
-		iter := ins.Iterate()
-		var insCount, telemetryPatchIndex int
-		var telemetryPatchSite *asm.Instruction
+		const retpolineArg = "retpoline_jump_addr"
 
+		iter := ins.Iterate()
+		var insCount uint64
+		var telemetryPatchSite *asm.Instruction
+		patchSites := make(map[eBPFPatchCall][]patchSite)
 		for iter.Next() {
 			ins := iter.Ins
 			insCount += countRawBPFIns(ins)
-
-			if ins.IsBuiltinCall() && ins.Constant == ebpfTelemetryPatchCall {
-				*ins = newIns.WithMetadata(ins.Metadata)
-			}
 
 			// If the compiler argument '-pg' is passed, then the compiler will instrument a `call -1` instruction
 			// somewhere (see [2] below) in the beginning of the bytecode. We will patch this instruction as a trampoline to
@@ -312,7 +358,7 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 			// jump to our instrumentation code.
 			//
 			// Checks:
-			// [1] We cannot use the helper `IsBuiltinCall()` as above since the compiler does not correctly generate
+			// [1] We cannot use the helper `IsBuiltinCall()` as below since the compiler does not correctly generate
 			//     the instrumentation instruction. The loader expects the source and destination register to be set to R0
 			//     along with the correct opcode, for it to be recognized as a built-in call. However, the `call -1` does
 			//     not satisfy this requirement. Therefore, we use a looser check relying on the constant to be `-1` to correctly
@@ -320,60 +366,130 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 			//
 			// [2] The instrumentation instruction may not be the first instruction in the bytecode.
 			//     Since R1 is allowed to be clobbered, the compiler adds the instrumentation instruction after `RX = R1`, when
-			//     R1, i.e. the context pointer, is used in the code. `RX` is will be a callee saved register.
+			//     R1, i.e. the context pointer, is used in the code. `RX` will be a callee saved register.
 			//     If R1, i.e. the context pointer, is not used then the instrumented instruction will be the first instruction.
-			if iter.Ins.OpCode.JumpOp() == asm.Call && iter.Ins.Constant == ebpfEntryTrampolinePatchCall && iter.Offset <= maxTrampolineOffset {
-				telemetryPatchSite = iter.Ins
-				telemetryPatchIndex = int(iter.Offset)
+			if patchCall := ebpfEntryTrampolinePatchCall; ins.OpCode.JumpOp() == asm.Call && ins.Constant == ebpfEntryTrampolinePatchCall && iter.Offset <= maxTrampolineOffset {
+				if site, ok := patchSites[patchCall]; ok {
+					patchSites[patchCall] = append(patchSites[patchCall], patchSite{ins, uint64(iter.Offset), iter.Index})
+				} else {
+					patchSites[patchCall] = []patchSites{{ins, uint64(iter.Offset), iter.Index}}
+				}
+			}
+
+			if patchCall := ebpfTelemetryPatchCall; ins.IsBuiltinCall() && ins.Constant == ebpfTelemetryPatchCall {
+				if site, ok := patchSites[patchCall]; ok {
+					patchSites[patchCall] = append(patchSites[patchCall], patchSite{ins, uint64(iter.Offset), iter.Index})
+				} else {
+					patchSites[patchCall] = []patchSites{{ins, uint64(iter.Offset), iter.Index}}
+				}
 			}
 		}
-		if telemetryPatchSite == nil {
-			log.Infof("No compiler instrumented patch site found for program %s\n", p.Name)
-			continue
+
+		bpfAsset, err := netbpf.ReadEBPFTelemetryModule(bpfDir, "ebpf_instrumentation")
+		if err != nil {
+			return fmt.Errorf("failed to read %s bytecode file: %w", eBPFIns.filename, err)
+		}
+		collectionSpec, err := ebpf.LoadCollectionSpecFromReader(bpfAsset)
+		if err != nil {
+			return fmt.Errorf("failed to load collection spec from reader: %w", err)
 		}
 
-		// The trampoline instruction is an unconditional jump to the end of the bytecode. We will append our
-		// instrumentation code to the bytecode slice.
-		//
-		// Point the instrumented instruction to the metadata of the original instruction. If not provided,
-		// some programs can end up with corrupted BTF. This happens for programs where the instrumented instruction
-		// is the first instruction. In that case the loader expects this instruction to point to the `func_info` BTF.
-		trampoline := asm.Instruction{
-			OpCode: asm.OpCode(asm.JumpClass).SetJumpOp(asm.Ja),
-			Offset: int16(insCount - telemetryPatchIndex - 1),
-		}.WithMetadata(telemetryPatchSite.Metadata)
-		// set patch site to trampoline instruction
-		*telemetryPatchSite = trampoline
+		var instrumentationBlock []*asm.Instruction
+		for _, instr := range instrumentation {
+			sites := patchSites[instr.callSite]
 
-		for _, eBPFIns := range instrumentation {
-			bpfAsset, err := netbpf.ReadEBPFTelemetryModule(bpfDir, eBPFIns.filename)
-			if err != nil {
-				return fmt.Errorf("failed to read %s bytecode file: %w", eBPFIns.filename, err)
-			}
-			collectionSpec, err := ebpf.LoadCollectionSpecFromReader(bpfAsset)
-			if err != nil {
-				return fmt.Errorf("failed to load collection spec from reader: %w", err)
-			}
+			blockCount := 0
+			for ip, ins := range collectionSpec.Programs[instr.programName].Instructions {
+				// The final instruction in the instrumentation block is `exit`, which we
+				// do not want.
+				if ins.OpCode.JumpOp == asm.Exit {
+					break
+				}
+				blockCount += countRawBPFIns(ins)
 
-			for _, program := range eBPFIns.functions {
-				// Ignore the first instruction since it has associated func_info btf information. Since
+				// The first instruction has associated func_info btf information. Since
 				// the instrumentation is not a function, the verifier will complain that the number of
 				// `func_info` objects in the BTF do not match the number of loaded programs:
 				// https://elixir.bootlin.com/linux/latest/source/kernel/bpf/verifier.c#L15035
-				// In the instrumentation code the first instruction is purposefully made to be a nop
-				// and so is safe to be ignored.
-				//
-				// The final instruction in the instrumentation block is `exit`. Ignore this as well.
-				instructionSlice := collectionSpec.Programs[program].Instructions
-				p.Instructions = append(p.Instructions, instructionSlice[1:len(instructionSlice)-1]...)
-				insCount += len(instructionSlice) - 2
+				// To workaround this we create a new instruction object and give it empty metadata.
+				if ip == 0 {
+					instrumentationBlock = append(
+						instrumentationBlock,
+						&asm.Instruction{
+							OpCode:   ins.OpCode,
+							Dst:      ins.Dst,
+							Src:      ins.Src,
+							Offset:   ins.Offset,
+							Constant: ins.Constant,
+						}.WithMetadata(asm.Metadata{}),
+					)
+
+					continue
+				}
+
+				instrumentationBlock = append(instrumentationBlock, ins)
 			}
 
-			retJumpOffset := telemetryPatchIndex - insCount - 1 // the final -1 because the jump offset is computed from ip+1.
-			p.Instructions = append(p.Instructions, asm.Instruction{OpCode: asm.OpCode(asm.JumpClass).SetJumpOp(asm.Ja), Offset: int16(retJumpOffset)})
-		}
+			// for each callsite to this instrumentation block in the original function, append a retpoline
+			// to jump back to the correct ip after the instrumentation is complete
+			for callType, site := range sites {
+				retJumpOffset := site.callsite - (insCount + blockCount) - 1 // the final -1 because the jump offset is computed from ip-1
+				if callType == ebpfEntryTrampolinePatchCall {
+					instrumentationBlock = append(
+						instrumentationBlock,
+						asm.Instruction{OpCode: asm.OpCode(asm.JumpClass).SetJumpOp(asm.Ja), Offset: int16(retJumpOffset)},
+					)
 
+				} else {
+					instrumentationBlock = append(
+						instrumentationBlock,
+						// if r1 == callsite goto callsite+1
+						&asm.Instruction{
+							OpCode:   asm.OpCode(asm.JumpClass).SetJumpOp(asm.JEq).SetSource(asm.ImmSource),
+							Dst:      asm.R1,
+							Offset:   -1,
+							Constant: retJumpOffset,
+						},
+					)
+				}
+
+				blockCount++
+			}
+
+			// patch the original callsites to jump to instrumentation block
+			for callType, site := range sites {
+				if callType != ebpfEntryTrampolinePatchCall {
+					for idx := site.insIndex; idx > site.insIndex-5 && idx >= 0; idx-- {
+						load := p.Instructions[idx]
+						// The load has to be there before the patch call
+						if load.OpCode.JumpOp() == asm.Call {
+							return fmt.Errorf("failed to discover load instruction to patch trampoline return address")
+						}
+
+						// keep looking until we find the load instruction to patch the return address in
+						if !(load.OpCode == ldDWImm && load.Reference() == retpolineArg) {
+							continue
+						}
+
+						load.Constant = int64(site.callsite)
+					}
+				}
+
+				// The trampoline instruction is an unconditional jump to the start of this instrumentation block.
+				//
+				// Point the instrumented instruction to the metadata of the original instruction. If not provided,
+				// some programs can end up with corrupted BTF. This happens for programs where the instrumented instruction
+				// is the first instruction. In that case the loader expects this instruction to point to the `func_info` BTF.
+				*(site.ins) = asm.Instruction{
+					OpCode: asm.OpCode(asm.JumpClass).SetupJumpOp(asm.Ja),
+					Offset: int16(insCount - site.classite - 1),
+				}.WithMetadata(ins.Metadata)
+			}
+
+			insCount += blockCount
+		}
 	}
+
 	return nil
 }
 
@@ -381,13 +497,13 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 // It will patch the instructions of all the manager probes and `undefinedProbes` provided.
 // Constants are replaced for map error and helper error keys with their respective values.
 // This must be called before ebpf-manager.Manager.Init/InitWithOptions
-func setupForTelemetry(m *manager.Manager, options *manager.Options, bpfTelemetry *EBPFTelemetry, bpfDir string) error {
+func setupForTelemetry(m *manager.Manager, options *manager.Options, bpfTelemetry *EBPFTelemetry, bpfDir string, bytecode io.ReaderAt) error {
 	activateBPFTelemetry, err := ebpfTelemetrySupported()
 	if err != nil {
 		return err
 	}
 	m.InstructionPatcher = func(m *manager.Manager) error {
-		return patchEBPFTelemetry(m, activateBPFTelemetry, bpfTelemetry, bpfDir)
+		return patchEBPFTelemetry(m, activateBPFTelemetry, bpfTelemetry, bpfDir, bytecode)
 	}
 
 	if activateBPFTelemetry {
@@ -423,6 +539,9 @@ func (b *EBPFTelemetry) setupMapEditors(opts *manager.Options) {
 	}
 	if b.helperErrMap != nil {
 		opts.MapEditors[probes.HelperErrTelemetryMap] = b.helperErrMap
+	}
+	if b.bpfTelemetryMap != nil {
+		opts.MapEditors[probes.EBPFTelemetryMap] = b.bpfTelemetryMap
 	}
 }
 
