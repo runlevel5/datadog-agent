@@ -305,7 +305,12 @@ func (p *Protocol) DumpMaps(output *strings.Builder, mapName string, currentMap 
 
 func (p *Protocol) processHTTP2(events []EbpfTx) {
 	for i := range events {
-		tx := &events[i]
+		event := events[i]
+		tx := &ebpfTXWrapper{
+			EbpfTx:       &event,
+			dynamicTable: p.dynamicTable,
+		}
+		tx.tryResolvePath()
 		p.telemetry.Count(tx)
 		p.statkeeper.Process(tx)
 	}
