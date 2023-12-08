@@ -33,6 +33,7 @@ func initManager(mgr *errtelemetry.Manager, closedHandler *ebpf.PerfHandler) {
 		{Name: probes.PidFDBySockMap},
 		{Name: probes.MapErrTelemetryMap},
 		{Name: probes.HelperErrTelemetryMap},
+		{Name: probes.EBPFTelemetryMap},
 	}
 	mgr.PerfMaps = []*manager.PerfMap{
 		{

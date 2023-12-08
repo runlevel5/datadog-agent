@@ -39,22 +39,21 @@ const (
 	maxTrampolineOffset = 2
 )
 
-type eBPFPatchCall int
-
 const (
-	ebpfEntryTrampolinePatchCall eBPFPatchCall = -1 // patch constant for trampoline instruction
-	ebpfTelemetryMapErrors       eBPFPatchCall = -2
-	ebpfTelemetryHelperErrors    eBPFPatchCall = -3
+	ebpfEntryTrampolinePatchCall int64 = -1 // patch constant for trampoline instruction
+	ebpfTelemetryMapErrors             = -2
+	ebpfTelemetryHelperErrors          = -3
 )
 
 type eBPFInstrumentation struct {
-	callSite    eBPFPatchCall
+	patchType   int64
 	programName string
 }
 
 var instrumentation = []eBPFInstrumentation{
 	{ebpfEntryTrampolinePatchCall, "ebpf_instrumentation__trampoline_handler"},
-	{ebpfTelemetryPatchCall, "ebpf_instrumentation__map_error_telemetry"},
+	{ebpfTelemetryMapErrors, "ebpf_instrumentation__map_error_telemetry"},
+	{ebpfTelemetryHelperErrors, "ebpf_instrumentation__helper_error_telemetry"},
 }
 
 const (
@@ -120,6 +119,9 @@ func (b *EBPFTelemetry) populateMapsWithKeys(m *manager.Manager) error {
 		return err
 	}
 	if err := b.initializeHelperErrTelemetryMap(); err != nil {
+		return err
+	}
+	if err := b.initializeInstrumentationBlob(m.Maps); err != nil {
 		return err
 	}
 	return nil
@@ -218,6 +220,29 @@ func probeKey(h hash.Hash64, funcName string) uint64 {
 	return h.Sum64()
 }
 
+func (b *EBPFTelemetry) initializeInstrumentationBlob(maps []*manager.Map) error {
+	if b.mapErrMap == nil {
+		return nil
+	}
+
+	z := new(InstrumentationBlob)
+	var key uint64
+	for _, m := range maps {
+		// Some maps, such as the telemetry maps, are
+		// redefined in multiple programs.
+		if _, ok := b.mapKeys[m.Name]; ok {
+			continue
+		}
+
+		err := b.bpfTelemetryMap.Update(unsafe.Pointer(&key), unsafe.Pointer(z), ebpf.UpdateNoExist)
+		if err != nil && !errors.Is(err, ebpf.ErrKeyExist) {
+			return fmt.Errorf("failed to initialize telemetry struct for map %s", m.Name)
+		}
+		b.mapKeys[m.Name] = key
+	}
+	return nil
+}
+
 func (b *EBPFTelemetry) initializeMapErrTelemetryMap(maps []*manager.Map) error {
 	if b.mapErrMap == nil {
 		return nil
@@ -258,7 +283,7 @@ func (b *EBPFTelemetry) initializeHelperErrTelemetryMap() error {
 	return nil
 }
 
-func countRawBPFIns(ins *asm.Instruction) uint64 {
+func countRawBPFIns(ins *asm.Instruction) int64 {
 	if ins.OpCode.IsDWordLoad() {
 		return 2
 	}
@@ -267,17 +292,14 @@ func countRawBPFIns(ins *asm.Instruction) uint64 {
 }
 
 type patchSite struct {
-	ins      *asm.Instruction
-	callsite uint64
-	insIndex int
+	ins       *asm.Instruction
+	callsite  int64
+	patchType int64
+	insIndex  int
 }
 
 func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelemetry, bpfDir string, bytecode io.ReaderAt) error {
 	const symbol = "telemetry_program_id_key"
-	newIns := asm.Mov.Reg(asm.R1, asm.R1)
-	if enable {
-		newIns = asm.StoreXAdd(asm.R1, asm.R2, asm.Word)
-	}
 	ldDWImm := asm.LoadImmOp(asm.DWord)
 	h := keyHash()
 
@@ -316,6 +338,8 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 	}
 
 	for fn, p := range progs {
+		fmt.Printf("Program: %s\n", fn)
+		fmt.Println("-----------")
 		space := sizes.stackHas8BytesFree(fn)
 		if !space {
 			log.Warnf("Function %s does not have enough free stack space for instrumentation", fn)
@@ -325,8 +349,8 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 
 		// do constant editing of programs for helper errors post-init
 		ins := p.Instructions
-		offsets := ins.ReferenceOffsets()
 		if turnOn {
+			offsets := ins.ReferenceOffsets()
 			indices := offsets[symbol]
 			if len(indices) > 0 {
 				for _, index := range indices {
@@ -341,13 +365,11 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 			}
 		}
 
-		// patch telemetry helper calls
 		const retpolineArg = "retpoline_jump_addr"
 
 		iter := ins.Iterate()
-		var insCount uint64
-		var telemetryPatchSite *asm.Instruction
-		patchSites := make(map[eBPFPatchCall][]patchSite)
+		patchSites := make(map[int64][]patchSite)
+		var insCount int64
 		for iter.Next() {
 			ins := iter.Ins
 			insCount += countRawBPFIns(ins)
@@ -358,7 +380,7 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 			// jump to our instrumentation code.
 			//
 			// Checks:
-			// [1] We cannot use the helper `IsBuiltinCall()` as below since the compiler does not correctly generate
+			// [1] We cannot use the helper `IsBuiltinCall()` for the entry trampoline since the compiler does not correctly generate
 			//     the instrumentation instruction. The loader expects the source and destination register to be set to R0
 			//     along with the correct opcode, for it to be recognized as a built-in call. However, the `call -1` does
 			//     not satisfy this requirement. Therefore, we use a looser check relying on the constant to be `-1` to correctly
@@ -368,26 +390,23 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 			//     Since R1 is allowed to be clobbered, the compiler adds the instrumentation instruction after `RX = R1`, when
 			//     R1, i.e. the context pointer, is used in the code. `RX` will be a callee saved register.
 			//     If R1, i.e. the context pointer, is not used then the instrumented instruction will be the first instruction.
-			if patchCall := ebpfEntryTrampolinePatchCall; ins.OpCode.JumpOp() == asm.Call && ins.Constant == ebpfEntryTrampolinePatchCall && iter.Offset <= maxTrampolineOffset {
-				if site, ok := patchSites[patchCall]; ok {
-					patchSites[patchCall] = append(patchSites[patchCall], patchSite{ins, uint64(iter.Offset), iter.Index})
-				} else {
-					patchSites[patchCall] = []patchSites{{ins, uint64(iter.Offset), iter.Index}}
+			if (ins.OpCode.JumpOp() == asm.Call && ins.Constant == ebpfEntryTrampolinePatchCall) ||
+				(ins.IsBuiltinCall() && (ins.Constant == ebpfTelemetryMapErrors || ins.Constant == ebpfTelemetryHelperErrors)) {
+				if ins.Constant == ebpfEntryTrampolinePatchCall && iter.Offset > maxTrampolineOffset {
+					return fmt.Errorf("trampoline instruction found at disallowed offset %d\n", iter.Offset)
 				}
-			}
 
-			if patchCall := ebpfTelemetryPatchCall; ins.IsBuiltinCall() && ins.Constant == ebpfTelemetryPatchCall {
-				if site, ok := patchSites[patchCall]; ok {
-					patchSites[patchCall] = append(patchSites[patchCall], patchSite{ins, uint64(iter.Offset), iter.Index})
+				if _, ok := patchSites[ins.Constant]; ok {
+					patchSites[ins.Constant] = append(patchSites[ins.Constant], patchSite{ins, int64(iter.Offset), ins.Constant, iter.Index})
 				} else {
-					patchSites[patchCall] = []patchSites{{ins, uint64(iter.Offset), iter.Index}}
+					patchSites[ins.Constant] = []patchSite{{ins, int64(iter.Offset), ins.Constant, iter.Index}}
 				}
 			}
 		}
 
 		bpfAsset, err := netbpf.ReadEBPFTelemetryModule(bpfDir, "ebpf_instrumentation")
 		if err != nil {
-			return fmt.Errorf("failed to read %s bytecode file: %w", eBPFIns.filename, err)
+			return fmt.Errorf("failed to read ebpf_instrumentation.o bytecode file: %w", err)
 		}
 		collectionSpec, err := ebpf.LoadCollectionSpecFromReader(bpfAsset)
 		if err != nil {
@@ -396,13 +415,19 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 
 		var instrumentationBlock []*asm.Instruction
 		for _, instr := range instrumentation {
-			sites := patchSites[instr.callSite]
+			if _, ok := patchSites[instr.patchType]; !ok {
+				// This instrumentation is not used
+				continue
+			}
 
-			blockCount := 0
-			for ip, ins := range collectionSpec.Programs[instr.programName].Instructions {
+			iter := collectionSpec.Programs[instr.programName].Instructions.Iterate()
+			var blockCount int64
+			for iter.Next() {
+				ins := iter.Ins
+
 				// The final instruction in the instrumentation block is `exit`, which we
 				// do not want.
-				if ins.OpCode.JumpOp == asm.Exit {
+				if ins.OpCode.JumpOp() == asm.Exit {
 					break
 				}
 				blockCount += countRawBPFIns(ins)
@@ -412,44 +437,48 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 				// `func_info` objects in the BTF do not match the number of loaded programs:
 				// https://elixir.bootlin.com/linux/latest/source/kernel/bpf/verifier.c#L15035
 				// To workaround this we create a new instruction object and give it empty metadata.
-				if ip == 0 {
+				if iter.Index == 0 {
+					newIns := asm.Instruction{
+						OpCode:   ins.OpCode,
+						Dst:      ins.Dst,
+						Src:      ins.Src,
+						Offset:   ins.Offset,
+						Constant: ins.Constant,
+					}.WithMetadata(asm.Metadata{})
+
 					instrumentationBlock = append(
 						instrumentationBlock,
-						&asm.Instruction{
-							OpCode:   ins.OpCode,
-							Dst:      ins.Dst,
-							Src:      ins.Src,
-							Offset:   ins.Offset,
-							Constant: ins.Constant,
-						}.WithMetadata(asm.Metadata{}),
+						&newIns,
 					)
-
 					continue
 				}
 
 				instrumentationBlock = append(instrumentationBlock, ins)
 			}
 
-			// for each callsite to this instrumentation block in the original function, append a retpoline
-			// to jump back to the correct ip after the instrumentation is complete
-			for callType, site := range sites {
-				retJumpOffset := site.callsite - (insCount + blockCount) - 1 // the final -1 because the jump offset is computed from ip-1
-				if callType == ebpfEntryTrampolinePatchCall {
-					instrumentationBlock = append(
-						instrumentationBlock,
-						asm.Instruction{OpCode: asm.OpCode(asm.JumpClass).SetJumpOp(asm.Ja), Offset: int16(retJumpOffset)},
-					)
+			// for each callsite to this instrumentation block in the original function, append a jump
+			// back to the correct ip after the instrumentation is complete
+			sites := patchSites[instr.patchType]
+			for _, site := range sites {
+				retJumpOffset := site.callsite - (insCount + blockCount) // the final -1 because the jump offset is computed from ip-1
 
+				// for the entry trampoline insert an unconditional jump since there can be only 1 call site.
+				if site.patchType == ebpfEntryTrampolinePatchCall {
+					newIns := asm.Instruction{OpCode: asm.OpCode(asm.JumpClass).SetJumpOp(asm.Ja), Offset: int16(retJumpOffset)}
+					instrumentationBlock = append(instrumentationBlock, &newIns)
 				} else {
+					// for all other callsites the instrumentation code is generated such that R1 is an unsigned long constant.
+					// patch the desired return address into r1. This way the appropriate jump will be taken.
+					newIns := asm.Instruction{
+						OpCode:   asm.OpCode(asm.JumpClass).SetJumpOp(asm.JEq).SetSource(asm.ImmSource),
+						Dst:      asm.R1,
+						Offset:   -1,
+						Constant: int64(retJumpOffset),
+					}
 					instrumentationBlock = append(
 						instrumentationBlock,
 						// if r1 == callsite goto callsite+1
-						&asm.Instruction{
-							OpCode:   asm.OpCode(asm.JumpClass).SetJumpOp(asm.JEq).SetSource(asm.ImmSource),
-							Dst:      asm.R1,
-							Offset:   -1,
-							Constant: retJumpOffset,
-						},
+						&newIns,
 					)
 				}
 
@@ -457,10 +486,10 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 			}
 
 			// patch the original callsites to jump to instrumentation block
-			for callType, site := range sites {
-				if callType != ebpfEntryTrampolinePatchCall {
-					for idx := site.insIndex; idx > site.insIndex-5 && idx >= 0; idx-- {
-						load := p.Instructions[idx]
+			for _, site := range sites {
+				if site.patchType != ebpfEntryTrampolinePatchCall {
+					for idx := site.insIndex - 1; idx > site.insIndex-5 && idx >= 0; idx-- {
+						load := &p.Instructions[idx]
 						// The load has to be there before the patch call
 						if load.OpCode.JumpOp() == asm.Call {
 							return fmt.Errorf("failed to discover load instruction to patch trampoline return address")
@@ -471,7 +500,7 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 							continue
 						}
 
-						load.Constant = int64(site.callsite)
+						load.Constant = site.callsite
 					}
 				}
 
@@ -481,13 +510,23 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 				// some programs can end up with corrupted BTF. This happens for programs where the instrumented instruction
 				// is the first instruction. In that case the loader expects this instruction to point to the `func_info` BTF.
 				*(site.ins) = asm.Instruction{
-					OpCode: asm.OpCode(asm.JumpClass).SetupJumpOp(asm.Ja),
-					Offset: int16(insCount - site.classite - 1),
-				}.WithMetadata(ins.Metadata)
+					OpCode: asm.OpCode(asm.JumpClass).SetJumpOp(asm.Ja),
+					Offset: int16(insCount - site.callsite - 1),
+				}.WithMetadata(site.ins.Metadata)
 			}
 
 			insCount += blockCount
 		}
+
+		// append the instrumentation code to the instructions
+		for _, ins := range instrumentationBlock {
+			fmt.Printf("%v\n", ins)
+			p.Instructions = append(p.Instructions, *ins)
+		}
+
+		// the verifier requires the last instruction to be an unconditional jump or exit
+		// https://elixir.bootlin.com/linux/latest/source/kernel/bpf/verifier.c#L2877
+		p.Instructions = append(p.Instructions, asm.Return())
 	}
 
 	return nil

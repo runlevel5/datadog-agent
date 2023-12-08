@@ -323,6 +323,7 @@ func (t *tracer) GetMap(name string) *ebpf.Map {
 	case probes.ConnectionProtocolMap:
 	case probes.MapErrTelemetryMap:
 	case probes.HelperErrTelemetryMap:
+	case probes.EBPFTelemetryMap:
 	default:
 		return nil
 	}

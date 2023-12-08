@@ -202,6 +202,7 @@ const (
 	IpMakeSkbArgsMap                  BPFMapName = "ip_make_skb_args"
 	MapErrTelemetryMap                BPFMapName = "map_err_telemetry_map"
 	HelperErrTelemetryMap             BPFMapName = "helper_err_telemetry_map"
+	EBPFTelemetryMap                  BPFMapName = "bpf_telemetry_map"
 	TcpRecvMsgArgsMap                 BPFMapName = "tcp_recvmsg_args"
 	ProtocolClassificationBufMap      BPFMapName = "classification_buf"
 	KafkaClientIDBufMap               BPFMapName = "kafka_client_id"

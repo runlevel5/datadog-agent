@@ -111,7 +111,7 @@ func parseStackSizesSections(bytecode io.ReaderAt, programSpecs map[string]*ebpf
 		}
 	}
 	if notFound != nil {
-		return nil, fmt.Errorf("failed to find stack sizes for programs: [%s]", strings.Join(notFound, ' '))
+		return nil, fmt.Errorf("failed to find stack sizes for programs: [%s]", strings.Join(notFound, ", "))
 	}
 
 	return sizes, nil

@@ -91,6 +91,7 @@ func initManager(mgr *errtelemetry.Manager, closedHandler *ebpf.PerfHandler, run
 		{Name: probes.IpMakeSkbArgsMap},
 		{Name: probes.MapErrTelemetryMap},
 		{Name: probes.HelperErrTelemetryMap},
+		{Name: probes.EBPFTelemetryMap},
 		{Name: probes.TcpRecvMsgArgsMap},
 		{Name: probes.ClassificationProgsMap},
 		{Name: probes.TCPCloseProgsMap},

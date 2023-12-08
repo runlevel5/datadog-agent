@@ -31,7 +31,7 @@ func NewManager(mgr *manager.Manager, bt *EBPFTelemetry, bpfDir string) *Manager
 
 // InitWithOptions is a wrapper around ebpf-manager.Manager.InitWithOptions
 func (m *Manager) InitWithOptions(bytecode io.ReaderAt, opts manager.Options) error {
-	if err := setupForTelemetry(m.Manager, &opts, m.bpfTelemetry, m.bpfDir); err != nil {
+	if err := setupForTelemetry(m.Manager, &opts, m.bpfTelemetry, m.bpfDir, bytecode); err != nil {
 		return err
 	}
 
