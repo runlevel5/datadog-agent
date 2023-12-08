@@ -25,11 +25,6 @@ type http2DynamicTableIndex struct {
 	Index uint64
 	Tup   connTuple
 }
-type http2DynamicTableEntry struct {
-	Buffer    [160]int8
-	Len       uint8
-	Pad_cgo_0 [7]byte
-}
 type http2StreamKey struct {
 	Tup       connTuple
 	Id        uint32

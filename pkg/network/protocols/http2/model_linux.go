@@ -259,22 +259,3 @@ func (t http2StreamKey) String() string {
 		t.Id,
 	)
 }
-
-// String returns a string representation of the http2 dynamic table.
-func (t http2DynamicTableEntry) String() string {
-	if t.Len == 0 {
-		return ""
-	}
-
-	b := make([]byte, t.Len)
-	for i := uint8(0); i < t.Len; i++ {
-		b[i] = byte(t.Buffer[i])
-	}
-	// trim null byte + after
-	str, err := hpack.HuffmanDecodeToString(b)
-	if err != nil {
-		return fmt.Sprintf("FAILED: %s", err)
-	}
-
-	return str
-}
