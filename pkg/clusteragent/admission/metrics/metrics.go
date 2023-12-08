@@ -21,6 +21,7 @@ const (
 	TagsMutationType         = "standard_tags"
 	ConfigMutationType       = "agent_config"
 	LibInjectionMutationType = "lib_injection"
+	AgentSidecarMutationType = "agent_sidecar"
 	CWSPodInstrumentation    = "cws_pod_instrumentation"
 	CWSExecInstrumentation   = "cws_exec_instrumentation"
 )

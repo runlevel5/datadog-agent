@@ -185,6 +185,25 @@ func (c *ControllerV1) newWebhooks(secret *corev1.Secret) []admiv1.MutatingWebho
 
 func (c *ControllerV1) generateTemplates() {
 	webhooks := []admiv1.MutatingWebhook{}
+	log.Info("Registering webhooks v1")
+	// side car injection
+	if config.Datadog.GetBool("admission_controller.agent_sidecar.enabled") {
+		// generate selectors
+		nsSelector, objSelector := buildLabelSelectors(c.config.useNamespaceSelector())
+
+		webhook := c.getWebhookSkeleton(
+			"agent-sidecar",
+			config.Datadog.GetString("admission_controller.agent_sidecar.endpoint"),
+			[]admiv1.OperationType{
+				admiv1.Create,
+			},
+			[]string{"pods"},
+			nsSelector,
+			objSelector,
+		)
+		log.Info("registered side car injection v1")
+		webhooks = append(webhooks, webhook)
+	}
 
 	// DD_AGENT_HOST injection
 	if config.Datadog.GetBool("admission_controller.inject_config.enabled") {

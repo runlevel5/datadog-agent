@@ -1038,6 +1038,11 @@ func InitConfig(config Config) {
 	config.BindEnvAndSetDefault("admission_controller.certificate.expiration_threshold", 30*24)        // how long before its expiration a certificate should be refreshed (in hours, default 1 month)
 	config.BindEnvAndSetDefault("admission_controller.certificate.secret_name", "webhook-certificate") // name of the Secret object containing the webhook certificate
 	config.BindEnvAndSetDefault("admission_controller.webhook_name", "datadog-webhook")
+	//
+	config.BindEnvAndSetDefault("admission_controller.agent_sidecar.enabled", true)
+	config.BindEnvAndSetDefault("admission_controller.agent_sidecar.endpoint", "/agentsidecar")
+	config.BindEnvAndSetDefault("admission_controller.agent_sidecar.sidecaryaml", "")
+	//
 	config.BindEnvAndSetDefault("admission_controller.inject_config.enabled", true)
 	config.BindEnvAndSetDefault("admission_controller.inject_config.endpoint", "/injectconfig")
 	config.BindEnvAndSetDefault("admission_controller.inject_config.mode", "hostip") // possible values: hostip / service / socket

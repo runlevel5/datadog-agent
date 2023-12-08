@@ -225,6 +225,7 @@ func TestGenerateTemplatesV1(t *testing.T) {
 				mockConfig.SetWithoutSource("admission_controller.inject_tags.enabled", false)
 				mockConfig.SetWithoutSource("admission_controller.auto_instrumentation.enabled", false)
 				mockConfig.SetWithoutSource("admission_controller.cws_instrumentation.enabled", false)
+				mockConfig.SetWithoutSource("admission_controller.agent_sidecar.enabled", false)
 			},
 			configFunc: func() Config { return NewConfig(false, false) },
 			want: func() []admiv1.MutatingWebhook {
@@ -290,6 +291,7 @@ func TestGenerateTemplatesV1(t *testing.T) {
 				mockConfig.SetWithoutSource("admission_controller.inject_tags.enabled", true)
 				mockConfig.SetWithoutSource("admission_controller.auto_instrumentation.enabled", false)
 				mockConfig.SetWithoutSource("admission_controller.cws_instrumentation.enabled", false)
+				mockConfig.SetWithoutSource("admission_controller.agent_sidecar.enabled", false)
 			},
 			configFunc: func() Config { return NewConfig(false, false) },
 			want: func() []admiv1.MutatingWebhook {
@@ -309,6 +311,7 @@ func TestGenerateTemplatesV1(t *testing.T) {
 				mockConfig.SetWithoutSource("admission_controller.inject_tags.enabled", false)
 				mockConfig.SetWithoutSource("admission_controller.auto_instrumentation.enabled", true)
 				mockConfig.SetWithoutSource("admission_controller.cws_instrumentation.enabled", false)
+				mockConfig.SetWithoutSource("admission_controller.agent_sidecar.enabled", false)
 			},
 			configFunc: func() Config { return NewConfig(false, false) },
 			want: func() []admiv1.MutatingWebhook {
@@ -332,6 +335,7 @@ func TestGenerateTemplatesV1(t *testing.T) {
 				mockConfig.SetWithoutSource("admission_controller.inject_tags.enabled", false)
 				mockConfig.SetWithoutSource("admission_controller.auto_instrumentation.enabled", true)
 				mockConfig.SetWithoutSource("admission_controller.cws_instrumentation.enabled", false)
+				mockConfig.SetWithoutSource("admission_controller.agent_sidecar.enabled", false)
 			},
 			configFunc: func() Config { return NewConfig(false, false) },
 			want: func() []admiv1.MutatingWebhook {
@@ -350,6 +354,7 @@ func TestGenerateTemplatesV1(t *testing.T) {
 				mockConfig.SetWithoutSource("admission_controller.inject_tags.enabled", true)
 				mockConfig.SetWithoutSource("admission_controller.auto_instrumentation.enabled", false)
 				mockConfig.SetWithoutSource("admission_controller.cws_instrumentation.enabled", false)
+				mockConfig.SetWithoutSource("admission_controller.agent_sidecar.enabled", false)
 			},
 			configFunc: func() Config { return NewConfig(false, false) },
 			want: func() []admiv1.MutatingWebhook {
@@ -374,6 +379,7 @@ func TestGenerateTemplatesV1(t *testing.T) {
 				mockConfig.SetWithoutSource("admission_controller.inject_tags.enabled", true)
 				mockConfig.SetWithoutSource("admission_controller.auto_instrumentation.enabled", false)
 				mockConfig.SetWithoutSource("admission_controller.cws_instrumentation.enabled", false)
+				mockConfig.SetWithoutSource("admission_controller.agent_sidecar.enabled", false)
 			},
 			configFunc: func() Config { return NewConfig(false, false) },
 			want: func() []admiv1.MutatingWebhook {
@@ -407,6 +413,7 @@ func TestGenerateTemplatesV1(t *testing.T) {
 				mockConfig.SetWithoutSource("admission_controller.auto_instrumentation.enabled", false)
 				mockConfig.SetWithoutSource("admission_controller.namespace_selector_fallback", true)
 				mockConfig.SetWithoutSource("admission_controller.cws_instrumentation.enabled", false)
+				mockConfig.SetWithoutSource("admission_controller.agent_sidecar.enabled", false)
 			},
 			configFunc: func() Config { return NewConfig(false, true) },
 			want: func() []admiv1.MutatingWebhook {
@@ -433,6 +440,7 @@ func TestGenerateTemplatesV1(t *testing.T) {
 				mockConfig.SetWithoutSource("admission_controller.auto_instrumentation.enabled", false)
 				mockConfig.SetWithoutSource("admission_controller.inject_tags.enabled", false)
 				mockConfig.SetWithoutSource("admission_controller.cws_instrumentation.enabled", false)
+				mockConfig.SetWithoutSource("admission_controller.agent_sidecar.enabled", false)
 			},
 			configFunc: func() Config { return NewConfig(false, false) },
 			want: func() []admiv1.MutatingWebhook {
@@ -481,6 +489,7 @@ func TestGenerateTemplatesV1(t *testing.T) {
 				mockConfig.SetWithoutSource("admission_controller.mutate_unlabelled", true)
 				mockConfig.SetWithoutSource("admission_controller.inject_tags.enabled", false)
 				mockConfig.SetWithoutSource("admission_controller.cws_instrumentation.enabled", false)
+				mockConfig.SetWithoutSource("admission_controller.agent_sidecar.enabled", false)
 			},
 			configFunc: func() Config { return NewConfig(false, true) },
 			want: func() []admiv1.MutatingWebhook {
@@ -527,6 +536,8 @@ func TestGenerateTemplatesV1(t *testing.T) {
 				mockConfig.SetWithoutSource("admission_controller.auto_instrumentation.enabled", false)
 				mockConfig.SetWithoutSource("admission_controller.cws_instrumentation.enabled", true)
 				mockConfig.SetWithoutSource("admission_controller.cws_instrumentation.mutate_unlabelled", true)
+				mockConfig.SetWithoutSource("admission_controller.agent_sidecar.enabled", false)
+
 			},
 			configFunc: func() Config { return NewConfig(true, false) },
 			want: func() []admiv1.MutatingWebhook {
@@ -567,6 +578,8 @@ func TestGenerateTemplatesV1(t *testing.T) {
 				mockConfig.SetWithoutSource("admission_controller.auto_instrumentation.enabled", false)
 				mockConfig.SetWithoutSource("admission_controller.cws_instrumentation.enabled", true)
 				mockConfig.SetWithoutSource("admission_controller.cws_instrumentation.mutate_unlabelled", false)
+				mockConfig.SetWithoutSource("admission_controller.agent_sidecar.enabled", false)
+
 			},
 			configFunc: func() Config { return NewConfig(true, false) },
 			want: func() []admiv1.MutatingWebhook {
@@ -603,6 +616,8 @@ func TestGenerateTemplatesV1(t *testing.T) {
 				mockConfig.SetWithoutSource("admission_controller.auto_instrumentation.enabled", false)
 				mockConfig.SetWithoutSource("admission_controller.cws_instrumentation.enabled", true)
 				mockConfig.SetWithoutSource("admission_controller.cws_instrumentation.mutate_unlabelled", true)
+				mockConfig.SetWithoutSource("admission_controller.agent_sidecar.enabled", false)
+
 			},
 			configFunc: func() Config { return NewConfig(true, true) },
 			want: func() []admiv1.MutatingWebhook {
@@ -643,6 +658,8 @@ func TestGenerateTemplatesV1(t *testing.T) {
 				mockConfig.SetWithoutSource("admission_controller.auto_instrumentation.enabled", false)
 				mockConfig.SetWithoutSource("admission_controller.cws_instrumentation.enabled", true)
 				mockConfig.SetWithoutSource("admission_controller.cws_instrumentation.mutate_unlabelled", false)
+				mockConfig.SetWithoutSource("admission_controller.agent_sidecar.enabled", false)
+
 			},
 			configFunc: func() Config { return NewConfig(true, true) },
 			want: func() []admiv1.MutatingWebhook {
@@ -837,7 +854,7 @@ func (f *fixtureV1) populateWebhooksCache(webhooks ...*admiv1.MutatingWebhookCon
 }
 
 func validateV1(w *admiv1.MutatingWebhookConfiguration, s *corev1.Secret) error {
-	if len(w.Webhooks) != 3 {
+	if len(w.Webhooks) != 4 {
 		return fmt.Errorf("Webhooks should contain 3 entries, got %d", len(w.Webhooks))
 	}
 
