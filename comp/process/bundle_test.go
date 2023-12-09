@@ -6,6 +6,7 @@
 package process
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -14,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core"
 	configComp "github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
+	"github.com/DataDog/datadog-agent/comp/core/tagger"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/comp/process/runner"
 	"github.com/DataDog/datadog-agent/comp/process/types"
@@ -30,6 +32,8 @@ func TestBundleDependencies(t *testing.T) {
 		fx.Supply(mockCoreBundleParams),
 		fx.Supply(workloadmeta.NewParams()),
 		fx.Provide(func() types.CheckComponent { return nil }),
+		fx.Supply(tagger.NewFakeTaggerParams()),
+		fx.Provide(func() context.Context { return context.TODO() }),
 		core.MockBundle,
 	)
 }
