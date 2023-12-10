@@ -396,6 +396,7 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 					return fmt.Errorf("trampoline instruction found at disallowed offset %d\n", iter.Offset)
 				}
 
+				fmt.Printf("Patch site: Call %d\n", ins.Constant)
 				if _, ok := patchSites[ins.Constant]; ok {
 					patchSites[ins.Constant] = append(patchSites[ins.Constant], patchSite{ins, int64(iter.Offset), ins.Constant, iter.Index})
 				} else {
@@ -414,6 +415,7 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 		}
 
 		var instrumentationBlock []*asm.Instruction
+		appendReturn := false
 		for _, instr := range instrumentation {
 			if _, ok := patchSites[instr.patchType]; !ok {
 				// This instrumentation is not used
@@ -471,8 +473,8 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 					// patch the desired return address into r1. This way the appropriate jump will be taken.
 					newIns := asm.Instruction{
 						OpCode:   asm.OpCode(asm.JumpClass).SetJumpOp(asm.JEq).SetSource(asm.ImmSource),
-						Dst:      asm.R1,
-						Offset:   -1,
+						Dst:      asm.R0,
+						Offset:   int16(retJumpOffset),
 						Constant: int64(retJumpOffset),
 					}
 					instrumentationBlock = append(
@@ -480,6 +482,8 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 						// if r1 == callsite goto callsite+1
 						&newIns,
 					)
+
+					appendReturn = true
 				}
 
 				blockCount++
@@ -500,6 +504,7 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 							continue
 						}
 
+						fmt.Printf("Jump addresses: %d / %x\n", site.callsite, site.callsite)
 						load.Constant = site.callsite
 					}
 				}
@@ -524,9 +529,11 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 			p.Instructions = append(p.Instructions, *ins)
 		}
 
-		// the verifier requires the last instruction to be an unconditional jump or exit
-		// https://elixir.bootlin.com/linux/latest/source/kernel/bpf/verifier.c#L2877
-		p.Instructions = append(p.Instructions, asm.Return())
+		if appendReturn {
+			// the verifier requires the last instruction to be an unconditional jump or exit
+			// https://elixir.bootlin.com/linux/latest/source/kernel/bpf/verifier.c#L2877
+			p.Instructions = append(p.Instructions, asm.Return())
+		}
 	}
 
 	return nil
