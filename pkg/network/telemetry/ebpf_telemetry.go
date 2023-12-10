@@ -338,8 +338,6 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 	}
 
 	for fn, p := range progs {
-		fmt.Printf("Program: %s\n", fn)
-		fmt.Println("-----------")
 		space := sizes.stackHas8BytesFree(fn)
 		if !space {
 			log.Warnf("Function %s does not have enough free stack space for instrumentation", fn)
@@ -396,7 +394,6 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 					return fmt.Errorf("trampoline instruction found at disallowed offset %d\n", iter.Offset)
 				}
 
-				fmt.Printf("Patch site: Call %d\n", ins.Constant)
 				if _, ok := patchSites[ins.Constant]; ok {
 					patchSites[ins.Constant] = append(patchSites[ins.Constant], patchSite{ins, int64(iter.Offset), ins.Constant, iter.Index})
 				} else {
@@ -504,7 +501,6 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 							continue
 						}
 
-						fmt.Printf("Jump addresses: %d / %x\n", site.callsite, site.callsite)
 						load.Constant = site.callsite
 					}
 				}
@@ -525,7 +521,6 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 
 		// append the instrumentation code to the instructions
 		for _, ins := range instrumentationBlock {
-			fmt.Printf("%v\n", ins)
 			p.Instructions = append(p.Instructions, *ins)
 		}
 
