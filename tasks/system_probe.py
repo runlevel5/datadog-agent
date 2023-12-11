@@ -246,10 +246,8 @@ def ninja_network_ebpf_programs(nw, build_dir, co_re_build_dir):
     network_bpf_dir = os.path.join("pkg", "network", "ebpf")
     network_c_dir = os.path.join(network_bpf_dir, "c")
 
-    network_flags = "-Ipkg/network/ebpf/c -g -pg"
+    network_flags = ["-Ipkg/network/ebpf/c", "-g"]
     network_programs = [
-        "prebuilt/dns",
-        "prebuilt/offset-guess",
         "tracer",
         "prebuilt/usm",
         "prebuilt/usm_events_test",
@@ -257,11 +255,18 @@ def ninja_network_ebpf_programs(nw, build_dir, co_re_build_dir):
         "prebuilt/conntrack",
     ]
     network_co_re_programs = ["tracer", "co-re/tracer-fentry", "runtime/usm", "runtime/shared-libraries"]
+    network_programs_wo_instrumentation = ["prebuilt/dns", "prebuilt/offset-guess"]
+    instrumentation_flags = ["-pg"]
 
     for prog in network_programs:
         infile = os.path.join(network_c_dir, f"{prog}.c")
         outfile = os.path.join(build_dir, f"{os.path.basename(prog)}.o")
-        ninja_network_ebpf_program(nw, infile, outfile, network_flags)
+        ninja_network_ebpf_program(nw, infile, outfile, ' '.join(network_flags+instrumentation_flags))
+
+    for prog in network_programs_wo_instrumentation:
+        infile = os.path.join(network_c_dir, f"{prog}.c")
+        outfile = os.path.join(build_dir, f"{os.path.basename(prog)}.o")
+        ninja_network_ebpf_program(nw, infile, outfile, ' '.join(network_flags))
 
     for prog_path in network_co_re_programs:
         prog = os.path.basename(prog_path)
