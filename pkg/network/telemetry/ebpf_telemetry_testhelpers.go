@@ -45,20 +45,21 @@ func (b *EBPFTelemetry) GetHelpersTelemetry() map[string]interface{} {
 // GetMapsTelemetry returns a map of error telemetry for each ebpf map
 func (b *EBPFTelemetry) GetMapsTelemetry() map[string]interface{} {
 	t := make(map[string]interface{})
-	if b.mapErrMap == nil {
+	if b.bpfTelemetryMap == nil {
 		return t
 	}
+	var val InstrumentationBlob
+	key := 0
+	err := b.bpfTelemetryMap.Lookup(unsafe.Pointer(&key), unsafe.Pointer(&val))
+	if err != nil {
+		log.Debugf("failed to get instrumentation blob")
+	}
 
-	var val MapErrTelemetry
-	for m, k := range b.mapKeys {
-		err := b.mapErrMap.Lookup(unsafe.Pointer(&k), unsafe.Pointer(&val))
-		if err != nil {
-			log.Debugf("failed to get telemetry for map:key %s:%d\n", m, k)
-			continue
-		}
-		if count := getErrCount(val.Count[:]); len(count) > 0 {
-			t[m] = count
+	for mapName, mapIndx := range b.mapKeys {
+		if count := getErrCount(val.Map_err_telemetry[mapIndx].Count[:]); len(count) > 0 {
+			t[mapName] = count
 		}
 	}
+
 	return t
 }

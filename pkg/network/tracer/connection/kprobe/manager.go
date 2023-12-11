@@ -89,7 +89,6 @@ func initManager(mgr *errtelemetry.Manager, closedHandler *ebpf.PerfHandler, run
 		{Name: probes.TcpSendPageArgsMap},
 		{Name: probes.UdpSendPageArgsMap},
 		{Name: probes.IpMakeSkbArgsMap},
-		{Name: probes.MapErrTelemetryMap},
 		{Name: probes.HelperErrTelemetryMap},
 		{Name: probes.EBPFTelemetryMap},
 		{Name: probes.TcpRecvMsgArgsMap},

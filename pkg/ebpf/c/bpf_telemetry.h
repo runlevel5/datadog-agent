@@ -5,14 +5,11 @@
 #include "telemetry_types.h"
 #include "map-defs.h"
 
-
-
 BPF_ARRAY_MAP(bpf_telemetry_map, instrumentation_blob_t, 1);
 
 #define STR(x) #x
 #define MK_MAP_INDX(key) STR(key##_telemetry_key)
 
-BPF_HASH_MAP(map_err_telemetry_map, unsigned long, map_err_telemetry_t, 128)
 BPF_HASH_MAP(helper_err_telemetry_map, unsigned long, helper_err_telemetry_t, 256)
 
 #define PATCH_TARGET_MAP_ERRORS -2
@@ -20,12 +17,13 @@ static void *(*bpf_telemetry_map_errors_patch)(unsigned long callsite, long erro
 
 #define map_update_with_telemetry(fn, map, args...)                                \
     ({                                                                             \
-        long errno_ret;                                                \
+        long errno_ret;                                                            \
         errno_ret = fn(&map, args);                                                \
-        unsigned long ret;                                           \
-        LOAD_CONSTANT("retpoline_jump_addr", ret); \
-        if (errno_ret < 0) {                              \
-            bpf_telemetry_map_errors_patch(ret, errno_ret, 0);            \
+        unsigned long ret, map_index;                                              \
+        LOAD_CONSTANT(MK_MAP_INDX(map), map_index);                                \
+        LOAD_CONSTANT("retpoline_jump_addr", ret);                                 \
+        if (errno_ret < 0) {                                                       \
+            bpf_telemetry_map_errors_patch(ret, errno_ret, map_index);             \
         }                                                                          \
         errno_ret;                                                                 \
     })
