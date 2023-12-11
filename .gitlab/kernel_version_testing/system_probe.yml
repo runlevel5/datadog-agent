@@ -381,7 +381,7 @@ kernel_matrix_testing_setup_env_x64:
     - NESTED_VM_CMD="/home/ubuntu/connector -host ${MICRO_VM_IP} -user root -ssh-file /home/kernel-version-testing/ddvm_rsa -vm-cmd 'bash /root/fetch_dependencies.sh ${ARCH} && /micro-vm-init.sh ${RETRY} /${TEST_SET}.json'"
     - $CI_PROJECT_DIR/connector-$ARCH -host $INSTANCE_IP -user ubuntu -ssh-file $AWS_EC2_SSH_KEY_FILE -vm-cmd "${NESTED_VM_CMD}"
     - ssh metal_instance "ssh ${MICRO_VM_IP} '/test-json-review'"
-    - cat /proc/stat
+    - ssh metal_instance "cat /proc/stat"
   after_script:
     - MICRO_VM_IP=$(cat $CI_PROJECT_DIR/stack.output | grep $MICROVM_GREP_PATTERN | cut -d ' ' -f 2)
     - ssh metal_instance "scp ${MICRO_VM_IP}:/ci-visibility/junit.tar.gz /home/ubuntu/junit-${ARCH}-${TAG}-${TEST_SET}.tar.gz"
