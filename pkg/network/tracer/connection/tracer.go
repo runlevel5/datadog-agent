@@ -328,6 +328,7 @@ func (t *tracer) Stop() {
 	t.stopOnce.Do(func() {
 		close(t.exitTelemetry)
 		ebpfcheck.RemoveNameMappings(t.m)
+		ddebpf.UnregisterTelemetry(t.m)
 		_ = t.m.Stop(manager.CleanAll)
 		t.closeConsumer.Stop()
 		if t.closeTracer != nil {
@@ -661,7 +662,7 @@ func populateConnStats(stats *network.ConnectionStats, t *netebpf.ConnTuple, s *
 	}
 
 	stats.ProtocolStack = protocols.Stack{
-		Api:         protocols.API(s.Protocol_stack.Api),
+		API:         protocols.API(s.Protocol_stack.Api),
 		Application: protocols.Application(s.Protocol_stack.Application),
 		Encryption:  protocols.Encryption(s.Protocol_stack.Encryption),
 	}
