@@ -1,4 +1,4 @@
-package load
+package load_tracker
 
 import (
 	"runtime/metrics"
@@ -24,7 +24,7 @@ const (
 )
 
 var (
-	runtimeSamples = []metrics.Sample{
+	metricsToCollect = []metrics.Description{
 		{Name: "/gc/pauses:seconds"},             // histogram
 		{Name: "/sched/pauses/total/gc:seconds"}, // histogram (go1.22+)
 		{Name: "/gc/heap/allocs:bytes"},
@@ -33,40 +33,18 @@ var (
 		{Name: "/sched/goroutines:goroutines"},
 		{Name: "/sched/latencies:seconds"}, // histogram
 	}
+	once sync.Once
 )
 
-type goStats struct {
-	GCPauses     metrics.Float64Histogram
-	GCAllocBytes uint64
-	GCFreedBytes uint64
-	Gomaxprocs   uint64
-	Goroutines   uint64
-	SchedLatency metrics.Float64Histogram
-}
-
-// See https://www.cockroachlabs.com/blog/rubbing-control-theory/ to understand why goroutine scheduling lantencies are important.
-
-func load() {
-	var v goStats
-
-	metrics.Read(runtimeSamples)
-	for _, s := range runtimeSamples {
-		switch s.Name {
-		case "/gc/pauses:seconds":
-		case "/sched/pauses/total/gc:seconds":
-			v.GCPauses = *s.Value.Float64Histogram()
-		case "/gc/heap/allocs:bytes":
-			v.GCAllocBytes = s.Value.Uint64()
-		case "/gc/heap/frees:bytes":
-			v.GCFreedBytes = s.Value.Uint64()
-		case "/sched/gomaxprocs:threads":
-			v.Gomaxprocs = s.Value.Uint64()
-		case "/sched/goroutines:goroutines":
-			v.Goroutines = s.Value.Uint64()
-		case "/sched/latencies:seconds":
-			v.SchedLatency = *s.Value.Float64Histogram()
-		}
-	}
+type runtimeMetricsSummary struct {
+	GCPauses          metrics.Float64Histogram
+	GCPausesStats     *histogramStats
+	GCAllocBytes      uint64
+	GCFreedBytes      uint64
+	Gomaxprocs        uint64
+	Goroutines        uint64
+	SchedLatency      metrics.Float64Histogram
+	SchedLatencyStats *histogramStats
 }
 
 type runtimeMetrics struct {
@@ -81,6 +59,8 @@ type runtimeMetric struct {
 
 	currentValue  metrics.Value
 	previousValue metrics.Value
+
+	summary runtimeMetricsSummary
 }
 
 func newRuntimeMetricStore(descs []metrics.Description) *runtimeMetrics {
@@ -169,17 +149,14 @@ func (rms *runtimeMetrics) report() {
 			// with a once
 			// This should never happen because all metrics are supported
 			// by construction.
-			log.Error("runtimemetrics: encountered an unknown metric, this should never happen and might indicate a bug",
-				log.String("metric_name", name))
+			log.Errorf("runtimemetrics: encountered an unknown metric (%s), this should never happen and might indicate a bug", name)
 		default:
 			// This may happen as new metric kinds get added.
 			//
 			// The safest thing to do here is to simply log it somewhere once
 			// as something to look into, but ignore it for now.
 			once.Do(func() {
-				log.Error("runtimemetrics: unsupported metric kind, support for that kind should be added in pkg/runtimemetrics",
-					log.String("metric_name", name),
-					log.Object("kind", rm.currentValue.Kind()))
+				log.Errorf("runtimemetrics: unsupported metric kind %s (%s)", name, rm.currentValue.Kind())
 			})
 		}
 	}

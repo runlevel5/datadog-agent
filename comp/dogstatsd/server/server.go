@@ -26,6 +26,8 @@ import (
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/replay"
 	serverdebug "github.com/DataDog/datadog-agent/comp/dogstatsd/serverDebug"
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/serverDebug/serverdebugimpl"
+	"github.com/DataDog/datadog-agent/comp/load/load"
+	"github.com/DataDog/datadog-agent/comp/load/load/load_tracker"
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
@@ -67,11 +69,12 @@ var (
 type dependencies struct {
 	fx.In
 
-	Log    logComponent.Component
-	Config configComponent.Component
-	Debug  serverdebug.Component
-	Replay replay.Component
-	Params Params
+	Log         logComponent.Component
+	Config      configComponent.Component
+	Debug       serverdebug.Component
+	Replay      replay.Component
+	LoadTracker load.Component
+	Params      Params
 }
 
 // When the internal telemetry is enabled, used to tag the origin
@@ -116,6 +119,7 @@ type server struct {
 	Debug                   serverdebug.Component
 
 	tCapture                replay.Component
+	loadTracker             load.Component
 	mapper                  *mapper.MetricMapper
 	eolTerminationUDP       bool
 	eolTerminationUDS       bool
@@ -191,15 +195,15 @@ func initTelemetry(cfg config.Reader, logger logComponent.Component) {
 //
 //nolint:revive // TODO(AML) Fix revive linter
 func NewServerlessServer() Component {
-	return newServerCompat(config.Datadog, logComponentImpl.NewTemporaryLoggerWithoutInit(), replay.NewServerlessTrafficCapture(), serverdebugimpl.NewServerlessServerDebug(), true)
+	return newServerCompat(config.Datadog, logComponentImpl.NewTemporaryLoggerWithoutInit(), replay.NewServerlessTrafficCapture(), load_tracker.NewServerlessLoadTracker(), serverdebugimpl.NewServerlessServerDebug(), true)
 }
 
 // TODO: (components) - merge with newServerCompat once NewServerlessServer is removed
 func newServer(deps dependencies) Component {
-	return newServerCompat(deps.Config, deps.Log, deps.Replay, deps.Debug, deps.Params.Serverless)
+	return newServerCompat(deps.Config, deps.Log, deps.Replay, deps.LoadTracker, deps.Debug, deps.Params.Serverless)
 }
 
-func newServerCompat(cfg config.Reader, log logComponent.Component, capture replay.Component, debug serverdebug.Component, serverless bool) Component {
+func newServerCompat(cfg config.Reader, log logComponent.Component, capture replay.Component, loadTracker load.Component, debug serverdebug.Component, serverless bool) Component {
 	// This needs to be done after the configuration is loaded
 	once.Do(func() { initTelemetry(cfg, log) })
 
@@ -344,7 +348,7 @@ func (s *server) Start(demultiplexer aggregator.Demultiplexer) error {
 	}
 
 	if len(socketPath) > 0 {
-		unixListener, err := listeners.NewUDSDatagramListener(packetsChannel, sharedPacketPoolManager, sharedUDSOobPoolManager, s.config, s.tCapture)
+		unixListener, err := listeners.NewUDSDatagramListener(packetsChannel, sharedPacketPoolManager, sharedUDSOobPoolManager, s.config, s.tCapture, s.loadTracker)
 		if err != nil {
 			s.log.Errorf("Can't init listener: %s", err.Error())
 		} else {
@@ -355,7 +359,7 @@ func (s *server) Start(demultiplexer aggregator.Demultiplexer) error {
 
 	if len(socketStreamPath) > 0 {
 		s.log.Warnf("dogstatsd_stream_socket is not yet supported, run it at your own risk")
-		unixListener, err := listeners.NewUDSStreamListener(packetsChannel, sharedPacketPoolManager, sharedUDSOobPoolManager, s.config, s.tCapture)
+		unixListener, err := listeners.NewUDSStreamListener(packetsChannel, sharedPacketPoolManager, sharedUDSOobPoolManager, s.config, s.tCapture, s.loadTracker)
 		if err != nil {
 			s.log.Errorf("Can't init listener: %s", err.Error())
 		} else {
@@ -364,7 +368,7 @@ func (s *server) Start(demultiplexer aggregator.Demultiplexer) error {
 	}
 
 	if s.config.GetString("dogstatsd_port") == listeners.RandomPortName || s.config.GetInt("dogstatsd_port") > 0 {
-		udpListener, err := listeners.NewUDPListener(packetsChannel, sharedPacketPoolManager, s.config, s.tCapture)
+		udpListener, err := listeners.NewUDPListener(packetsChannel, sharedPacketPoolManager, s.config, s.tCapture, s.loadTracker)
 		if err != nil {
 			s.log.Errorf(err.Error())
 		} else {
@@ -375,7 +379,7 @@ func (s *server) Start(demultiplexer aggregator.Demultiplexer) error {
 
 	pipeName := s.config.GetString("dogstatsd_pipe_name")
 	if len(pipeName) > 0 {
-		namedPipeListener, err := listeners.NewNamedPipeListener(pipeName, packetsChannel, sharedPacketPoolManager, s.config, s.tCapture)
+		namedPipeListener, err := listeners.NewNamedPipeListener(pipeName, packetsChannel, sharedPacketPoolManager, s.config, s.tCapture, s.loadTracker)
 		if err != nil {
 			s.log.Errorf("named pipe error: %v", err.Error())
 		} else {
@@ -457,6 +461,9 @@ func (s *server) Stop() {
 	}
 	if s.tCapture != nil {
 		s.tCapture.Stop()
+	}
+	if s.loadTracker != nil {
+		s.loadTracker.Stop()
 	}
 	s.health.Deregister() //nolint:errcheck
 	s.Started = false

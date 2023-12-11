@@ -21,6 +21,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/listeners/ratelimit"
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/packets"
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/replay"
+	"github.com/DataDog/datadog-agent/comp/load/load"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -49,6 +50,7 @@ type UDSListener struct {
 	sharedPacketPoolManager *packets.PoolManager
 	oobPoolManager          *packets.PoolManager
 	trafficCapture          replay.Component
+	loadTracker             load.Component
 	OriginDetection         bool
 	config                  config.Reader
 
@@ -126,7 +128,7 @@ func NewUDSOobPoolManager() *packets.PoolManager {
 }
 
 // NewUDSListener returns an idle UDS Statsd listener
-func NewUDSListener(packetOut chan packets.Packets, sharedPacketPoolManager *packets.PoolManager, sharedOobPacketPoolManager *packets.PoolManager, cfg config.Reader, capture replay.Component, transport string) (*UDSListener, error) {
+func NewUDSListener(packetOut chan packets.Packets, sharedPacketPoolManager *packets.PoolManager, sharedOobPacketPoolManager *packets.PoolManager, cfg config.Reader, capture replay.Component, loadTracker load.Component, transport string) (*UDSListener, error) {
 	originDetection := cfg.GetBool("dogstatsd_origin_detection")
 
 	listener := &UDSListener{
@@ -134,6 +136,7 @@ func NewUDSListener(packetOut chan packets.Packets, sharedPacketPoolManager *pac
 		packetOut:                    packetOut,
 		sharedPacketPoolManager:      sharedPacketPoolManager,
 		trafficCapture:               capture,
+		loadTracker:                  loadTracker,
 		dogstatsdMemBasedRateLimiter: cfg.GetBool("dogstatsd_mem_based_rate_limiter.enabled"),
 		config:                       cfg,
 		transport:                    transport,
@@ -157,6 +160,9 @@ func NewUDSListener(packetOut chan packets.Packets, sharedPacketPoolManager *pac
 
 // Listen runs the intake loop. Should be called in its own goroutine
 func (l *UDSListener) handleConnection(conn *net.UnixConn, closeFunc CloseFunction) error {
+	if l.loadTracker != nil {
+		l.loadTracker.YieldOnOverload()
+	}
 	listenerID := l.getListenerID(conn)
 	tlmListenerID := listenerID
 	telemetryWithFullListenerID := l.telemetryWithListenerID

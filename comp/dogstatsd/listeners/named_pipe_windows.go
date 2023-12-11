@@ -17,10 +17,11 @@ import (
 
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/packets"
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/replay"
+	"github.com/DataDog/datadog-agent/comp/load/load"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 
-	winio "github.com/Microsoft/go-winio"
+	"github.com/Microsoft/go-winio"
 )
 
 var namedPipeTelemetry = newListenerTelemetry("named_pipe", "Named Pipe")
@@ -41,21 +42,23 @@ type NamedPipeListener struct {
 
 // NewNamedPipeListener returns an named pipe Statsd listener
 func NewNamedPipeListener(pipeName string, packetOut chan packets.Packets,
-	sharedPacketPoolManager *packets.PoolManager, cfg config.Reader, capture replay.Component) (*NamedPipeListener, error) {
+	sharedPacketPoolManager *packets.PoolManager, cfg config.Reader, capture replay.Component, loadTracker load.Component) (*NamedPipeListener, error) {
 
 	bufferSize := cfg.GetInt("dogstatsd_buffer_size")
 	return newNamedPipeListener(
 		pipeName,
 		bufferSize,
 		packets.NewPacketManagerFromConfig(packetOut, sharedPacketPoolManager, cfg),
-		capture)
+		capture,
+		loadTracker)
 }
 
 func newNamedPipeListener(
 	pipeName string,
 	bufferSize int,
 	packetManager *packets.PacketManager,
-	capture replay.Component) (*NamedPipeListener, error) {
+	capture replay.Component,
+	loadTracker load.Component) (*NamedPipeListener, error) {
 
 	config := winio.PipeConfig{
 		InputBufferSize:  int32(bufferSize),
@@ -79,6 +82,7 @@ func newNamedPipeListener(
 			activeConnCount: atomic.NewInt32(0),
 		},
 		trafficCapture: capture,
+		loadTracker:    loadTracker,
 	}
 
 	log.Debugf("dogstatsd-named-pipes: %s successfully initialized", pipe.Addr())
@@ -160,6 +164,9 @@ func (l *NamedPipeListener) listenConnection(conn net.Conn, buffer []byte) {
 	startWriteIndex := 0
 	var t1, t2 time.Time
 	for {
+		if l.loadTracker != nil {
+			l.loadTracker.YieldOnOverload()
+		}
 		bytesRead, err := conn.Read(buffer[startWriteIndex:])
 
 		t1 = time.Now()

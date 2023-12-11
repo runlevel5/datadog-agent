@@ -27,6 +27,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/replay"
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/serverDebug/serverdebugimpl"
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
+	"github.com/DataDog/datadog-agent/comp/load/load/load_tracker"
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
@@ -55,6 +56,7 @@ func fulfillDepsWithConfigOverrideAndFeatures(t testing.TB, overrides map[string
 		}),
 		fx.Supply(Params{Serverless: false}),
 		replay.MockModule,
+		load_tracker.MockModule,
 		Module,
 	))
 }
@@ -72,6 +74,7 @@ func fulfillDepsWithConfigYaml(t testing.TB, yaml string) serverDeps {
 		}),
 		fx.Supply(Params{Serverless: false}),
 		replay.MockModule,
+		load_tracker.MockModule,
 		Module,
 	))
 }

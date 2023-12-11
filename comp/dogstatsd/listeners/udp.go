@@ -15,6 +15,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/packets"
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/replay"
+	"github.com/DataDog/datadog-agent/comp/load/load"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -45,11 +46,12 @@ type UDPListener struct {
 	packetAssembler *packets.Assembler
 	buffer          []byte
 	trafficCapture  replay.Component // Currently ignored
+	loadTracker     load.Component
 	listenWg        sync.WaitGroup
 }
 
 // NewUDPListener returns an idle UDP Statsd listener
-func NewUDPListener(packetOut chan packets.Packets, sharedPacketPoolManager *packets.PoolManager, cfg config.Reader, capture replay.Component) (*UDPListener, error) {
+func NewUDPListener(packetOut chan packets.Packets, sharedPacketPoolManager *packets.PoolManager, cfg config.Reader, capture replay.Component, loadTracker load.Component) (*UDPListener, error) {
 	var err error
 	var url string
 
@@ -94,6 +96,7 @@ func NewUDPListener(packetOut chan packets.Packets, sharedPacketPoolManager *pac
 		packetAssembler: packetAssembler,
 		buffer:          buffer,
 		trafficCapture:  capture,
+		loadTracker:     loadTracker,
 	}
 	log.Debugf("dogstatsd-udp: %s successfully initialized", conn.LocalAddr())
 	return listener, nil
@@ -118,6 +121,9 @@ func (l *UDPListener) listen() {
 	var t1, t2 time.Time
 	log.Infof("dogstatsd-udp: starting to listen on %s", l.conn.LocalAddr())
 	for {
+		if l.loadTracker != nil {
+			l.loadTracker.YieldOnOverload()
+		}
 		n, _, err := l.conn.ReadFrom(l.buffer)
 		t1 = time.Now()
 		udpPackets.Add(1)

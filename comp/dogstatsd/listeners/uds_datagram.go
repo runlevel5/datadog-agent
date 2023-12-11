@@ -11,6 +11,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/packets"
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/replay"
+	"github.com/DataDog/datadog-agent/comp/load/load"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -23,7 +24,7 @@ type UDSDatagramListener struct {
 }
 
 // NewUDSDatagramListener returns an idle UDS datagram Statsd listener
-func NewUDSDatagramListener(packetOut chan packets.Packets, sharedPacketPoolManager *packets.PoolManager, sharedOobPoolManager *packets.PoolManager, cfg config.Reader, capture replay.Component) (*UDSDatagramListener, error) {
+func NewUDSDatagramListener(packetOut chan packets.Packets, sharedPacketPoolManager *packets.PoolManager, sharedOobPoolManager *packets.PoolManager, cfg config.Reader, capture replay.Component, loadTracker load.Component) (*UDSDatagramListener, error) {
 	socketPath := cfg.GetString("dogstatsd_socket")
 	transport := "unixgram"
 
@@ -42,7 +43,7 @@ func NewUDSDatagramListener(packetOut chan packets.Packets, sharedPacketPoolMana
 		return nil, err
 	}
 
-	l, err := NewUDSListener(packetOut, sharedPacketPoolManager, sharedOobPoolManager, cfg, capture, transport)
+	l, err := NewUDSListener(packetOut, sharedPacketPoolManager, sharedOobPoolManager, cfg, capture, loadTracker, transport)
 	if err != nil {
 		return nil, err
 	}

@@ -36,7 +36,7 @@ func newPacketPoolManagerUDP(cfg config.Component) *packets.PoolManager {
 
 func TestNewUDPListener(t *testing.T) {
 	config := fulfillDepsWithConfig(t, map[string]interface{}{})
-	s, err := NewUDPListener(nil, newPacketPoolManagerUDP(config), config, nil)
+	s, err := NewUDPListener(nil, newPacketPoolManagerUDP(config), config, nil, nil)
 	assert.NotNil(t, s)
 	assert.Nil(t, err)
 
@@ -51,7 +51,7 @@ func TestStartStopUDPListener(t *testing.T) {
 	cfg["dogstatsd_non_local_traffic"] = false
 
 	config := fulfillDepsWithConfig(t, cfg)
-	s, err := NewUDPListener(nil, newPacketPoolManagerUDP(config), config, nil)
+	s, err := NewUDPListener(nil, newPacketPoolManagerUDP(config), config, nil, nil)
 	require.NotNil(t, s)
 
 	assert.Nil(t, err)
@@ -85,7 +85,7 @@ func TestUDPNonLocal(t *testing.T) {
 	cfg["dogstatsd_port"] = port
 	cfg["dogstatsd_non_local_traffic"] = true
 	config := fulfillDepsWithConfig(t, cfg)
-	s, err := NewUDPListener(nil, newPacketPoolManagerUDP(config), config, nil)
+	s, err := NewUDPListener(nil, newPacketPoolManagerUDP(config), config, nil, nil)
 	assert.Nil(t, err)
 	require.NotNil(t, s)
 
@@ -112,7 +112,7 @@ func TestUDPLocalOnly(t *testing.T) {
 	cfg["dogstatsd_port"] = port
 	cfg["dogstatsd_non_local_traffic"] = false
 	config := fulfillDepsWithConfig(t, cfg)
-	s, err := NewUDPListener(nil, newPacketPoolManagerUDP(config), config, nil)
+	s, err := NewUDPListener(nil, newPacketPoolManagerUDP(config), config, nil, nil)
 	assert.Nil(t, err)
 	require.NotNil(t, s)
 
@@ -143,7 +143,7 @@ func TestUDPReceive(t *testing.T) {
 
 	packetChannel := make(chan packets.Packets)
 	config := fulfillDepsWithConfig(t, cfg)
-	s, err := NewUDPListener(packetChannel, newPacketPoolManagerUDP(config), config, nil)
+	s, err := NewUDPListener(packetChannel, newPacketPoolManagerUDP(config), config, nil, nil)
 	require.NotNil(t, s)
 	assert.Nil(t, err)
 
@@ -184,7 +184,7 @@ func TestNewUDPListenerWhenBusyWithSoRcvBufSet(t *testing.T) {
 	cfg["dogstatsd_non_local_traffic"] = false
 
 	config := fulfillDepsWithConfig(t, cfg)
-	s, err := NewUDPListener(nil, newPacketPoolManagerUDP(config), config, nil)
+	s, err := NewUDPListener(nil, newPacketPoolManagerUDP(config), config, nil, nil)
 	assert.Nil(t, s)
 	assert.NotNil(t, err)
 }

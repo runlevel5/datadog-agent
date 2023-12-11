@@ -205,6 +205,8 @@ func (w *Worker) Run() {
 		}
 
 		checkLogger.CheckFinished()
+
+		// TODO: check the load tracker here and maybe yield.
 	}
 
 	log.Debugf("Runner %d, worker %d: Finished processing checks.", w.runnerID, w.ID)

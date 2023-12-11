@@ -10,6 +10,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/server"
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/serverDebug/serverdebugimpl"
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/statsd"
+	"github.com/DataDog/datadog-agent/comp/load/load/load_tracker"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
@@ -19,6 +20,7 @@ import (
 var Bundle = fxutil.Bundle(
 	serverdebugimpl.Module,
 	replay.Module,
+	load_tracker.Module,
 	server.Module,
 )
 
