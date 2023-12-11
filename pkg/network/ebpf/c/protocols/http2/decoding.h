@@ -83,19 +83,15 @@ static __always_inline bool read_hpack_int_with_given_current_char(struct __sk_b
 //
 // read_hpack_int returns true if the integer was successfully parsed, and false
 // otherwise.
-static __always_inline bool read_hpack_int(struct __sk_buff *skb, skb_info_t *skb_info, __u64 max_number_for_bits, __u64 *out, bool is_path, bool *is_huffman) {
+static __always_inline bool read_hpack_int(struct __sk_buff *skb, skb_info_t *skb_info, __u64 max_number_for_bits, __u64 *out, bool *is_huffman) {
     __u64 current_char_as_number = 0;
     if (bpf_skb_load_bytes(skb, skb_info->data_off, &current_char_as_number, 1) < 0) {
         return false;
     }
-    skb_info->data_off++;
-    if (is_path){
-        __u8 msb = (current_char_as_number & 128);
-        if (msb > 0){
-            *is_huffman = true;
-        }
-        bpf_printk("tasik0 the current current char as number is: %llu and the msb is: %llu\n", current_char_as_number, msb);
+    if ((current_char_as_number & 128) > 0){
+        *is_huffman = true;
     }
+    skb_info->data_off++;
 
     return read_hpack_int_with_given_current_char(skb, skb_info, current_char_as_number, max_number_for_bits, out);
 }
@@ -165,9 +161,9 @@ static __always_inline void update_path_size_telemetry(http2_telemetry_t *http2_
 static __always_inline bool parse_field_literal(struct __sk_buff *skb, skb_info_t *skb_info, http2_header_t *headers_to_process, __u64 index, __u64 global_dynamic_counter, __u8 *interesting_headers_counter, http2_telemetry_t *http2_tel) {
     __u64 str_len = 0;
     bool is_huffman = false;
-    bool is_path = (index == kIndexPath);
+//    bool is_path = (index == kIndexPath);
     // String length supposed to be represented with at least 7 bits representation -https://datatracker.ietf.org/doc/html/rfc7541#section-5.2
-    if (!read_hpack_int(skb, skb_info, MAX_7_BITS, &str_len, is_path, &is_huffman)) {
+    if (!read_hpack_int(skb, skb_info, MAX_7_BITS, &str_len, &is_huffman)) {
         return false;
     }
 
@@ -176,7 +172,7 @@ static __always_inline bool parse_field_literal(struct __sk_buff *skb, skb_info_
         skb_info->data_off += str_len;
         str_len = 0;
         // String length supposed to be represented with at least 7 bits representation -https://datatracker.ietf.org/doc/html/rfc7541#section-5.2
-        if (!read_hpack_int(skb, skb_info, MAX_7_BITS, &str_len, 0, false)) {
+        if (!read_hpack_int(skb, skb_info, MAX_7_BITS, &str_len, &is_huffman)) {
             return false;
         }
         goto end;

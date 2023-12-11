@@ -24,27 +24,29 @@ import (
 
 // Path returns the URL from the request fragment captured in eBPF.
 func (tx *EbpfTx) Path(buffer []byte) ([]byte, bool) {
-	var encodedStr string
+	var str string
 	var err error
 	if tx.Stream.Path_size == 0 || int(tx.Stream.Path_size) > len(tx.Stream.Request_path) {
 		return nil, false
 	}
+
 	if tx.Stream.Is_huffman {
 		// trim null byte + after
-		encodedStr, err = hpack.HuffmanDecodeToString(tx.Stream.Request_path[:tx.Stream.Path_size])
+		str, err = hpack.HuffmanDecodeToString(tx.Stream.Request_path[:tx.Stream.Path_size])
 		if err != nil {
 			return nil, false
 		}
 	} else {
-		encodedStr = string(tx.Stream.Request_path[:tx.Stream.Path_size])
+		// string is not huffman decoded so we can just copy it.
+		str = string(tx.Stream.Request_path[:tx.Stream.Path_size])
 	}
 
 	// ensure we found a '/' in the beginning of the path
-	if len(encodedStr) == 0 || encodedStr[0] != '/' {
+	if len(str) == 0 || str[0] != '/' {
 		return nil, false
 	}
 
-	n := copy(buffer, encodedStr)
+	n := copy(buffer, str)
 	// indicate if we knowingly captured the entire path
 	return buffer[:n], true
 }
