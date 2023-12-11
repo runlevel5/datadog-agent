@@ -66,7 +66,7 @@ func (s *ECSFargateSuite) SetupSuite() {
 	ruleDefs := []*rules.RuleDefinition{
 		{
 			ID:         "selftest_exec",
-			Expression: `exec.file.path == \"/usr/bin/date\"`,
+			Expression: `exec.file.path == \"/cws-instrumentation\"`,
 		},
 	}
 	selftestsPolicy, err := getPolicyContent(nil, ruleDefs)
@@ -117,13 +117,6 @@ func (s *ECSFargateSuite) SetupSuite() {
 						"-c",
 						fmt.Sprintf("echo \"%s\" > /etc/datadog-agent/runtime-security.d/selftests.policy ; /bin/entrypoint.sh", selftestsPolicy),
 					}),
-					// LinuxParameters: &ecs.TaskDefinitionLinuxParametersArgs{
-					// 	Capabilities: &ecs.TaskDefinitionKernelCapabilitiesArgs{
-					// 		Add: pulumi.StringArray{
-					// 			pulumi.String("SYS_RESOURCE"),
-					// 		},
-					// 	},
-					// },
 					Essential: pulumi.BoolPtr(true),
 					Environment: ecs.TaskDefinitionKeyValuePairArray{
 						ecs.TaskDefinitionKeyValuePairArgs{
@@ -176,6 +169,49 @@ func (s *ECSFargateSuite) SetupSuite() {
 					},
 					PortMappings: ecs.TaskDefinitionPortMappingArray{},
 					VolumesFrom:  ecs.TaskDefinitionVolumeFromArray{},
+				},
+				"cws-tracer": {
+					Cpu:       pulumi.IntPtr(0),
+					Name:      pulumi.String("cws-tracer"),
+					Image:     pulumi.String("docker.io/datadog/cws-instrumentation-dev:safchain-custom-cws-inst"),
+					Essential: pulumi.BoolPtr(true),
+					EntryPoint: pulumi.ToStringArray([]string{
+						"/cws-instrumentation",
+						"trace",
+						"--",
+						"/cws-instrumentation",
+					}),
+					DependsOn: ecs.TaskDefinitionContainerDependencyArray{
+						ecs.TaskDefinitionContainerDependencyArgs{
+							Condition:     pulumi.String("HEALTHY"),
+							ContainerName: pulumi.String("datadog-agent"),
+						},
+					},
+					LinuxParameters: &ecs.TaskDefinitionLinuxParametersArgs{
+						Capabilities: &ecs.TaskDefinitionKernelCapabilitiesArgs{
+							Add: pulumi.StringArray{
+								pulumi.String("SYS_PTRACE"),
+							},
+						},
+					},
+					LogConfiguration: ecs.TaskDefinitionLogConfigurationArgs{
+						LogDriver: pulumi.String("awsfirelens"),
+						Options: pulumi.StringMap{
+							"Name":           pulumi.String("datadog"),
+							"Host":           pulumi.String("http-intake.logs.datadoghq.com"),
+							"TLS":            pulumi.String("on"),
+							"dd_service":     pulumi.Sprintf("cws-tests-ecs-fg-task"),
+							"dd_source":      pulumi.String("cws-tracer"),
+							"dd_message_key": pulumi.String("log"),
+							"provider":       pulumi.String("ecs"),
+						},
+						SecretOptions: ecs.TaskDefinitionSecretArray{
+							ecs.TaskDefinitionSecretArgs{
+								Name:      pulumi.String("apikey"),
+								ValueFrom: apiKeyParam.Name,
+							},
+						},
+					},
 				},
 				"log_router": {
 					Cpu:       pulumi.IntPtr(0),
