@@ -70,7 +70,7 @@ namespace Datadog.CustomActions
             int pythonDistributionSize)
         {
             var projectLocation = session.Property("PROJECTLOCATION");
-
+            session.Log($"Decompressing {pythonDistributionName} ({pythonDistributionSize} bytes from {compressedDistributionFile} to {outputDirectoryName}");
             try
             {
                 var embedded = Path.Combine(projectLocation, compressedDistributionFile);
@@ -126,6 +126,7 @@ namespace Datadog.CustomActions
 
         private static ActionResult DecompressPythonDistributions(ISession session)
         {
+            session.Log("Decompressing Python distributions");
             var size = 0;
             var embedded2Size = session.Property("EMBEDDED2_SIZE");
             if (!string.IsNullOrEmpty(embedded2Size))
@@ -148,11 +149,7 @@ namespace Datadog.CustomActions
         [CustomAction]
         public static ActionResult DecompressPythonDistributions(Session session)
         {
-            if (session.GetMode(InstallRunMode.Scheduled))
-            {
-                return DecompressPythonDistributions(new SessionWrapper(session));
-            }
-            return PrepareDecompressPythonDistributions(new SessionWrapper(session));
+            return DecompressPythonDistributions(new SessionWrapper(session));
         }
 
         private static ActionResult PrepareDecompressPythonDistributions(ISession session)
@@ -202,6 +199,12 @@ namespace Datadog.CustomActions
             }
 
             return ActionResult.Success;
+        }
+
+        [CustomAction]
+        public static ActionResult PrepareDecompressPythonDistributions(Session session)
+        {
+            return PrepareDecompressPythonDistributions(new SessionWrapper(session));
         }
     }
 }
