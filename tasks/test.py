@@ -173,10 +173,9 @@ def test_core(
         if not skip_module_class:
             module_result = module_class(path=module.full_path())
         if not headless_mode:
-            print(f"----- Module '{module.full_path()}'")
+            skipped_header = "[Skipped]" if not module.condition() else ""
+            print(f"----- {skipped_header} Module '{module.full_path()}'")
         if not module.condition():
-            if not headless_mode:
-                print("----- Skipped")
             continue
 
         command(modules_results, module, module_result)
@@ -609,7 +608,6 @@ def test(
         python_home_3=python_home_3,
         major_version=major_version,
         python_runtimes=python_runtimes,
-        race=race,
     )
 
     # Use stdout if no profile is set
@@ -1137,6 +1135,15 @@ def get_modified_packages(ctx) -> List[GoModule]:
                     match_precision = len(module_path)
                     best_module_path = module_path
 
+        # Check if the package is in the target list of the module we want to test
+        targeted = False
+        for target in DEFAULT_MODULES[best_module_path].targets:
+            if os.path.normpath(os.path.join(best_module_path, target)) in modified_file:
+                targeted = True
+                break
+        if not targeted:
+            continue
+
         # If go mod was modified in the module we run the test for the whole module so we do not need to add modified packages to targets
         if best_module_path in go_mod_modified_modules:
             continue
@@ -1146,7 +1153,13 @@ def get_modified_packages(ctx) -> List[GoModule]:
             modules_to_test[best_module_path] = DEFAULT_MODULES[best_module_path]
             go_mod_modified_modules.add(best_module_path)
             continue
+
+        # If the package has been deleted we do not try to run tests
+        if not os.path.exists(os.path.dirname(modified_file)):
+            continue
+
         relative_target = "./" + os.path.relpath(os.path.dirname(modified_file), best_module_path)
+
         if best_module_path in modules_to_test:
             if (
                 modules_to_test[best_module_path].targets is not None
@@ -1167,7 +1180,7 @@ def get_modified_files(ctx):
     last_main_commit = ctx.run("git merge-base HEAD origin/main", hide=True).stdout
     print(f"Checking diff from {last_main_commit} commit on main branch")
 
-    modified_files = ctx.run(f"git diff --name-only {last_main_commit}", hide=True).stdout.splitlines()
+    modified_files = ctx.run(f"git diff --name-only --no-renames {last_main_commit}", hide=True).stdout.splitlines()
     return modified_files
 
 
