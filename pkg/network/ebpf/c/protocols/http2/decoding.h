@@ -161,7 +161,6 @@ static __always_inline void update_path_size_telemetry(http2_telemetry_t *http2_
 static __always_inline bool parse_field_literal(struct __sk_buff *skb, skb_info_t *skb_info, http2_header_t *headers_to_process, __u64 index, __u64 global_dynamic_counter, __u8 *interesting_headers_counter, http2_telemetry_t *http2_tel) {
     __u64 str_len = 0;
     bool is_huffman = false;
-//    bool is_path = (index == kIndexPath);
     // String length supposed to be represented with at least 7 bits representation -https://datatracker.ietf.org/doc/html/rfc7541#section-5.2
     if (!read_hpack_int(skb, skb_info, MAX_7_BITS, &str_len, &is_huffman)) {
         return false;
