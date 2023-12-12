@@ -186,12 +186,19 @@ func (c *Consumer[V]) Stop() {
 }
 
 func (c *Consumer[V]) process(cpu int, b *batch, syncing bool) {
+
 	begin, end := c.offsets.Get(cpu, b, syncing)
 
 	// telemetry stuff
 	c.batchSize.Store(int64(b.Cap))
 	c.eventsCount.Add(int64(end - begin))
 	c.kernelDropsCount.Add(int64(b.Dropped_events))
+
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("recovered from panic. begin=%d end=%d unsafe_event_size=%d batch_event_size=%d ", begin, end, int(unsafe.Sizeof(*new(V))), int(b.Event_size))
+		}
+	}()
 
 	// generate a slice of type []V from the batch
 	length := end - begin
