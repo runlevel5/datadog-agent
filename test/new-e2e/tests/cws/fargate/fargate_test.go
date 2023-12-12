@@ -37,6 +37,12 @@ const (
 	ecsClusterNameKey = "ecs-cluster-name"
 	ecsClusterArnKey  = "ecs-cluster-arn"
 	fgTaskDefArnKey   = "fargate-task-arn"
+	// Tests constants
+	ddHostnamePrefix    = "cws-tests-ecs-fg-task"
+	selfTestsPolicyName = "selftests.policy"
+	execRuleID          = "selftest_exec"
+	openRuleID          = "selftest_open"
+	openFilePath        = "/open.test"
 )
 
 type ECSFargateSuite struct {
@@ -65,15 +71,19 @@ func (s *ECSFargateSuite) SetupSuite() {
 
 	ruleDefs := []*rules.RuleDefinition{
 		{
-			ID:         "selftest_exec",
-			Expression: `exec.file.path == \"/cws-instrumentation\"`,
+			ID:         execRuleID,
+			Expression: `exec.file.path == \"/cws-instrumentation\" && exec.argv in [\"selftests\"]`,
+		},
+		{
+			ID:         openRuleID,
+			Expression: fmt.Sprintf(`open.file.path == \"%s\"`, openFilePath),
 		},
 	}
 	selftestsPolicy, err := getPolicyContent(nil, ruleDefs)
 	s.Require().NoError(err)
 
 	_, result, err := infra.GetStackManager().GetStack(s.ctx, s.stackName, nil, func(ctx *pulumi.Context) error {
-		ddHostname := fmt.Sprintf("cws-tests-ecs-fg-task-%s", s.runID)
+		ddHostname := fmt.Sprintf("%s-%s", ddHostnamePrefix, s.runID)
 		awsEnv, err := awsResources.NewEnvironment(ctx)
 		if err != nil {
 			return err
@@ -111,11 +121,11 @@ func (s *ECSFargateSuite) SetupSuite() {
 				"datadog-agent": {
 					Cpu:   pulumi.IntPtr(0),
 					Name:  pulumi.String("datadog-agent"),
-					Image: pulumi.String("docker.io/datadog/agent-dev:safchain-refact-tracer-py3"),
+					Image: pulumi.String("docker.io/datadog/agent-dev:safchain-custom-cws-inst-py3"),
 					Command: pulumi.ToStringArray([]string{
 						"sh",
 						"-c",
-						fmt.Sprintf("echo \"%s\" > /etc/datadog-agent/runtime-security.d/selftests.policy ; /bin/entrypoint.sh", selftestsPolicy),
+						fmt.Sprintf("echo \"%s\" > /etc/datadog-agent/runtime-security.d/%s ; /bin/entrypoint.sh", selftestsPolicy, selfTestsPolicyName),
 					}),
 					Essential: pulumi.BoolPtr(true),
 					Environment: ecs.TaskDefinitionKeyValuePairArray{
@@ -155,7 +165,7 @@ func (s *ECSFargateSuite) SetupSuite() {
 							"Name":           pulumi.String("datadog"),
 							"Host":           pulumi.String("http-intake.logs.datadoghq.com"),
 							"TLS":            pulumi.String("on"),
-							"dd_service":     pulumi.Sprintf("cws-tests-ecs-fg-task"),
+							"dd_service":     pulumi.String(ddHostnamePrefix),
 							"dd_source":      pulumi.String("datadog-agent"),
 							"dd_message_key": pulumi.String("log"),
 							"provider":       pulumi.String("ecs"),
@@ -178,8 +188,13 @@ func (s *ECSFargateSuite) SetupSuite() {
 					EntryPoint: pulumi.ToStringArray([]string{
 						"/cws-instrumentation",
 						"trace",
+						"--verbose",
 						"--",
 						"/cws-instrumentation",
+						"trace",
+						"selftests",
+						"--open",
+						fmt.Sprintf("--open.path=%s", openFilePath),
 					}),
 					DependsOn: ecs.TaskDefinitionContainerDependencyArray{
 						ecs.TaskDefinitionContainerDependencyArgs{
@@ -200,7 +215,7 @@ func (s *ECSFargateSuite) SetupSuite() {
 							"Name":           pulumi.String("datadog"),
 							"Host":           pulumi.String("http-intake.logs.datadoghq.com"),
 							"TLS":            pulumi.String("on"),
-							"dd_service":     pulumi.Sprintf("cws-tests-ecs-fg-task"),
+							"dd_service":     pulumi.String(ddHostnamePrefix),
 							"dd_source":      pulumi.String("cws-tracer"),
 							"dd_message_key": pulumi.String("log"),
 							"provider":       pulumi.String("ecs"),
@@ -375,10 +390,28 @@ func (s *ECSFargateSuite) Test00UpAndRunning() {
 }
 
 func (s *ECSFargateSuite) Test01RulesetLoaded() {
-	query := fmt.Sprintf("host:%s rule_id:ruleset_loaded @policies.name:selftests.policy", s.ddHostname)
+	query := fmt.Sprintf("host:%s rule_id:ruleset_loaded @policies.name:%s", s.ddHostname, selfTestsPolicyName)
 	result, err := cws.WaitAppLogs(s.apiClient, query)
 	s.Require().NoError(err, "could not get new ruleset_loaded event log")
 	agentContext, ok := result.Attributes["agent"].(map[string]interface{})
-	s.Assert().True(ok, "unexpected agent context")
-	s.Assert().EqualValues("ruleset_loaded", agentContext["rule_id"], "unexpected agent rule_id")
+	s.Require().True(ok, "unexpected agent context")
+	s.Require().EqualValues("ruleset_loaded", agentContext["rule_id"], "unexpected agent rule ID")
+}
+
+func (s *ECSFargateSuite) Test02ExecRule() {
+	query := fmt.Sprintf("host:%s rule_id:%s", s.ddHostname, execRuleID)
+	result, err := cws.WaitAppLogs(s.apiClient, query)
+	s.Require().NoError(err, "could not get the exec rule event log")
+	agentContext, ok := result.Attributes["agent"].(map[string]interface{})
+	s.Require().True(ok, "unexpected agent context")
+	s.Require().EqualValues(execRuleID, agentContext["rule_id"], "unexpected agent rule ID")
+}
+
+func (s *ECSFargateSuite) Test03OpenRule() {
+	query := fmt.Sprintf("host:%s rule_id:%s", s.ddHostname, openRuleID)
+	result, err := cws.WaitAppLogs(s.apiClient, query)
+	s.Require().NoError(err, "could not get the open rule event log")
+	agentContext, ok := result.Attributes["agent"].(map[string]interface{})
+	s.Require().True(ok, "unexpected agent context")
+	s.Require().EqualValues(openRuleID, agentContext["rule_id"], "unexpected agent rule ID")
 }
