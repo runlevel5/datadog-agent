@@ -206,7 +206,7 @@ func (s *ECSFargateSuite) SetupSuite() {
 							ContainerName: pulumi.String("datadog-agent"),
 						},
 						ecsx.TaskDefinitionContainerDependencyArgs{
-							Condition:     pulumi.String("START"),
+							Condition:     pulumi.String("SUCCESS"),
 							ContainerName: pulumi.String("cws-instrumentation-init"),
 						},
 					},
