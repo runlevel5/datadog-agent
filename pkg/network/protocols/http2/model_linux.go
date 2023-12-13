@@ -55,10 +55,17 @@ func decodeHTTP2Path(buf [maxHTTP2Path]byte, pathSize uint8) ([]byte, error) {
 
 // Path returns the URL from the request fragment captured in eBPF.
 func (tx *EbpfTx) Path(buffer []byte) ([]byte, bool) {
-	res, err := decodeHTTP2Path(tx.Stream.Request_path, tx.Stream.Path_size)
-	if err != nil {
-		return nil, false
+	var res []byte
+	var err error
+	if tx.Stream.Is_huffman_encoded {
+		res, err = decodeHTTP2Path(tx.Stream.Request_path, tx.Stream.Path_size)
+		if err != nil {
+			return nil, false
+		}
+	} else {
+		res = tx.Stream.Request_path[:tx.Stream.Path_size]
 	}
+
 	n := copy(buffer, res)
 	return buffer[:n], true
 }
@@ -241,12 +248,12 @@ func (t http2StreamKey) String() string {
 
 // String returns a string representation of the http2 dynamic table.
 func (t http2DynamicTableEntry) String() string {
-	if t.Len == 0 {
+	if t.String_len == 0 {
 		return ""
 	}
 
-	b := make([]byte, t.Len)
-	for i := uint8(0); i < t.Len; i++ {
+	b := make([]byte, t.String_len)
+	for i := uint8(0); i < t.String_len; i++ {
 		b[i] = byte(t.Buffer[i])
 	}
 	// trim null byte + after

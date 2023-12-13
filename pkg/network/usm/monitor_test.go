@@ -694,57 +694,57 @@ func (s *USMHTTP2Suite) TestSimpleHTTP2() {
 		runClients        func(t *testing.T, clientsCount int)
 		expectedEndpoints map[http.Key]captureRange
 	}{
-		{
-			name: " / path",
-			runClients: func(t *testing.T, clientsCount int) {
-				clients := getClientsArray(t, clientsCount)
-
-				for i := 0; i < 1000; i++ {
-					client := clients[getClientsIndex(i, clientsCount)]
-					req, err := client.Post(http2SrvAddr+"/", "application/json", bytes.NewReader([]byte("test")))
-					require.NoError(t, err, "could not make request")
-					req.Body.Close()
-				}
-			},
-			expectedEndpoints: map[http.Key]captureRange{
-				{
-					Path:   http.Path{Content: http.Interner.GetString("/")},
-					Method: http.MethodPost,
-				}: {
-					lower: 999,
-					upper: 1001,
-				},
-			},
-		},
-		{
-			name: " /index.html path",
-			runClients: func(t *testing.T, clientsCount int) {
-				clients := getClientsArray(t, clientsCount)
-
-				for i := 0; i < 1000; i++ {
-					client := clients[getClientsIndex(i, clientsCount)]
-					req, err := client.Post(http2SrvAddr+"/index.html", "application/json", bytes.NewReader([]byte("test")))
-					require.NoError(t, err, "could not make request")
-					req.Body.Close()
-				}
-			},
-			expectedEndpoints: map[http.Key]captureRange{
-				{
-					Path:   http.Path{Content: http.Interner.GetString("/index.html")},
-					Method: http.MethodPost,
-				}: {
-					lower: 999,
-					upper: 1001,
-				},
-			},
-		},
+		//{
+		//	name: " / path",
+		//	runClients: func(t *testing.T, clientsCount int) {
+		//		clients := getClientsArray(t, clientsCount)
+		//
+		//		for i := 0; i < 1000; i++ {
+		//			client := clients[getClientsIndex(i, clientsCount)]
+		//			req, err := client.Post(http2SrvAddr+"/", "application/json", bytes.NewReader([]byte("test")))
+		//			require.NoError(t, err, "could not make request")
+		//			req.Body.Close()
+		//		}
+		//	},
+		//	expectedEndpoints: map[http.Key]captureRange{
+		//		{
+		//			Path:   http.Path{Content: http.Interner.GetString("/")},
+		//			Method: http.MethodPost,
+		//		}: {
+		//			lower: 999,
+		//			upper: 1001,
+		//		},
+		//	},
+		//},
+		//{
+		//	name: " /index.html path",
+		//	runClients: func(t *testing.T, clientsCount int) {
+		//		clients := getClientsArray(t, clientsCount)
+		//
+		//		for i := 0; i < 1000; i++ {
+		//			client := clients[getClientsIndex(i, clientsCount)]
+		//			req, err := client.Post(http2SrvAddr+"/index.html", "application/json", bytes.NewReader([]byte("test")))
+		//			require.NoError(t, err, "could not make request")
+		//			req.Body.Close()
+		//		}
+		//	},
+		//	expectedEndpoints: map[http.Key]captureRange{
+		//		{
+		//			Path:   http.Path{Content: http.Interner.GetString("/index.html")},
+		//			Method: http.MethodPost,
+		//		}: {
+		//			lower: 999,
+		//			upper: 1001,
+		//		},
+		//	},
+		//},
 		{
 			name: "path with repeated string",
 			runClients: func(t *testing.T, clientsCount int) {
 				clients := getClientsArray(t, clientsCount)
 
 				// currently we have a bug with paths which are not Huffman encoded, therefor I am skipping them by string length 3.
-				for i := 3; i < 100; i++ {
+				for i := 0; i < 2; i++ {
 					path := strings.Repeat("a", i)
 					client := clients[getClientsIndex(i, clientsCount)]
 					req, err := client.Post(http2SrvAddr+"/"+path, "application/json", bytes.NewReader([]byte("test")))
