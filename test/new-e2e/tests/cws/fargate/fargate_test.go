@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ecs"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ssm"
 	"github.com/pulumi/pulumi-awsx/sdk/go/awsx/awsx"
 
@@ -42,7 +43,8 @@ const (
 	selfTestsPolicyName = "selftests.policy"
 	execRuleID          = "selftest_exec"
 	openRuleID          = "selftest_open"
-	openFilePath        = "/open.test"
+	execFilePath        = "/usr/bin/date"
+	openFilePath        = "/tmp/open.test"
 )
 
 type ECSFargateSuite struct {
@@ -72,7 +74,7 @@ func (s *ECSFargateSuite) SetupSuite() {
 	ruleDefs := []*rules.RuleDefinition{
 		{
 			ID:         execRuleID,
-			Expression: `exec.file.path == \"/cws-instrumentation\" && exec.argv in [\"selftests\"]`,
+			Expression: fmt.Sprintf(`exec.file.path == \"%s\"`, execFilePath),
 		},
 		{
 			ID:         openRuleID,
@@ -180,19 +182,21 @@ func (s *ECSFargateSuite) SetupSuite() {
 					PortMappings: ecsx.TaskDefinitionPortMappingArray{},
 					VolumesFrom:  ecsx.TaskDefinitionVolumeFromArray{},
 				},
-				"cws-tracer": {
+				"ubuntu-with-tracer": {
 					Cpu:       pulumi.IntPtr(0),
-					Name:      pulumi.String("cws-tracer"),
-					Image:     pulumi.String("docker.io/datadog/cws-instrumentation-dev:safchain-custom-cws-inst"),
+					Name:      pulumi.String("ubuntu-with-tracer"),
+					Image:     pulumi.String("docker.io/ubuntu:22.04"),
 					Essential: pulumi.BoolPtr(true),
 					EntryPoint: pulumi.ToStringArray([]string{
-						"/cws-instrumentation",
+						"/cws-instrumentation-volume/cws-instrumentation",
 						"trace",
 						"--verbose",
 						"--",
-						"/cws-instrumentation",
+						"/cws-instrumentation-volume/cws-instrumentation",
 						"trace",
 						"selftests",
+						"--exec",
+						fmt.Sprintf("--exec.path=%s", execFilePath),
 						"--open",
 						fmt.Sprintf("--open.path=%s", openFilePath),
 					}),
@@ -200,6 +204,10 @@ func (s *ECSFargateSuite) SetupSuite() {
 						ecsx.TaskDefinitionContainerDependencyArgs{
 							Condition:     pulumi.String("HEALTHY"),
 							ContainerName: pulumi.String("datadog-agent"),
+						},
+						ecsx.TaskDefinitionContainerDependencyArgs{
+							Condition:     pulumi.String("START"),
+							ContainerName: pulumi.String("cws-instrumentation-init"),
 						},
 					},
 					LinuxParameters: &ecsx.TaskDefinitionLinuxParametersArgs{
@@ -209,6 +217,13 @@ func (s *ECSFargateSuite) SetupSuite() {
 							},
 						},
 					},
+					MountPoints: ecsx.TaskDefinitionMountPointArray{
+						ecsx.TaskDefinitionMountPointArgs{
+							SourceVolume:  pulumi.String("cws-instrumentation-volume"),
+							ContainerPath: pulumi.String("/cws-instrumentation-volume"),
+							ReadOnly:      pulumi.Bool(true),
+						},
+					},
 					LogConfiguration: ecsx.TaskDefinitionLogConfigurationArgs{
 						LogDriver: pulumi.String("awsfirelens"),
 						Options: pulumi.StringMap{
@@ -216,7 +231,7 @@ func (s *ECSFargateSuite) SetupSuite() {
 							"Host":           pulumi.String("http-intake.logs.datadoghq.com"),
 							"TLS":            pulumi.String("on"),
 							"dd_service":     pulumi.String(ddHostnamePrefix),
-							"dd_source":      pulumi.String("cws-tracer"),
+							"dd_source":      pulumi.String("ubuntu-with-tracer"),
 							"dd_message_key": pulumi.String("log"),
 							"provider":       pulumi.String("ecs"),
 						},
@@ -245,9 +260,33 @@ func (s *ECSFargateSuite) SetupSuite() {
 					PortMappings: ecsx.TaskDefinitionPortMappingArray{},
 					VolumesFrom:  ecsx.TaskDefinitionVolumeFromArray{},
 				},
+				"cws-instrumentation-init": {
+					Cpu:       pulumi.IntPtr(0),
+					Name:      pulumi.String("cws-instrumentation-init"),
+					Image:     pulumi.String("docker.io/datadog/cws-instrumentation-dev:safchain-custom-cws-inst"),
+					Essential: pulumi.BoolPtr(false),
+					Command: pulumi.ToStringArray([]string{
+						"/cws-instrumentation",
+						"setup",
+						"--cws-volume-mount",
+						"/cws-instrumentation-volume",
+					}),
+					MountPoints: ecsx.TaskDefinitionMountPointArray{
+						ecsx.TaskDefinitionMountPointArgs{
+							SourceVolume:  pulumi.String("cws-instrumentation-volume"),
+							ContainerPath: pulumi.String("/cws-instrumentation-volume"),
+							ReadOnly:      pulumi.Bool(false),
+						},
+					},
+				},
 			},
 			Cpu:    pulumi.StringPtr("2048"),
 			Memory: pulumi.StringPtr("4096"),
+			Volumes: ecs.TaskDefinitionVolumeArray{
+				ecs.TaskDefinitionVolumeArgs{
+					Name: pulumi.String("cws-instrumentation-volume"),
+				},
+			},
 			ExecutionRole: &awsx.DefaultRoleWithPolicyArgs{
 				RoleArn: pulumi.StringPtr(awsEnv.ECSTaskExecutionRole()),
 			},
