@@ -83,13 +83,16 @@ static __always_inline bool read_hpack_int_with_given_current_char(struct __sk_b
 //
 // read_hpack_int returns true if the integer was successfully parsed, and false
 // otherwise.
-static __always_inline bool read_hpack_int(struct __sk_buff *skb, skb_info_t *skb_info, __u64 max_number_for_bits, __u64 *out, bool *is_huffman) {
+static __always_inline bool read_hpack_int(struct __sk_buff *skb, skb_info_t *skb_info, __u64 max_number_for_bits, __u64 *out, bool *is_huffman, bool is_path) {
     __u64 current_char_as_number = 0;
     if (bpf_skb_load_bytes(skb, skb_info->data_off, &current_char_as_number, 1) < 0) {
         return false;
     }
-    if ((current_char_as_number & 128) > 0){
-        *is_huffman = true;
+    // need to be only for path
+    if (is_path && (current_char_as_number & 128) > 0){
+        bpf_printk("tasik blabla");
+        bpf_printk("tasik0 size: %llu\n", current_char_as_number);
+//        *is_huffman = true;
     }
     skb_info->data_off++;
 
@@ -104,7 +107,7 @@ static __always_inline __u64 *get_dynamic_counter(conn_tuple_t *tup) {
 }
 
 // parse_field_indexed parses fully-indexed headers.
-static __always_inline void parse_field_indexed(dynamic_table_index_t *dynamic_index, http2_header_t *headers_to_process, __u8 index, __u64 global_dynamic_counter, __u8 *interesting_headers_counter) {
+static __always_inline void parse_field_indexed(dynamic_table_index_t *dynamic_index, http2_header_t *headers_to_process, __u8 index, __u64 global_dynamic_counter, __u8 *interesting_headers_counter, bool *is_huffman) {
     if (headers_to_process == NULL) {
         return;
     }
@@ -113,6 +116,10 @@ static __always_inline void parse_field_indexed(dynamic_table_index_t *dynamic_i
     if (is_static_table_entry(index)) {
         headers_to_process->index = index;
         headers_to_process->type = kStaticHeader;
+
+//        if ((index == kEmptyPath) || (index == kIndexPath)){
+//            *is_huffman = true;
+//        }
         *interesting_headers_counter += is_interesting_static_entry(index);
         return;
     }
@@ -158,11 +165,10 @@ static __always_inline void update_path_size_telemetry(http2_telemetry_t *http2_
 //
 // We are only interested in path headers, that we will store in our internal
 // dynamic table, and will skip headers that are not path headers.
-static __always_inline bool parse_field_literal(struct __sk_buff *skb, skb_info_t *skb_info, http2_header_t *headers_to_process, __u64 index, __u64 global_dynamic_counter, __u8 *interesting_headers_counter, http2_telemetry_t *http2_tel) {
+static __always_inline bool parse_field_literal(struct __sk_buff *skb, skb_info_t *skb_info, http2_header_t *headers_to_process, __u64 index, __u64 global_dynamic_counter, __u8 *interesting_headers_counter, http2_telemetry_t *http2_tel, bool *is_huffman) {
     __u64 str_len = 0;
-    bool is_huffman = false;
     // String length supposed to be represented with at least 7 bits representation -https://datatracker.ietf.org/doc/html/rfc7541#section-5.2
-    if (!read_hpack_int(skb, skb_info, MAX_7_BITS, &str_len, &is_huffman)) {
+    if (!read_hpack_int(skb, skb_info, MAX_7_BITS, &str_len, is_huffman, index == kIndexPath)) {
         return false;
     }
 
@@ -171,7 +177,7 @@ static __always_inline bool parse_field_literal(struct __sk_buff *skb, skb_info_
         skb_info->data_off += str_len;
         str_len = 0;
         // String length supposed to be represented with at least 7 bits representation -https://datatracker.ietf.org/doc/html/rfc7541#section-5.2
-        if (!read_hpack_int(skb, skb_info, MAX_7_BITS, &str_len, &is_huffman)) {
+        if (!read_hpack_int(skb, skb_info, MAX_7_BITS, &str_len, is_huffman, index == kIndexPath)) {
             return false;
         }
         goto end;
@@ -222,6 +228,7 @@ static __always_inline __u8 filter_relevant_headers(struct __sk_buff *skb, skb_i
     const __u32 end = frame_end < skb_info->data_end + 1 ? frame_end : skb_info->data_end + 1;
     bool is_literal = false;
     bool is_indexed = false;
+    bool is_huffman = false;
     __u64 max_bits = 0;
     __u64 index = 0;
 
@@ -263,13 +270,13 @@ static __always_inline __u8 filter_relevant_headers(struct __sk_buff *skb, skb_i
             // Indexed representation.
             // MSB bit set.
             // https://httpwg.org/specs/rfc7541.html#rfc.section.6.1
-            parse_field_indexed(dynamic_index, current_header, index, *global_dynamic_counter, &interesting_headers);
+            parse_field_indexed(dynamic_index, current_header, index, *global_dynamic_counter, &interesting_headers, &is_huffman);
         } else {
             __sync_fetch_and_add(global_dynamic_counter, 1);
             // 6.2.1 Literal Header Field with Incremental Indexing
             // top two bits are 11
             // https://httpwg.org/specs/rfc7541.html#rfc.section.6.2.1
-            if (!parse_field_literal(skb, skb_info, current_header, index, *global_dynamic_counter, &interesting_headers, http2_tel)) {
+            if (!parse_field_literal(skb, skb_info, current_header, index, *global_dynamic_counter, &interesting_headers, http2_tel, &is_huffman)) {
                 break;
             }
         }

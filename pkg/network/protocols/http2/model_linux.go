@@ -26,6 +26,9 @@ import (
 func (tx *EbpfTx) Path(buffer []byte) ([]byte, bool) {
 	var str string
 	var err error
+	if tx.Stream.Path_size == 2 {
+		fmt.Println("tsst")
+	}
 	if tx.Stream.Path_size == 0 || int(tx.Stream.Path_size) > len(tx.Stream.Request_path) {
 		return nil, false
 	}
@@ -38,7 +41,9 @@ func (tx *EbpfTx) Path(buffer []byte) ([]byte, bool) {
 		}
 	} else {
 		// string is not huffman decoded so we can just copy it.
-		str = string(tx.Stream.Request_path[:tx.Stream.Path_size])
+		//str = string(tx.Stream.Request_path[:tx.Stream.Path_size])
+		str, err = hpack.HuffmanDecodeToString(tx.Stream.Request_path[:tx.Stream.Path_size])
+
 	}
 
 	// ensure we found a '/' in the beginning of the path
