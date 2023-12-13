@@ -19,16 +19,7 @@ namespace WixSetup
 
         public void OnWixSourceGenerated(XDocument document)
         {
-#if DEBUG
-            // In debug mode, skip generating the file if it
-            // already exists. Delete the file to regenerate it.
-            if (File.Exists(Name))
-            {
-                return;
-            }
-#endif
             var compressionStrategy = new TCompressionStrategy();
-
             var filesInSourceDir = new DirectoryInfo(_sourceDir)
                 .EnumerateFiles("*", SearchOption.AllDirectories)
                 .ToArray();
@@ -39,6 +30,16 @@ namespace WixSetup
             document
                 .Select("Wix/Product")
                 .AddElement("Property", $"Id={sourceDirName.ToUpper()}_SIZE; Value={directorySize}");
+
+#if DEBUG
+            // In debug mode, skip generating the file if it
+            // already exists. Delete the file to regenerate it.
+            if (File.Exists(Name))
+            {
+                return;
+            }
+#endif
+            var tar = $"{Name}.tar";
 
             compressionStrategy.Compress(filesInSourceDir, Name, _sourceDir);
         }

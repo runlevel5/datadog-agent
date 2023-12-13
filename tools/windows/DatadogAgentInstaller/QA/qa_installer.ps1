@@ -28,7 +28,7 @@ Remove-Variable -Name currentCase -Scope Global -ErrorAction SilentlyContinue
 Remove-Module "test_framework"
 Import-Module $PSScriptRoot\test_framework.psm1
 
-Get-ChildItem -Path "$PSScriptRoot\test suites" -Recurse -Filter "*.ps1" | ForEach-Object {
+Get-ChildItem -Path "$PSScriptRoot\test suites" -Recurse -Filter "benchmark.ps1" | ForEach-Object {
     Write-Host "Loading $($_.FullName)"
     & $_.FullName
 }

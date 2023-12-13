@@ -121,6 +121,16 @@ namespace WixSetup.Datadog
             }
                 .SetProperties("APPLICATIONDATADIRECTORY=[APPLICATIONDATADIRECTORY]");
 
+            PrepareDecompressPythonDistributions = new CustomAction<PythonDistributionCustomAction>(
+                new Id(nameof(PrepareDecompressPythonDistributions)),
+                PythonDistributionCustomAction.PrepareDecompressPythonDistributions,
+                Return.ignore,
+                When.After,
+                new Step(ReadConfig.Id)
+            )
+                .SetProperties(
+                    "PROJECTLOCATION=[PROJECTLOCATION], EMBEDDED2_SIZE=[EMBEDDED2_SIZE], EMBEDDED_SIZE=[EMBEDDED3_SIZE]");
+
             PatchInstaller = new CustomAction<PatchInstallerCustomAction>(
                 new Id(nameof(PatchInstaller)),
                 PatchInstallerCustomAction.Patch,
@@ -232,19 +242,6 @@ namespace WixSetup.Datadog
             }
                 .SetProperties(
                     "PROJECTLOCATION=[PROJECTLOCATION], EMBEDDED2_SIZE=[EMBEDDED2_SIZE], EMBEDDED3_SIZE=[EMBEDDED3_SIZE]");
-
-            PrepareDecompressPythonDistributions = new CustomAction<PythonDistributionCustomAction>(
-                new Id(nameof(PrepareDecompressPythonDistributions)),
-                PythonDistributionCustomAction.PrepareDecompressPythonDistributions,
-                Return.ignore,
-                When.Before,
-                new Step(DecompressPythonDistributions.Id),
-                Conditions.FirstInstall | Conditions.Upgrading | Conditions.Maintenance,
-                Sequence.InstallExecuteSequence
-            )
-            {
-                Execute = Execute.immediate
-            };
 
             // Cleanup leftover files on uninstall
             CleanupOnUninstall = new CustomAction<CleanUpFilesCustomAction>(
