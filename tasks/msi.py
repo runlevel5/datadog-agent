@@ -263,7 +263,7 @@ def build(
     )
 
     # sign build output that will be included in the installer MSI
-    dllToSing = [
+    dllToSign = [
         'CustomActions.dll',
         'ICSharpCode.SharpZipLib.dll',
         'Microsoft.Deployment.WindowsInstaller.dll',
@@ -275,9 +275,11 @@ def build(
         'System.DirectoryServices.dll',
         'System.ServiceProcess.dll',
         'System.Windows.Forms.dll',
-        'System.dll'
+        'System.dll',
+        '7z.dll'
     ]
-    sign_file(ctx, os.path.join(build_outdir, 'CustomActions.dll'))
+    for dll in dllToSign:
+        sign_file(ctx, os.path.join(build_outdir, dll))
 
     # Run WixSetup.exe to generate the WXS and other input files
     with timed("Building WXS"):
