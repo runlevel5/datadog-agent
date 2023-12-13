@@ -94,7 +94,7 @@ func (p *Package) Exists() bool {
 	return p.path != nil
 }
 
-func (p *Package) Replace(path string) error {
+func (p *Package) Set(path string) error {
 	err := linkSet(p.linkPath, path)
 	if err != nil {
 		return fmt.Errorf("could not set link: %w", err)
