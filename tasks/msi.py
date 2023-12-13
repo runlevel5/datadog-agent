@@ -271,15 +271,14 @@ def build(
         'SevenZip.dll',
         'WixSharp.dll',
         'YamlDotNet.dll',
-        'System.Core.dll',
-        'System.DirectoryServices.dll',
-        'System.ServiceProcess.dll',
-        'System.Windows.Forms.dll',
-        'System.dll',
         '7z.dll'
     ]
     for dll in dllToSign:
-        sign_file(ctx, os.path.join(build_outdir, dll))
+        filePath = os.path.join(build_outdir, dll)
+        if os.path.isfile(filePath):
+            sign_file(ctx, filePath)
+        else:
+            print(f'Could not find file "{filePath}" to sign')
 
     # Run WixSetup.exe to generate the WXS and other input files
     with timed("Building WXS"):
