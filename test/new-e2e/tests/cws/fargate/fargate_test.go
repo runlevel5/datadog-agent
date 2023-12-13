@@ -18,7 +18,7 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	awsecs "github.com/aws/aws-sdk-go-v2/service/ecs"
 	awsecstypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
-	"github.com/pulumi/pulumi-awsx/sdk/go/awsx/ecs"
+	ecsx "github.com/pulumi/pulumi-awsx/sdk/go/awsx/ecs"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -116,8 +116,8 @@ func (s *ECSFargateSuite) SetupSuite() {
 		}
 
 		// Create task definition
-		taskDef, err := ecs.NewFargateTaskDefinition(ctx, "cws-task", &ecs.FargateTaskDefinitionArgs{
-			Containers: map[string]ecs.TaskDefinitionContainerDefinitionArgs{
+		taskDef, err := ecsx.NewFargateTaskDefinition(ctx, "cws-task", &ecsx.FargateTaskDefinitionArgs{
+			Containers: map[string]ecsx.TaskDefinitionContainerDefinitionArgs{
 				"datadog-agent": {
 					Cpu:   pulumi.IntPtr(0),
 					Name:  pulumi.String("datadog-agent"),
@@ -128,38 +128,38 @@ func (s *ECSFargateSuite) SetupSuite() {
 						fmt.Sprintf("echo \"%s\" > /etc/datadog-agent/runtime-security.d/%s ; /bin/entrypoint.sh", selftestsPolicy, selfTestsPolicyName),
 					}),
 					Essential: pulumi.BoolPtr(true),
-					Environment: ecs.TaskDefinitionKeyValuePairArray{
-						ecs.TaskDefinitionKeyValuePairArgs{
+					Environment: ecsx.TaskDefinitionKeyValuePairArray{
+						ecsx.TaskDefinitionKeyValuePairArgs{
 							Name:  pulumi.StringPtr("DD_HOSTNAME"),
 							Value: pulumi.StringPtr(ddHostname),
 						},
-						ecs.TaskDefinitionKeyValuePairArgs{
+						ecsx.TaskDefinitionKeyValuePairArgs{
 							Name:  pulumi.StringPtr("ECS_FARGATE"),
 							Value: pulumi.StringPtr("true"),
 						},
-						ecs.TaskDefinitionKeyValuePairArgs{
+						ecsx.TaskDefinitionKeyValuePairArgs{
 							Name:  pulumi.StringPtr("DD_RUNTIME_SECURITY_CONFIG_ENABLED"),
 							Value: pulumi.StringPtr("true"),
 						},
-						ecs.TaskDefinitionKeyValuePairArgs{
+						ecsx.TaskDefinitionKeyValuePairArgs{
 							Name:  pulumi.StringPtr("DD_RUNTIME_SECURITY_CONFIG_EBPFLESS_ENABLED"),
 							Value: pulumi.StringPtr("true"),
 						},
 					},
-					Secrets: ecs.TaskDefinitionSecretArray{
-						ecs.TaskDefinitionSecretArgs{
+					Secrets: ecsx.TaskDefinitionSecretArray{
+						ecsx.TaskDefinitionSecretArgs{
 							Name:      pulumi.String("DD_API_KEY"),
 							ValueFrom: apiKeyParam.Name,
 						},
 					},
-					HealthCheck: &ecs.TaskDefinitionHealthCheckArgs{
+					HealthCheck: &ecsx.TaskDefinitionHealthCheckArgs{
 						Retries:     pulumi.IntPtr(2),
 						Command:     pulumi.ToStringArray([]string{"CMD-SHELL", "/probe.sh"}),
 						StartPeriod: pulumi.IntPtr(60),
 						Interval:    pulumi.IntPtr(30),
 						Timeout:     pulumi.IntPtr(5),
 					},
-					LogConfiguration: ecs.TaskDefinitionLogConfigurationArgs{
+					LogConfiguration: ecsx.TaskDefinitionLogConfigurationArgs{
 						LogDriver: pulumi.String("awsfirelens"),
 						Options: pulumi.StringMap{
 							"Name":           pulumi.String("datadog"),
@@ -170,15 +170,15 @@ func (s *ECSFargateSuite) SetupSuite() {
 							"dd_message_key": pulumi.String("log"),
 							"provider":       pulumi.String("ecs"),
 						},
-						SecretOptions: ecs.TaskDefinitionSecretArray{
-							ecs.TaskDefinitionSecretArgs{
+						SecretOptions: ecsx.TaskDefinitionSecretArray{
+							ecsx.TaskDefinitionSecretArgs{
 								Name:      pulumi.String("apikey"),
 								ValueFrom: apiKeyParam.Name,
 							},
 						},
 					},
-					PortMappings: ecs.TaskDefinitionPortMappingArray{},
-					VolumesFrom:  ecs.TaskDefinitionVolumeFromArray{},
+					PortMappings: ecsx.TaskDefinitionPortMappingArray{},
+					VolumesFrom:  ecsx.TaskDefinitionVolumeFromArray{},
 				},
 				"cws-tracer": {
 					Cpu:       pulumi.IntPtr(0),
@@ -196,20 +196,20 @@ func (s *ECSFargateSuite) SetupSuite() {
 						"--open",
 						fmt.Sprintf("--open.path=%s", openFilePath),
 					}),
-					DependsOn: ecs.TaskDefinitionContainerDependencyArray{
-						ecs.TaskDefinitionContainerDependencyArgs{
+					DependsOn: ecsx.TaskDefinitionContainerDependencyArray{
+						ecsx.TaskDefinitionContainerDependencyArgs{
 							Condition:     pulumi.String("HEALTHY"),
 							ContainerName: pulumi.String("datadog-agent"),
 						},
 					},
-					LinuxParameters: &ecs.TaskDefinitionLinuxParametersArgs{
-						Capabilities: &ecs.TaskDefinitionKernelCapabilitiesArgs{
+					LinuxParameters: &ecsx.TaskDefinitionLinuxParametersArgs{
+						Capabilities: &ecsx.TaskDefinitionKernelCapabilitiesArgs{
 							Add: pulumi.StringArray{
 								pulumi.String("SYS_PTRACE"),
 							},
 						},
 					},
-					LogConfiguration: ecs.TaskDefinitionLogConfigurationArgs{
+					LogConfiguration: ecsx.TaskDefinitionLogConfigurationArgs{
 						LogDriver: pulumi.String("awsfirelens"),
 						Options: pulumi.StringMap{
 							"Name":           pulumi.String("datadog"),
@@ -220,8 +220,8 @@ func (s *ECSFargateSuite) SetupSuite() {
 							"dd_message_key": pulumi.String("log"),
 							"provider":       pulumi.String("ecs"),
 						},
-						SecretOptions: ecs.TaskDefinitionSecretArray{
-							ecs.TaskDefinitionSecretArgs{
+						SecretOptions: ecsx.TaskDefinitionSecretArray{
+							ecsx.TaskDefinitionSecretArgs{
 								Name:      pulumi.String("apikey"),
 								ValueFrom: apiKeyParam.Name,
 							},
@@ -234,16 +234,16 @@ func (s *ECSFargateSuite) SetupSuite() {
 					Name:      pulumi.String("log_router"),
 					Image:     pulumi.String("amazon/aws-for-fluent-bit:latest"),
 					Essential: pulumi.BoolPtr(true),
-					FirelensConfiguration: ecs.TaskDefinitionFirelensConfigurationArgs{
+					FirelensConfiguration: ecsx.TaskDefinitionFirelensConfigurationArgs{
 						Type: pulumi.String("fluentbit"),
 						Options: pulumi.StringMap{
 							"enable-ecs-log-metadata": pulumi.String("true"),
 						},
 					},
-					MountPoints:  ecs.TaskDefinitionMountPointArray{},
-					Environment:  ecs.TaskDefinitionKeyValuePairArray{},
-					PortMappings: ecs.TaskDefinitionPortMappingArray{},
-					VolumesFrom:  ecs.TaskDefinitionVolumeFromArray{},
+					MountPoints:  ecsx.TaskDefinitionMountPointArray{},
+					Environment:  ecsx.TaskDefinitionKeyValuePairArray{},
+					PortMappings: ecsx.TaskDefinitionPortMappingArray{},
+					VolumesFrom:  ecsx.TaskDefinitionVolumeFromArray{},
 				},
 			},
 			Cpu:    pulumi.StringPtr("2048"),
@@ -283,7 +283,7 @@ func (s *ECSFargateSuite) TearDownSuite() {
 	s.Assert().NoError(err)
 }
 
-func (s *ECSFargateSuite) Test00UpAndRunning() {
+func (s *ECSFargateSuite) Test00ECSFargateReady() {
 	cfg, err := awsconfig.LoadDefaultConfig(s.ctx)
 	s.Require().NoErrorf(err, "Failed to load AWS config")
 
