@@ -123,7 +123,7 @@ func clang(cflags []string, options ...func(*exec.Cmd)) error {
 	go func() {
 		ioc := exec.CommandContext(clangCtx, "iostat", "-c", "1")
 		ioc.Stdout = os.Stdout
-		ioc.Run()
+		_ = ioc.Run()
 	}()
 
 	err := compileToBC.Run()
