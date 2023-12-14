@@ -5,6 +5,12 @@
 
 //go:build windows
 
+package updater
+
+import (
+	"fmt"
+)
+
 func linkRead(linkPath string) (string, error) {
 	return "", fmt.Errorf("not supported on windows")
 }
@@ -14,5 +20,9 @@ func linkExists(linkPath string) (bool, error) {
 }
 
 func linkSet(linkPath string, targetPath string) error {
+	return fmt.Errorf("not supported on windows")
+}
+
+func linkDelete(linkPath string) error {
 	return fmt.Errorf("not supported on windows")
 }

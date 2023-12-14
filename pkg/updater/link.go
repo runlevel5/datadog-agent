@@ -29,7 +29,7 @@ func linkExists(linkPath string) (bool, error) {
 }
 
 func linkSet(linkPath string, targetPath string) error {
-	return renameio.Symlink(linkPath, targetPath)
+	return renameio.Symlink(targetPath, linkPath)
 }
 
 func linkDelete(linkPath string) error {

@@ -20,58 +20,118 @@ const (
 type Repository struct {
 	rootPath string
 
-	stable     *Package
-	experiment *Package
-	previous   *Package
+	stable     *Link
+	experiment *Link
 }
 
-func NewRepository(rootPath string) (*Repository, error) {
+func CreateRepository(rootPath string, stableSourcePath string) (*Repository, error) {
 	err := os.MkdirAll(rootPath, 0755)
 	if err != nil {
 		return nil, fmt.Errorf("could not create packages root directory: %w", err)
 	}
+	repository, err := openRepository(rootPath)
+	if err != nil {
+		return nil, err
+	}
+	err = repository.setStable(stableSourcePath)
+	if err != nil {
+		return nil, fmt.Errorf("could not set first stable: %w", err)
+	}
+	return repository, nil
+}
 
-	stablePackage, err := newPackage(filepath.Join(rootPath, stableVersionLink))
+func OpenRepository(rootPath string) (*Repository, error) {
+	repository, err := openRepository(rootPath)
 	if err != nil {
-		return nil, fmt.Errorf("could not load stable package: %w", err)
+		return nil, err
 	}
-	experimentPackage, err := newPackage(filepath.Join(rootPath, experimentVersionLink))
-	if err != nil {
-		return nil, fmt.Errorf("could not load experiment package: %w", err)
+	if !repository.stable.Exists() {
+		return nil, fmt.Errorf("stable package does not exist, invalid state")
 	}
-	previousPackage, err := newPackage(filepath.Join(rootPath, previousVersionLink))
+	return repository, nil
+}
+
+func openRepository(rootPath string) (*Repository, error) {
+	stableLink, err := newLink(filepath.Join(rootPath, stableVersionLink))
 	if err != nil {
-		return nil, fmt.Errorf("could not load previous package: %w", err)
+		return nil, fmt.Errorf("could not load stable link: %w", err)
+	}
+	experimentLink, err := newLink(filepath.Join(rootPath, experimentVersionLink))
+	if err != nil {
+		return nil, fmt.Errorf("could not load experiment link: %w", err)
 	}
 
 	return &Repository{
 		rootPath:   rootPath,
-		stable:     stablePackage,
-		experiment: experimentPackage,
-		previous:   previousPackage,
+		stable:     stableLink,
+		experiment: experimentLink,
 	}, nil
 }
 
-func (r *Repository) SetStable() *Package {
-	return r.stable
+func (r *Repository) SetExperiment(sourcePath string) error {
+	err := movePackageFromSource(r.rootPath, sourcePath)
+	if err != nil {
+		return fmt.Errorf("could not move source: %w", err)
+	}
+	return r.experiment.Set(sourcePath)
 }
 
-func (r *Repository) SetExperiment() *Package {
-	return r.stable
+func (r *Repository) PromoteExperiment() error {
+	if !r.experiment.Exists() {
+		return fmt.Errorf("invalid state: no experiment package to promote")
+	}
+	err := r.stable.Set()
+	if err != nil {
+		return fmt.Errorf("could not set stable: %w", err)
+	}
+	err = r.experiment.Delete()
+	if err != nil {
+		return fmt.Errorf("could not delete experiment link: %w", err)
+	}
+	err = os.RemoveAll(path string)
+	return nil
 }
 
-type Package struct {
-	linkPath string
-	path     *string
+func (r *Repository) RemoveExperiment() error {
+	if !r.experiment.Exists() {
+		return fmt.Errorf("invalid state: no experiment package to remove")
+	}
+	err := r.experiment.Delete()
+	if err != nil {
+		return fmt.Errorf("could not delete experiment link: %w", err)
+	}
+
 }
 
-func newPackage(linkPath string) (*Package, error) {
+func movePackageFromSource(rootPath string, sourcePath string) error {
+	targetPath := filepath.Join(rootPath, filepath.Base(sourcePath))
+	err := os.Rename(sourcePath, targetPath)
+	if err != nil {
+		return fmt.Errorf("could not move source: %w", err)
+	}
+	return nil
+}
+
+func (r *Repository) setStable(sourcePath string) error {
+	err := movePackageFromSource(r.rootPath, sourcePath)
+	if err != nil {
+		return fmt.Errorf("could not move source: %w", err)
+	}
+	return r.stable.Set(sourcePath)
+}
+
+type Link struct {
+	linkPath    string
+	packagePath *string
+}
+
+func newLink(linkPath string) (*Link, error) {
 	linkExists, err := linkExists(linkPath)
 	if err != nil {
 		return nil, fmt.Errorf("could check if link exists: %w", err)
 	}
 	if !linkExists {
-		return &Package{
+		return &Link{
 			linkPath: linkPath,
 		}, nil
 	}
@@ -84,30 +144,30 @@ func newPackage(linkPath string) (*Package, error) {
 		return nil, fmt.Errorf("could not read package: %w", err)
 	}
 
-	return &Package{
-		linkPath: linkPath,
-		path:     &packagePath,
+	return &Link{
+		linkPath:    linkPath,
+		packagePath: &packagePath,
 	}, nil
 }
 
-func (p *Package) Exists() bool {
-	return p.path != nil
+func (l *Link) Exists() bool {
+	return l.packagePath != nil
 }
 
-func (p *Package) Set(path string) error {
-	err := linkSet(p.linkPath, path)
+func (l *Link) Set(path string) error {
+	err := linkSet(l.linkPath, path)
 	if err != nil {
 		return fmt.Errorf("could not set link: %w", err)
 	}
-	p.path = &path
+	l.packagePath = &path
 	return nil
 }
 
-func (p *Package) Delete() error {
-	err := linkDelete(p.linkPath)
+func (l *Link) Delete() error {
+	err := linkDelete(l.linkPath)
 	if err != nil {
 		return fmt.Errorf("could not delete link: %w", err)
 	}
-	p.path = nil
+	l.packagePath = nil
 	return nil
 }
