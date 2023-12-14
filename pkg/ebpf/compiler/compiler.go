@@ -121,9 +121,11 @@ func clang(cflags []string, options ...func(*exec.Cmd)) error {
 	log.Debugf("running clang: %v", compileToBC.Args)
 
 	go func() {
+		var buf bytes.Buffer
 		ioc := exec.CommandContext(clangCtx, "iostat", "-c", "1")
-		ioc.Stdout = os.Stdout
+		ioc.Stdout = &buf
 		_ = ioc.Run()
+		log.Infof("iostat output: %s\n", buf.String())
 	}()
 
 	err := compileToBC.Run()

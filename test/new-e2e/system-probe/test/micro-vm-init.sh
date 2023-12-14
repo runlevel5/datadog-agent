@@ -14,7 +14,8 @@ if [[ -d "${docker_dir}" ]]; then
 fi
 # VM provisioning end !
 
-apt install sysstat
+apt install sysstat || true
+yum install sysstat || true
 
 # Start tests
 code=0
