@@ -14,8 +14,8 @@ if [[ -d "${docker_dir}" ]]; then
 fi
 # VM provisioning end !
 
-apt install -y sysstat || true
-yum install -y sysstat || true
+apt install -y strace sysstat || true
+yum install -y strace sysstat || true
 
 # Start tests
 code=0
