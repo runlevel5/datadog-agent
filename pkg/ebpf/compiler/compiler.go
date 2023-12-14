@@ -112,7 +112,8 @@ func clang(cflags []string, options ...func(*exec.Cmd)) error {
 	clangCtx, clangCancel := context.WithTimeout(context.Background(), compilationStepTimeout)
 	defer clangCancel()
 
-	compileToBC := exec.CommandContext(clangCtx, "/usr/bin/strace", "-c", clangBinPath, cflags...)
+	args := append([]string{"-c", clangBinPath}, cflags...)
+	compileToBC := exec.CommandContext(clangCtx, "/usr/bin/strace", args...)
 	for _, opt := range options {
 		opt(compileToBC)
 	}
