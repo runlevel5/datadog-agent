@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package fargate
+package e2elib
 
 import (
 	"bytes"
@@ -55,7 +55,8 @@ rules:
 {{end}}
 `
 
-func getPolicyContent(macros []*rules.MacroDefinition, rules []*rules.RuleDefinition) (string, error) {
+// GetPolicyContent returns the policy content from the given rules and macros definitions
+func GetPolicyContent(macros []*rules.MacroDefinition, rules []*rules.RuleDefinition) (string, error) {
 	tmpl, err := template.New("policy").Parse(policyTemplate)
 	if err != nil {
 		return "", err

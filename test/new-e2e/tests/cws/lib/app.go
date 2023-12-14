@@ -3,8 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-// Package e2e_test holds cws test related functions
-package e2e_test
+// Package e2elib holds cws e2e tests related functions
+package e2elib
 
 import (
 	"context"

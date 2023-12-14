@@ -3,13 +3,13 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package e2e_test
+package e2elib
 
 import "math/rand"
 
 const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-// generate a random string of the specified length
+// RandomString returns a random string of the specified length
 func RandomString(length int) string {
 	b := make([]byte, length)
 	for i := range b {

@@ -25,12 +25,13 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	configCommon "github.com/DataDog/test-infra-definitions/common/config"
+	agentComp "github.com/DataDog/test-infra-definitions/components/datadog/agent"
 	awsResources "github.com/DataDog/test-infra-definitions/resources/aws"
 	ecsResources "github.com/DataDog/test-infra-definitions/resources/aws/ecs"
 
 	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/utils/infra"
-	cws "github.com/DataDog/datadog-agent/test/new-e2e/tests/cws/e2e/lib"
+	e2elib "github.com/DataDog/datadog-agent/test/new-e2e/tests/cws/lib"
 )
 
 const (
@@ -51,9 +52,9 @@ type ECSFargateSuite struct {
 	suite.Suite
 	ctx       context.Context
 	stackName string
-	runID     string
+	testID    string
 
-	apiClient      *cws.APIClient
+	apiClient      *e2elib.APIClient
 	ddHostname     string
 	ecsClusterArn  string
 	ecsClusterName string
@@ -63,13 +64,13 @@ type ECSFargateSuite struct {
 func TestECSFargate(t *testing.T) {
 	suite.Run(t, &ECSFargateSuite{
 		ctx:       context.Background(),
-		stackName: "cws-tests-ecs-fg-dev",
-		runID:     cws.RandomString(4),
+		stackName: "cws-tests-ecs-fg",
+		testID:    e2elib.RandomString(4),
 	})
 }
 
 func (s *ECSFargateSuite) SetupSuite() {
-	s.apiClient = cws.NewAPIClient()
+	s.apiClient = e2elib.NewAPIClient()
 
 	ruleDefs := []*rules.RuleDefinition{
 		{
@@ -81,11 +82,11 @@ func (s *ECSFargateSuite) SetupSuite() {
 			Expression: fmt.Sprintf(`open.file.path == \"%s\"`, openFilePath),
 		},
 	}
-	selftestsPolicy, err := getPolicyContent(nil, ruleDefs)
+	selftestsPolicy, err := e2elib.GetPolicyContent(nil, ruleDefs)
 	s.Require().NoError(err)
 
 	_, result, err := infra.GetStackManager().GetStack(s.ctx, s.stackName, nil, func(ctx *pulumi.Context) error {
-		ddHostname := fmt.Sprintf("%s-%s", ddHostnamePrefix, s.runID)
+		ddHostname := fmt.Sprintf("%s-%s", ddHostnamePrefix, s.testID)
 		awsEnv, err := awsResources.NewEnvironment(ctx)
 		if err != nil {
 			return err
@@ -118,12 +119,13 @@ func (s *ECSFargateSuite) SetupSuite() {
 		}
 
 		// Create task definition
+		// TODO(yoann): add the cws-instrumentation container to the test-infra-definitions repository
 		taskDef, err := ecsx.NewFargateTaskDefinition(ctx, "cws-task", &ecsx.FargateTaskDefinitionArgs{
 			Containers: map[string]ecsx.TaskDefinitionContainerDefinitionArgs{
 				"datadog-agent": {
 					Cpu:   pulumi.IntPtr(0),
 					Name:  pulumi.String("datadog-agent"),
-					Image: pulumi.String("docker.io/datadog/agent-dev:safchain-custom-cws-inst-py3"),
+					Image: pulumi.String(agentComp.DockerAgentFullImagePath(awsEnv.CommonEnvironment, "docker.io/datadog/agent-dev", "safchain-custom-cws-inst-py3")),
 					Command: pulumi.ToStringArray([]string{
 						"sh",
 						"-c",
@@ -179,8 +181,6 @@ func (s *ECSFargateSuite) SetupSuite() {
 							},
 						},
 					},
-					PortMappings: ecsx.TaskDefinitionPortMappingArray{},
-					VolumesFrom:  ecsx.TaskDefinitionVolumeFromArray{},
 				},
 				"ubuntu-with-tracer": {
 					Cpu:       pulumi.IntPtr(0),
@@ -255,10 +255,6 @@ func (s *ECSFargateSuite) SetupSuite() {
 							"enable-ecs-log-metadata": pulumi.String("true"),
 						},
 					},
-					MountPoints:  ecsx.TaskDefinitionMountPointArray{},
-					Environment:  ecsx.TaskDefinitionKeyValuePairArray{},
-					PortMappings: ecsx.TaskDefinitionPortMappingArray{},
-					VolumesFrom:  ecsx.TaskDefinitionVolumeFromArray{},
 				},
 				"cws-instrumentation-init": {
 					Cpu:       pulumi.IntPtr(0),
@@ -430,7 +426,7 @@ func (s *ECSFargateSuite) Test00ECSFargateReady() {
 
 func (s *ECSFargateSuite) Test01RulesetLoaded() {
 	query := fmt.Sprintf("host:%s rule_id:ruleset_loaded @policies.name:%s", s.ddHostname, selfTestsPolicyName)
-	result, err := cws.WaitAppLogs(s.apiClient, query)
+	result, err := e2elib.WaitAppLogs(s.apiClient, query)
 	s.Require().NoError(err, "could not get new ruleset_loaded event log")
 	agentContext, ok := result.Attributes["agent"].(map[string]interface{})
 	s.Require().True(ok, "unexpected agent context")
@@ -439,7 +435,7 @@ func (s *ECSFargateSuite) Test01RulesetLoaded() {
 
 func (s *ECSFargateSuite) Test02ExecRule() {
 	query := fmt.Sprintf("host:%s rule_id:%s", s.ddHostname, execRuleID)
-	result, err := cws.WaitAppLogs(s.apiClient, query)
+	result, err := e2elib.WaitAppLogs(s.apiClient, query)
 	s.Require().NoError(err, "could not get the exec rule event log")
 	agentContext, ok := result.Attributes["agent"].(map[string]interface{})
 	s.Require().True(ok, "unexpected agent context")
@@ -448,7 +444,7 @@ func (s *ECSFargateSuite) Test02ExecRule() {
 
 func (s *ECSFargateSuite) Test03OpenRule() {
 	query := fmt.Sprintf("host:%s rule_id:%s", s.ddHostname, openRuleID)
-	result, err := cws.WaitAppLogs(s.apiClient, query)
+	result, err := e2elib.WaitAppLogs(s.apiClient, query)
 	s.Require().NoError(err, "could not get the open rule event log")
 	agentContext, ok := result.Attributes["agent"].(map[string]interface{})
 	s.Require().True(ok, "unexpected agent context")
