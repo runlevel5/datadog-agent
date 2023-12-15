@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
@@ -103,6 +104,18 @@ func WithStdout(out io.Writer) func(*exec.Cmd) {
 	}
 }
 
+func timeSyscall(who int) *syscall.Rusage {
+	var rusage syscall.Rusage
+
+	err := syscall.Getrusage(who, &rusage)
+	if err != nil {
+		log.Errorf("syscall rusage failed: %v\n", err)
+		return nil
+	}
+
+	return &rusage
+}
+
 func clang(cflags []string, options ...func(*exec.Cmd)) error {
 	var clangErr bytes.Buffer
 
@@ -117,12 +130,24 @@ func clang(cflags []string, options ...func(*exec.Cmd)) error {
 
 	log.Debugf("running clang: %v", compileToBC.Args)
 
-	start := time.Now()
+	startSelf := timeSyscall(syscall.RUSAGE_SELF)
+	startThread := timeSyscall(syscall.RUSAGE_THREAD)
+	startChildren := timeSyscall(syscall.RUSAGE_CHILDREN)
+	realStart := time.Now().UnixMicro()
 	err := compileToBC.Run()
-	end := time.Now()
-	log.Infof("Time start: %v\n", start.UnixMilli())
-	log.Infof("Time end: %v\n", end.UnixMilli())
-	log.Infof("Start - now: %v\n", end.Sub(start))
+	realEnd := time.Now().UnixMicro()
+	endSelf := timeSyscall(syscall.RUSAGE_SELF)
+	endThread := timeSyscall(syscall.RUSAGE_THREAD)
+	endChildren := timeSyscall(syscall.RUSAGE_CHILDREN)
+	if startSelf != nil && startThread != nil && startChildren != nil && endSelf != nil && endThread != nil && endChildren != nil {
+		log.Infof("[Self] User time (sec): %d User time (usec): %d\n", endSelf.Utime.Sec-startSelf.Utime.Sec, endSelf.Utime.Usec-startSelf.Utime.Usec)
+		log.Infof("[Self] Sys time (sec): %d Sys time (usec): %d\n", endSelf.Stime.Sec-startSelf.Stime.Sec, endSelf.Stime.Usec-startSelf.Stime.Usec)
+		log.Infof("[Thread] User time (sec): %d User time (usec): %d\n", endThread.Utime.Sec-startThread.Utime.Sec, endThread.Utime.Usec-startThread.Utime.Usec)
+		log.Infof("[Thread] Sys time (sec): %d Sys time (usec): %d\n", endThread.Stime.Sec-startThread.Stime.Sec, endThread.Stime.Usec-startThread.Stime.Usec)
+		log.Infof("[Children] User time (sec): %d User time (usec): %d\n", endChildren.Utime.Sec-startChildren.Utime.Sec, endChildren.Utime.Usec-startChildren.Utime.Usec)
+		log.Infof("[Children] Sys time (sec): %d Sys time (usec): %d\n", endChildren.Stime.Sec-startChildren.Stime.Sec, endChildren.Stime.Usec-startChildren.Stime.Usec)
+		log.Infof("Real time: %d\n", realEnd-realStart)
+	}
 	if err != nil {
 		var errMsg string
 		if clangCtx.Err() == context.DeadlineExceeded {
