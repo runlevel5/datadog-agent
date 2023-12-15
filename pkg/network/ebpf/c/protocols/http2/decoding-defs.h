@@ -126,7 +126,7 @@ typedef enum {
 typedef struct {
     __u32 index;
     __u32 new_dynamic_value_offset;
-    __u32 new_dynamic_value_size;
+    __u16 new_dynamic_value_size;
     http2_header_type_t type;
 } http2_header_t;
 
