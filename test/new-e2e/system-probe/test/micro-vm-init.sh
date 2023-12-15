@@ -14,6 +14,9 @@ if [[ -d "${docker_dir}" ]]; then
 fi
 # VM provisioning end !
 
+apt install -y sysstat || true
+yum install -y sysstat || true
+
 # Start tests
 code=0
 /test-runner -retry "${retry_count}" -packages-run-config "${pkgs_run_config_file}" || code=$?
