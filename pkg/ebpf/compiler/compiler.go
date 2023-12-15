@@ -117,7 +117,12 @@ func clang(cflags []string, options ...func(*exec.Cmd)) error {
 
 	log.Debugf("running clang: %v", compileToBC.Args)
 
+	start := time.Now()
 	err := compileToBC.Run()
+	end := time.Now()
+	log.Infof("Time start: %v\n", start.UnixMilli())
+	log.Infof("Time end: %v\n", end.UnixMilli())
+	log.Infof("Start - now: %v\n", end.Sub(start))
 	if err != nil {
 		var errMsg string
 		if clangCtx.Err() == context.DeadlineExceeded {
