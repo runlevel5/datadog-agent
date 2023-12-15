@@ -583,7 +583,7 @@ func (s *USMHTTP2Suite) TestHTTP2DynamicTableCleanup() {
 		client.CloseIdleConnections()
 	}
 
-	dynamicTableMap, _, err := monitor.ebpfProgram.GetMap("http2_dynamic_table")
+	dynamicTableMap, _, err := monitor.ebpfProgram.GetMap("http2_interesting_dynamic_table_set")
 	require.NoError(t, err)
 	iterator := dynamicTableMap.Iterate()
 	key := make([]byte, dynamicTableMap.KeySize())
@@ -609,7 +609,7 @@ func (s *USMHTTP2Suite) TestHTTP2ManyDifferentPaths() {
 	t := s.T()
 	cfg := networkconfig.New()
 	cfg.EnableHTTP2Monitoring = true
-
+	cfg.MaxUSMConcurrentRequests = 1024
 	startH2CServer(t)
 
 	monitor, err := NewMonitor(cfg, nil, nil, nil)
@@ -619,7 +619,7 @@ func (s *USMHTTP2Suite) TestHTTP2ManyDifferentPaths() {
 
 	const (
 		repetitionsPerRequest = 2
-		// Should be bigger than the length of the http2_dynamic_table which is 1024
+		// Should be bigger than the length of the http2_interesting_dynamic_table_set which is 1024
 		numberOfRequests         = 1500
 		expectedNumberOfRequests = numberOfRequests * repetitionsPerRequest
 	)
