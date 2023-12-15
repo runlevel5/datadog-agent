@@ -560,30 +560,6 @@ func StartCWSPtracer(args []string, probeAddr string, creds Creds, verbose bool)
 					logErrorf("unable to handle execve: %v", err)
 					return
 				}
-
-				// Top level pid, add creds. For the other PIDs the creds will be propagated at the probe side
-				if process.Pid == tracer.PID {
-					var uid, gid uint32
-
-					if creds.UID != nil {
-						uid = *creds.UID
-					} else {
-						uid = uint32(os.Getuid())
-					}
-
-					if creds.GID != nil {
-						gid = *creds.GID
-					} else {
-						gid = uint32(os.Getgid())
-					}
-
-					msg.Exec.Credentials = &ebpfless.Credentials{
-						UID:  uid,
-						EUID: uid,
-						GID:  gid,
-						EGID: gid,
-					}
-				}
 			case ExecveatNr:
 				if err = handleExecveAt(tracer, process, msg, regs); err != nil {
 					logErrorf("unable to handle execveat: %v", err)
@@ -630,7 +606,21 @@ func StartCWSPtracer(args []string, probeAddr string, creds Creds, verbose bool)
 		case CallbackPostType:
 			switch nr {
 			case ExecveNr, ExecveatNr:
-				send(process.Nr[nr])
+				msg := process.Nr[nr]
+				if creds, err := getProcStatusCredentials(pid); err == nil {
+					msg.Exec.Credentials = creds
+				} else {
+					uid := uint32(os.Getuid())
+					gid := uint32(os.Getgid())
+					msg.Exec.Credentials = &ebpfless.Credentials{
+						UID:  uid,
+						EUID: uid,
+						GID:  gid,
+						EGID: gid,
+					}
+				}
+
+				send(msg)
 			case OpenNr, OpenatNr:
 				if ret := tracer.ReadRet(regs); ret >= 0 {
 					msg, exists := process.Nr[nr]
