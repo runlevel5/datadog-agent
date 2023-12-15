@@ -48,7 +48,7 @@ end
 
 execute 'install docker-compose' do
   command <<-EOF
-    curl -SL https://github.com/docker/compose/releases/download/v2.12.2/docker-compose-$(uname -s | awk '{print tolower($0)}')-$(uname -m) -o /usr/bin/docker-compose
+    curl -SL https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-$(uname -s | awk '{print tolower($0)}')-$(uname -m) -o /usr/bin/docker-compose
     chmod 0755 /usr/bin/docker-compose
   EOF
   user "root"
