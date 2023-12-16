@@ -5,7 +5,7 @@
 
 //go:build !windows
 
-package repository
+package packaging
 
 import (
 	"os"
