@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-agent/test/fakeintake/api"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/utils/e2e"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/utils/e2e/client"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agentparams"
@@ -233,4 +234,33 @@ func (v *subcommandWithFakeIntakeSuite) TestDefaultInstallHealthy() {
 
 	assert.NoError(v.T(), err)
 	assert.Contains(v.T(), output, "Agent health: PASS")
+}
+
+func (v *subcommandWithFakeIntakeSuite) TestDefaultInstallUnhealthy() {
+	fmt.Printf("---------------------------------\n")
+	fmt.Printf("*** test started!!\n")
+
+	override := api.ResponseOverride{
+		Endpoint:   "/api/v1/validate",
+		StatusCode: 410,
+		Body:       []byte("invalid API key"),
+	}
+	v.Env().Fakeintake.Client.ConfigureOverride(override)
+
+	fmt.Printf("---------------------------------\n")
+	fmt.Printf("*** updating Agent Params!!\n")
+
+	v.UpdateEnv(e2e.FakeIntakeStackDef(
+		e2e.WithAgentParams(agentparams.WithAgentConfig("log_level: warn\n")),
+	))
+
+	fmt.Printf("---------------------------------\n")
+	fmt.Printf("*** Agent check health!!\n")
+
+	_, err := v.Env().Agent.Health()
+	if err == nil {
+		assert.Fail(v.T(), "agent expected to be unhealthy, but no error found!")
+		return
+	}
+	assert.Contains(v.T(), err.Error(), "Agent health: FAIL")
 }
