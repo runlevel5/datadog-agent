@@ -12,10 +12,12 @@ import (
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/fx"
 
+	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
 	logagent "github.com/DataDog/datadog-agent/comp/logs/agent"
 	logConfig "github.com/DataDog/datadog-agent/comp/logs/agent/config"
+	"github.com/DataDog/datadog-agent/comp/metadata/inventoryagent"
 	"github.com/DataDog/datadog-agent/pkg/collector"
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
 	checkid "github.com/DataDog/datadog-agent/pkg/collector/check/id"
@@ -137,11 +139,13 @@ func TestGetPayload(t *testing.T) {
 		Source:     "redis",
 	})
 	logSources.AddSource(src)
-	mockLogAgent := logagent.NewMock(logSources)
+	mockLogAgent := fxutil.Test[optional.Option[logagent.Mock]](t, logagent.MockModule(), core.MockBundle(), inventoryagent.MockModule())
+	logsAgent, _ := mockLogAgent.Get()
+	logsAgent.SetSources(logSources)
 
 	ic := getTestInventoryChecks(t,
 		optional.NewOption[collector.Collector](mockColl),
-		mockLogAgent,
+		optional.NewOption[logagent.Component](logsAgent.AsComponent()),
 		overrides,
 	)
 

@@ -9,12 +9,13 @@ import (
 	"context"
 	"time"
 
+	"go.uber.org/fx"
+
 	"github.com/DataDog/datadog-agent/pkg/logs/diagnostic"
 	"github.com/DataDog/datadog-agent/pkg/logs/pipeline"
 	"github.com/DataDog/datadog-agent/pkg/logs/schedulers"
 	"github.com/DataDog/datadog-agent/pkg/logs/sources"
 	"github.com/DataDog/datadog-agent/pkg/util/optional"
-	"go.uber.org/fx"
 )
 
 type mockLogsAgent struct {
@@ -39,18 +40,6 @@ func newMock(deps dependencies) optional.Option[Mock] {
 	return optional.NewOption[Mock](logsAgent)
 }
 
-// NewMock can be used in other packages using the log agent as a dependency.
-func NewMock(logSources *sources.LogSources) optional.Option[Component] {
-	logsAgent := &mockLogsAgent{
-		hasFlushed:      false,
-		addedSchedulers: make([]schedulers.Scheduler, 0),
-		isRunning:       false,
-		flushDelay:      0,
-		logSources:      logSources,
-	}
-	return optional.NewOption[Component](logsAgent)
-}
-
 func (a *mockLogsAgent) start(context.Context) error {
 	a.isRunning = true
 	return nil
@@ -71,6 +60,10 @@ func (a *mockLogsAgent) IsRunning() bool {
 
 func (a *mockLogsAgent) GetMessageReceiver() *diagnostic.BufferedMessageReceiver {
 	return nil
+}
+
+func (a *mockLogsAgent) SetSources(sources *sources.LogSources) {
+	a.logSources = sources
 }
 
 func (a *mockLogsAgent) GetSources() *sources.LogSources {
@@ -97,4 +90,8 @@ func (a *mockLogsAgent) Flush(ctx context.Context) {
 
 func (a *mockLogsAgent) GetPipelineProvider() pipeline.Provider {
 	return nil
+}
+
+func (a *mockLogsAgent) AsComponent() Component {
+	return a
 }
