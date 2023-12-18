@@ -8,8 +8,13 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/mholt/archiver/v3"
+)
+
+const (
+	agentArchiveFileName = "agent.tar.gz"
 )
 
 // Downloader is the downloader used by the updater to download packages.
@@ -40,12 +45,23 @@ func (d *Downloader) Download(ctx context.Context, url string, expectedSHA256 []
 	defer resp.Body.Close()
 	hashWriter := sha256.New()
 	reader := io.TeeReader(resp.Body, hashWriter)
+	archivePath := filepath.Join(tmpDir, agentArchiveFileName)
+	archiveFile, err := os.Create(archivePath)
+	if err != nil {
+		return fmt.Errorf("could not create archive file: %w", err)
+	}
+	defer archiveFile.Close()
+	_, err = io.Copy(archiveFile, reader)
+	if err != nil {
+		return fmt.Errorf("could not write archive file: %w", err)
+	}
 	sha256 := hashWriter.Sum(nil)
 	if !bytes.Equal(expectedSHA256, sha256) {
 		return fmt.Errorf("invalid hash for %s: expected %x, got %x", url, expectedSHA256, sha256)
 	}
-	archive := archiver.NewTarGz()
-	archive.Open(reader, 0)
-	archive.Walk(archive string, walkFn archiver.WalkFunc)
-	return "", nil
+	err = archiver.Extract(archivePath, "/", destinationPath)
+	if err != nil {
+		return fmt.Errorf("could not extract archive: %w", err)
+	}
+	return nil
 }
