@@ -50,7 +50,6 @@ type Mock interface {
 	Component
 
 	SetSources(sources *sources.LogSources)
-	AsComponent() Component
 }
 
 // Module defines the fx options for this component.

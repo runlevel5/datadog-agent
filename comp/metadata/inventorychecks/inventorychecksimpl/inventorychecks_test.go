@@ -145,7 +145,7 @@ func TestGetPayload(t *testing.T) {
 
 	ic := getTestInventoryChecks(t,
 		optional.NewOption[collector.Collector](mockColl),
-		optional.NewOption[logagent.Component](logsAgent.AsComponent()),
+		optional.NewOption[logagent.Component](logsAgent),
 		overrides,
 	)
 

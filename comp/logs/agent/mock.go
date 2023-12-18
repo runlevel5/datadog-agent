@@ -91,7 +91,3 @@ func (a *mockLogsAgent) Flush(ctx context.Context) {
 func (a *mockLogsAgent) GetPipelineProvider() pipeline.Provider {
 	return nil
 }
-
-func (a *mockLogsAgent) AsComponent() Component {
-	return a
-}
