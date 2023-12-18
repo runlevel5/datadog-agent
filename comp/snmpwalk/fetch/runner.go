@@ -107,7 +107,7 @@ func (rc *SnmpwalkRunner) Callback() {
 	commonTags := []string{
 		"agent_host:" + hname,
 	}
-	namespace := "default"
+	//namespace := "default"
 
 	var interval time.Duration = pkgconfig.Datadog.GetDuration("network_devices.snmpwalk.interval")
 	if interval == 0 {
@@ -120,40 +120,47 @@ func (rc *SnmpwalkRunner) Callback() {
 	rc.sender.Gauge("datadog.snmpwalk.throttler_min_interval_per_oid", float64(throttlerMinIntervalPerOid.Seconds()), "", commonTags)
 
 	for _, config := range snmpConfigList {
-		if config.IPAddress == "" {
-			continue
-		}
-		deviceID := namespace + ":" + config.IPAddress
-
-		rc.prevSnmpwalkTimeMu.Lock()
-		if prevTime, ok := rc.prevSnmpwalkTime[deviceID]; ok { // TODO: check config instanceId instead?
-			// TODO: Also skip if the device is currently being walked
-			if time.Since(prevTime) < interval {
-				log.Debugf("[SNMP RUNNER] Skip Device, interval not reached: %s", deviceID)
-				rc.prevSnmpwalkTimeMu.Unlock()
-				continue
-			}
-		}
-		rc.prevSnmpwalkTimeMu.Unlock()
-
-		// TODO: Also skip if the device is currently being walked
-		rc.isRunningMu.Lock()
-		if rc.isRunning[deviceID] {
-			log.Debugf("[SNMP RUNNER] Skip Device, already running: %s", deviceID)
-			rc.isRunningMu.Unlock()
-			continue
-		}
-		rc.isRunning[deviceID] = true
-		rc.isRunningMu.Unlock()
-
-		//rc.snmpwalkOneDevice(config, namespace, commonTags)
-		rc.jobs <- SnmpwalkJob{
-			namespace: namespace,
-			tags:      commonTags,
-			config:    config,
+		for i := 0; i < 10; i++ {
+			newNs := fmt.Sprintf("fake-ns-%d", i)
+			rc.snmpScanDevice(config, newNs, interval, commonTags)
 		}
 	}
 	//rc.sender.Gauge("datadog.snmpwalk.total.duration", time.Since(globalStart).Seconds(), "", commonTags)
+}
+
+func (rc *SnmpwalkRunner) snmpScanDevice(config snmpparse.SNMPConfig, namespace string, interval time.Duration, commonTags []string) {
+	if config.IPAddress == "" {
+		return
+	}
+	deviceID := namespace + ":" + config.IPAddress
+
+	rc.prevSnmpwalkTimeMu.Lock()
+	if prevTime, ok := rc.prevSnmpwalkTime[deviceID]; ok { // TODO: check config instanceId instead?
+		// TODO: Also skip if the device is currently being walked
+		if time.Since(prevTime) < interval {
+			log.Debugf("[SNMP RUNNER] Skip Device, interval not reached: %s", deviceID)
+			rc.prevSnmpwalkTimeMu.Unlock()
+			return
+		}
+	}
+	rc.prevSnmpwalkTimeMu.Unlock()
+
+	// TODO: Also skip if the device is currently being walked
+	rc.isRunningMu.Lock()
+	if rc.isRunning[deviceID] {
+		log.Debugf("[SNMP RUNNER] Skip Device, already running: %s", deviceID)
+		rc.isRunningMu.Unlock()
+		return
+	}
+	rc.isRunning[deviceID] = true
+	rc.isRunningMu.Unlock()
+
+	//rc.snmpwalkOneDevice(config, namespace, commonTags)
+	rc.jobs <- SnmpwalkJob{
+		namespace: namespace,
+		tags:      commonTags,
+		config:    config,
+	}
 }
 
 func (rc *SnmpwalkRunner) snmpwalkOneDevice(config snmpparse.SNMPConfig, namespace string, commonTags []string) {
@@ -184,7 +191,7 @@ func (rc *SnmpwalkRunner) snmpwalkOneDevice(config snmpparse.SNMPConfig, namespa
 	rc.prevSnmpwalkTime[deviceID] = localStart
 	rc.prevSnmpwalkTimeMu.Unlock()
 
-	oidsCollectedCount := rc.collectDeviceOIDs(config, fetchStrategy)
+	oidsCollectedCount := rc.collectDeviceOIDs(config, namespace, fetchStrategy)
 	duration := time.Since(localStart)
 	rc.sender.Gauge("datadog.snmpwalk.device.duration", duration.Seconds(), "", devTags)
 	rc.sender.Gauge("datadog.snmpwalk.device.oids", float64(oidsCollectedCount), "", devTags)
@@ -197,9 +204,9 @@ func (rc *SnmpwalkRunner) snmpwalkOneDevice(config snmpparse.SNMPConfig, namespa
 	rc.isRunningMu.Unlock()
 }
 
-func (rc *SnmpwalkRunner) collectDeviceOIDs(config snmpparse.SNMPConfig, fetchStrategy fetchStrategyType) int {
+func (rc *SnmpwalkRunner) collectDeviceOIDs(config snmpparse.SNMPConfig, namespace string, fetchStrategy fetchStrategyType) int {
 	prefix := fmt.Sprintf("(%s)", config.CommunityString)
-	namespace := "default" // TODO: CHANGE PLACEHOLDER
+	//namespace := "default" // TODO: CHANGE PLACEHOLDER
 	deviceID := namespace + ":" + config.IPAddress
 
 	session := createSession(config)
