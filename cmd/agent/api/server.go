@@ -3,15 +3,17 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
+//go:build !serverless
+
 /*
 Package api implements the agent IPC api. Using HTTP
 calls, it's possible to communicate with the agent,
 sending commands and receiving infos.
 */
+
 package api
 
 import (
-	"context"
 	"crypto/tls"
 	"fmt"
 	stdLog "log"
@@ -24,8 +26,9 @@ import (
 	workloadmetaServer "github.com/DataDog/datadog-agent/pkg/workloadmeta/server"
 	"github.com/cihub/seelog"
 	gorilla "github.com/gorilla/mux"
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+
+	//grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	//"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
@@ -79,11 +82,11 @@ func StartServer(
 	}
 
 	// gRPC server
-	authInterceptor := grpcutil.AuthInterceptor(parseToken)
+	//authInterceptor := grpcutil.AuthInterceptor(parseToken)
 	opts := []grpc.ServerOption{
 		grpc.Creds(credentials.NewClientTLSFromCert(tlsCertPool, tlsAddr)),
-		grpc.StreamInterceptor(grpc_auth.StreamServerInterceptor(authInterceptor)),
-		grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(authInterceptor)),
+		//grpc.StreamInterceptor(grpc_auth.StreamServerInterceptor(authInterceptor)),
+		//grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(authInterceptor)),
 	}
 
 	s := grpc.NewServer(opts...)
@@ -96,26 +99,26 @@ func StartServer(
 		capture:            capture,
 	})
 
-	dcreds := credentials.NewTLS(&tls.Config{
-		ServerName: tlsAddr,
-		RootCAs:    tlsCertPool,
-	})
-	dopts := []grpc.DialOption{grpc.WithTransportCredentials(dcreds)}
+	// dcreds := credentials.NewTLS(&tls.Config{
+	// 	ServerName: tlsAddr,
+	// 	RootCAs:    tlsCertPool,
+	// })
+	//dopts := []grpc.DialOption{grpc.WithTransportCredentials(dcreds)}
 
 	// starting grpc gateway
-	ctx := context.Background()
-	gwmux := runtime.NewServeMux()
-	err = pb.RegisterAgentHandlerFromEndpoint(
-		ctx, gwmux, tlsAddr, dopts)
-	if err != nil {
-		panic(err)
-	}
+	//ctx := context.Background()
+	//gwmux := runtime.NewServeMux()
+	// err = pb.RegisterAgentHandlerFromEndpoint(
+	// 	ctx, gwmux, tlsAddr, dopts)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	err = pb.RegisterAgentSecureHandlerFromEndpoint(
-		ctx, gwmux, tlsAddr, dopts)
-	if err != nil {
-		panic(err)
-	}
+	// err = pb.RegisterAgentSecureHandlerFromEndpoint(
+	// 	ctx, gwmux, tlsAddr, dopts)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	// Setup multiplexer
 	// create the REST HTTP router
@@ -140,7 +143,7 @@ func StartServer(
 				invAgent,
 			)))
 	mux.Handle("/check/", http.StripPrefix("/check", check.SetupHandlers(checkMux)))
-	mux.Handle("/", gwmux)
+	//mux.Handle("/", gwmux)
 
 	// Use a stack depth of 4 on top of the default one to get a relevant filename in the stdlib
 	logWriter, _ := config.NewLogWriter(5, seelog.ErrorLvl)

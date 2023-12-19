@@ -3,16 +3,19 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
+//go:build !serverless
+
 package grpc
 
 import (
 	"context"
 	"fmt"
-	"google.golang.org/grpc/examples/route_guide/routeguide"
 	"io"
 	"math/rand"
 	"net"
 	"time"
+
+	"google.golang.org/grpc/examples/route_guide/routeguide"
 
 	pbStream "github.com/pahanini/go-grpc-bidirectional-streaming-example/src/proto"
 	"google.golang.org/grpc"

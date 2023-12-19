@@ -2,6 +2,7 @@
 // Source: /workspaces/datadog-agent/pkg/proto/pbgo/core/api.pb.go
 
 // Package mock_core is a generated GoMock package.
+//go:build !serverless
 package mock_core
 
 import (

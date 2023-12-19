@@ -5,6 +5,9 @@
 
 // Package processcollector implements the remote process collector for
 // Workloadmeta.
+
+//go:build !serverless
+
 package processcollector
 
 import (

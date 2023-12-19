@@ -4,6 +4,7 @@
 // 	protoc        v3.21.5
 // source: datadog/process/workloadmeta_process.proto
 
+//go:build !serverless
 package process
 
 import (

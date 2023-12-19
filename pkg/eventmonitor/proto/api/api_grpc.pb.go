@@ -4,6 +4,7 @@
 // - protoc             v3.12.4
 // source: pkg/eventmonitor/proto/api/api.proto
 
+//go:build !serverless
 package api
 
 import (

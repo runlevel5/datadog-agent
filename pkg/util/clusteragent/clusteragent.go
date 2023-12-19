@@ -6,7 +6,6 @@
 package clusteragent
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -25,11 +24,9 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/clusterchecks/types"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/errors"
-	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/process"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/retry"
 	"github.com/DataDog/datadog-agent/pkg/version"
-	"google.golang.org/protobuf/proto"
 )
 
 /*
@@ -65,7 +62,7 @@ type DCAClientInterface interface {
 	GetEndpointsCheckConfigs(ctx context.Context, nodeName string) (types.ConfigResponse, error)
 	GetKubernetesClusterID() (string, error)
 
-	PostLanguageMetadata(ctx context.Context, data *pbgo.ParentLanguageAnnotationRequest) error
+	//PostLanguageMetadata(ctx context.Context, data *pbgo.ParentLanguageAnnotationRequest) error
 }
 
 // DCAClient is required to query the API of Datadog cluster agent
@@ -466,14 +463,14 @@ func (c *DCAClient) GetKubernetesClusterID() (string, error) {
 	return clusterID, nil
 }
 
-// PostLanguageMetadata is called by the core-agent's language detection client
-func (c *DCAClient) PostLanguageMetadata(ctx context.Context, data *pbgo.ParentLanguageAnnotationRequest) error {
-	queryBody, err := proto.Marshal(data)
-	if err != nil {
-		return err
-	}
+// // PostLanguageMetadata is called by the core-agent's language detection client
+// func (c *DCAClient) PostLanguageMetadata(ctx context.Context, data *pbgo.ParentLanguageAnnotationRequest) error {
+// 	queryBody, err := proto.Marshal(data)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	// query https://host:port/api/v1/languagedetection without expecting a response
-	_, err = c.doQuery(ctx, languageDetectionPath, "POST", bytes.NewBuffer(queryBody), false, false)
-	return err
-}
+// 	// query https://host:port/api/v1/languagedetection without expecting a response
+// 	_, err = c.doQuery(ctx, languageDetectionPath, "POST", bytes.NewBuffer(queryBody), false, false)
+// 	return err
+// }

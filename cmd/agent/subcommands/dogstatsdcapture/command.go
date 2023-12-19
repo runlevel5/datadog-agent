@@ -4,6 +4,9 @@
 // Copyright 2018-2020 Datadog, Inc.
 
 // Package dogstatsdcapture implements 'agent dogstasd-capture'.
+
+//go:build !serverless
+
 package dogstatsdcapture
 
 import (

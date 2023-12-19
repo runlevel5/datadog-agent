@@ -12,6 +12,8 @@
 // This implementation is based on
 // https://github.com/vitessio/vitess/blob/main/go/vt/servenv/grpc_codec.go
 
+//go:build !serverless
+
 // Package api holds api related files
 package api
 

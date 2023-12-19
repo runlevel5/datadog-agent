@@ -4,6 +4,9 @@
 // Copyright 2016-present Datadog, Inc.
 
 // Package agent holds agent related files
+
+//go:build !serverless
+
 package agent
 
 import (

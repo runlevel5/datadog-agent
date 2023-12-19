@@ -4,6 +4,7 @@
 // - protoc             v3.21.12
 // source: pkg/security/proto/api/api.proto
 
+//go:build !serverless
 package api
 
 import (

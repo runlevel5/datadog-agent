@@ -4,6 +4,7 @@
 // Copyright 2016-present Datadog, Inc.
 
 //go:build tools
+//go:build !serverless
 
 package proto
 
@@ -19,7 +20,8 @@ import (
 	_ "github.com/favadi/protoc-go-inject-tag"
 	_ "github.com/golang/mock/mockgen"
 	_ "github.com/golang/protobuf/protoc-gen-go"
-	_ "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway"
+
+	//_ "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway"
 	_ "github.com/planetscale/vtprotobuf/cmd/protoc-gen-go-vtproto"
 	_ "github.com/tinylib/msgp"
 	_ "google.golang.org/grpc"

@@ -3,18 +3,20 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
+//go:build !serverless
+
 /*
 Package api implements the agent IPC api. Using HTTP
 calls, it's possible to communicate with the agent,
 sending commands and receiving infos.
 */
+
 package api
 
 import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	stdLog "log"
 	"net"
@@ -24,7 +26,8 @@ import (
 
 	"github.com/cihub/seelog"
 	"github.com/gorilla/mux"
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+
+	// grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"google.golang.org/grpc"
 
 	"github.com/DataDog/datadog-agent/cmd/cluster-agent/api/agent"
@@ -107,17 +110,17 @@ func StartServer(senderManager sender.DiagnoseSenderManager) error {
 	// Use a stack depth of 4 on top of the default one to get a relevant filename in the stdlib
 	logWriter, _ := config.NewLogWriter(4, seelog.WarnLvl)
 
-	authInterceptor := grpcutil.AuthInterceptor(func(token string) (interface{}, error) {
-		if token != util.GetDCAAuthToken() {
-			return struct{}{}, errors.New("Invalid session token")
-		}
+	// authInterceptor := grpcutil.AuthInterceptor(func(token string) (interface{}, error) {
+	// 	if token != util.GetDCAAuthToken() {
+	// 		return struct{}{}, errors.New("Invalid session token")
+	// 	}
 
-		return struct{}{}, nil
-	})
+	// 	return struct{}{}, nil
+	// })
 
 	opts := []grpc.ServerOption{
-		grpc.StreamInterceptor(grpc_auth.StreamServerInterceptor(authInterceptor)),
-		grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(authInterceptor)),
+		//grpc.StreamInterceptor(grpc_auth.StreamServerInterceptor(authInterceptor)),
+		//grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(authInterceptor)),
 	}
 
 	grpcSrv := grpc.NewServer(opts...)

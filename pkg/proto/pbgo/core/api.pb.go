@@ -4,6 +4,7 @@
 // 	protoc        v3.21.5
 // source: datadog/api/v1/api.proto
 
+//go:build !serverless
 package core
 
 import (

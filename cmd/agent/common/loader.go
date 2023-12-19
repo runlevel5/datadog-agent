@@ -16,8 +16,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/sbom/scanner"
 	"github.com/DataDog/datadog-agent/pkg/tagger"
-	"github.com/DataDog/datadog-agent/pkg/tagger/local"
-	"github.com/DataDog/datadog-agent/pkg/tagger/remote"
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
@@ -49,20 +47,20 @@ func LoadComponents(ctx context.Context, senderManager sender.SenderManager, con
 
 	var t tagger.Tagger
 
-	if config.IsCLCRunner() {
-		options, err := remote.CLCRunnerOptions()
-		if err != nil {
-			log.Errorf("unable to configure the remote tagger: %s", err)
-			t = local.NewFakeTagger()
-		} else if options.Disabled {
-			log.Info("remote tagger is disabled")
-			t = local.NewFakeTagger()
-		} else {
-			t = remote.NewTagger(options)
-		}
-	} else {
-		t = local.NewTagger(store)
-	}
+	// if config.IsCLCRunner() {
+	// 	options, err := remote.CLCRunnerOptions()
+	// 	if err != nil {
+	// 		log.Errorf("unable to configure the remote tagger: %s", err)
+	// 		t = local.NewFakeTagger()
+	// 	} else if options.Disabled {
+	// 		log.Info("remote tagger is disabled")
+	// 		t = local.NewFakeTagger()
+	// 	} else {
+	// 		t = remote.NewTagger(options)
+	// 	}
+	// } else {
+	// 	t = local.NewTagger(store)
+	// }
 
 	tagger.SetDefaultTagger(t)
 	if err := tagger.Init(ctx); err != nil {

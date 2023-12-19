@@ -4,6 +4,9 @@
 // Copyright 2018-2020 Datadog, Inc.
 
 // Package dogstatsdreplay implements 'agent dogstatsd-replay'.
+
+//go:build !serverless
+
 package dogstatsdreplay
 
 import (
