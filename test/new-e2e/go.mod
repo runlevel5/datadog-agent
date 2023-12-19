@@ -223,19 +223,13 @@ require (
 	sourcegraph.com/sourcegraph/appdash v0.0.0-20211028080628-e2786a622600 // indirect
 )
 
-require github.com/DataDog/datadog-agent/pkg/security/secl v0.49.0
-
 require (
-	github.com/Masterminds/semver/v3 v3.2.1 // indirect
-	github.com/alecthomas/participle v0.7.1 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.5.4 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.2.9 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.10.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.2.9 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.16.9 // indirect
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.47.5 // indirect
-	github.com/hashicorp/golang-lru/v2 v2.0.6 // indirect
 	github.com/pulumi/esc v0.6.0 // indirect
 	github.com/pulumi/pulumi-tls/sdk/v4 v4.11.1 // indirect
-	github.com/skydive-project/go-debouncer v1.0.0 // indirect
 )
