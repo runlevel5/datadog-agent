@@ -6,8 +6,11 @@
 package main
 
 import (
+	"fmt"
 	_ "net/http/pprof"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/DataDog/datadog-agent/cmd/serverless-component/command"
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
@@ -17,6 +20,11 @@ import (
 const defaultLogFile = "/var/log/datadog/logs-agent.log"
 
 func main() {
+	currentTime := time.Now().UnixNano()
+	bootTime := os.Args[1]
+	bootTimeInt64, _ := strconv.ParseInt(bootTime, 10, 64)
+	fmt.Printf("boot in : %d\n", currentTime-bootTimeInt64)
+	os.Exit(0)
 	flavor.SetFlavor(flavor.DefaultAgent)
 
 	if err := command.MakeRootCommand(defaultLogFile).Execute(); err != nil {
