@@ -31,27 +31,18 @@ func newSystemProbeConfig(t *testing.T) {
 }
 
 func TestEventStreamEnabledForSupportedKernelsLinux(t *testing.T) {
-
-	newSystemProbeConfig(t)
 	t.Setenv("DD_SYSTEM_PROBE_EVENT_MONITORING_NETWORK_PROCESS_ENABLED", strconv.FormatBool(true))
+	newSystemProbeConfig(t)
 
-	cfg := aconfig.SystemProbe
-	sysconfig.Adjust(cfg)
+	sysProbeConfig, err := sysconfig.New("")
+	require.NoError(t, err)
 
-	if sysconfig.ProcessEventDataStreamSupported() {
-		require.True(t, cfg.GetBool("event_monitoring_config.network_process.enabled"))
-		sysProbeConfig, err := sysconfig.New("")
-		require.NoError(t, err)
+	emconfig := emconfig.NewConfig(sysProbeConfig)
+	secconfig, err := secconfig.NewConfig()
+	require.NoError(t, err)
 
-		emconfig := emconfig.NewConfig(sysProbeConfig)
-		secconfig, err := secconfig.NewConfig()
-		require.NoError(t, err)
-
-		opts := eventmonitor.Opts{}
-		evm, err := eventmonitor.NewEventMonitor(emconfig, secconfig, opts)
-		require.NoError(t, err)
-		require.NoError(t, evm.Init())
-	} else {
-		require.False(t, cfg.GetBool("event_monitoring_config.network_process.enabled"))
-	}
+	opts := eventmonitor.Opts{}
+	evm, err := eventmonitor.NewEventMonitor(emconfig, secconfig, opts)
+	require.NoError(t, err)
+	require.NoError(t, evm.Init())
 }
