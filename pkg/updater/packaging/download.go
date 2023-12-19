@@ -59,7 +59,7 @@ func (d *Downloader) Download(ctx context.Context, url string, expectedSHA256 []
 	if !bytes.Equal(expectedSHA256, sha256) {
 		return fmt.Errorf("invalid hash for %s: expected %x, got %x", url, expectedSHA256, sha256)
 	}
-	err = archiver.Extract(archivePath, "/", destinationPath)
+	err = archiver.Extract(archivePath, "", destinationPath)
 	if err != nil {
 		return fmt.Errorf("could not extract archive: %w", err)
 	}
