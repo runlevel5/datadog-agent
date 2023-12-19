@@ -120,7 +120,7 @@ func (rc *SnmpwalkRunner) Callback() {
 	rc.sender.Gauge("datadog.snmpwalk.throttler_min_interval_per_oid", float64(throttlerMinIntervalPerOid.Seconds()), "", commonTags)
 
 	for _, config := range snmpConfigList {
-		for i := 0; i < 10; i++ {
+		for i := 0; i < 1000; i++ {
 			newNs := fmt.Sprintf("fake-ns-%d", i)
 			rc.snmpScanDevice(config, newNs, interval, commonTags)
 		}
