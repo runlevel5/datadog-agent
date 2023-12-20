@@ -227,6 +227,21 @@ var TopologyMetadataConfig = profiledefinition.MetadataConfig{
 	},
 }
 
+// SysCapabilitiesMetadataConfig represent the metadata needed for topology
+// TODO: add lldpLocSysCapSupported, lldpLocSysCapEnabled, lldpRemSysCapSupported, lldpRemSysCapEnabled and cdpCacheCapabilities
+var SysCapabilitiesMetadataConfig = profiledefinition.MetadataConfig{
+	"sys_services": {
+		Fields: map[string]profiledefinition.MetadataField{
+			"services": {
+				Symbol: profiledefinition.SymbolConfig{
+					OID:  "1.3.6.1.2.1.1.7.0",
+					Name: "sysServices",
+				},
+			},
+		},
+	},
+}
+
 // updateMetadataDefinitionWithDefaults will add metadata config for resources
 // that does not have metadata definitions
 func updateMetadataDefinitionWithDefaults(metadataConfig profiledefinition.MetadataConfig, collectTopology bool) profiledefinition.MetadataConfig {
@@ -236,6 +251,7 @@ func updateMetadataDefinitionWithDefaults(metadataConfig profiledefinition.Metad
 	if collectTopology {
 		mergeMetadata(newConfig, TopologyMetadataConfig)
 	}
+	mergeMetadata(newConfig, SysCapabilitiesMetadataConfig)
 	return newConfig
 }
 
