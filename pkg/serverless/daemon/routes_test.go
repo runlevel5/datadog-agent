@@ -347,7 +347,7 @@ func BenchmarkStartEndInvocation(b *testing.B) {
 	}
 	endBody := `{"hello":"world"}`
 	for _, file := range payloadFiles {
-		startBody := getEventFromFile(file.Name())
+		startBody := strings.ToLower(getEventFromFile(file.Name()))
 		b.Run("event="+file.Name(), func(b *testing.B) {
 			startReq := httptest.NewRequest("GET", "/lambda/start-invocation", nil)
 			endReq := httptest.NewRequest("GET", "/lambda/end-invocation", nil)

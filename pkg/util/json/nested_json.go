@@ -6,11 +6,21 @@
 // Package json implements helper functions to interact with json
 package json
 
+import "strings"
+
 // GetNestedValue returns the value in the map specified by the array keys,
 // where each value is another depth level in the map.
 // Returns nil if the map doesn't contain the nested key.
 func GetNestedValue(inputMap map[string]interface{}, keys ...string) interface{} {
-	val, exists := inputMap[keys[0]]
+	var val interface{}
+	var exists bool
+	for k, v := range inputMap {
+		if strings.ToLower(k) == keys[0] {
+			val = v
+			exists = true
+			break
+		}
+	}
 	if !exists {
 		return nil
 	}
