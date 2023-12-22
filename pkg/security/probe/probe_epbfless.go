@@ -112,8 +112,8 @@ func (p *EBPFLessProbe) handleClientMsg(msg *clientMsg) {
 	event.ContainerContext.ID = syscallMsg.ContainerContext.ID
 	event.ContainerContext.CreatedAt = syscallMsg.ContainerContext.CreatedAt
 	event.ContainerContext.Tags = []string{
-		"image_name:" + syscallMsg.ContainerContext.Name,
-		"image_tag:" + syscallMsg.ContainerContext.Tag,
+		"image_name:" + syscallMsg.ContainerContext.ImageShortName,
+		"image_tag:" + syscallMsg.ContainerContext.ImageTag,
 	}
 
 	// use ProcessCacheEntry process context as process context

@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -273,11 +274,13 @@ func handleSetregid(tracer *Tracer, _ *Process, msg *ebpfless.SyscallMsg, regs s
 	return nil
 }
 
-// ECSMetadata defines ECS metadatas
+// ECSMetadata defines ECS metadata
+// https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-metadata-endpoint-v4.html
 type ECSMetadata struct {
 	DockerID   string `json:"DockerId"`
 	DockerName string `json:"DockerName"`
 	Name       string `json:"Name"`
+	Image      string `json:"Image"`
 }
 
 // simpleHTTPRequest used to avoid importing the crypto golang package
@@ -360,6 +363,23 @@ func retrieveECSMetadata(ctx *ebpfless.ContainerContext) error {
 	}
 	if data.DockerName != "" {
 		ctx.Name = data.DockerName
+	}
+	if data.Image != "" {
+		image := data.Image
+		lastSlash := strings.LastIndex(image, "/")
+		lastColon := strings.LastIndex(image, ":")
+		if lastColon > -1 && lastColon > lastSlash {
+			ctx.ImageTag = image[lastColon+1:]
+			image = image[:lastColon]
+		}
+		if lastSlash > -1 {
+			ctx.ImageShortName = image[lastSlash+1:]
+		} else {
+			ctx.ImageShortName = image
+		}
+		if ctx.ImageShortName != "" && ctx.ImageTag == "" {
+			ctx.ImageTag = "latest"
+		}
 	}
 
 	return nil
