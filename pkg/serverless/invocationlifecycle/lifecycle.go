@@ -6,8 +6,8 @@
 package invocationlifecycle
 
 import (
-	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -82,12 +82,15 @@ func (r *RequestHandler) SetSamplingPriority(priority sampler.SamplingPriority) 
 func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails) {
 	log.Debug("[lifecycle] onInvokeStart ------")
 	log.Debugf("[lifecycle] Invocation has started at: %v", startDetails.StartTime)
-	log.Debugf("[lifecycle] Invocation invokeEvent payload is: %s", startDetails.InvokeEventRawPayload)
+	log.DebugFunc(func() string {
+		return fmt.Sprintf("[lifecycle] Invocation invokeEvent payload is: %s", startDetails.InvokeEventRawPayload)
+	})
 	log.Debug("[lifecycle] ---------------------------------------")
 
 	payloadBytes := ParseLambdaPayload(startDetails.InvokeEventRawPayload)
-	// TODO: avoid the unnecessary copy of payloadBytes when the logger isn't in debug level thanks to a []byte stringer
-	log.Debugf("Parsed payload string: %s", string(payloadBytes))
+	log.DebugFunc(func() string {
+		return fmt.Sprintf("Parsed payload string: %s", string(payloadBytes))
+	})
 
 	lowercaseEventPayload, err := trigger.Unmarshal(bytes.ToLower(payloadBytes))
 	if err != nil {
