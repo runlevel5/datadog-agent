@@ -274,8 +274,10 @@ func eventRecordsKeyExists(event map[string]any, key string) bool {
 		return false
 	}
 	if len(records) > 0 {
-		if records[0].(map[string]any)[key] != nil {
-			return true
+		for k, v := range records[0].(map[string]any) {
+			if strings.ToLower(k) == key && v != nil {
+				return true
+			}
 		}
 	}
 	return false
@@ -287,8 +289,10 @@ func eventRecordsKeyEquals(event map[string]any, key string, val string) bool {
 		return false
 	}
 	if len(records) > 0 {
-		if mapVal := records[0].(map[string]any)[key]; mapVal != nil {
-			return mapVal == val
+		for k, v := range records[0].(map[string]any) {
+			if strings.ToLower(k) == key {
+				return v == val
+			}
 		}
 	}
 	return false
