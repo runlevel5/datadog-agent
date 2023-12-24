@@ -6,7 +6,6 @@
 package invocationlifecycle
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -23,6 +22,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/trace/api"
 	"github.com/DataDog/datadog-agent/pkg/trace/sampler"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+
+	json "github.com/json-iterator/go" // -21.52%, +0.82%, +8.63%
 )
 
 // LifecycleProcessor is a InvocationProcessor implementation

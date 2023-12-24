@@ -7,10 +7,10 @@
 package trigger
 
 import (
-	jsonEncoder "encoding/json"
 	"strings"
 
 	"github.com/DataDog/datadog-agent/pkg/util/json"
+	jsonEncoder "github.com/json-iterator/go" // -21.52%, +0.82%, +8.63%
 )
 
 // AWSEventType corresponds to the various event triggers

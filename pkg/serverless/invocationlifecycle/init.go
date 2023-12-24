@@ -6,7 +6,6 @@
 package invocationlifecycle
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -16,6 +15,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/serverless/trigger"
 	"github.com/DataDog/datadog-agent/pkg/serverless/trigger/events"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+
+	json "github.com/json-iterator/go"
 )
 
 const (

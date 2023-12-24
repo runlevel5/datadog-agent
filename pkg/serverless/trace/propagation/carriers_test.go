@@ -141,7 +141,7 @@ func TestSnsSqsMessageCarrier(t *testing.T) {
 				Body: "",
 			},
 			expMap: nil,
-			expErr: errors.New("Error unmarshaling message body: unexpected end of JSON input"),
+			expErr: errors.New("Error unmarshaling message body: readObjectStart: expect { or n, but found \x00, error found in #0 byte of ...||..., bigger context ...||..."),
 		},
 		{
 			name: "empty-map-body",
@@ -169,7 +169,7 @@ func TestSnsSqsMessageCarrier(t *testing.T) {
 				}`,
 			},
 			expMap: nil,
-			expErr: errors.New("Error unmarshaling message body: json: cannot unmarshal string into Go struct field snsBody.MessageAttributes of type map[string]interface {}"),
+			expErr: errors.New("Error unmarshaling message body: propagation.snsBody.MessageAttributes: ReadMapCB: expect { or n, but found \", error found in #10 byte of ...|ibutes\": \"attrs\"\n\t\t\t|..., bigger context ...|{\n\t\t\t\t\t\"MessageAttributes\": \"attrs\"\n\t\t\t\t}|..."),
 		},
 		{
 			name: "non-binary-type",
@@ -214,7 +214,7 @@ func TestSnsSqsMessageCarrier(t *testing.T) {
 				}`,
 			},
 			expMap: nil,
-			expErr: errors.New("Error unmarshaling the decoded binary: unexpected end of JSON input"),
+			expErr: errors.New("Error unmarshaling the decoded binary: ReadMapCB: expect { or n, but found \x00, error found in #0 byte of ...||..., bigger context ...||..."),
 		},
 		{
 			name:   "empty-map-encoded",
@@ -329,7 +329,7 @@ func TestSnsEntityCarrier(t *testing.T) {
 				},
 			},
 			expMap: nil,
-			expErr: errors.New("Error unmarshaling the decoded binary: unexpected end of JSON input"),
+			expErr: errors.New("Error unmarshaling the decoded binary: ReadMapCB: expect { or n, but found \x00, error found in #0 byte of ...||..., bigger context ...||..."),
 		},
 		{
 			name: "binary-type",

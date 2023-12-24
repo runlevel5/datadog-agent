@@ -8,7 +8,6 @@
 package appsec
 
 import (
-	"encoding/json"
 	"math/rand"
 	"time"
 
@@ -19,6 +18,7 @@ import (
 	waf "github.com/DataDog/go-libddwaf/v2"
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	json "github.com/json-iterator/go"
 )
 
 //nolint:revive // TODO(ASM) Fix revive linter

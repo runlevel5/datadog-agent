@@ -8,7 +8,6 @@
 package httpsec
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -16,6 +15,8 @@ import (
 
 	"github.com/DataDog/appsec-internal-go/httpsec"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+
+	json "github.com/json-iterator/go"
 )
 
 // envClientIPHeader is the name of the env var used to specify the IP header to be used for client IP collection.

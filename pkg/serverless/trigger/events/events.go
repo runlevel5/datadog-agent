@@ -14,8 +14,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/base64"
-	"encoding/json"
 	"time"
+
+	json "github.com/json-iterator/go"
 
 	"github.com/aws/aws-lambda-go/events"
 )
