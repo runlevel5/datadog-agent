@@ -91,12 +91,7 @@ func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails
 	payloadBytes := ParseLambdaPayload(startDetails.InvokeEventRawPayload)
 	log.DebugFunc(func() string { return fmt.Sprintf("Parsed payload string: %s", string(payloadBytes)) })
 
-	eventPayload, err := trigger.Unmarshal(payloadBytes)
-	if err != nil {
-		log.DebugFunc(func() string { return fmt.Sprintf("[lifecycle] Failed to parse event payload: %v", err) })
-	}
-
-	eventType := trigger.GetEventType(eventPayload)
+	eventType := trigger.GetEventType(payloadBytes)
 	if eventType == trigger.Unknown {
 		log.DebugFunc(func() string { return "[lifecycle] Failed to extract event type" })
 	}
@@ -106,7 +101,7 @@ func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails
 
 	region, account, resource, arnParseErr := trigger.ParseArn(startDetails.InvokedFunctionARN)
 	if arnParseErr != nil {
-		log.DebugFunc(func() string { return fmt.Sprintf("[lifecycle] Error parsing ARN: %v", err) })
+		log.DebugFunc(func() string { return fmt.Sprintf("[lifecycle] Error parsing ARN: %v", arnParseErr) })
 	}
 
 	var ev interface{}

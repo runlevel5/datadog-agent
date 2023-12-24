@@ -6,8 +6,6 @@
 package trigger
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -20,36 +18,38 @@ import (
 
 func TestEventPayloadParsing(t *testing.T) {
 	testDir := "./testData"
-	testCases := map[string]eventParseFunc{
-		"api-gateway-authorizer-request.json": isAPIGatewayLambdaAuthorizerRequestParametersEvent,
-		"api-gateway-authorizer-token.json":   isAPIGatewayLambdaAuthorizerTokenEvent,
-		"api-gateway-v1.json":                 isAPIGatewayEvent,
-		"api-gateway-v2.json":                 isAPIGatewayV2Event,
-		"api-gateway-kong.json":               isKongAPIGatewayEvent,
-		"application-load-balancer.json":      isALBEvent,
-		"cloudwatch-events.json":              isCloudwatchEvent,
-		"cloudwatch-logs.json":                isCloudwatchLogsEvent,
-		"cloudfront.json":                     isCloudFrontRequestEvent,
-		"dynamodb.json":                       isDynamoDBStreamEvent,
-		"eventbridge-custom.json":             isEventBridgeEvent,
-		"kinesis.json":                        isKinesisStreamEvent,
-		"s3.json":                             isS3Event,
-		"sns.json":                            isSNSEvent,
-		"sqs.json":                            isSQSEvent,
-		"lambdaurl.json":                      isLambdaFunctionURLEvent,
+	testCases := []struct {
+		testFile string
+		testFunc eventParseFunc
+	}{
+		{testFile: "api-gateway-authorizer-request.json", testFunc: isAPIGatewayLambdaAuthorizerRequestParametersEvent},
+		{testFile: "api-gateway-authorizer-token.json", testFunc: isAPIGatewayLambdaAuthorizerTokenEvent},
+		{testFile: "api-gateway-v1.json", testFunc: isAPIGatewayEvent},
+		{testFile: "api-gateway-v2.json", testFunc: isAPIGatewayV2Event},
+		{testFile: "api-gateway-kong.json", testFunc: isKongAPIGatewayEvent},
+		{testFile: "application-load-balancer.json", testFunc: isALBEvent},
+		{testFile: "cloudwatch-events.json", testFunc: isCloudwatchEvent},
+		{testFile: "cloudwatch-logs.json", testFunc: isCloudwatchLogsEvent},
+		{testFile: "cloudfront.json", testFunc: isCloudFrontRequestEvent},
+		{testFile: "dynamodb.json", testFunc: isDynamoDBStreamEvent},
+		{testFile: "eventbridge-custom.json", testFunc: isEventBridgeEvent},
+		{testFile: "kinesis.json", testFunc: isKinesisStreamEvent},
+		{testFile: "s3.json", testFunc: isS3Event},
+		{testFile: "sns.json", testFunc: isSNSEvent},
+		{testFile: "sqs.json", testFunc: isSQSEvent},
+		{testFile: "lambdaurl.json", testFunc: isLambdaFunctionURLEvent},
 	}
-	for testFile, testFunc := range testCases {
-		file, err := os.Open(fmt.Sprintf("%v/%v", testDir, testFile))
-		assert.NoError(t, err)
+	for _, tc := range testCases {
+		t.Run(tc.testFile, func(t *testing.T) {
+			file, err := os.Open(fmt.Sprintf("%v/%v", testDir, tc.testFile))
+			assert.NoError(t, err)
 
-		jsonData, err := io.ReadAll(file)
-		assert.NoError(t, err)
+			event, err := io.ReadAll(file)
+			fmt.Printf("string(event): %#v\n", string(event))
+			assert.NoError(t, err)
 
-		event, err := Unmarshal(bytes.ToLower(jsonData))
-		assert.NoError(t, err)
-
-		funcName := runtime.FuncForPC(reflect.ValueOf(testFunc).Pointer()).Name()
-		assert.True(t, testFunc(event), fmt.Sprintf("Test: %v, %v", testFile, funcName))
+			assert.True(t, tc.testFunc(event))
+		})
 	}
 }
 
@@ -84,10 +84,7 @@ func TestEventPayloadParsingWrong(t *testing.T) {
 			file, err := os.Open(fmt.Sprintf("%v/%v", testDir, wrongTestFile.Name()))
 			assert.NoError(t, err)
 
-			jsonData, err := io.ReadAll(file)
-			assert.NoError(t, err)
-
-			event, err := Unmarshal(bytes.ToLower(jsonData))
+			event, err := io.ReadAll(file)
 			assert.NoError(t, err)
 
 			funcName := runtime.FuncForPC(reflect.ValueOf(testFunc).Pointer()).Name()
@@ -122,13 +119,10 @@ func TestGetEventType(t *testing.T) {
 			file, err := os.Open(fmt.Sprintf("%v/%v", testDir, testFile))
 			assert.NoError(t, err)
 
-			jsonData, err := io.ReadAll(file)
+			event, err := io.ReadAll(file)
 			assert.NoError(t, err)
 
-			jsonPayload, err := Unmarshal(bytes.ToLower(jsonData))
-			assert.NoError(t, err)
-
-			parsedEventType := GetEventType(jsonPayload)
+			parsedEventType := GetEventType(event)
 
 			assert.Equal(t, expectedEventType, parsedEventType)
 
@@ -148,31 +142,26 @@ func TestGetEventTypeCaching(t *testing.T) {
 		t.Fatal(err)
 	}
 	type testcase struct {
-		name    string
-		payload map[string]any
-		result  AWSEventType
+		name   string
+		event  []byte
+		result AWSEventType
 	}
 	testcases := make([]testcase, 0, len(payloadFiles))
 	for _, file := range payloadFiles {
-		raw, err := os.ReadFile("../trace/testdata/event_samples/" + file.Name())
+		event, err := os.ReadFile("../trace/testdata/event_samples/" + file.Name())
 		if err != nil {
 			t.Fatal(err)
 		}
-		var payload map[string]any
-		err = json.Unmarshal(bytes.ToLower(raw), &payload)
-		if err != nil {
-			t.Fatal(err)
-		}
-		result := GetEventType(payload)
-		testcases = append(testcases, testcase{file.Name(), payload, result})
+		result := GetEventType(event)
+		testcases = append(testcases, testcase{file.Name(), event, result})
 	}
 
 	for _, test1 := range testcases {
 		for _, test2 := range testcases {
 			t.Run(test1.name+"/"+test2.name, func(t *testing.T) {
 				lastEventChecker = unknownChecker
-				assert.Equal(t, test1.result, GetEventType(test1.payload))
-				assert.Equal(t, test2.result, GetEventType(test2.payload))
+				assert.Equal(t, test1.result, GetEventType(test1.event))
+				assert.Equal(t, test2.result, GetEventType(test2.event))
 			})
 		}
 	}

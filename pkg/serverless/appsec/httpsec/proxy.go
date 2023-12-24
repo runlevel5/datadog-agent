@@ -6,8 +6,6 @@
 package httpsec
 
 import (
-	"bytes"
-
 	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
 	"github.com/DataDog/datadog-agent/pkg/serverless/appsec/config"
 	"github.com/DataDog/datadog-agent/pkg/serverless/invocationlifecycle"
@@ -53,12 +51,7 @@ func (lp *ProxyLifecycleProcessor) OnInvokeStart(startDetails *invocationlifecyc
 	payloadBytes := invocationlifecycle.ParseLambdaPayload(startDetails.InvokeEventRawPayload)
 	log.Debugf("Parsed payload string: %s", bytesStringer(payloadBytes))
 
-	lowercaseEventPayload, err := trigger.Unmarshal(bytes.ToLower(payloadBytes))
-	if err != nil {
-		log.Debugf("appsec: proxy-lifecycle: Failed to parse event payload: %v", err)
-	}
-
-	eventType := trigger.GetEventType(lowercaseEventPayload)
+	eventType := trigger.GetEventType(payloadBytes)
 	if eventType == trigger.Unknown {
 		log.Debugf("appsec: proxy-lifecycle: Failed to extract event type")
 	}
