@@ -92,12 +92,12 @@ func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails
 		return fmt.Sprintf("Parsed payload string: %s", string(payloadBytes))
 	})
 
-	lowercaseEventPayload, err := trigger.Unmarshal(payloadBytes)
+	eventPayload, err := trigger.Unmarshal(payloadBytes)
 	if err != nil {
 		log.Debugf("[lifecycle] Failed to parse event payload: %v", err)
 	}
 
-	eventType := trigger.GetEventType(lowercaseEventPayload)
+	eventType := trigger.GetEventType(eventPayload)
 	if eventType == trigger.Unknown {
 		log.Debugf("[lifecycle] Failed to extract event type")
 	}
