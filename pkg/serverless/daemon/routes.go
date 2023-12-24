@@ -25,7 +25,7 @@ type Hello struct {
 
 //nolint:revive // TODO(SERV) Fix revive linter
 func (h *Hello) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Debug("Hit on the serverless.Hello route.")
+	log.DebugFunc(func() string { return "Hit on the serverless.Hello route." })
 	h.daemon.LambdaLibraryDetected = true
 }
 
@@ -37,7 +37,7 @@ type Flush struct {
 
 //nolint:revive // TODO(SERV) Fix revive linter
 func (f *Flush) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Debug("Hit on the serverless.Flush route.")
+	log.DebugFunc(func() string { return "Hit on the serverless.Flush route." })
 	if os.Getenv(LocalTestEnvVar) == "true" || os.Getenv(LocalTestEnvVar) == "1" {
 		// used only for testing purpose as the Logs API is not supported by the Lambda Emulator
 		// thus we canot get the REPORT log line telling that the invocation is finished
@@ -52,7 +52,7 @@ type StartInvocation struct {
 }
 
 func (s *StartInvocation) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Debug("Hit on the serverless.StartInvocation route.")
+	log.DebugFunc(func() string { return "Hit on the serverless.StartInvocation route." })
 	startTime := time.Now()
 	reqBody, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -70,9 +70,11 @@ func (s *StartInvocation) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.daemon.InvocationProcessor.OnInvokeStart(startDetails)
 
 	if s.daemon.InvocationProcessor.GetExecutionInfo().TraceID == 0 {
-		log.Debug("no context has been found, the tracer will be responsible for initializing the context")
+		log.DebugFunc(func() string {
+			return "no context has been found, the tracer will be responsible for initializing the context"
+		})
 	} else {
-		log.Debug("a context has been found, sending the context to the tracer")
+		log.DebugFunc(func() string { return "a context has been found, sending the context to the tracer" })
 		w.Header().Set(invocationlifecycle.TraceIDHeader, fmt.Sprintf("%v", s.daemon.InvocationProcessor.GetExecutionInfo().TraceID))
 		w.Header().Set(invocationlifecycle.SamplingPriorityHeader, fmt.Sprintf("%v", s.daemon.InvocationProcessor.GetExecutionInfo().SamplingPriority))
 	}
@@ -85,7 +87,7 @@ type EndInvocation struct {
 }
 
 func (e *EndInvocation) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Debug("Hit on the serverless.EndInvocation route.")
+	log.DebugFunc(func() string { return "Hit on the serverless.EndInvocation route." })
 	endTime := time.Now()
 	ecs := e.daemon.ExecutionContext.GetCurrentState()
 	coldStartTags := e.daemon.ExecutionContext.GetColdStartTagsForRequestID(ecs.LastRequestID)
@@ -100,7 +102,7 @@ func (e *EndInvocation) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	errorType := r.Header.Get(invocationlifecycle.InvocationErrorTypeHeader)
 	errorStack := r.Header.Get(invocationlifecycle.InvocationErrorStackHeader)
 	if decodedStack, err := base64.StdEncoding.DecodeString(errorStack); err != nil {
-		log.Debug("Could not decode error stack header")
+		log.DebugFunc(func() string { return "Could not decode error stack header" })
 	} else {
 		errorStack = string(decodedStack)
 	}
@@ -121,7 +123,7 @@ func (e *EndInvocation) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	executionContext := e.daemon.InvocationProcessor.GetExecutionInfo()
 	if executionContext.TraceID == 0 {
-		log.Debug("no context has been found yet, injecting it now via headers from the tracer")
+		log.DebugFunc(func() string { return "no context has been found yet, injecting it now via headers from the tracer" })
 		invocationlifecycle.InjectContext(executionContext, r.Header)
 	}
 	invocationlifecycle.InjectSpanID(executionContext, r.Header)
@@ -136,7 +138,7 @@ type TraceContext struct {
 //nolint:revive // TODO(SERV) Fix revive linter
 func (tc *TraceContext) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	executionInfo := tc.daemon.InvocationProcessor.GetExecutionInfo()
-	log.Debug("Hit on the serverless.TraceContext route.")
+	log.DebugFunc(func() string { return "Hit on the serverless.TraceContext route." })
 	w.Header().Set(invocationlifecycle.TraceIDHeader, fmt.Sprintf("%v", executionInfo.TraceID))
 	w.Header().Set(invocationlifecycle.SpanIDHeader, fmt.Sprintf("%v", executionInfo.SpanID))
 	w.Header().Set(invocationlifecycle.SamplingPriorityHeader, fmt.Sprintf("%v", executionInfo.SamplingPriority))

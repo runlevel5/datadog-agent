@@ -80,26 +80,24 @@ func (r *RequestHandler) SetSamplingPriority(priority sampler.SamplingPriority) 
 
 // OnInvokeStart is the hook triggered when an invocation has started
 func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails) {
-	log.Debug("[lifecycle] onInvokeStart ------")
-	log.Debugf("[lifecycle] Invocation has started at: %v", startDetails.StartTime)
+	log.DebugFunc(func() string { return "[lifecycle] onInvokeStart ------" })
+	log.DebugFunc(func() string { return fmt.Sprintf("[lifecycle] Invocation has started at: %v", startDetails.StartTime) })
 	log.DebugFunc(func() string {
 		return fmt.Sprintf("[lifecycle] Invocation invokeEvent payload is: %s", startDetails.InvokeEventRawPayload)
 	})
-	log.Debug("[lifecycle] ---------------------------------------")
+	log.DebugFunc(func() string { return "[lifecycle] ---------------------------------------" })
 
 	payloadBytes := ParseLambdaPayload(startDetails.InvokeEventRawPayload)
-	log.DebugFunc(func() string {
-		return fmt.Sprintf("Parsed payload string: %s", string(payloadBytes))
-	})
+	log.DebugFunc(func() string { return fmt.Sprintf("Parsed payload string: %s", string(payloadBytes)) })
 
 	eventPayload, err := trigger.Unmarshal(payloadBytes)
 	if err != nil {
-		log.Debugf("[lifecycle] Failed to parse event payload: %v", err)
+		log.DebugFunc(func() string { return fmt.Sprintf("[lifecycle] Failed to parse event payload: %v", err) })
 	}
 
 	eventType := trigger.GetEventType(eventPayload)
 	if eventType == trigger.Unknown {
-		log.Debugf("[lifecycle] Failed to extract event type")
+		log.DebugFunc(func() string { return "[lifecycle] Failed to extract event type" })
 	}
 
 	// Initialize basic values in the request handler
@@ -107,7 +105,7 @@ func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails
 
 	region, account, resource, arnParseErr := trigger.ParseArn(startDetails.InvokedFunctionARN)
 	if arnParseErr != nil {
-		log.Debugf("[lifecycle] Error parsing ARN: %v", err)
+		log.DebugFunc(func() string { return fmt.Sprintf("[lifecycle] Error parsing ARN: %v", err) })
 	}
 
 	var ev interface{}
@@ -115,7 +113,7 @@ func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails
 	case trigger.APIGatewayEvent:
 		var event events.APIGatewayProxyRequest
 		if err := json.Unmarshal(payloadBytes, &event); err != nil {
-			log.Debugf("Failed to unmarshal %s event: %s", apiGateway, err)
+			log.DebugFunc(func() string { return fmt.Sprintf("Failed to unmarshal %s event: %s", apiGateway, err) })
 			break
 		}
 		ev = event
@@ -123,7 +121,7 @@ func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails
 	case trigger.APIGatewayV2Event:
 		var event events.APIGatewayV2HTTPRequest
 		if err := json.Unmarshal(payloadBytes, &event); err != nil {
-			log.Debugf("Failed to unmarshal %s event: %s", apiGateway, err)
+			log.DebugFunc(func() string { return fmt.Sprintf("Failed to unmarshal %s event: %s", apiGateway, err) })
 			break
 		}
 		ev = event
@@ -131,7 +129,7 @@ func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails
 	case trigger.APIGatewayWebsocketEvent:
 		var event events.APIGatewayWebsocketProxyRequest
 		if err := json.Unmarshal(payloadBytes, &event); err != nil {
-			log.Debugf("Failed to unmarshal %s event: %s", apiGateway, err)
+			log.DebugFunc(func() string { return fmt.Sprintf("Failed to unmarshal %s event: %s", apiGateway, err) })
 			break
 		}
 		ev = event
@@ -139,7 +137,7 @@ func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails
 	case trigger.APIGatewayLambdaAuthorizerTokenEvent:
 		var event events.APIGatewayCustomAuthorizerRequest
 		if err := json.Unmarshal(payloadBytes, &event); err != nil {
-			log.Debugf("Failed to unmarshal %s event: %s", apiGateway, err)
+			log.DebugFunc(func() string { return fmt.Sprintf("Failed to unmarshal %s event: %s", apiGateway, err) })
 			break
 		}
 		ev = event
@@ -147,7 +145,7 @@ func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails
 	case trigger.APIGatewayLambdaAuthorizerRequestParametersEvent:
 		var event events.APIGatewayCustomAuthorizerRequestTypeRequest
 		if err := json.Unmarshal(payloadBytes, &event); err != nil {
-			log.Debugf("Failed to unmarshal %s event: %s", apiGateway, err)
+			log.DebugFunc(func() string { return fmt.Sprintf("Failed to unmarshal %s event: %s", apiGateway, err) })
 			break
 		}
 		ev = event
@@ -155,7 +153,7 @@ func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails
 	case trigger.ALBEvent:
 		var event events.ALBTargetGroupRequest
 		if err := json.Unmarshal(payloadBytes, &event); err != nil {
-			log.Debugf("Failed to unmarshal %s event: %s", applicationLoadBalancer, err)
+			log.DebugFunc(func() string { return fmt.Sprintf("Failed to unmarshal %s event: %s", applicationLoadBalancer, err) })
 			break
 		}
 		ev = event
@@ -163,7 +161,7 @@ func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails
 	case trigger.CloudWatchEvent:
 		var event events.CloudWatchEvent
 		if err := json.Unmarshal(payloadBytes, &event); err != nil {
-			log.Debugf("Failed to unmarshal %s event: %s", cloudwatchEvents, err)
+			log.DebugFunc(func() string { return fmt.Sprintf("Failed to unmarshal %s event: %s", cloudwatchEvents, err) })
 			break
 		}
 		ev = event
@@ -171,7 +169,7 @@ func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails
 	case trigger.CloudWatchLogsEvent:
 		var event events.CloudwatchLogsEvent
 		if err := json.Unmarshal(payloadBytes, &event); err != nil && arnParseErr != nil {
-			log.Debugf("Failed to unmarshal %s event: %s", cloudwatchLogs, err)
+			log.DebugFunc(func() string { return fmt.Sprintf("Failed to unmarshal %s event: %s", cloudwatchLogs, err) })
 			break
 		}
 		ev = event
@@ -179,7 +177,7 @@ func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails
 	case trigger.DynamoDBStreamEvent:
 		var event events.DynamoDBEvent
 		if err := json.Unmarshal(payloadBytes, &event); err != nil {
-			log.Debugf("Failed to unmarshal %s event: %s", dynamoDB, err)
+			log.DebugFunc(func() string { return fmt.Sprintf("Failed to unmarshal %s event: %s", dynamoDB, err) })
 			break
 		}
 		ev = event
@@ -187,7 +185,7 @@ func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails
 	case trigger.KinesisStreamEvent:
 		var event events.KinesisEvent
 		if err := json.Unmarshal(payloadBytes, &event); err != nil {
-			log.Debugf("Failed to unmarshal %s event: %s", kinesis, err)
+			log.DebugFunc(func() string { return fmt.Sprintf("Failed to unmarshal %s event: %s", kinesis, err) })
 			break
 		}
 		ev = event
@@ -195,7 +193,7 @@ func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails
 	case trigger.EventBridgeEvent:
 		var event events.EventBridgeEvent
 		if err := json.Unmarshal(payloadBytes, &event); err != nil {
-			log.Debugf("Failed to unmarshal %s event: %s", eventBridge, err)
+			log.DebugFunc(func() string { return fmt.Sprintf("Failed to unmarshal %s event: %s", eventBridge, err) })
 			break
 		}
 		ev = event
@@ -203,7 +201,7 @@ func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails
 	case trigger.S3Event:
 		var event events.S3Event
 		if err := json.Unmarshal(payloadBytes, &event); err != nil {
-			log.Debugf("Failed to unmarshal %s event: %s", s3, err)
+			log.DebugFunc(func() string { return fmt.Sprintf("Failed to unmarshal %s event: %s", s3, err) })
 			break
 		}
 		ev = event
@@ -211,7 +209,7 @@ func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails
 	case trigger.SNSEvent:
 		var event events.SNSEvent
 		if err := json.Unmarshal(payloadBytes, &event); err != nil {
-			log.Debugf("Failed to unmarshal %s event: %s", sns, err)
+			log.DebugFunc(func() string { return fmt.Sprintf("Failed to unmarshal %s event: %s", sns, err) })
 			break
 		}
 		ev = event
@@ -219,7 +217,7 @@ func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails
 	case trigger.SQSEvent:
 		var event events.SQSEvent
 		if err := json.Unmarshal(payloadBytes, &event); err != nil {
-			log.Debugf("Failed to unmarshal %s event: %s", sqs, err)
+			log.DebugFunc(func() string { return fmt.Sprintf("Failed to unmarshal %s event: %s", sqs, err) })
 			break
 		}
 		ev = event
@@ -227,13 +225,15 @@ func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails
 	case trigger.LambdaFunctionURLEvent:
 		var event events.LambdaFunctionURLRequest
 		if err := json.Unmarshal(payloadBytes, &event); err != nil && arnParseErr != nil {
-			log.Debugf("Failed to unmarshal %s event: %s", functionURL, err)
+			log.DebugFunc(func() string { return fmt.Sprintf("Failed to unmarshal %s event: %s", functionURL, err) })
 			break
 		}
 		ev = event
 		lp.initFromLambdaFunctionURLEvent(event, region, account, resource)
 	default:
-		log.Debug("Skipping adding trigger types and inferred spans as a non-supported payload was received.")
+		log.DebugFunc(func() string {
+			return "Skipping adding trigger types and inferred spans as a non-supported payload was received."
+		})
 	}
 
 	if lp.SubProcessor != nil {
@@ -247,19 +247,21 @@ func (lp *LifecycleProcessor) OnInvokeStart(startDetails *InvocationStartDetails
 
 // OnInvokeEnd is the hook triggered when an invocation has ended
 func (lp *LifecycleProcessor) OnInvokeEnd(endDetails *InvocationEndDetails) {
-	log.Debug("[lifecycle] onInvokeEnd ------")
-	log.Debugf("[lifecycle] Invocation has finished at: %v", endDetails.EndTime)
-	log.Debugf("[lifecycle] Invocation isError is: %v", endDetails.IsError)
-	log.Debug("[lifecycle] ---------------------------------------")
+	log.DebugFunc(func() string { return "[lifecycle] onInvokeEnd ------" })
+	log.DebugFunc(func() string { return fmt.Sprintf("[lifecycle] Invocation has finished at: %v", endDetails.EndTime) })
+	log.DebugFunc(func() string { return fmt.Sprintf("[lifecycle] Invocation isError is: %v", endDetails.IsError) })
+	log.DebugFunc(func() string { return "[lifecycle] ---------------------------------------" })
 
 	endDetails.ResponseRawPayload = ParseLambdaPayload(endDetails.ResponseRawPayload)
 
 	// Add the status code if it comes from an HTTP-like response struct
 	statusCode, err := trigger.GetStatusCodeFromHTTPResponse(endDetails.ResponseRawPayload)
 	if err != nil {
-		log.Debugf("[lifecycle] Couldn't parse the response payload status code: %v", err)
+		log.DebugFunc(func() string {
+			return fmt.Sprintf("[lifecycle] Couldn't parse the response payload status code: %v", err)
+		})
 	} else if statusCode == "" {
-		log.Debug("[lifecycle] No http status code found in the response payload")
+		log.DebugFunc(func() string { return "[lifecycle] No http status code found in the response payload" })
 	} else {
 		lp.addTag("http.status_code", statusCode)
 	}
@@ -269,7 +271,7 @@ func (lp *LifecycleProcessor) OnInvokeEnd(endDetails *InvocationEndDetails) {
 	}
 
 	if !lp.DetectLambdaLibrary() {
-		log.Debug("Creating and sending function execution span for invocation")
+		log.DebugFunc(func() string { return "Creating and sending function execution span for invocation" })
 
 		if len(statusCode) == 3 && strings.HasPrefix(statusCode, "5") {
 			serverlessMetrics.SendErrorsEnhancedMetric(
@@ -283,26 +285,32 @@ func (lp *LifecycleProcessor) OnInvokeEnd(endDetails *InvocationEndDetails) {
 		spans = append(spans, span)
 
 		if lp.InferredSpansEnabled {
-			log.Debug("[lifecycle] Attempting to complete the inferred span")
-			log.Debugf("[lifecycle] Inferred span context: %+v", lp.GetInferredSpan().Span)
+			log.DebugFunc(func() string { return "[lifecycle] Attempting to complete the inferred span" })
+			log.DebugFunc(func() string { return fmt.Sprintf("[lifecycle] Inferred span context: %+v", lp.GetInferredSpan().Span) })
 			if lp.GetInferredSpan().Span.Start != 0 {
 				span0, span1 := lp.requestHandler.inferredSpans[0], lp.requestHandler.inferredSpans[1]
 				if span1 != nil {
-					log.Debug("[lifecycle] Completing a secondary inferred span")
+					log.DebugFunc(func() string { return "[lifecycle] Completing a secondary inferred span" })
 					lp.setParentIDForMultipleInferredSpans()
 					span1.AddTagToInferredSpan("http.status_code", statusCode)
 					span1.AddTagToInferredSpan("peer.service", lp.GetServiceName())
 					span := lp.completeInferredSpan(span1, lp.getInferredSpanStart(), endDetails.IsError)
 					spans = append(spans, span)
-					log.Debug("[lifecycle] The secondary inferred span attributes are %v", lp.requestHandler.inferredSpans[1])
+					log.DebugFunc(func() string {
+						return fmt.Sprintf("[lifecycle] The secondary inferred span attributes are %v", lp.requestHandler.inferredSpans[1])
+					})
 				}
 				span0.AddTagToInferredSpan("http.status_code", statusCode)
 				span0.AddTagToInferredSpan("peer.service", lp.GetServiceName())
 				span := lp.completeInferredSpan(span0, endDetails.EndTime, endDetails.IsError)
 				spans = append(spans, span)
-				log.Debugf("[lifecycle] The inferred span attributes are: %v", lp.GetInferredSpan())
+				log.DebugFunc(func() string {
+					return fmt.Sprintf("[lifecycle] The inferred span attributes are: %v", lp.GetInferredSpan())
+				})
 			} else {
-				log.Debug("[lifecyle] Failed to complete inferred span due to a missing start time. Please check that the event payload was received with the appropriate data")
+				log.DebugFunc(func() string {
+					return "[lifecyle] Failed to complete inferred span due to a missing start time. Please check that the event payload was received with the appropriate data"
+				})
 			}
 		}
 		lp.processTrace(spans)

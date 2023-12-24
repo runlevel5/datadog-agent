@@ -104,14 +104,14 @@ func (lp *LifecycleProcessor) endExecutionSpan(endDetails *InvocationEndDetails)
 		capturePayloadMaxDepth := config.Datadog.GetInt("capture_lambda_payload_max_depth")
 		requestPayloadJSON := make(map[string]interface{})
 		if err := json.Unmarshal(executionContext.requestPayload, &requestPayloadJSON); err != nil {
-			log.Debugf("[lifecycle] Failed to parse request payload: %v", err)
+			log.DebugFunc(func() string { return fmt.Sprintf("[lifecycle] Failed to parse request payload: %v", err) })
 			executionSpan.Meta["function.request"] = string(executionContext.requestPayload)
 		} else {
 			capturePayloadAsTags(requestPayloadJSON, executionSpan, "function.request", 0, capturePayloadMaxDepth)
 		}
 		responsePayloadJSON := make(map[string]interface{})
 		if err := json.Unmarshal(endDetails.ResponseRawPayload, &responsePayloadJSON); err != nil {
-			log.Debugf("[lifecycle] Failed to parse response payload: %v", err)
+			log.DebugFunc(func() string { return fmt.Sprintf("[lifecycle] Failed to parse response payload: %v", err) })
 			executionSpan.Meta["function.response"] = string(endDetails.ResponseRawPayload)
 		} else {
 			capturePayloadAsTags(responsePayloadJSON, executionSpan, "function.response", 0, capturePayloadMaxDepth)
@@ -187,7 +187,7 @@ func ParseLambdaPayload(rawPayload []byte) []byte {
 func convertStrToUnit64(s string) (uint64, error) {
 	num, err := strconv.ParseUint(s, 0, 64)
 	if err != nil {
-		log.Debugf("Error while converting %s, failing with : %s", s, err)
+		log.DebugFunc(func() string { return fmt.Sprintf("Error while converting %s, failing with : %s", s, err) })
 	}
 	return num, err
 }
@@ -195,15 +195,15 @@ func convertStrToUnit64(s string) (uint64, error) {
 // InjectContext injects the context
 func InjectContext(executionContext *ExecutionStartInfo, headers http.Header) {
 	if value, err := convertStrToUnit64(headers.Get(TraceIDHeader)); err == nil {
-		log.Debugf("injecting traceID = %v", value)
+		log.DebugFunc(func() string { return fmt.Sprintf("injecting traceID = %v", value) })
 		executionContext.TraceID = value
 	}
 	if value, err := convertStrToUnit64(headers.Get(ParentIDHeader)); err == nil {
-		log.Debugf("injecting parentId = %v", value)
+		log.DebugFunc(func() string { return fmt.Sprintf("injecting parentId = %v", value) })
 		executionContext.parentID = value
 	}
 	if value, err := strconv.ParseInt(headers.Get(SamplingPriorityHeader), 10, 8); err == nil {
-		log.Debugf("injecting samplingPriority = %v", value)
+		log.DebugFunc(func() string { return fmt.Sprintf("injecting samplingPriority = %v", value) })
 		executionContext.SamplingPriority = sampler.SamplingPriority(value)
 	}
 }
@@ -211,7 +211,7 @@ func InjectContext(executionContext *ExecutionStartInfo, headers http.Header) {
 // InjectSpanID injects the spanId
 func InjectSpanID(executionContext *ExecutionStartInfo, headers http.Header) {
 	if value, err := strconv.ParseUint(headers.Get(SpanIDHeader), 10, 64); err == nil {
-		log.Debugf("injecting spanID = %v", value)
+		log.DebugFunc(func() string { return fmt.Sprintf("injecting spanID = %v", value) })
 		executionContext.SpanID = value
 	}
 }
