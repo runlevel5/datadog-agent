@@ -166,17 +166,17 @@ func NewService(cfg model.Reader, apiKey, baseRawURL, hostname string, telemetry
 	// Either invalid (which resolves to 0) or was explicitly set below minimal. If it was invalid there would
 	// be an additional error message describing the failure to parse the value.
 	if refreshInterval < minimalRefreshInterval {
-		log.Warnf("remote_configuration.refresh_interval is set to %v which is below the minimum of %v - using default refresh interval %v", refreshInterval, minimalRefreshInterval, defaultRefreshInterval)
+		fmt.Println(fmt.Sprintf("[Agent SVC] [WARN]"+"remote_configuration.refresh_interval is set to %v which is below the minimum of %v - using default refresh interval %v", refreshInterval, minimalRefreshInterval, defaultRefreshInterval))
 		refreshInterval = defaultRefreshInterval
 		refreshIntervalOverrideAllowed = true
 	}
 
 	maxBackoffTime := cfg.GetDuration("remote_configuration.max_backoff_interval")
 	if maxBackoffTime < minimalMaxBackoffTime {
-		log.Warnf("remote_configuration.max_backoff_time is set to %v which is below the minimum of %v - setting value to %v", maxBackoffTime, minimalMaxBackoffTime, minimalMaxBackoffTime)
+		fmt.Println(fmt.Sprintf("[Agent SVC] [WARN]"+"remote_configuration.max_backoff_time is set to %v which is below the minimum of %v - setting value to %v", maxBackoffTime, minimalMaxBackoffTime, minimalMaxBackoffTime))
 		maxBackoffTime = minimalMaxBackoffTime
 	} else if maxBackoffTime > maximalMaxBackoffTime {
-		log.Warnf("remote_configuration.max_backoff_time is set to %v which is above the maximum of %v - setting value to %v", maxBackoffTime, maximalMaxBackoffTime, maximalMaxBackoffTime)
+		fmt.Println(fmt.Sprintf("[Agent SVC] [WARN]"+"remote_configuration.max_backoff_time is set to %v which is above the maximum of %v - setting value to %v", maxBackoffTime, maximalMaxBackoffTime, maximalMaxBackoffTime))
 		maxBackoffTime = maximalMaxBackoffTime
 	}
 
@@ -242,7 +242,7 @@ func NewService(cfg model.Reader, apiKey, baseRawURL, hostname string, telemetry
 
 	clientsTTL := cfg.GetDuration("remote_configuration.clients.ttl_seconds")
 	if clientsTTL < minimalRefreshInterval || clientsTTL > maxClientsTTL {
-		log.Warnf("Configured clients ttl is not within accepted range (%s - %s): %s. Defaulting to %s", minimalRefreshInterval, maxClientsTTL, clientsTTL, defaultClientsTTL)
+		fmt.Println(fmt.Sprintf("[Agent SVC] [WARN]"+"Configured clients ttl is not within accepted range (%s - %s): %s. Defaulting to %s", minimalRefreshInterval, maxClientsTTL, clientsTTL, defaultClientsTTL))
 		clientsTTL = defaultClientsTTL
 	}
 	clock := clock.New()
@@ -322,7 +322,7 @@ func (s *Service) Start(ctx context.Context) {
 		err := s.refresh()
 		if err != nil {
 			if s.previousOrgStatus != nil && s.previousOrgStatus.Enabled && s.previousOrgStatus.Authorized {
-				log.Errorf("Could not refresh Remote Config: %v", err)
+				fmt.Println(fmt.Sprintf("[Agent SVC] [ERROR]"+"Could not refresh Remote Config: %v", err))
 			} else {
 				log.Debugf("Could not refresh Remote Config (org is disabled or key is not authorized): %v", err)
 			}
@@ -349,7 +349,7 @@ func (s *Service) Start(ctx context.Context) {
 			if err != nil {
 				if s.previousOrgStatus != nil && s.previousOrgStatus.Enabled && s.previousOrgStatus.Authorized {
 					exportedLastUpdateErr.Set(err.Error())
-					log.Errorf("Could not refresh Remote Config: %v", err)
+					fmt.Println(fmt.Sprintf("[Agent SVC] [ERROR]"+"Could not refresh Remote Config: %v", err))
 				} else {
 					log.Debugf("Could not refresh Remote Config (org is disabled or key is not authorized): %v", err)
 				}
@@ -379,7 +379,7 @@ func (s *Service) pollOrgStatus() {
 		// Unauthorized and proxy error are caught by the main loop requesting the latest config,
 		// and it limits the error log.
 		if !errors.Is(err, api.ErrUnauthorized) && !errors.Is(err, api.ErrProxy) {
-			log.Errorf("Could not refresh Remote Config: %v", err)
+			fmt.Println(fmt.Sprintf("[Agent SVC] [ERROR]"+"Could not refresh Remote Config: %v", err))
 		}
 		return
 	}
@@ -390,7 +390,7 @@ func (s *Service) pollOrgStatus() {
 		s.previousOrgStatus.Authorized != response.Authorized {
 		if response.Enabled {
 			if response.Authorized {
-				log.Infof("Remote Configuration is enabled for this organization and agent.")
+				fmt.Println(fmt.Sprintf("[Agent SVC] [INFO]" + "Remote Configuration is enabled for this organization and agent."))
 			} else {
 				log.Infof(
 					"Remote Configuration is enabled for this organization but disabled for this agent. " +
@@ -399,9 +399,9 @@ func (s *Service) pollOrgStatus() {
 			}
 		} else {
 			if response.Authorized {
-				log.Infof("Remote Configuration is disabled for this organization.")
+				fmt.Println(fmt.Sprintf("[Agent SVC] [INFO]" + "Remote Configuration is disabled for this organization."))
 			} else {
-				log.Infof("Remote Configuration is disabled for this organization and agent.")
+				fmt.Println(fmt.Sprintf("[Agent SVC] [INFO]" + "Remote Configuration is disabled for this organization and agent."))
 			}
 		}
 	}
@@ -429,14 +429,14 @@ func (s *Service) refresh() error {
 	s.refreshProducts(activeClients)
 	previousState, err := s.uptane.TUFVersionState()
 	if err != nil {
-		log.Warnf("could not get previous TUF version state: %v", err)
+		fmt.Println(fmt.Sprintf("[Agent SVC] [WARN]"+"could not get previous TUF version state: %v", err))
 	}
 	if s.forceRefresh() || err != nil {
 		previousState = uptane.TUFVersions{}
 	}
 	clientState, err := s.getClientState()
 	if err != nil {
-		log.Warnf("could not get previous backend client state: %v", err)
+		fmt.Println(fmt.Sprintf("[Agent SVC] [WARN]"+"could not get previous backend client state: %v", err))
 	}
 	orgUUID, err := s.uptane.StoredOrgUUID()
 	if err != nil {
@@ -487,7 +487,7 @@ func (s *Service) refresh() error {
 		if err == nil && ri > 0 && s.defaultRefreshInterval != ri {
 			s.defaultRefreshInterval = ri
 			s.cacheBypassClients.windowDuration = ri
-			log.Infof("Overriding agent's base refresh interval to %v due to backend recommendation", ri)
+			fmt.Println(fmt.Sprintf("[Agent SVC] [INFO]"+"Overriding agent's base refresh interval to %v due to backend recommendation", ri))
 		}
 	}
 
