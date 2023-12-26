@@ -152,18 +152,28 @@ func (c *HTTPClient) FetchOrgData(ctx context.Context) (*pbgo.OrgDataResponse, e
 	fmt.Println(fmt.Sprintf("[Agent SVC API] [DEBUG]"+"Querying url %s", url))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, &bytes.Buffer{})
 	if err != nil {
+		fmt.Println(fmt.Sprintf("[Agent SVC API] [DEBUG]"+"Querying url %s -- error constructing request: %v", url, err))
 		return nil, fmt.Errorf("failed to create org data request: %w", err)
 	}
 	req.Header = c.header
 
 	resp, err := c.client.Do(req)
 	if err != nil {
+		fmt.Println(fmt.Sprintf("[Agent SVC API] [DEBUG]"+"Querying url %s -- error issuing request: %v", url, err))
 		return nil, fmt.Errorf("failed to issue org data request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	err = checkStatusCode(resp)
 	if err != nil {
+		fmt.Println(fmt.Sprintf("[Agent SVC API] [DEBUG]"+"Querying url %s -- status code error (experimental body log incoming): %v", url, err))
+		var body2 []byte
+		body2, err = io.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Println(fmt.Sprintf("[Agent SVC API] [DEBUG]"+"Querying url %s -- failed to read experimental non-2xx response body: %v", url, err))
+			return nil, fmt.Errorf("failed to read response body: %w", err)
+		}
+		fmt.Println(fmt.Sprintf("[Agent SVC API] [DEBUG]"+"Querying url %s -- Experimental body: %v", url, string(body2)))
 		return nil, err
 	}
 
@@ -224,6 +234,8 @@ func checkStatusCode(resp *http.Response) error {
 	// Specific case: authentication method is wrong
 	// we want to be descriptive about what can be done
 	// to fix this as the error is pretty common
+	fmt.Println(fmt.Sprintf("[Agent SVC API] [DEBUG]"+"Status Code %d", resp.StatusCode))
+	
 	if resp.StatusCode == 401 {
 		return ErrUnauthorized
 	}
