@@ -324,7 +324,7 @@ func (s *Service) Start(ctx context.Context) {
 			if s.previousOrgStatus != nil && s.previousOrgStatus.Enabled && s.previousOrgStatus.Authorized {
 				fmt.Println(fmt.Sprintf("[Agent SVC] [ERROR]"+"Could not refresh Remote Config: %v", err))
 			} else {
-				log.Debugf("Could not refresh Remote Config (org is disabled or key is not authorized): %v", err)
+				fmt.Println(fmt.Sprintf("[Agent SVC] [DEBUG]"+"Could not refresh Remote Config (org is disabled or key is not authorized): %v", err))
 			}
 		}
 
@@ -343,15 +343,16 @@ func (s *Service) Start(ctx context.Context) {
 				}
 				close(response)
 			case <-ctx.Done():
+				fmt.Println(fmt.Sprintf("[Agent SVC] [DEBUG] " + "Done"))
 				return
 			}
 
 			if err != nil {
 				if s.previousOrgStatus != nil && s.previousOrgStatus.Enabled && s.previousOrgStatus.Authorized {
-					exportedLastUpdateErr.Set(err.Error())
 					fmt.Println(fmt.Sprintf("[Agent SVC] [ERROR]"+"Could not refresh Remote Config: %v", err))
+					exportedLastUpdateErr.Set(err.Error())
 				} else {
-					log.Debugf("Could not refresh Remote Config (org is disabled or key is not authorized): %v", err)
+					fmt.Println(fmt.Sprintf("[Agent SVC] [DEBUG]"+"Could not refresh Remote Config (org is disabled or key is not authorized): %v", err))
 				}
 			}
 		}
@@ -392,10 +393,10 @@ func (s *Service) pollOrgStatus() {
 			if response.Authorized {
 				fmt.Println(fmt.Sprintf("[Agent SVC] [INFO]" + "Remote Configuration is enabled for this organization and agent."))
 			} else {
-				log.Infof(
+				fmt.Println(fmt.Sprintf(
 					"Remote Configuration is enabled for this organization but disabled for this agent. " +
 						"Add the Remote Configuration Read permission to its API key to enable it for this agent.",
-				)
+				))
 			}
 		} else {
 			if response.Authorized {
@@ -432,6 +433,7 @@ func (s *Service) refresh() error {
 		fmt.Println(fmt.Sprintf("[Agent SVC] [WARN]"+"could not get previous TUF version state: %v", err))
 	}
 	if s.forceRefresh() || err != nil {
+		fmt.Println(fmt.Sprintf("[Agent SVC] forcing refresh"))
 		previousState = uptane.TUFVersions{}
 	}
 	clientState, err := s.getClientState()
@@ -452,6 +454,7 @@ func (s *Service) refresh() error {
 	defer s.Unlock()
 	s.lastUpdateErr = nil
 	if err != nil {
+		fmt.Println(fmt.Sprintf("[Agent SVC API] "+"Error fetching remote config: %v", err))
 		s.backoffErrorCount = s.backoffPolicy.IncError(s.backoffErrorCount)
 		s.lastUpdateErr = fmt.Errorf("api: %v", err)
 		if s.lastFetchErrorType != err {
@@ -467,7 +470,7 @@ func (s *Service) refresh() error {
 			// If we saw the error enough time, we consider that RC not working is a normal behavior
 			// And we only log as DEBUG
 			// The agent will eventually log this error as DEBUG every maximalMaxBackoffTime
-			log.Debugf("Could not refresh Remote Config: %v", err)
+			fmt.Println(fmt.Sprintf("[Agent SVC] [DEBUG]"+"Could not refresh Remote Config: %v", err))
 			return nil
 		}
 		return err

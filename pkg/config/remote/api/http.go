@@ -20,7 +20,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config/model"
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	httputils "github.com/DataDog/datadog-agent/pkg/util/http"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 const (
@@ -93,6 +92,7 @@ func NewHTTPClient(auth Auth, cfg model.Reader, baseURL *url.URL) (*HTTPClient, 
 
 // Fetch remote configuration
 func (c *HTTPClient) Fetch(ctx context.Context, request *pbgo.LatestConfigsRequest) (*pbgo.LatestConfigsResponse, error) {
+	fmt.Println(fmt.Sprintf("[Agent SVC API]"+"Fetching remote configuration from %s", c.baseURL+pollEndpoint))
 	body, err := proto.Marshal(request)
 	if err != nil {
 		return nil, err
@@ -107,6 +107,7 @@ func (c *HTTPClient) Fetch(ctx context.Context, request *pbgo.LatestConfigsReque
 
 	resp, err := c.client.Do(req)
 	if err != nil {
+		fmt.Println(fmt.Sprintf("[Agent SVC API]"+"failed to issue request: %v", err))
 		return nil, fmt.Errorf("failed to issue request: %w", err)
 	}
 	defer resp.Body.Close()
@@ -115,36 +116,40 @@ func (c *HTTPClient) Fetch(ctx context.Context, request *pbgo.LatestConfigsReque
 	if resp.StatusCode != 200 {
 		body, err = io.ReadAll(resp.Body)
 		if err != nil {
+			fmt.Println(fmt.Sprintf("[Agent SVC API]"+"failed to read response: %v", err))
 			return nil, fmt.Errorf("failed to read response: %w", err)
 		}
-		log.Debugf("Got a %d response code. Response body: %s", resp.StatusCode, string(body))
+		fmt.Println(fmt.Sprintf("[Agent SVC API] [DEBUG]"+"Got a %d response code. Response body: %s", resp.StatusCode, string(body)))
 		return nil, fmt.Errorf("non-200 response code: %d", resp.StatusCode)
 	}
 
 	err = checkStatusCode(resp)
 	if err != nil {
+		fmt.Println(fmt.Sprintf("[Agent SVC API] [DEBUG] "+"Error checking status code: %v", err))
 		return nil, err
 	}
 
 	body, err = io.ReadAll(resp.Body)
 	if err != nil {
+		fmt.Println(fmt.Sprintf("[Agent SVC API] [DEBUG] "+"Error reading response: %v", err))
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
 	response := &pbgo.LatestConfigsResponse{}
 	err = proto.Unmarshal(body, response)
 	if err != nil {
-		log.Debugf("Error decoding response, %v, response body: %s", err, string(body))
+		fmt.Println(fmt.Sprintf("[Agent SVC API] [DEBUG]"+"Error decoding response, %v, response body: %s", err, string(body)))
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
+	fmt.Println(fmt.Sprintf("[Agent SVC API] [DEBUG]"+"Fetch Response body: %s", string(body)))
 	return response, err
 }
 
 // FetchOrgData org data
 func (c *HTTPClient) FetchOrgData(ctx context.Context) (*pbgo.OrgDataResponse, error) {
 	url := c.baseURL + orgDataEndpoint
-	log.Debugf("Querying url %s", url)
+	fmt.Println(fmt.Sprintf("[Agent SVC API] [DEBUG]"+"Querying url %s", url))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, &bytes.Buffer{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create org data request: %w", err)
@@ -171,7 +176,7 @@ func (c *HTTPClient) FetchOrgData(ctx context.Context) (*pbgo.OrgDataResponse, e
 	response := &pbgo.OrgDataResponse{}
 	err = proto.Unmarshal(body, response)
 	if err != nil {
-		log.Debugf("Error decoding response, %v, response body: %s", err, string(body))
+		fmt.Println(fmt.Sprintf("[Agent SVC API] [DEBUG]"+"Error decoding response, %v, response body: %s", err, string(body)))
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
@@ -181,7 +186,7 @@ func (c *HTTPClient) FetchOrgData(ctx context.Context) (*pbgo.OrgDataResponse, e
 // FetchOrgStatus returns the org and key status
 func (c *HTTPClient) FetchOrgStatus(ctx context.Context) (*pbgo.OrgStatusResponse, error) {
 	url := c.baseURL + orgStatusEndpoint
-	log.Debugf("Querying url %s", url)
+	fmt.Println(fmt.Sprintf("[Agent SVC API] [DEBUG]"+"Querying url %s", url))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, &bytes.Buffer{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create org data request: %w", err)
@@ -208,7 +213,7 @@ func (c *HTTPClient) FetchOrgStatus(ctx context.Context) (*pbgo.OrgStatusRespons
 	response := &pbgo.OrgStatusResponse{}
 	err = proto.Unmarshal(body, response)
 	if err != nil {
-		log.Debugf("Error decoding response, %v, response body: %s", err, string(body))
+		fmt.Println(fmt.Sprintf("[Agent SVC API] [DEBUG]"+"Error decoding response, %v, response body: %s", err, string(body)))
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
