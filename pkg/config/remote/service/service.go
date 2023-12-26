@@ -302,6 +302,7 @@ func newRCBackendOrgUUIDProvider(http api.API) uptane.OrgUUIDProvider {
 // Start the remote configuration management service
 func (s *Service) Start(ctx context.Context) {
 	log.Warn("[Agent SVC] Start")
+	fmt.Println("[Agent SVC] Start")
 	ctx, cancel := context.WithCancel(ctx)
 	s.cancel = cancel
 	go func() {
@@ -360,6 +361,7 @@ func (s *Service) Start(ctx context.Context) {
 // Stop stops the refresh loop and closes the on-disk DB cache
 func (s *Service) Stop() error {
 	log.Warn("[Agent SVC] Stop")
+	fmt.Println("[Agent SVC] Stop")
 
 	if s.cancel != nil {
 		s.cancel()
@@ -370,6 +372,7 @@ func (s *Service) Stop() error {
 
 func (s *Service) pollOrgStatus() {
 	log.Warn("[Agent SVC] Polling..")
+	fmt.Println("[Agent SVC] Polling..")
 
 	response, err := s.api.FetchOrgStatus(context.Background())
 	if err != nil {
@@ -409,6 +412,7 @@ func (s *Service) pollOrgStatus() {
 	exportedStatusOrgEnabled.Set(strconv.FormatBool(response.Enabled))
 	exportedStatusKeyAuthorized.Set(strconv.FormatBool(response.Authorized))
 	log.Warn("[Agent SVC] Polling succeeded")
+	fmt.Println("[Agent SVC] Polling succeeded")
 }
 
 func (s *Service) calculateRefreshInterval() time.Duration {
@@ -419,6 +423,7 @@ func (s *Service) calculateRefreshInterval() time.Duration {
 
 func (s *Service) refresh() error {
 	log.Warn("[Agent SVC] Refresh..")
+	fmt.Println("[Agent SVC] Refresh..")
 	s.Lock()
 	activeClients := s.clients.activeClients()
 	s.refreshProducts(activeClients)
@@ -497,6 +502,7 @@ func (s *Service) refresh() error {
 	exportedLastUpdateErr.Set("")
 
 	log.Warn("[Agent SVC] Refresh succeeded")
+	fmt.Println("[Agent SVC] Refresh succeeded")
 
 	return nil
 }
@@ -551,6 +557,7 @@ func (s *Service) getRefreshInterval() (time.Duration, error) {
 //nolint:revive // TODO(RC) Fix revive linter
 func (s *Service) ClientGetConfigs(_ context.Context, request *pbgo.ClientGetConfigsRequest) (*pbgo.ClientGetConfigsResponse, error) {
 	log.Warn("[Agent SVC] ClientGetConfigs..")
+	fmt.Println("[Agent SVC] ClientGetConfigs..")
 	s.Lock()
 	defer s.Unlock()
 	err := validateRequest(request)
@@ -600,6 +607,7 @@ func (s *Service) ClientGetConfigs(_ context.Context, request *pbgo.ClientGetCon
 		return &pbgo.ClientGetConfigsResponse{}, nil
 	}
 	log.Warn("[Agent SVC] ClientGetConfigs.roots..")
+	fmt.Println("[Agent SVC] ClientGetConfigs.roots..")
 	roots, err := s.getNewDirectorRoots(request.Client.State.RootVersion, tufVersions.DirectorRoot)
 	if err != nil {
 		return nil, err
@@ -614,6 +622,7 @@ func (s *Service) ClientGetConfigs(_ context.Context, request *pbgo.ClientGetCon
 	}
 
 	log.Warn("[Agent SVC] ClientGetConfigs.targets..")
+	fmt.Println("[Agent SVC] ClientGetConfigs.targets..")
 	directorTargets, err := s.uptane.Targets()
 	if err != nil {
 		return nil, err
@@ -636,12 +645,14 @@ func (s *Service) ClientGetConfigs(_ context.Context, request *pbgo.ClientGetCon
 	}
 
 	log.Warn("[Agent SVC] ClientGetConfigs.canonicalTargets..")
+	fmt.Println("[Agent SVC] ClientGetConfigs.canonicalTargets..")
 	canonicalTargets, err := enforceCanonicalJSON(targetsRaw)
 	if err != nil {
 		return nil, err
 	}
 
 	log.Warn("[Agent SVC] ClientGetConfigs succeeded")
+	fmt.Println("[Agent SVC] ClientGetConfigs succeeded")
 
 	return &pbgo.ClientGetConfigsResponse{
 		Roots:         roots,
@@ -654,6 +665,7 @@ func (s *Service) ClientGetConfigs(_ context.Context, request *pbgo.ClientGetCon
 // ConfigGetState returns the state of the configuration and the director repos in the local store
 func (s *Service) ConfigGetState() (*pbgo.GetStateConfigResponse, error) {
 	log.Warn("[Agent SVC] ConfigGetState..")
+	fmt.Println("[Agent SVC] ConfigGetState..")
 	state, err := s.uptane.State()
 	if err != nil {
 		return nil, err
@@ -678,6 +690,7 @@ func (s *Service) ConfigGetState() (*pbgo.GetStateConfigResponse, error) {
 		response.TargetFilenames[targetName] = targetHash
 	}
 	log.Warn("[Agent SVC] ConfigGetState succeeded")
+	fmt.Println("[Agent SVC] ConfigGetState succeeded")
 	return response, nil
 }
 
