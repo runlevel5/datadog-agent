@@ -142,7 +142,6 @@ func (c *HTTPClient) Fetch(ctx context.Context, request *pbgo.LatestConfigsReque
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	fmt.Println(fmt.Sprintf("[Agent SVC API] [DEBUG]"+"Fetch Response body: %s", string(body)))
 	return response, err
 }
 
@@ -235,7 +234,7 @@ func checkStatusCode(resp *http.Response) error {
 	// we want to be descriptive about what can be done
 	// to fix this as the error is pretty common
 	fmt.Println(fmt.Sprintf("[Agent SVC API] [DEBUG]"+"Status Code %d", resp.StatusCode))
-	
+
 	if resp.StatusCode == 401 {
 		return ErrUnauthorized
 	}
