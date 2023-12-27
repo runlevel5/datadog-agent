@@ -59,7 +59,14 @@ func (c *PerfHandler) LostHandler(_ int, lostCount uint64, _ *manager.PerfMap, _
 	if c.closed {
 		return
 	}
-	c.LostChannel <- lostCount
+
+	select {
+	case c.LostChannel <- lostCount:
+	default:
+		// rationale: it's preferable to undercount missed events than
+		// potentially cause them by blocking the go-routine upstream that is
+		// responsible for reading data off the perf buffer/ring.
+	}
 }
 
 // RecordHandler is the callback intended to be used when configuring PerfMapOptions
