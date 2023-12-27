@@ -1,0 +1,71 @@
+name: Update buildimages
+
+on:
+  pull_request:
+    # just to have it run once, so that we can test it manually
+  workflow_dispatch:
+    inputs:
+      images_id:
+        description: 'Images ID'
+        required: true
+        type: string
+      go_version:
+        description: 'Go version'
+        required: true
+        type: string
+      branch:
+        description: 'Git branch to use'
+        required: true
+        type: string
+
+jobs:
+  open-go-update-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push commit and branch
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Setup Python and pip
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+
+      - uses: actions/setup-go@v5
+        with:
+          # use the go version from the input, not from the .go-version file
+          # in case it's a Go update PR
+          go-version: ${{ inputs.go_version }}
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install -r requirements.txt
+
+      - name: Current Go version
+        id: current_go_version
+        run: |
+          echo "GO_VERSION=$(inv go-version)" >> $GITHUB_OUTPUT
+
+      - name: Make changes
+        id: make_changes
+        run: |
+          if [ "${{ steps.current_go_version.outputs.GO_VERSION }}" = "${{ inputs.go_version }}" ]; then
+            inv buildimages.update -i "${{ inputs.images_id }}"
+            echo 'MESSAGE="Update buildimages ID"' >> $GITHUB_OUTPUT
+          else
+            inv update-go -i "${{ inputs.images_id }}" -v "${{ inputs.go_version }}"
+            echo 'MESSAGE="Update Go version to ${{ inputs.go_version }}"' >> $GITHUB_OUTPUT
+          fi
+
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        id: autocommit
+        with:
+          commit_message: ${{ steps.make_changes.outputs.MESSAGE }}
+          branch: ${{ inputs.branch }}
+          create_branch: true
+          # allow empty commits, so that the branch always exists after it runs
+          commit_options: '--allow-empty'
