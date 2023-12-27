@@ -143,13 +143,6 @@ func (c *Consumer[V]) Start() {
 				c.kernelDropsCount.Add(int64(b.Dropped_events))
 				c.process(dataEvent.CPU, b, false)
 				dataEvent.Done()
-			case _, ok := <-c.handler.LostChannel:
-				if !ok {
-					return
-				}
-
-				// we have our own telemetry to track failed flushes so we don't
-				// do anything here other than draining this channel
 			case done, ok := <-c.syncRequest:
 				if !ok {
 					return
@@ -161,6 +154,15 @@ func (c *Consumer[V]) Start() {
 				log.Infof("usm events summary: name=%q %s", c.proto, c.metricGroup.Summary())
 				close(done)
 			}
+		}
+	}()
+
+	c.eventLoopWG.Add(1)
+	go func() {
+		defer c.eventLoopWG.Done()
+		for range c.handler.LostChannel {
+			// we have our own telemetry to track failed flushes so we don't
+			// do anything here other than draining this channel
 		}
 	}()
 }
