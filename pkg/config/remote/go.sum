@@ -44,10 +44,8 @@ dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
-github.com/DataDog/go-tuf v1.0.2-0.5.2.0.20231227194953-ac9a564d7ab0 h1:I0ghK1cPv+ehXC5OviELwA8paBtFttLkTv/MbqiCA8E=
-github.com/DataDog/go-tuf v1.0.2-0.5.2.0.20231227194953-ac9a564d7ab0/go.mod h1:zBcq6f654iVqmkk8n2Cx81E1JnNTMOAx1UEO/wZR+P0=
-github.com/DataDog/go-tuf v1.0.2-0.5.2.0.20231227200557-9870f2cf9d62 h1:7ia64ZM388qtW95j2WM34H+yTsnvvzmPM03yKjdz/lE=
-github.com/DataDog/go-tuf v1.0.2-0.5.2.0.20231227200557-9870f2cf9d62/go.mod h1:zBcq6f654iVqmkk8n2Cx81E1JnNTMOAx1UEO/wZR+P0=
+github.com/DataDog/go-tuf v1.0.2-0.5.2.0.20231227213316-c37e37cb64cf h1:57u1hFAnqE6TXGad3pXXVSqJlDKH/3BxXn2xI+XME8s=
+github.com/DataDog/go-tuf v1.0.2-0.5.2.0.20231227213316-c37e37cb64cf/go.mod h1:zBcq6f654iVqmkk8n2Cx81E1JnNTMOAx1UEO/wZR+P0=
 github.com/DataDog/viper v1.12.0 h1:FufyZpZPxyszafSV5B8Q8it75IhhuJwH0T7QpT6HnD0=
 github.com/DataDog/viper v1.12.0/go.mod h1:wDdUVJ2SHaMaPrCZrlRCObwkubsX8j5sme3LaR/SGTc=
 github.com/Masterminds/semver v1.5.0 h1:H65muMkzWKEuNDnfl9d70GUjFniHKHRbFPGBuZ3QEww=
