@@ -1,8 +1,6 @@
 name: Update buildimages
 
 on:
-  pull_request:
-    # just to have it run once, so that we can test it manually
   workflow_dispatch:
     inputs:
       images_id:
