@@ -61,10 +61,10 @@ jobs:
         id: make_changes
         run: |
           if [ "${{ steps.current_go_version.outputs.GO_VERSION }}" = "${{ inputs.go_version }}" ]; then
-            inv buildimages.update $IMAGES_ARGS
+            inv buildimages.update "$IMAGES_ARGS"
             echo 'MESSAGE="Update buildimages ID"' >> $GITHUB_OUTPUT
           else
-            inv update-go $IMAGES_ARGS -v "${{ inputs.go_version }}"
+            inv update-go "$IMAGES_ARGS" -v "${{ inputs.go_version }}"
             echo 'MESSAGE="Update Go version to ${{ inputs.go_version }}"' >> $GITHUB_OUTPUT
           fi
 
