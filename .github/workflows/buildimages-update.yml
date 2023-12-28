@@ -15,7 +15,7 @@ on:
         description: 'Git branch to use'
         required: true
         type: string
-      test_only:
+      test_version:
         description: 'Whether the images are test images'
         required: true
         type: boolean
@@ -25,9 +25,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # push commit and branch
-
-    env:
-      TEST_ONLY: ${{ inputs.test_only && '--test-only' || '' }}
 
     steps:
       - name: Checkout code
@@ -52,6 +49,21 @@ jobs:
         run: |
           python3 -m pip install -r requirements.txt
 
+      - name: Check if target branch exists
+        id: branch_exists
+        run: |
+          if git show-ref --verify --quiet "refs/heads/${{ inputs.branch }}"; then
+            echo "RESULT=true" >> $GITHUB_OUTPUT
+          else
+            echo "RESULT=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout target branch
+        if: steps.branch_exists.outputs.RESULT == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
       - name: Get current Go version
         id: current_go_version
         run: |
@@ -59,12 +71,15 @@ jobs:
 
       - name: Update buildimages IDs and Go version
         id: make_changes
+        env:
+          TEST_VERSION: ${{ inputs.test_version && '--test-version' || '' }}
+          RELEASE_NOTE: ${{ steps.branch_exists.outputs.RESULT == 'true' && '' || '--no-release-note' }}
         run: |
           if [ "${{ steps.current_go_version.outputs.GO_VERSION }}" = "${{ inputs.go_version }}" ]; then
-            inv buildimages.update --image-tag ${{ inputs.images_id }} $TEST_ONLY
+            inv buildimages.update --image-tag ${{ inputs.images_id }} $TEST_VERSION
             echo 'MESSAGE="Update buildimages ID"' >> $GITHUB_OUTPUT
           else
-            inv update-go --image-tag ${{ inputs.images_id }} $TEST_ONLY -v "${{ inputs.go_version }}"
+            inv update-go --image-tag ${{ inputs.images_id }} $TEST_VERSION -v "${{ inputs.go_version }}" $RELEASE_NOTE
             echo 'MESSAGE="Update Go version to ${{ inputs.go_version }}"' >> $GITHUB_OUTPUT
           fi
 
