@@ -27,8 +27,8 @@ jobs:
       contents: write # push commit and branch
 
     env:
-      TEST_ONLY: ${{ inputs.test_only && "--test-only" || "" }}
-      IMAGES_ARGS: "-i ${{ inputs.images_id }} $TEST_ONLY"
+      TEST_ONLY: ${{ inputs.test_only && '--test-only' || '' }}
+      IMAGES_ARGS: -i ${{ inputs.images_id }} $TEST_ONLY
 
     steps:
       - name: Checkout code
