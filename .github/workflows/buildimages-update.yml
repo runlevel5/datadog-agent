@@ -15,12 +15,20 @@ on:
         description: 'Git branch to use'
         required: true
         type: string
+      test_only:
+        description: 'Whether the images are test images'
+        required: true
+        type: boolean
 
 jobs:
   open-go-update-pr:
     runs-on: ubuntu-latest
     permissions:
       contents: write # push commit and branch
+
+    env:
+      TEST_ONLY: ${{ inputs.test_only && "--test-only" || "" }}
+      IMAGES_ARGS: "-i ${{ inputs.images_id }} $TEST_ONLY"
 
     steps:
       - name: Checkout code
@@ -39,23 +47,23 @@ jobs:
           # in case it's a Go update PR
           go-version: ${{ inputs.go_version }}
 
-      - name: Install dependencies
+      - name: Install python dependencies
         run: |
           python3 -m pip install -r requirements.txt
 
-      - name: Current Go version
+      - name: Get current Go version
         id: current_go_version
         run: |
           echo "GO_VERSION=$(inv go-version)" >> $GITHUB_OUTPUT
 
-      - name: Make changes
+      - name: Update buildimages IDs and Go version
         id: make_changes
         run: |
           if [ "${{ steps.current_go_version.outputs.GO_VERSION }}" = "${{ inputs.go_version }}" ]; then
-            inv buildimages.update -i "${{ inputs.images_id }}"
+            inv buildimages.update $IMAGES_ARGS
             echo 'MESSAGE="Update buildimages ID"' >> $GITHUB_OUTPUT
           else
-            inv update-go -i "${{ inputs.images_id }}" -v "${{ inputs.go_version }}"
+            inv update-go $IMAGES_ARGS -v "${{ inputs.go_version }}"
             echo 'MESSAGE="Update Go version to ${{ inputs.go_version }}"' >> $GITHUB_OUTPUT
           fi
 
@@ -65,5 +73,5 @@ jobs:
           commit_message: ${{ steps.make_changes.outputs.MESSAGE }}
           branch: ${{ inputs.branch }}
           create_branch: true
-          # allow empty commits, so that the branch always exists after it runs
+          # allow empty commits, so that the branch always exists if the workflow succeeds
           commit_options: '--allow-empty'
