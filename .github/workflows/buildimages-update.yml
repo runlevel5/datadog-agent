@@ -39,7 +39,9 @@ jobs:
       - name: Setup Python and pip
         uses: actions/setup-python@v5
         with:
-          python-version: 3.x
+          # use Python < 3.12 so that distutil is still available by default
+          # replace with 3.x once distutil is not used
+          python-version: 3.11
 
       - uses: actions/setup-go@v5
         with:
