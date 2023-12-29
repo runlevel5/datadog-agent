@@ -31,12 +31,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
+          depth: 0 # need to fetch all to check if input.branch exists
 
-      - name: Check if target branch exists
+      - name: Fetch branch
         # this step needs the github repository to be already cloned locally
-        id: branch_exists
+        id: branch_fetch
         run: |
-          if git show-ref --verify --quiet "refs/heads/${{ inputs.branch }}"; then
+          if git fetch origin "${{ inputs.branch }}"; then
             echo "RESULT=true" >> $GITHUB_OUTPUT
           else
             echo "RESULT=false" >> $GITHUB_OUTPUT
@@ -44,7 +45,7 @@ jobs:
 
       - name: Checkout branch
         uses: actions/checkout@v4
-        if: ${{ steps.branch_exists.outputs.RESULT == 'true' }}
+        if: ${{ steps.branch_fetch.outputs.RESULT == 'true' }}
         with:
           ref: ${{ inputs.branch }}
 
@@ -74,7 +75,7 @@ jobs:
         id: make_changes
         env:
           TEST_VERSION: ${{ inputs.test_version && '--test-version' || '' }}
-          RELEASE_NOTE: ${{ steps.branch_exists.outputs.RESULT == 'true' && '' || '--no-release-note' }}
+          RELEASE_NOTE: ${{ steps.branch_fetch.outputs.RESULT == 'true' && '' || '--no-release-note' }}
         run: |
           if [ "${{ steps.current_go_version.outputs.GO_VERSION }}" = "${{ inputs.go_version }}" ]; then
             inv buildimages.update --image-tag ${{ inputs.images_id }} $TEST_VERSION
