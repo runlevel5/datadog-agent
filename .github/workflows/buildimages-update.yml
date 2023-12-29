@@ -74,7 +74,7 @@ jobs:
       - name: Update buildimages IDs and Go version
         id: make_changes
         env:
-          TEST_VERSION: ${{ inputs.test_version && '--test-version' || '' }}
+          TEST_VERSION: ${{ inputs.test_version && '--test-version' || '--no-test-version' }}
           RELEASE_NOTE: ${{ steps.branch_fetch.outputs.RESULT == 'true' && '' || '--no-release-note' }}
         run: |
           if [ "${{ steps.current_go_version.outputs.GO_VERSION }}" = "${{ inputs.go_version }}" ]; then
@@ -93,3 +93,4 @@ jobs:
           create_branch: true
           # allow empty commits, so that the branch always exists if the workflow succeeds
           commit_options: '--allow-empty'
+          skip_fetch: true
