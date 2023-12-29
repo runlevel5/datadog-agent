@@ -27,17 +27,26 @@ jobs:
       contents: write # push commit and branch
 
     steps:
-      - name: Checkout code
+      - name: Check if target branch exists
+        id: branch_exists
+        run: |
+          if git show-ref --verify --quiet "refs/heads/${{ inputs.branch }}"; then
+            echo "RESULT=true" >> $GITHUB_OUTPUT
+          else
+            echo "RESULT=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ steps.branch_exists.outputs.RESULT == 'true' && inputs.branch || github.head_ref }}
 
       - name: Setup Python and pip
         uses: actions/setup-python@v5
         with:
           # use Python < 3.12 so that distutil is still available by default
-          # replace with 3.x once distutil is not used
           python-version: 3.11
+          cache: "pip"
 
       - uses: actions/setup-go@v5
         with:
@@ -48,21 +57,6 @@ jobs:
       - name: Install python dependencies
         run: |
           python3 -m pip install -r requirements.txt
-
-      - name: Check if target branch exists
-        id: branch_exists
-        run: |
-          if git show-ref --verify --quiet "refs/heads/${{ inputs.branch }}"; then
-            echo "RESULT=true" >> $GITHUB_OUTPUT
-          else
-            echo "RESULT=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Checkout target branch
-        if: steps.branch_exists.outputs.RESULT == 'true'
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.branch }}
 
       - name: Get current Go version
         id: current_go_version
