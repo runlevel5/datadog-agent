@@ -74,13 +74,12 @@ jobs:
         id: make_changes
         env:
           TEST_VERSION: ${{ inputs.test_version && '--test-version' || '--no-test-version' }}
-          RELEASE_NOTE: ${{ steps.branch_fetch.outputs.RESULT == 'true' && '' || '--no-release-note' }}
         run: |
           if [ "${{ steps.current_go_version.outputs.GO_VERSION }}" = "${{ inputs.go_version }}" ]; then
             inv buildimages.update --image-tag ${{ inputs.images_id }} $TEST_VERSION
             echo 'MESSAGE="Update buildimages ID to ${{ inputs.images_id }}"' >> $GITHUB_OUTPUT
           else
-            inv update-go --image-tag ${{ inputs.images_id }} $TEST_VERSION -v "${{ inputs.go_version }}" $RELEASE_NOTE
+            inv update-go --image-tag ${{ inputs.images_id }} $TEST_VERSION -v "${{ inputs.go_version }}"
             echo 'MESSAGE="Update Go version to ${{ inputs.go_version }}"' >> $GITHUB_OUTPUT
           fi
 
