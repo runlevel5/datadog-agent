@@ -91,4 +91,5 @@ jobs:
           create_branch: true
           # allow empty commits, so that the branch always exists if the workflow succeeds
           commit_options: '--allow-empty'
-          skip_fetch: true
+          skip_dirty_check: true # prevents pushing an empty commit if false
+          skip_fetch: true # if the branch exists it is already fetched
