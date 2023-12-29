@@ -37,7 +37,7 @@ jobs:
         # this step needs the github repository to be already cloned locally
         id: branch_fetch
         run: |
-          if git fetch origin "${{ inputs.branch }}"; then
+          if git fetch origin "refs/heads/${{ inputs.branch }}"; then
             echo "RESULT=true" >> $GITHUB_OUTPUT
           else
             echo "RESULT=false" >> $GITHUB_OUTPUT
