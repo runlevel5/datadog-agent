@@ -27,7 +27,13 @@ jobs:
       contents: write # push commit and branch
 
     steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
       - name: Check if target branch exists
+        # this step needs the github repository to be already cloned locally
         id: branch_exists
         run: |
           if git show-ref --verify --quiet "refs/heads/${{ inputs.branch }}"; then
@@ -38,8 +44,9 @@ jobs:
 
       - name: Checkout branch
         uses: actions/checkout@v4
+        if: ${{ steps.branch_exists.outputs.RESULT == 'true' }}
         with:
-          ref: ${{ steps.branch_exists.outputs.RESULT == 'true' && inputs.branch || github.head_ref }}
+          ref: ${{ inputs.branch }}
 
       - name: Setup Python and pip
         uses: actions/setup-python@v5
