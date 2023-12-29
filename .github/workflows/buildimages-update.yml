@@ -31,7 +31,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
-          depth: 0 # need to fetch all to check if input.branch exists
 
       - name: Fetch branch
         # this step needs the github repository to be already cloned locally
