@@ -27,6 +27,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/network/protocols"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/http"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/http2"
+	"github.com/DataDog/datadog-agent/pkg/network/tracer"
 	"github.com/DataDog/datadog-agent/pkg/network/tracer/testutil/grpc"
 	"github.com/DataDog/datadog-agent/pkg/network/usm"
 	"github.com/DataDog/datadog-agent/pkg/network/usm/utils"
@@ -74,6 +75,14 @@ func TestGRPCScenarios(t *testing.T) {
 	ebpftest.TestBuildModes(t, []ebpftest.BuildMode{ebpftest.Prebuilt, ebpftest.RuntimeCompiled, ebpftest.CORE}, "without TLS", func(t *testing.T) {
 		grpcSuite := &USMgRPCSuite{
 			fixtures: &plainGRPCFixtures{},
+		}
+
+		suite.Run(t, grpcSuite)
+	})
+
+	ebpftest.TestBuildModes(t, []ebpftest.BuildMode{ebpftest.RuntimeCompiled, ebpftest.CORE}, "with TLS", func(t *testing.T) {
+		grpcSuite := &USMgRPCSuite{
+			fixtures: &tlsGRPCFixtures{},
 		}
 
 		suite.Run(t, grpcSuite)
@@ -604,4 +613,80 @@ func (m *usmMonitorWrapper) GetHTTP2Stats() map[http.Key]*http.RequestStats {
 		return nil
 	}
 	return http2Stats.(map[http.Key]*http.RequestStats)
+}
+
+type tlsGRPCFixtures struct{}
+
+func (f *tlsGRPCFixtures) StartServer(t *testing.T) int {
+	t.Helper()
+
+	c, cancel := grpc.NewGRPCTLSServer(t, srvAddr, true)
+	t.Cleanup(cancel)
+
+	return c.Process.Pid
+}
+
+func (f *tlsGRPCFixtures) GetConfig(t *testing.T) *config.Config {
+	t.Helper()
+
+	cfg := config.New()
+	cfg.EnableHTTP2Monitoring = true
+	cfg.EnableGoTLSSupport = true
+
+	return cfg
+}
+
+func (f *tlsGRPCFixtures) GetMonitor(t *testing.T, cfg *config.Config) abstractMonitor {
+	t.Helper()
+
+	tracer, err := tracer.NewTracer(cfg)
+	require.NoError(t, err)
+	t.Cleanup(tracer.Stop)
+	require.NoError(t, tracer.RegisterClient("1"))
+
+	// Make the monitor dump the maps on failure
+	t.Cleanup(func() {
+		if t.Failed() {
+			writer := &ebpftest.TestLogWriter{T: t}
+			err := tracer.DebugEBPFMaps(writer, "http2_in_flight", "http2_dynamic_table")
+			if err != nil {
+				t.Logf("failed dumping USM maps: %s", err)
+			}
+		}
+	})
+
+	return &tracerWrapper{tracer}
+}
+
+func (f *tlsGRPCFixtures) RunClients(t *testing.T, clientCount int, clientsSetupFn func(t *testing.T, clientsCount int, withTLS bool)) {
+	t.Helper()
+
+	clientsSetupFn(t, clientCount, true)
+}
+
+func (f *tlsGRPCFixtures) WaitServerHooking(t *testing.T, pid int) {
+	require.Eventuallyf(t, func() bool {
+		traced := utils.GetTracedPrograms("go-tls")
+		for _, prog := range traced {
+			if slices.Contains[[]uint32](prog.PIDs, uint32(pid)) {
+				return true
+			}
+		}
+		return false
+	}, time.Second*5, time.Millisecond*100, "process %v is not traced by gotls", pid)
+}
+
+type tracerWrapper struct {
+	tracer *tracer.Tracer
+}
+
+func (t *tracerWrapper) GetHTTP2Stats() map[http.Key]*http.RequestStats {
+	const clientID = "1"
+
+	connections, err := t.tracer.GetActiveConnections(clientID)
+	if err != nil {
+		return nil
+	}
+
+	return connections.HTTP2
 }
