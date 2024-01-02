@@ -307,13 +307,17 @@ func (c *Client) startFn() {
 // pollLoop should never be called manually and only be called via the client's `sync.Once`
 // structure in startFn.
 func (c *Client) pollLoop() {
+	fmt.Println(fmt.Sprintf("[AGENT-CLIENT] [DEBUG] [client.go] [pollLoop()] starting poll loop.."))
 	successfulFirstRun := false
 	for {
 		interval := c.backoffPolicy.GetBackoffDuration(c.backoffErrorCount)
 		select {
 		case <-c.ctx.Done():
+			fmt.Println(fmt.Sprintf("[AGENT-CLIENT] [WARN] [client.go] [pollLoop()] DONE IN POLL LOOP!!! EXITING"))
 			return
 		case <-time.After(c.pollInterval + interval):
+			fmt.Println(fmt.Sprintf("[AGENT-CLIENT] [DEBUG] [client.go] [pollLoop()] polling after waiting for %s", c.pollInterval+interval))
+
 			err := c.update()
 			if err != nil {
 				if status.Code(err) == codes.Unimplemented {
@@ -323,6 +327,7 @@ func (c *Client) pollLoop() {
 					// stop the client: it shouldn't keep contacting a server that doesn't
 					// exist.
 					log.Debugf("remote configuration isn't enabled, disabling client")
+					fmt.Println(fmt.Sprintf("[AGENT-CLIENT] [ERROR] [client.go] [pollLoop()] remote configuration isn't enabled, disabling client"))
 					return
 				}
 
@@ -330,12 +335,17 @@ func (c *Client) pollLoop() {
 					// As some clients may start before the core-agent server is up, we log the first error
 					// as a debug log as the race is expected. If the error persists, we log with error logs
 					log.Infof("retrying the first update of remote-config state (%v)", err)
+					fmt.Println(fmt.Sprintf("[AGENT-CLIENT] [INFO] [client.go] [pollLoop()] retrying the first update of remote-config state (%v)", err))
+
 				} else {
 					c.lastUpdateError = err
 					c.backoffPolicy.IncError(c.backoffErrorCount)
 					log.Errorf("could not update remote-config state: %v", c.lastUpdateError)
+					fmt.Println(fmt.Sprintf("[AGENT-CLIENT] [ERROR] [client.go] [pollLoop()] could not update remote-config state: %v", c.lastUpdateError))
+
 				}
 			} else {
+				fmt.Println(fmt.Sprintf("[AGENT-CLIENT] [DEBUG] [client.go] [pollLoop()] successful poll"))
 				c.lastUpdateError = nil
 				successfulFirstRun = true
 				c.backoffPolicy.DecError(c.backoffErrorCount)
