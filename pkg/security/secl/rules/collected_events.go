@@ -7,7 +7,8 @@ package rules
 
 // CollectedEvent defines a collected event
 type CollectedEvent struct {
-	Type       string
-	EvalResult bool
-	Fields     map[string]interface{}
+	Type         string
+	EvalResult   bool
+	MatchedRules []string
+	Fields       map[string]interface{}
 }

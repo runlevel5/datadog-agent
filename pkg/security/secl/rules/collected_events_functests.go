@@ -15,21 +15,24 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
 )
 
+// EventCollector defines an event collector
 type EventCollector struct {
 	sync.Mutex
 	eventsCollected []CollectedEvent
 }
 
-func (ec *EventCollector) CollectEvent(rs *RuleSet, event eval.Event, result bool) {
+// CollectEvent collects event
+func (ec *EventCollector) CollectEvent(rs *RuleSet, event eval.Event, matchedRules []RuleID) {
 	ec.Lock()
 	defer ec.Unlock()
 	var fieldNotSupportedError *eval.ErrNotSupported
 
 	eventType := event.GetType()
 	collectedEvent := CollectedEvent{
-		Type:       eventType,
-		EvalResult: result,
-		Fields:     make(map[string]interface{}, len(rs.fields)),
+		Type:         eventType,
+		EvalResult:   len(matchedRules) > 0,
+		MatchedRules: matchedRules,
+		Fields:       make(map[string]interface{}, len(rs.fields)),
 	}
 
 	for _, field := range rs.fields {
@@ -57,6 +60,7 @@ func (ec *EventCollector) CollectEvent(rs *RuleSet, event eval.Event, result boo
 	ec.eventsCollected = append(ec.eventsCollected, collectedEvent)
 }
 
+// Stop stops the event collector
 func (ec *EventCollector) Stop() []CollectedEvent {
 	ec.Lock()
 	defer ec.Unlock()

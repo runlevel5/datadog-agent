@@ -15,11 +15,12 @@ import (
 
 	"github.com/spf13/cast"
 
+	"github.com/hashicorp/go-multierror"
+
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/ast"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/log"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
-	"github.com/hashicorp/go-multierror"
 )
 
 // MacroID represents the ID of a macro
@@ -634,6 +635,7 @@ func (rs *RuleSet) Evaluate(event eval.Event) bool {
 	}
 
 	result := false
+	var matchedRules []RuleID
 	for _, rule := range bucket.rules {
 		if rule.GetEvaluator().Eval(ctx) {
 
@@ -643,6 +645,7 @@ func (rs *RuleSet) Evaluate(event eval.Event) bool {
 
 			rs.NotifyRuleMatch(rule, event)
 			result = true
+			matchedRules = append(matchedRules, rule.ID)
 
 			if err := rs.runRuleActions(event, ctx, rule); err != nil {
 				rs.logger.Errorf("Error while executing rule actions: %s", err)
@@ -652,7 +655,7 @@ func (rs *RuleSet) Evaluate(event eval.Event) bool {
 
 	// no-op in the general case, only used to collect events in functional tests
 	// for debugging purposes
-	rs.eventCollector.CollectEvent(rs, event, result)
+	rs.eventCollector.CollectEvent(rs, event, matchedRules)
 
 	return result
 }

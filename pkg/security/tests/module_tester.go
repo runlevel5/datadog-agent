@@ -1355,7 +1355,7 @@ func (tm *testModule) NewTimeoutError() ErrTimeout {
 		msg.WriteString("\nevents evaluated:\n")
 
 		for _, event := range events {
-			msg.WriteString(fmt.Sprintf("%s (eval=%v) {\n", event.Type, event.EvalResult))
+			msg.WriteString(fmt.Sprintf("%s (eval=%v %q) {\n", event.Type, event.EvalResult, event.MatchedRules))
 			for field, value := range event.Fields {
 				msg.WriteString(fmt.Sprintf("\t%s=%v,\n", field, value))
 			}
