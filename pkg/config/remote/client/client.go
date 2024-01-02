@@ -286,9 +286,13 @@ func (c *Client) Subscribe(product string, fn func(update map[string]state.RawCo
 
 // GetConfigs returns the current configs applied of a product.
 func (c *Client) GetConfigs(product string) map[string]state.RawConfig {
+	fmt.Println(fmt.Sprintf("[AGENT-CLIENT] [DEBUG] [client.go] [GetConfigs()] product: %s", product))
+
 	c.m.Lock()
 	defer c.m.Unlock()
-	return c.state.GetConfigs(product)
+	a := c.state.GetConfigs(product)
+	fmt.Println(fmt.Sprintf("[AGENT-CLIENT] [DEBUG] [client.go] [GetConfigs()] product: %s", product))
+	return a
 }
 
 // SetCWSWorkloads updates the list of workloads that needs cws profiles
@@ -360,16 +364,19 @@ func (c *Client) pollLoop() {
 func (c *Client) update() error {
 	req, err := c.newUpdateRequest()
 	if err != nil {
+		fmt.Println(fmt.Sprintf("[AGENT-CLIENT] [ERROR] [client.go] [update()] couldn't make new update request: %v", err))
 		return err
 	}
 
 	response, err := c.updater.ClientGetConfigs(c.ctx, req)
 	if err != nil {
+		fmt.Println(fmt.Sprintf("[AGENT-CLIENT] [ERROR] [client.go] [update()] err during ClientGetConfigs(): %v", err))
 		return err
 	}
 
 	changedProducts, err := c.applyUpdate(response)
 	if err != nil {
+		fmt.Println(fmt.Sprintf("[AGENT-CLIENT] [ERROR] [client.go] [update()] err during applyUpdate(): %v", err))
 		return err
 	}
 	// We don't want to force the products to reload config if nothing changed
@@ -387,6 +394,7 @@ func (c *Client) update() error {
 			}
 		}
 	}
+	fmt.Println(fmt.Sprintf("[AGENT-CLIENT] [DEBUG] [client.go] [update()] much success"))
 	return nil
 }
 

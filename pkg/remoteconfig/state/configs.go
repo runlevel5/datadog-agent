@@ -59,6 +59,8 @@ func (r *Repository) GetConfigs(product string) map[string]RawConfig {
 		}
 
 		typedConfigs[path] = typed
+
+		fmt.Println(fmt.Sprintf("[AGENT-CLIENT] [DEBUG] [client.go] [GetConfigs()] path: %s, typed config metadata: %+v", path, typed.Metadata))
 	}
 
 	return typedConfigs
