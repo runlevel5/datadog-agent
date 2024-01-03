@@ -205,6 +205,8 @@ func setupProcesses(config Config) {
 
 	procBindEnvAndSetDefault(config, "process_config.language_detection.grpc_port", DefaultProcessEntityStreamPort)
 
+	procBindEnvAndSetDefault(config, "process_config.clock_drift", 0*time.Second)
+
 	processesAddOverrideOnce.Do(func() {
 		AddOverrideFunc(loadProcessTransforms)
 	})

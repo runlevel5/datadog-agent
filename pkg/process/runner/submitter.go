@@ -453,9 +453,11 @@ func (s *CheckSubmitter) messagesToCheckResult(start time.Time, name string, mes
 			continue
 		}
 
+		tsWithDrift := start.Add(ddconfig.Datadog.GetDuration("process_config.clock_drift"))
+
 		agentVersion, _ := version.Agent()
 		extraHeaders := make(http.Header)
-		extraHeaders.Set(headers.TimestampHeader, strconv.Itoa(int(start.Unix())))
+		extraHeaders.Set(headers.TimestampHeader, strconv.Itoa(int(tsWithDrift.Unix())))
 		extraHeaders.Set(headers.HostHeader, s.hostname)
 		extraHeaders.Set(headers.ProcessVersionHeader, agentVersion.GetNumber())
 		extraHeaders.Set(headers.ContainerCountHeader, strconv.Itoa(getContainerCount(m)))
