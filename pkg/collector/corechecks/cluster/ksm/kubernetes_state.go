@@ -448,7 +448,7 @@ func manageResourcesReplacement(c *apiserver.APIClient, factories []customresour
 
 	for _, resourceReplacement := range resourceReplacements {
 		for _, factory := range resourceReplacement {
-			factories = append(factories, factory(c))
+			factories = append(factories, Factory(c))
 		}
 	}
 

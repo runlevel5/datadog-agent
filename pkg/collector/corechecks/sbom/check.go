@@ -29,7 +29,7 @@ const (
 )
 
 func init() {
-	core.RegisterCheck(checkName, CheckFactory)
+	core.RegisterCheck(CheckName, CheckFactory)
 }
 
 // Config holds the container_image check configuration
@@ -176,7 +176,7 @@ func (c *Check) Run() error {
 	}
 
 	imgEventsCh := c.workloadmetaStore.Subscribe(
-		checkName,
+		CheckName,
 		workloadmeta.NormalPriority,
 		workloadmeta.NewFilter(&filterParams),
 	)
