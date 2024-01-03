@@ -7,7 +7,7 @@
 
 // linux handled by systemd/upstart
 
-package embed
+package apm
 
 import (
 	"fmt"

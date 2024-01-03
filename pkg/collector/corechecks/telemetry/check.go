@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	checkName = "telemetry"
+	CheckName = "telemetry"
 	prefix    = "datadog.agent."
 )
 
@@ -105,14 +105,10 @@ func (c *checkImpl) buildTags(lps []*dto.LabelPair) []string {
 
 func newCheck() *checkImpl {
 	return &checkImpl{
-		CheckBase: corechecks.NewCheckBase(checkName),
+		CheckBase: corechecks.NewCheckBase(CheckName),
 	}
 }
 
-func factory() check.Check {
+func Factory() check.Check {
 	return newCheck()
-}
-
-func init() {
-	corechecks.RegisterCheck(checkName, factory)
 }

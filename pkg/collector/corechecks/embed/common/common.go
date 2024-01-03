@@ -4,7 +4,7 @@
 // Copyright 2016-present Datadog, Inc.
 
 //nolint:revive // TODO(APL) Fix revive linter
-package embed
+package common
 
 import (
 	"os/exec"
@@ -13,13 +13,13 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
 )
 
-const defaultRetryDuration = 5 * time.Second
-const defaultRetries = 3
+const DefaultRetryDuration = 5 * time.Second
+const DefaultRetries = 3
 
-// retryExitError converts `exec.ExitError`s to `check.RetryableError`s, so that checks using this
+// common.retryExitError converts `exec.ExitError`s to `check.RetryableError`s, so that checks using this
 // are retried.
 // embed checks must use this from their `Run` method when exit errors need to be retried.
-func retryExitError(err error) error { //nolint Used only on some architectures
+func RetryExitError(err error) error { //nolint Used only on some architectures
 	switch err.(type) {
 	case *exec.ExitError: // error type returned when the process exits with non-zero status
 		return check.RetryableError{Err: err}

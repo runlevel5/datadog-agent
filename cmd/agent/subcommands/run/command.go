@@ -120,7 +120,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/generic"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/kubelet"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/ebpf"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/embed"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/embed/apm"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/embed/process"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/net"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/nvidia/jetson"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/oracle-dbm"
@@ -130,13 +131,13 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/cpu"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/disk"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/filehandles"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/memory"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/uptime"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/memory"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/uptime"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/wincrashdetect"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/winkmem"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/winproc"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/systemd"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/telemetry"
+	telemetryCheck "github.com/DataDog/datadog-agent/pkg/collector/corechecks/telemetry"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/windows_event_log"
 
 	// register metadata providers
@@ -145,27 +146,32 @@ import (
 
 func registerChecks(store workloadmeta.Component) {
 	// Required checks
-	registerCheckIfEnabled(true, cpu.CheckName, cpu.Factory)
+	registerCheck(true, cpu.CheckName, cpu.Factory)
+	registerCheck(true, memory.CheckName, memory.Factory)
+	registerCheck(true, uptime.CheckName, uptime.Factory)
+	registerCheck(true, telemetryCheck.CheckName, telemetryCheck.Factory)
 
-	registerCheckIfEnabled(true, containerimage.CheckName, containerimage.NewFactory(store))
-	registerCheckIfEnabled(true, containerlifecycle.CheckName, containerlifecycle.NewFactory(store))
-	registerCheckIfEnabled(true, generic.CheckName, generic.NewFactory(store))
+	registerCheck(true, containerimage.CheckName, containerimage.NewFactory(store))
+	registerCheck(true, containerlifecycle.CheckName, containerlifecycle.NewFactory(store))
+	registerCheck(true, generic.CheckName, generic.NewFactory(store))
 
 	// Flavor specific checks
-	registerCheckIfEnabled(kubernetesapiserver.Enabled, kubernetesapiserver.CheckName, kubernetesapiserver.Factory)
-	registerCheckIfEnabled(ksm.Enabled, ksm.CheckName, ksm.Factory)
-	registerCheckIfEnabled(helm.Enabled, helm.CheckName, helm.Factory)
-	registerCheckIfEnabled(pod.Enabled, pod.CheckName, pod.Factory)
-	registerCheckIfEnabled(containerd.Enabled, containerd.CheckName, containerd.Factory)
-	registerCheckIfEnabled(cri.Enabled, cri.CheckName, cri.Factory)
-	registerCheckIfEnabled(ebpf.Enabled, ebpf.CheckName, ebpf.Factory)
+	registerCheck(kubernetesapiserver.Enabled, kubernetesapiserver.CheckName, kubernetesapiserver.Factory)
+	registerCheck(ksm.Enabled, ksm.CheckName, ksm.Factory)
+	registerCheck(helm.Enabled, helm.CheckName, helm.Factory)
+	registerCheck(pod.Enabled, pod.CheckName, pod.Factory)
+	registerCheck(containerd.Enabled, containerd.CheckName, containerd.Factory)
+	registerCheck(cri.Enabled, cri.CheckName, cri.Factory)
+	registerCheck(ebpf.Enabled, ebpf.CheckName, ebpf.Factory)
+	registerCheck(apm.Enabled, apm.CheckName, apm.Factory)
+	registerCheck(process.Enabled, process.CheckName, process.Factory)
 
-	registerCheckIfEnabled(docker.Enabled, docker.CheckName, docker.NewFactory(store))
-	registerCheckIfEnabled(sbom.Enabled, sbom.CheckName, sbom.NewFactory(store))
-	registerCheckIfEnabled(kubelet.Enabled, kubelet.CheckName, kubelet.NewFactory(store))
+	registerCheck(docker.Enabled, docker.CheckName, docker.NewFactory(store))
+	registerCheck(sbom.Enabled, sbom.CheckName, sbom.NewFactory(store))
+	registerCheck(kubelet.Enabled, kubelet.CheckName, kubelet.NewFactory(store))
 }
 
-func registerCheckIfEnabled(enabled bool, name string, factory func() check.Check) {
+func registerCheck(enabled bool, name string, factory func() check.Check) {
 	if enabled {
 		corecheckLoader.RegisterCheck(name, factory)
 	}

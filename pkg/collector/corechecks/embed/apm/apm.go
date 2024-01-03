@@ -3,40 +3,46 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build process && (darwin || freebsd)
+//go:build apm && !windows && !linux
 
-package embed
+//nolint:revive // TODO(APM) Fix revive linter
+package apm
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"time"
 
 	"go.uber.org/atomic"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
 	checkid "github.com/DataDog/datadog-agent/pkg/collector/check/id"
 	"github.com/DataDog/datadog-agent/pkg/collector/check/stats"
-	core "github.com/DataDog/datadog-agent/pkg/collector/corechecks"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/embed/common"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/utils"
 	"github.com/DataDog/datadog-agent/pkg/diagnose/diagnosis"
-	"github.com/DataDog/datadog-agent/pkg/util/executable"
+	"github.com/DataDog/datadog-agent/pkg/util/hostname"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-type processAgentCheckConf struct {
+const (
+	Enabled   = true
+	CheckName = "apm"
+)
+
+type apmCheckConf struct {
 	BinPath string `yaml:"bin_path,omitempty"`
 }
 
-// ProcessAgentCheck keeps track of the running command
-type ProcessAgentCheck struct {
+// APMCheck keeps track of the running command
+type APMCheck struct {
 	binPath        string
 	commandOpts    []string
 	running        *atomic.Bool
@@ -49,52 +55,51 @@ type ProcessAgentCheck struct {
 }
 
 // String displays the Agent name
-func (c *ProcessAgentCheck) String() string {
-	return "Process Agent"
+func (c *APMCheck) String() string {
+	return "APM Agent"
 }
 
 // Version displays the command's version
-func (c *ProcessAgentCheck) Version() string {
+func (c *APMCheck) Version() string {
 	return ""
 }
 
 // ConfigSource displays the command's source
-func (c *ProcessAgentCheck) ConfigSource() string {
+func (c *APMCheck) ConfigSource() string {
 	return c.source
 }
 
-// InitConfig returns the init configuration
-func (c *ProcessAgentCheck) InitConfig() string {
-	return c.initConfig
-}
-
-// InstanceConfig returns the instance configuration
-func (c *ProcessAgentCheck) InstanceConfig() string {
-	return c.instanceConfig
-}
-
 // Run executes the check with retries
-func (c *ProcessAgentCheck) Run() error {
+func (c *APMCheck) Run() error {
 	c.running.Store(true)
 	// TODO: retries should be configurable with meaningful default values
-	err := check.Retry(defaultRetryDuration, defaultRetries, c.run, c.String())
+	err := check.Retry(common.DefaultRetryDuration, common.DefaultRetries, c.run, c.String())
 	c.running.Store(false)
 
 	return err
 }
 
 // run executes the check
-func (c *ProcessAgentCheck) run() error {
+func (c *APMCheck) run() error {
 	select {
 	// poll the stop channel once to make sure no stop was requested since the last call to `run`
 	case <-c.stop:
-		log.Info("Not starting Process Agent check: stop requested")
+		log.Info("Not starting APM check: stop requested")
 		c.stopDone <- struct{}{}
 		return nil
 	default:
 	}
 
 	cmd := exec.Command(c.binPath, c.commandOpts...)
+
+	hname, _ := hostname.Get(context.TODO())
+
+	env := os.Environ()
+	env = append(env, fmt.Sprintf("DD_API_KEY=%s", utils.SanitizeAPIKey(config.Datadog.GetString("api_key"))))
+	env = append(env, fmt.Sprintf("DD_HOSTNAME=%s", hname))
+	env = append(env, fmt.Sprintf("DD_DOGSTATSD_PORT=%s", config.Datadog.GetString("dogstatsd_port")))
+	env = append(env, fmt.Sprintf("DD_LOG_LEVEL=%s", config.Datadog.GetString("log_level")))
+	cmd.Env = env
 
 	// forward the standard output to the Agent logger
 	stdout, err := cmd.StdoutPipe()
@@ -121,7 +126,7 @@ func (c *ProcessAgentCheck) run() error {
 	}()
 
 	if err = cmd.Start(); err != nil {
-		return retryExitError(err)
+		return common.RetryExitError(err)
 	}
 
 	processDone := make(chan error)
@@ -131,11 +136,11 @@ func (c *ProcessAgentCheck) run() error {
 
 	select {
 	case err = <-processDone:
-		return retryExitError(err)
+		return common.RetryExitError(err)
 	case <-c.stop:
 		err = cmd.Process.Signal(os.Kill)
 		if err != nil {
-			log.Errorf("unable to stop process-agent check: %s", err)
+			log.Errorf("unable to stop APM check: %s", err)
 		}
 	}
 
@@ -145,28 +150,22 @@ func (c *ProcessAgentCheck) run() error {
 	return err
 }
 
-// Configure the ProcessAgentCheck
+// Configure the APMCheck
 //
-//nolint:revive // TODO(PROC) Fix revive linter
-func (c *ProcessAgentCheck) Configure(senderManager sender.SenderManager, integrationConfigDigest uint64, data integration.Data, initConfig integration.Data, source string) error {
-	// only log whether process check is enabled or not but don't return early, because we still need to initialize "binPath", "source" and
-	// start up process-agent. Ultimately it's up to process-agent to decide whether to run or not based on the config
-	if enabled := config.Datadog.GetBool("process_config.process_collection.enabled"); !enabled {
-		log.Info("live process monitoring is disabled through main configuration file")
-	}
-
-	var checkConf processAgentCheckConf
+//nolint:revive // TODO(APM) Fix revive linter
+func (c *APMCheck) Configure(senderManager sender.SenderManager, integrationConfigDigest uint64, data integration.Data, initConfig integration.Data, source string) error {
+	var checkConf apmCheckConf
 	if err := yaml.Unmarshal(data, &checkConf); err != nil {
 		return err
 	}
 
 	c.binPath = ""
-	defaultBinPath, defaultBinPathErr := getProcessAgentDefaultBinPath()
+	defaultBinPath, defaultBinPathErr := getAPMAgentDefaultBinPath()
 	if checkConf.BinPath != "" {
 		if _, err := os.Stat(checkConf.BinPath); err == nil {
 			c.binPath = checkConf.BinPath
 		} else {
-			log.Warnf("Can't access process-agent binary at %s, falling back to default path at %s", checkConf.BinPath, defaultBinPath)
+			log.Warnf("Can't access apm binary at %s, falling back to default path at %s", checkConf.BinPath, defaultBinPath)
 		}
 	}
 
@@ -174,46 +173,46 @@ func (c *ProcessAgentCheck) Configure(senderManager sender.SenderManager, integr
 		if defaultBinPathErr != nil {
 			return defaultBinPathErr
 		}
+
 		c.binPath = defaultBinPath
 	}
 
-	// be explicit about the config file location
 	configFile := config.Datadog.ConfigFileUsed()
+
 	c.commandOpts = []string{}
+
+	// explicitly provide to the trace-agent the agent configuration file
 	if _, err := os.Stat(configFile); !os.IsNotExist(err) {
 		c.commandOpts = append(c.commandOpts, fmt.Sprintf("-config=%s", configFile))
 	}
 
 	c.source = source
-	c.telemetry = utils.IsCheckTelemetryEnabled("process_agent")
+	c.telemetry = utils.IsCheckTelemetryEnabled("apm")
 	c.initConfig = string(initConfig)
 	c.instanceConfig = string(data)
 	return nil
 }
 
-// InitSender initializes a sender but we don't need any
-func (c *ProcessAgentCheck) InitSender() {}
-
 // Interval returns the scheduling time for the check, this will be scheduled only once
 // since `Run` won't return, thus implementing a long running check.
-func (c *ProcessAgentCheck) Interval() time.Duration {
+func (c *APMCheck) Interval() time.Duration {
 	return 0
 }
 
 // ID returns the name of the check since there should be only one instance running
-func (c *ProcessAgentCheck) ID() checkid.ID {
-	return "PROCESS_AGENT"
+func (c *APMCheck) ID() checkid.ID {
+	return "APM_AGENT"
 }
 
 // IsTelemetryEnabled returns if the telemetry is enabled for this check
-func (c *ProcessAgentCheck) IsTelemetryEnabled() bool {
+func (c *APMCheck) IsTelemetryEnabled() bool {
 	return c.telemetry
 }
 
-// Stop sends a termination signal to the process-agent process
-func (c *ProcessAgentCheck) Stop() {
+// Stop sends a termination signal to the APM process
+func (c *APMCheck) Stop() {
 	if !c.running.Load() {
-		log.Info("Process Agent not running.")
+		log.Info("APM Agent not running.")
 		return
 	}
 
@@ -222,39 +221,37 @@ func (c *ProcessAgentCheck) Stop() {
 }
 
 // Cancel does nothing
-func (c *ProcessAgentCheck) Cancel() {}
+func (c *APMCheck) Cancel() {}
 
-// GetSenderStats returns the stats from the last run of the check, but there aren't any yet
-func (c *ProcessAgentCheck) GetSenderStats() (stats.SenderStats, error) {
+// GetWarnings does not return anything in APM
+func (c *APMCheck) GetWarnings() []error {
+	return []error{}
+}
+
+// GetSenderStats returns the stats from the last run of the check, but there aren't any
+func (c *APMCheck) GetSenderStats() (stats.SenderStats, error) {
 	return stats.NewSenderStats(), nil
 }
 
+// InitConfig returns the initConfig for the APM check
+func (c *APMCheck) InitConfig() string {
+	return c.initConfig
+}
+
+// InstanceConfig returns the instance config for the APM check
+func (c *APMCheck) InstanceConfig() string {
+	return c.instanceConfig
+}
+
 // GetDiagnoses returns the diagnoses of the check
-func (c *ProcessAgentCheck) GetDiagnoses() ([]diagnosis.Diagnosis, error) {
+func (c *APMCheck) GetDiagnoses() ([]diagnosis.Diagnosis, error) {
 	return nil, nil
 }
 
-func init() {
-	factory := func() check.Check {
-		return &ProcessAgentCheck{
-			stop:     make(chan struct{}),
-			stopDone: make(chan struct{}),
-			running:  atomic.NewBool(false),
-		}
+func Factory() check.Check {
+	return &APMCheck{
+		running:  atomic.NewBool(false),
+		stop:     make(chan struct{}),
+		stopDone: make(chan struct{}),
 	}
-	core.RegisterCheck("process_agent", factory)
-}
-
-func getProcessAgentDefaultBinPath() (string, error) {
-	here, _ := executable.Folder()
-	binPath := filepath.Join(here, "..", "..", "embedded", "bin", "process-agent")
-	if _, err := os.Stat(binPath); err == nil {
-		return binPath, nil
-	}
-	return binPath, fmt.Errorf("Can't access the default process-agent binary at %s", binPath)
-}
-
-// GetWarnings does not return anything
-func (c *ProcessAgentCheck) GetWarnings() []error {
-	return []error{}
 }

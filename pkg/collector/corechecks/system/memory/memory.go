@@ -11,13 +11,10 @@ import (
 	core "github.com/DataDog/datadog-agent/pkg/collector/corechecks"
 )
 
-const memCheckName = "memory"
+const CheckName = "memory"
 
-func memFactory() check.Check {
+func Factory() check.Check {
 	return &Check{
-		CheckBase: core.NewCheckBase(memCheckName),
+		CheckBase: core.NewCheckBase(CheckName),
 	}
-}
-func init() {
-	core.RegisterCheck(memCheckName, memFactory)
 }
