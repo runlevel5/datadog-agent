@@ -23,7 +23,8 @@ import (
 )
 
 const (
-	checkName    = "sbom"
+	Enabled      = true
+	CheckName    = "sbom"
 	metricPeriod = 15 * time.Minute
 )
 
@@ -113,14 +114,15 @@ type Check struct {
 	stopCh            chan struct{}
 }
 
-// CheckFactory registers the sbom check
-func CheckFactory() check.Check {
-	return &Check{
-		CheckBase: core.NewCheckBase(checkName),
-		// TODO)components): stop using global and rely instead on injected workloadmeta component.
-		workloadmetaStore: workloadmeta.GetGlobalStore(),
-		instance:          &Config{},
-		stopCh:            make(chan struct{}),
+// NewFactory returns a new check factory
+func NewFactory(store workloadmeta.Component) func() check.Check {
+	return func() check.Check {
+		return &Check{
+			CheckBase:         core.NewCheckBase(CheckName),
+			workloadmetaStore: store,
+			instance:          &Config{},
+			stopCh:            make(chan struct{}),
+		}
 	}
 }
 

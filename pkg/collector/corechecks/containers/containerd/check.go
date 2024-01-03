@@ -32,7 +32,8 @@ import (
 )
 
 const (
-	containerdCheckName = "containerd"
+	Enabled             = true
+	CheckName           = "containerd"
 	pullImageGrpcMethod = "PullImage"
 	cacheValidity       = 2 * time.Second
 )
@@ -57,14 +58,10 @@ type ContainerdConfig struct {
 	OpenmetricsEndpoint string   `yaml:"openmetrics_endpoint"`
 }
 
-func init() {
-	corechecks.RegisterCheck(containerdCheckName, ContainerdFactory)
-}
-
-// ContainerdFactory is used to create register the check and initialize it.
-func ContainerdFactory() check.Check {
+// Factory is used to create register the check and initialize it.
+func Factory() check.Check {
 	return &ContainerdCheck{
-		CheckBase: corechecks.NewCheckBase(containerdCheckName),
+		CheckBase: corechecks.NewCheckBase(CheckName),
 		instance:  &ContainerdConfig{},
 	}
 }

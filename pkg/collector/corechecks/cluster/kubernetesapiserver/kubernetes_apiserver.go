@@ -38,7 +38,7 @@ import (
 // Covers the Control Plane service check and the in memory pod metadata.
 const (
 	KubeControlPaneCheck          = "kube_apiserver_controlplane.up"
-	kubernetesAPIServerCheckName  = "kubernetes_apiserver"
+	CheckName                     = "kubernetes_apiserver"
 	eventTokenKey                 = "event"
 	maxEventCardinality           = 300
 	defaultResyncPeriodInSecond   = 300
@@ -47,7 +47,7 @@ const (
 
 var (
 	kubeEvents = telemetry.NewCounterWithOpts(
-		kubernetesAPIServerCheckName,
+		CheckName,
 		"kube_events",
 		[]string{"kind", "component", "type", "reason"},
 		"Number of Kubernetes events received by the check.",
@@ -55,7 +55,7 @@ var (
 	)
 
 	emittedEvents = telemetry.NewCounterWithOpts(
-		kubernetesAPIServerCheckName,
+		CheckName,
 		"emitted_events",
 		[]string{"kind", "type"},
 		"Number of events emitted by the check.",
@@ -130,9 +130,9 @@ func NewKubeASCheck(base core.CheckBase, instance *KubeASConfig) *KubeASCheck {
 	}
 }
 
-// KubernetesASFactory is exported for integration testing.
-func KubernetesASFactory() check.Check {
-	return NewKubeASCheck(core.NewCheckBase(kubernetesAPIServerCheckName), &KubeASConfig{})
+// Factory returns a new factory
+func Factory() check.Check {
+	return NewKubeASCheck(core.NewCheckBase(CheckName), &KubeASConfig{})
 }
 
 // Configure parses the check configuration and init the check.
@@ -388,8 +388,4 @@ func convertFilters(conf []string) string {
 		formatedFilters = append(formatedFilters, filter)
 	}
 	return strings.Join(formatedFilters, ",")
-}
-
-func init() {
-	core.RegisterCheck(kubernetesAPIServerCheckName, KubernetesASFactory)
 }

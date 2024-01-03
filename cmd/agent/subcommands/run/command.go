@@ -111,22 +111,21 @@ import (
 	corecheckLoader "github.com/DataDog/datadog-agent/pkg/collector/corechecks"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/helm"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/ksm"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/kubernetesapiserver"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/orchestrator"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/containerimage"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/containerlifecycle"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/containerd"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/cri"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/docker"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/generic"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/kubernetesapiserver"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containerimage"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containerlifecycle"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/containerd"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/cri"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/docker"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/generic"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/kubelet"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/ebpf"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/embed"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/net"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/nvidia/jetson"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/oracle-dbm"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/orchestrator/pod"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/sbom"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/orchestrator/pod"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/sbom"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/snmp"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/cpu"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/disk"
@@ -148,7 +147,29 @@ func registerChecks(store workloadmeta.Component) {
 	corecheckLoader.RegisterCheck(cpu.CheckName, cpu.Factory)
 	corecheckLoader.RegisterCheck(helm.CheckName, helm.Factory)
 	corecheckLoader.RegisterCheck(ksm.CheckName, ksm.Factory)
+	corecheckLoader.RegisterCheck(kubernetesapiserver.CheckName, kubernetesapiserver.Factory)
+
 	corecheckLoader.RegisterCheck(kubelet.CheckName, kubelet.NewFactory(store))
+	corecheckLoader.RegisterCheck(containerimage.CheckName, containerimage.NewFactory(store))
+	corecheckLoader.RegisterCheck(containerlifecycle.CheckName, containerlifecycle.NewFactory(store))
+	corecheckLoader.RegisterCheck(generic.CheckName, generic.NewFactory(store))
+
+	if docker.Enabled {
+		corecheckLoader.RegisterCheck(docker.CheckName, docker.NewFactory(store))
+	}
+	if sbom.Enabled {
+		corecheckLoader.RegisterCheck(sbom.CheckName, sbom.NewFactory(store))
+	}
+	if pod.Enabled {
+		corecheckLoader.RegisterCheck(pod.CheckName, pod.Factory)
+	}
+	if containerd.Enabled {
+		corecheckLoader.RegisterCheck(containerd.CheckName, containerd.Factory)
+	}
+	if cri.Enabled {
+		corecheckLoader.RegisterCheck(cri.CheckName, cri.Factory)
+	}
+
 }
 
 type cliParams struct {
