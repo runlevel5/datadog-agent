@@ -200,7 +200,6 @@ const (
 	TcpSendPageArgsMap                BPFMapName = "tcp_sendpage_args"
 	UdpSendPageArgsMap                BPFMapName = "udp_sendpage_args"
 	IpMakeSkbArgsMap                  BPFMapName = "ip_make_skb_args"
-	HelperErrTelemetryMap             BPFMapName = "helper_err_telemetry_map"
 	EBPFTelemetryMap                  BPFMapName = "bpf_telemetry_map"
 	TcpRecvMsgArgsMap                 BPFMapName = "tcp_recvmsg_args"
 	ProtocolClassificationBufMap      BPFMapName = "classification_buf"

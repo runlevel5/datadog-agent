@@ -1979,6 +1979,7 @@ func (s *TracerSuite) TestGetHelpersTelemetry() {
 	helperTelemetry := tr.bpfTelemetry.GetHelpersTelemetry()
 	t.Logf("EBPF helper telemetry: %v\n", helperTelemetry)
 
+	fmt.Printf("exepected: %s\n", expectedErrorTP)
 	openAtErrors, ok := helperTelemetry[expectedErrorTP].(map[string]interface{})
 	require.True(t, ok)
 

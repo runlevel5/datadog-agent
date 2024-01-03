@@ -321,7 +321,6 @@ func (t *tracer) GetMap(name string) *ebpf.Map {
 	switch name {
 	case probes.SockByPidFDMap:
 	case probes.ConnectionProtocolMap:
-	case probes.HelperErrTelemetryMap:
 	case probes.EBPFTelemetryMap:
 	default:
 		return nil

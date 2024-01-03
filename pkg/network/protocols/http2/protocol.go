@@ -10,6 +10,7 @@ package http2
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -176,6 +177,8 @@ func (p *Protocol) ConfigureOptions(mgr *manager.Manager, opts *manager.Options)
 		MaxEntries: mapSizeValue,
 		EditorFlag: manager.EditMaxEntries,
 	}
+	opts.VerifierOptions.Programs.LogSize = (math.MaxUint32 >> 2) - 1
+	opts.VerifierOptions.Programs.LogLevel = (1 | 2)
 
 	utils.EnableOption(opts, "http2_monitoring_enabled")
 	// Configure event stream

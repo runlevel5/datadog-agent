@@ -310,6 +310,9 @@ func (e *ebpfProgram) init(buf bytecode.AssetReader, options manager.Options) er
 		Max: math.MaxUint64,
 	}
 
+	options.VerifierOptions.Programs.LogSize = (math.MaxUint32 >> 2) - 1
+	options.VerifierOptions.Programs.LogLevel = (1 | 2)
+
 	options.MapSpecEditors = map[string]manager.MapSpecEditor{
 		connectionStatesMap: {
 			MaxEntries: e.cfg.MaxTrackedConnections,
@@ -359,7 +362,6 @@ func (e *ebpfProgram) init(buf bytecode.AssetReader, options manager.Options) er
 	utils.AddBoolConst(&options, e.cfg.CollectTCPv6Conns, "tcpv6_enabled")
 
 	options.DefaultKprobeAttachMethod = kprobeAttachMethod
-	options.VerifierOptions.Programs.LogSize = 10 * 1024 * 1024
 
 	supported, notSupported := e.getProtocolsForBuildMode()
 	cleanup := e.configureManagerWithSupportedProtocols(supported)

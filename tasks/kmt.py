@@ -133,7 +133,8 @@ def get_vm_ip(stack, version, arch):
     with open(f"{KMT_STACKS_DIR}/{stack}/stack.output", 'r') as f:
         entries = f.readlines()
         for entry in entries:
-            match = re.search(f"^.+{arch}-{version}.+\\s+.+$", entry.strip('\n'))
+            print(entry)
+            match = re.search(f"^.*{arch}-{version}.+\\s+.+$", entry.strip('\n'))
             if match is None:
                 continue
 
@@ -148,8 +149,10 @@ def build_target_set(stack, vms, ssh_key):
     possible = vmconfig.list_possible()
     target_vms = list()
     for vm in vm_types:
+        print(vm)
         _, version, arch = vmconfig.normalize_vm_def(possible, vm)
         target = get_vm_ip(stack, version, arch)
+        print(target)
         target_vms.append(target)
         if arch != "local" and ssh_key == "":
             raise Exit("`ssh_key` is required when syncing VMs on remote instance")

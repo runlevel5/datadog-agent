@@ -8,6 +8,7 @@
 package telemetry
 
 import (
+	"fmt"
 	"unsafe"
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -16,22 +17,24 @@ import (
 // GetHelpersTelemetry returns a map of error telemetry for each ebpf program
 func (b *EBPFTelemetry) GetHelpersTelemetry() map[string]interface{} {
 	helperTelemMap := make(map[string]interface{})
-	if b.helperErrMap == nil {
+	if b.bpfTelemetryMap == nil {
 		return helperTelemMap
 	}
 
-	var val HelperErrTelemetry
-	for probeName, k := range b.probeKeys {
-		err := b.helperErrMap.Lookup(unsafe.Pointer(&k), unsafe.Pointer(&val))
-		if err != nil {
-			log.Debugf("failed to get telemetry for map:key %s:%d\n", probeName, k)
-			continue
-		}
+	var val InstrumentationBlob
+	key := 0
+	err := b.bpfTelemetryMap.Lookup(unsafe.Pointer(&key), unsafe.Pointer(&key))
+	if err != nil {
+		log.Debugf("failed to get instrumentation blob")
+		return helperTelemMap
+	}
 
+	fmt.Printf("Active value: %d\n", val.Telemetry_active)
+	for probeName, probeIndex := range b.probeKeys {
 		t := make(map[string]interface{})
 		for indx, helperName := range helperNames {
 			base := maxErrno * indx
-			if count := getErrCount(val.Count[base : base+maxErrno]); len(count) > 0 {
+			if count := getErrCount(val.Helper_err_telemetry[probeIndex].Count[base : base+maxErrno]); len(count) > 0 {
 				t[helperName] = count
 			}
 		}
@@ -39,6 +42,7 @@ func (b *EBPFTelemetry) GetHelpersTelemetry() map[string]interface{} {
 			helperTelemMap[probeName] = t
 		}
 	}
+
 	return helperTelemMap
 }
 
@@ -53,6 +57,7 @@ func (b *EBPFTelemetry) GetMapsTelemetry() map[string]interface{} {
 	err := b.bpfTelemetryMap.Lookup(unsafe.Pointer(&key), unsafe.Pointer(&val))
 	if err != nil {
 		log.Debugf("failed to get instrumentation blob")
+		return t
 	}
 
 	for mapName, mapIndx := range b.mapKeys {
