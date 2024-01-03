@@ -90,7 +90,8 @@ pull_test_dockers_arm64:
     - !reference [.setup_ssh_config]
     - chmod +x $CI_PROJECT_DIR/test/new-e2e/system-probe/test/micro-vm-init.sh
     - scp $CI_PROJECT_DIR/test/new-e2e/system-probe/test/micro-vm-init.sh metal_instance:/opt/kernel-version-testing
-    - scp $DD_AGENT_TESTING_DIR/kmt-dockers-$ARCH metal_instance:/opt/kernel-version-testing
+    - tar czvf $DD_AGENT_TESTING_DIR/kmt-dockers-$ARCH kmt-dockers-$ARCH.tar.gz
+    - scp $DD_AGENT_TESTING_DIR/kmt-dockers-$ARCH.tar.gz metal_instance:/opt/kernel-version-testing
   variables:
     AWS_EC2_SSH_KEY_FILE: $CI_PROJECT_DIR/ssh_key
 
@@ -156,7 +157,7 @@ upload_dependencies_arm64:
     - !reference [.setup_ssh_config]
     - scp $DD_AGENT_TESTING_DIR/$ARCHIVE_NAME metal_instance:/opt/kernel-version-testing/
     - scp $DD_AGENT_TESTING_DIR/$TEST_ARCHIVE_NAME metal_instance:/opt/kernel-version-testing/
-    - ssh metal_instance "tar xzf ${TEST_ARCHIVE_NAME} -C /opt/kernel-version-testing"
+    - ssh metal_instance "tar xzf /opt/kernel-version-testing/${TEST_ARCHIVE_NAME} -C /opt/kernel-version-testing"
     # build connector
     - pushd $CI_PROJECT_DIR/test/new-e2e
     - go build -o $CI_PROJECT_DIR/connector-${ARCH} $CI_PROJECT_DIR/test/new-e2e/system-probe/connector/main.go
