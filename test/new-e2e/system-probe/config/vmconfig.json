@@ -51,12 +51,12 @@
                 {
                     "dir": "Fedora-Cloud-Base-37.x86_64.qcow2",
                     "tag": "fedora_37",
-                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/master/Fedora-Cloud-Base-37.x86_64.qcow2.xz"
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/usama.saqib/slim-fetch/Fedora-Cloud-Base-37.x86_64.qcow2.xz"
                 },
                 {
                     "dir": "Fedora-Cloud-Base-38.x86_64.qcow2",
                     "tag": "fedora_38",
-                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/master/Fedora-Cloud-Base-38.x86_64.qcow2.xz"
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/usama.saqib/slim-fetch/Fedora-Cloud-Base-38.x86_64.qcow2.xz"
                 },
                 {
                     "dir": "debian-10-generic-x86_64.qcow2",
@@ -145,12 +145,12 @@
                 {
                     "dir": "Fedora-Cloud-Base-37.arm64.qcow2",
                     "tag": "fedora_37",
-                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/master/Fedora-Cloud-Base-37.arm64.qcow2.xz"
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/usama.saqib/slim-fetch/Fedora-Cloud-Base-37.arm64.qcow2.xz"
                 },
                 {
                     "dir": "Fedora-Cloud-Base-38.arm64.qcow2",
                     "tag": "fedora_38",
-                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/master/Fedora-Cloud-Base-38.arm64.qcow2.xz"
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/usama.saqib/slim-fetch/Fedora-Cloud-Base-38.arm64.qcow2.xz"
                 },
                 {
                     "dir": "debian-10-generic-arm64.qcow2",
