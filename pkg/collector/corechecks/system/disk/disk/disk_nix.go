@@ -23,6 +23,8 @@ import (
 var (
 	diskPartitions = disk.Partitions
 	diskUsage      = disk.Usage
+
+	ioCounters = disk.IOCounters
 )
 
 // Check stores disk-specific additional fields

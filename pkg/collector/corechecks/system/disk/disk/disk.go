@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	checkName   = "disk"
+	Enabled     = true
+	CheckName   = "disk"
 	diskMetric  = "system.disk.%s"
 	inodeMetric = "system.fs.inodes.%s"
 )
@@ -172,12 +173,8 @@ func (c *Check) applyDeviceTags(device, mountpoint string, tags []string) []stri
 	return tags
 }
 
-func diskFactory() check.Check {
+func Factory() check.Check {
 	return &Check{
-		CheckBase: core.NewCheckBase(checkName),
+		CheckBase: core.NewCheckBase(CheckName),
 	}
-}
-
-func init() {
-	core.RegisterCheck(checkName, diskFactory)
 }

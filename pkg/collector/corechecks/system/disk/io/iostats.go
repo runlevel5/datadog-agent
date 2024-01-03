@@ -4,7 +4,7 @@
 // Copyright 2016-present Datadog, Inc.
 
 //nolint:revive // TODO(PLINT) Fix revive linter
-package disk
+package io
 
 import (
 	"regexp"
@@ -20,9 +20,9 @@ import (
 
 const (
 	// SectorSize is used here to substitute non-exporeted from github.com/shirou/gopsutil/v3/disk package constant named "sectorSize"
-	SectorSize       = 512
-	kB               = (1 << 10)
-	iostatsCheckName = "io"
+	SectorSize = 512
+	kB         = (1 << 10)
+	CheckName  = "io"
 )
 
 // Configure the IOstats check
@@ -62,12 +62,8 @@ func (c *IOCheck) commonConfigure(senderManager sender.SenderManager, integratio
 	return err
 }
 
-func init() {
-	core.RegisterCheck(iostatsCheckName, ioFactory)
-}
-
-func ioFactory() check.Check {
+func Factory() check.Check {
 	return &IOCheck{
-		CheckBase: core.NewCheckBase(iostatsCheckName),
+		CheckBase: core.NewCheckBase(CheckName),
 	}
 }

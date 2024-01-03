@@ -125,12 +125,13 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/net/network"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/net/ntp"
 	nvidia "github.com/DataDog/datadog-agent/pkg/collector/corechecks/nvidia/jetson"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/oracle-dbm"
+	oracle "github.com/DataDog/datadog-agent/pkg/collector/corechecks/oracle-dbm"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/orchestrator/pod"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/sbom"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/snmp"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/snmp"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/cpu"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/disk"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/disk/disk"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/disk/io"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/filehandles"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/memory"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/uptime"
@@ -152,6 +153,8 @@ func registerChecks(store workloadmeta.Component) {
 	registerCheck(true, uptime.CheckName, uptime.Factory)
 	registerCheck(true, telemetryCheck.CheckName, telemetryCheck.Factory)
 	registerCheck(true, ntp.CheckName, ntp.Factory)
+	registerCheck(true, snmp.CheckName, snmp.Factory)
+	registerCheck(true, io.CheckName, io.Factory)
 
 	registerCheck(true, containerimage.CheckName, containerimage.NewFactory(store))
 	registerCheck(true, containerlifecycle.CheckName, containerlifecycle.NewFactory(store))
@@ -169,6 +172,8 @@ func registerChecks(store workloadmeta.Component) {
 	registerCheck(process.Enabled, process.CheckName, process.Factory)
 	registerCheck(network.Enabled, network.CheckName, network.Factory)
 	registerCheck(nvidia.Enabled, nvidia.CheckName, nvidia.Factory)
+	registerCheck(oracle.Enabled, oracle.CheckName, oracle.Factory)
+	registerCheck(disk.Enabled, disk.CheckName, disk.Factory)
 
 	registerCheck(docker.Enabled, docker.CheckName, docker.NewFactory(store))
 	registerCheck(sbom.Enabled, sbom.CheckName, sbom.NewFactory(store))

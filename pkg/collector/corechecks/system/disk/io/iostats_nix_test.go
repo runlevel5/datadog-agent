@@ -5,7 +5,7 @@
 
 //go:build !windows
 
-package disk
+package io
 
 import (
 	"math"

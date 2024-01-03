@@ -28,6 +28,10 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/diagnose/diagnosis"
 )
 
+const (
+	CheckName = common.SnmpIntegrationName
+)
+
 var timeNow = time.Now
 
 // Check aggregates metrics from one Check instance
@@ -189,14 +193,10 @@ func (c *Check) GetDiagnoses() ([]diagnosis.Diagnosis, error) {
 	return c.singleDeviceCk.GetDiagnoses(), nil
 }
 
-func snmpFactory() check.Check {
+func Factory() check.Check {
 	return &Check{
 		CheckBase:                  core.NewCheckBase(common.SnmpIntegrationName),
 		sessionFactory:             session.NewGosnmpSession,
 		workerRunDeviceCheckErrors: atomic.NewUint64(0),
 	}
-}
-
-func init() {
-	core.RegisterCheck(common.SnmpIntegrationName, snmpFactory)
 }

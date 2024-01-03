@@ -14,6 +14,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/disk/io"
 )
 
 var (
@@ -63,8 +64,8 @@ var (
 			MergedReadCount:  104744,
 			WriteCount:       10412454,
 			MergedWriteCount: 310860,
-			ReadBytes:        849293 * SectorSize,
-			WriteBytes:       1406995 * SectorSize,
+			ReadBytes:        849293 * io.SectorSize,
+			WriteBytes:       1406995 * io.SectorSize,
 			ReadTime:         19699308,
 			WriteTime:        418600,
 			IopsInProgress:   0,
