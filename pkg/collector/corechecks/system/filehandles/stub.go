@@ -1,18 +1,16 @@
 // Unless explicitly stated otherwise all files in this repository are licensed
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021-present Datadog, Inc.
+// Copyright 2016-present Datadog, Inc.
+//go:build windows || freebsd || darwin
 
-//go:build !windows
-
-// Package evtlog is not implemented on non-Windows platforms
-package evtlog
+package filehandles
 
 import "github.com/DataDog/datadog-agent/pkg/collector/check"
 
 const (
 	Enabled   = false
-	CheckName = "win32_event_log"
+	CheckName = "file_handle"
 )
 
 func Factory() check.Check {

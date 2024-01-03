@@ -8,7 +8,13 @@
 //nolint:revive // TODO(WINA) Fix revive linter
 package winkmem
 
-// Avoid the following error on non-supported platforms:
-// "build constraints exclude all Go files in github.com\DataDog\datadog-agent\pkg\collector\corechecks\ebpf"
-func init() {
+import "github.com/DataDog/datadog-agent/pkg/collector/check"
+
+const (
+	Enabled   = false
+	CheckName = "winkmem"
+)
+
+func Factory() check.Check {
+	return nil
 }

@@ -17,7 +17,10 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-const fileHandlesCheckName = "file_handle"
+const (
+	Enabled   = true
+	CheckName = "file_handle"
+)
 
 // For testing
 var fileNrHandle = "/proc/sys/fs/file-nr"
@@ -86,12 +89,8 @@ func (c *fhCheck) Run() error {
 	return nil
 }
 
-func fhFactory() check.Check {
+func Factory() check.Check {
 	return &fhCheck{
-		CheckBase: core.NewCheckBase(fileHandlesCheckName),
+		CheckBase: core.NewCheckBase(CheckName),
 	}
-}
-
-func init() {
-	core.RegisterCheck(fileHandlesCheckName, fhFactory)
 }

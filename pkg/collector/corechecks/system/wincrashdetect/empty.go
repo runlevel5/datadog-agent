@@ -8,8 +8,13 @@
 // Package wincrashdetect implements the windows crash detection on windows.  It does nothing on linux
 package wincrashdetect
 
-// Avoid the following error on non-supported platforms:
-// "build constraints exclude all Go files in github.com\DataDog\datadog-agent\pkg\collector\corechecks\wincrashdetect"
+import "github.com/DataDog/datadog-agent/pkg/collector/check"
 
-func init() {
+const (
+	Enabled   = false
+	CheckName = "wincrashdetect"
+)
+
+func Factory() check.Check {
+	return nil
 }

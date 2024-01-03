@@ -5,3 +5,14 @@
 
 //nolint:revive // TODO(WINA) Fix revive linter
 package winproc
+
+import "github.com/DataDog/datadog-agent/pkg/collector/check"
+
+const (
+	Enabled   = false
+	CheckName = "winproc"
+)
+
+func Factory() check.Check {
+	return nil
+}

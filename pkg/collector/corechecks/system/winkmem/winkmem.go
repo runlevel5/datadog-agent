@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	kmemCheckName = "winkmem"
+	CheckName = "winkmem"
 
 	// KMemDefaultTopNum is the default number of kernel memory tags to return
 	KMemDefaultTopNum = 10
@@ -57,13 +57,9 @@ type KMemCheck struct {
 	config Config
 }
 
-func init() {
-	core.RegisterCheck(kmemCheckName, winkmemFactory)
-}
-
-func winkmemFactory() check.Check {
+func Factory() check.Check {
 	return &KMemCheck{
-		CheckBase: core.NewCheckBase(kmemCheckName),
+		CheckBase: core.NewCheckBase(CheckName),
 	}
 }
 

@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	crashDetectCheckName = "wincrashdetect"
+	CheckName = "wincrashdetect"
 )
 
 var (
@@ -48,13 +48,9 @@ type WinCrashDetect struct {
 	reporter *crashreport.WinCrashReporter
 }
 
-func init() {
-	core.RegisterCheck(crashDetectCheckName, crashDetectFactory)
-}
-
-func crashDetectFactory() check.Check {
+func Factory() check.Check {
 	return &WinCrashDetect{
-		CheckBase: core.NewCheckBase(crashDetectCheckName),
+		CheckBase: core.NewCheckBase(CheckName),
 		instance:  &WinCrashConfig{},
 	}
 }

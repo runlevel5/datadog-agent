@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	systemdCheckName = "systemd"
+	CheckName = "systemd"
 
 	unitActiveState = "active"
 	unitLoadedState = "loaded"
@@ -559,13 +559,9 @@ func (c *SystemdCheck) Configure(senderManager sender.SenderManager, integration
 	return nil
 }
 
-func systemdFactory() check.Check {
+func Factory() check.Check {
 	return &SystemdCheck{
 		stats:     &defaultSystemdStats{},
-		CheckBase: core.NewCheckBase(systemdCheckName),
+		CheckBase: core.NewCheckBase(CheckName),
 	}
-}
-
-func init() {
-	core.RegisterCheck(systemdCheckName, systemdFactory)
 }
