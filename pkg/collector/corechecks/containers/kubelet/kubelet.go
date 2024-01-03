@@ -29,6 +29,7 @@ import (
 )
 
 const (
+	Enabled   = true
 	CheckName = "kubelet_core"
 )
 

@@ -46,6 +46,7 @@ import (
 )
 
 const (
+	Enabled                 = true
 	CheckName               = "kubernetes_state_core"
 	maximumWaitForAPIServer = 10 * time.Second
 

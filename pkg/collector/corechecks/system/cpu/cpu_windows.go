@@ -25,7 +25,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/pdhutil"
 )
 
-const cpuCheckName = "cpu"
+const CheckName = "cpu"
 
 // For testing purposes
 var cpuInfo = cpu.CollectInfo
@@ -173,12 +173,8 @@ func (c *Check) Configure(senderManager sender.SenderManager, integrationConfigD
 	return nil
 }
 
-func cpuFactory() check.Check {
+func Factory() check.Check {
 	return &Check{
 		CheckBase: core.NewCheckBase(cpuCheckName),
 	}
-}
-
-func init() {
-	core.RegisterCheck(cpuCheckName, cpuFactory)
 }

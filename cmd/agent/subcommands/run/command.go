@@ -119,7 +119,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/docker"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/generic"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/kubelet"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/ebpf"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/ebpf"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/embed"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/net"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/nvidia/jetson"
@@ -144,32 +144,31 @@ import (
 )
 
 func registerChecks(store workloadmeta.Component) {
-	corecheckLoader.RegisterCheck(cpu.CheckName, cpu.Factory)
-	corecheckLoader.RegisterCheck(helm.CheckName, helm.Factory)
-	corecheckLoader.RegisterCheck(ksm.CheckName, ksm.Factory)
-	corecheckLoader.RegisterCheck(kubernetesapiserver.CheckName, kubernetesapiserver.Factory)
+	// Required checks
+	registerCheckIfEnabled(true, cpu.CheckName, cpu.Factory)
 
-	corecheckLoader.RegisterCheck(kubelet.CheckName, kubelet.NewFactory(store))
-	corecheckLoader.RegisterCheck(containerimage.CheckName, containerimage.NewFactory(store))
-	corecheckLoader.RegisterCheck(containerlifecycle.CheckName, containerlifecycle.NewFactory(store))
-	corecheckLoader.RegisterCheck(generic.CheckName, generic.NewFactory(store))
+	registerCheckIfEnabled(true, containerimage.CheckName, containerimage.NewFactory(store))
+	registerCheckIfEnabled(true, containerlifecycle.CheckName, containerlifecycle.NewFactory(store))
+	registerCheckIfEnabled(true, generic.CheckName, generic.NewFactory(store))
 
-	if docker.Enabled {
-		corecheckLoader.RegisterCheck(docker.CheckName, docker.NewFactory(store))
-	}
-	if sbom.Enabled {
-		corecheckLoader.RegisterCheck(sbom.CheckName, sbom.NewFactory(store))
-	}
-	if pod.Enabled {
-		corecheckLoader.RegisterCheck(pod.CheckName, pod.Factory)
-	}
-	if containerd.Enabled {
-		corecheckLoader.RegisterCheck(containerd.CheckName, containerd.Factory)
-	}
-	if cri.Enabled {
-		corecheckLoader.RegisterCheck(cri.CheckName, cri.Factory)
-	}
+	// Flavor specific checks
+	registerCheckIfEnabled(kubernetesapiserver.Enabled, kubernetesapiserver.CheckName, kubernetesapiserver.Factory)
+	registerCheckIfEnabled(ksm.Enabled, ksm.CheckName, ksm.Factory)
+	registerCheckIfEnabled(helm.Enabled, helm.CheckName, helm.Factory)
+	registerCheckIfEnabled(pod.Enabled, pod.CheckName, pod.Factory)
+	registerCheckIfEnabled(containerd.Enabled, containerd.CheckName, containerd.Factory)
+	registerCheckIfEnabled(cri.Enabled, cri.CheckName, cri.Factory)
+	registerCheckIfEnabled(ebpf.Enabled, ebpf.CheckName, ebpf.Factory)
 
+	registerCheckIfEnabled(docker.Enabled, docker.CheckName, docker.NewFactory(store))
+	registerCheckIfEnabled(sbom.Enabled, sbom.CheckName, sbom.NewFactory(store))
+	registerCheckIfEnabled(kubelet.Enabled, kubelet.CheckName, kubelet.NewFactory(store))
+}
+
+func registerCheckIfEnabled(enabled bool, name string, factory func() check.Check) {
+	if enabled {
+		corecheckLoader.RegisterCheck(name, factory)
+	}
 }
 
 type cliParams struct {

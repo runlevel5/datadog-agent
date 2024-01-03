@@ -27,7 +27,8 @@ import (
 )
 
 const (
-	ebpfCheckName = "ebpf"
+	Enabled   = true
+	CheckName = "ebpf"
 )
 
 // EBPFCheckConfig is the config of the EBPF check
@@ -41,16 +42,12 @@ type EBPFCheck struct {
 	core.CheckBase
 }
 
-// EBPFCheckFactory is exported for integration testing
-func EBPFCheckFactory() check.Check {
+// Factory returns a new check factory
+func Factory() check.Check {
 	return &EBPFCheck{
 		CheckBase: core.NewCheckBase(ebpfCheckName),
 		config:    &EBPFCheckConfig{},
 	}
-}
-
-func init() {
-	core.RegisterCheck(ebpfCheckName, EBPFCheckFactory)
 }
 
 // Parse parses the check configuration

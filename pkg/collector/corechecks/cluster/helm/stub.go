@@ -3,5 +3,18 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
+//go:build !kubeapiserver
+
 //nolint:revive // TODO(CINT) Fix revive linter
 package helm
+
+import "github.com/DataDog/datadog-agent/pkg/collector/check"
+
+const (
+	Enabled   = false
+	CheckName = "helm"
+)
+
+func Factory() check.Check {
+	return nil
+}

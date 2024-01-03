@@ -35,6 +35,7 @@ import (
 )
 
 const (
+	Enabled                 = true
 	CheckName               = "helm"
 	serviceCheckName        = "helm.release_state"
 	maximumWaitForAPIServer = 10 * time.Second

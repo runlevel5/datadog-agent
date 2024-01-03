@@ -3,5 +3,18 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2021-present Datadog, Inc.
 
+//go:build !kubeapiserver
+
 //nolint:revive // TODO(CINT) Fix revive linter
 package ksm
+
+import "github.com/DataDog/datadog-agent/pkg/collector/check"
+
+const (
+	Enabled   = false
+	CheckName = "kubernetes_state_core"
+)
+
+func Factory() check.Check {
+	return nil
+}
