@@ -35,17 +35,13 @@ import (
 )
 
 const (
-	checkName               = "helm"
+	CheckName               = "helm"
 	serviceCheckName        = "helm.release_state"
 	maximumWaitForAPIServer = 10 * time.Second
 	defaultExtraSyncTimeout = 120 * time.Second
 	defaultResyncInterval   = 10 * time.Minute
 	labelSelector           = "owner=helm"
 )
-
-func init() {
-	core.RegisterCheck(checkName, factory)
-}
 
 type helmStorage string
 
@@ -87,9 +83,9 @@ func (cc *checkConfig) Parse(data []byte) error {
 	return yaml.Unmarshal(data, cc)
 }
 
-func factory() check.Check {
+func Factory() check.Check {
 	return &HelmCheck{
-		CheckBase:         core.NewCheckBase(checkName),
+		CheckBase:         core.NewCheckBase(CheckName),
 		instance:          &checkConfig{},
 		store:             newReleasesStore(),
 		runLeaderElection: !config.IsCLCRunner(),

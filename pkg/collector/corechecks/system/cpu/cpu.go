@@ -19,7 +19,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-const checkName = "cpu"
+const CheckName = "cpu"
 
 // For testing purpose
 var times = cpu.Times
@@ -112,12 +112,8 @@ func (c *Check) Configure(senderManager sender.SenderManager, integrationConfigD
 	return nil
 }
 
-func cpuFactory() check.Check {
+func Factory() check.Check {
 	return &Check{
-		CheckBase: core.NewCheckBase(checkName),
+		CheckBase: core.NewCheckBase(CheckName),
 	}
-}
-
-func init() {
-	core.RegisterCheck(checkName, cpuFactory)
 }

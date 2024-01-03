@@ -108,8 +108,9 @@ import (
 	ddruntime "github.com/DataDog/datadog-agent/pkg/runtime"
 
 	// register core checks
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/helm"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/ksm"
+	corecheckLoader "github.com/DataDog/datadog-agent/pkg/collector/corechecks"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/helm"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/ksm"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/kubernetesapiserver"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/orchestrator"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/containerimage"
@@ -118,7 +119,7 @@ import (
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/cri"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/docker"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/generic"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/kubelet"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/kubelet"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/ebpf"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/embed"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/net"
@@ -127,7 +128,7 @@ import (
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/orchestrator/pod"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/sbom"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/snmp"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/cpu"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/cpu"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/disk"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/filehandles"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/memory"
@@ -142,6 +143,13 @@ import (
 	// register metadata providers
 	_ "github.com/DataDog/datadog-agent/pkg/collector/metadata"
 )
+
+func registerChecks(store workloadmeta.Component) {
+	corecheckLoader.RegisterCheck(cpu.CheckName, cpu.Factory)
+	corecheckLoader.RegisterCheck(helm.CheckName, helm.Factory)
+	corecheckLoader.RegisterCheck(ksm.CheckName, ksm.Factory)
+	corecheckLoader.RegisterCheck(kubelet.CheckName, kubelet.NewFactory(store))
+}
 
 type cliParams struct {
 	*command.GlobalParams
@@ -569,6 +577,7 @@ func startAgent(
 	check.InitializeInventoryChecksContext(invChecks)
 
 	// Set up check collector
+	registerChecks(wmeta)
 	common.AC.AddScheduler("check", collector.InitCheckScheduler(common.Coll, demultiplexer), true)
 	common.Coll.Start()
 
