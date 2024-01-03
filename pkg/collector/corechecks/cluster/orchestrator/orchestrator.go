@@ -38,14 +38,13 @@ import (
 )
 
 const (
+	Enabled   = true
+	CheckName = orchestrator.CheckName
+
 	maximumWaitForAPIServer = 10 * time.Second
 	collectionInterval      = 10 * time.Second
 	defaultResyncInterval   = 300 * time.Second
 )
-
-func init() {
-	core.RegisterCheck(orchestrator.CheckName, OrchestratorFactory)
-}
 
 // OrchestratorInstance is the config of the orchestrator check instance.
 type OrchestratorInstance struct {
@@ -94,9 +93,9 @@ func newOrchestratorCheck(base core.CheckBase, instance *OrchestratorInstance) *
 }
 
 // OrchestratorFactory returns the orchestrator check
-func OrchestratorFactory() check.Check {
+func Factory() check.Check {
 	return newOrchestratorCheck(
-		core.NewCheckBase(orchestrator.CheckName),
+		core.NewCheckBase(CheckName),
 		&OrchestratorInstance{},
 	)
 }

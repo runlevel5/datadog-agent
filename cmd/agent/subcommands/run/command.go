@@ -112,6 +112,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/helm"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/ksm"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/kubernetesapiserver"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/orchestrator"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containerimage"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containerlifecycle"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/containerd"
@@ -179,6 +180,7 @@ func registerChecks(store workloadmeta.Component) {
 	registerCheck(winproc.Enabled, winproc.CheckName, winproc.Factory)
 	registerCheck(systemd.Enabled, systemd.CheckName, systemd.Factory)
 	registerCheck(windowsEvent.Enabled, windowsEvent.CheckName, windowsEvent.Factory)
+	registerCheck(orchestrator.Enabled, orchestrator.CheckName, orchestrator.Factory)
 	registerCheck(docker.Enabled, docker.CheckName, docker.NewFactory(store))
 	registerCheck(sbom.Enabled, sbom.CheckName, sbom.NewFactory(store))
 	registerCheck(kubelet.Enabled, kubelet.CheckName, kubelet.NewFactory(store))

@@ -3,5 +3,18 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2021-present Datadog, Inc.
 
+//go:build !kubeapiserver || !orchestrator
+
 //nolint:revive // TODO(CAPP) Fix revive linter
 package orchestrator
+
+import "github.com/DataDog/datadog-agent/pkg/collector/check"
+
+const (
+	Enabled   = false
+	CheckName = "orchestrator"
+)
+
+func Factory() check.Check {
+	return nil
+}
