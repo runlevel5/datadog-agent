@@ -5,7 +5,7 @@
 
 //go:build !windows
 
-package net
+package ntp
 
 import (
 	"fmt"

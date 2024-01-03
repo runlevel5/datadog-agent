@@ -5,7 +5,7 @@
 
 //go:build linux
 
-package net
+package network
 
 import (
 	"testing"

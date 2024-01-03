@@ -5,7 +5,7 @@
 
 //go:build linux
 
-package net
+package network
 
 import (
 	"bufio"
@@ -27,7 +27,8 @@ import (
 )
 
 const (
-	networkCheckName = "network"
+	Enabled   = true
+	CheckName = "network"
 )
 
 var (
@@ -304,13 +305,9 @@ func (c *NetworkCheck) Configure(senderManager sender.SenderManager, integration
 	return nil
 }
 
-func networkFactory() check.Check {
+func Factory() check.Check {
 	return &NetworkCheck{
 		net:       defaultNetworkStats{},
-		CheckBase: core.NewCheckBase(networkCheckName),
+		CheckBase: core.NewCheckBase(CheckName),
 	}
-}
-
-func init() {
-	core.RegisterCheck(networkCheckName, networkFactory)
 }

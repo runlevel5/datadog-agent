@@ -122,8 +122,9 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/embed/apm"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/embed/process"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/net"
-	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/nvidia/jetson"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/net/network"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/net/ntp"
+	nvidia "github.com/DataDog/datadog-agent/pkg/collector/corechecks/nvidia/jetson"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/oracle-dbm"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/orchestrator/pod"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/sbom"
@@ -150,6 +151,7 @@ func registerChecks(store workloadmeta.Component) {
 	registerCheck(true, memory.CheckName, memory.Factory)
 	registerCheck(true, uptime.CheckName, uptime.Factory)
 	registerCheck(true, telemetryCheck.CheckName, telemetryCheck.Factory)
+	registerCheck(true, ntp.CheckName, ntp.Factory)
 
 	registerCheck(true, containerimage.CheckName, containerimage.NewFactory(store))
 	registerCheck(true, containerlifecycle.CheckName, containerlifecycle.NewFactory(store))
@@ -165,6 +167,8 @@ func registerChecks(store workloadmeta.Component) {
 	registerCheck(ebpf.Enabled, ebpf.CheckName, ebpf.Factory)
 	registerCheck(apm.Enabled, apm.CheckName, apm.Factory)
 	registerCheck(process.Enabled, process.CheckName, process.Factory)
+	registerCheck(network.Enabled, network.CheckName, network.Factory)
+	registerCheck(nvidia.Enabled, nvidia.CheckName, nvidia.Factory)
 
 	registerCheck(docker.Enabled, docker.CheckName, docker.NewFactory(store))
 	registerCheck(sbom.Enabled, sbom.CheckName, sbom.NewFactory(store))

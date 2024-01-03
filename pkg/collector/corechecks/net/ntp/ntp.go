@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package net
+package ntp
 
 import (
 	"context"
@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	ntpCheckName                 = "ntp"
+	CheckName                    = "ntp"
 	defaultMinCollectionInterval = 900 // 15 minutes, to follow pool.ntp.org's guidelines on the query rate
 )
 
@@ -240,12 +240,8 @@ func (c *NTPCheck) queryOffset() (float64, error) {
 	return median, nil
 }
 
-func ntpFactory() check.Check {
+func Factory() check.Check {
 	return &NTPCheck{
-		CheckBase: core.NewCheckBaseWithInterval(ntpCheckName, time.Duration(defaultMinCollectionInterval)*time.Second),
+		CheckBase: core.NewCheckBaseWithInterval(CheckName, time.Duration(defaultMinCollectionInterval)*time.Second),
 	}
-}
-
-func init() {
-	core.RegisterCheck(ntpCheckName, ntpFactory)
 }
