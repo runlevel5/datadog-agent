@@ -46,7 +46,7 @@ type CRICheck struct {
 // Factory is exported for integration testing
 func Factory() check.Check {
 	return &CRICheck{
-		CheckBase: core.NewCheckBase(criCheckName),
+		CheckBase: core.NewCheckBase(CheckName),
 		instance:  &CRIConfig{},
 	}
 }
