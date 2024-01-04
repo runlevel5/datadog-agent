@@ -28,7 +28,10 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
+// Enabled is true if the check is enabled
 const Enabled = true
+
+// CheckName is the name of the check
 const CheckName = "orchestrator_pod"
 
 var groupID atomic.Int32

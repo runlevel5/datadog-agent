@@ -14,6 +14,7 @@ const (
 	CheckName = "disk"
 )
 
+// Factory creates a new check instance
 func Factory() check.Check {
 	return nil
 }

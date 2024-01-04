@@ -35,7 +35,9 @@ import (
 )
 
 const (
-	Enabled                 = true
+	// Enabled is true if the check is enabled
+	Enabled = true
+	// CheckName is the name of the check
 	CheckName               = "helm"
 	serviceCheckName        = "helm.release_state"
 	maximumWaitForAPIServer = 10 * time.Second
@@ -84,6 +86,7 @@ func (cc *checkConfig) Parse(data []byte) error {
 	return yaml.Unmarshal(data, cc)
 }
 
+// Factory creates a new check instance
 func Factory() check.Check {
 	return &HelmCheck{
 		CheckBase:         core.NewCheckBase(CheckName),

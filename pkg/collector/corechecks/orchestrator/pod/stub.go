@@ -10,9 +10,14 @@ package pod
 
 import "github.com/DataDog/datadog-agent/pkg/collector/check"
 
-const Enabled = false
-const CheckName = "orchestrator_pod"
+const (
+	// Enabled is true if the check is enabled
+	Enabled = false
+	// CheckName is the name of the check
+	CheckName = "orchestrator_pod"
+)
 
+// Factory creates a new check instance
 func Factory() check.Check {
 	return nil
 }

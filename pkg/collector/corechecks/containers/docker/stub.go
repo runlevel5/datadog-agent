@@ -3,10 +3,9 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2021-present Datadog, Inc.
 
-//nolint:revive // TODO(CINT) Fix revive linter
-
 //go:build !docker
 
+//nolint:revive // TODO(CINT) Fix revive linter
 package docker
 
 import (
@@ -15,10 +14,12 @@ import (
 )
 
 const (
-	Enabled   = false
+	// Enabled is true if the check is enabled
+	Enabled = false
+	// CheckName is the name of the check
 	CheckName = "docker"
 )
 
-func NewFactory(store workloadmeta.Component) func() check.Check {
+func NewFactory(_ workloadmeta.Component) func() check.Check {
 	return nil
 }

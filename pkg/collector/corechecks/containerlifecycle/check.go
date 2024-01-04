@@ -23,6 +23,7 @@ import (
 )
 
 const (
+	// CheckName is the name of the check
 	CheckName           = "container_lifecycle"
 	maxChunkSize        = 100
 	defaultPollInterval = 10

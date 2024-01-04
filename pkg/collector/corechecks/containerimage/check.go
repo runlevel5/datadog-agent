@@ -22,6 +22,7 @@ import (
 )
 
 const (
+	// CheckName is the name of the check
 	CheckName = "container_image"
 )
 

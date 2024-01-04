@@ -289,6 +289,7 @@ func (c *Check) Cancel() {
 	}
 }
 
+// Factory creates a new check instance
 func Factory() agentCheck.Check {
 	return &Check{
 		CheckBase: core.NewCheckBase(CheckName),

@@ -112,6 +112,7 @@ func (c *Check) Configure(senderManager sender.SenderManager, integrationConfigD
 	return nil
 }
 
+// Factory creates a new check instance
 func Factory() check.Check {
 	return &Check{
 		CheckBase: core.NewCheckBase(CheckName),

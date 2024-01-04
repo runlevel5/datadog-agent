@@ -21,6 +21,7 @@ import (
 )
 
 const (
+	// CheckName is the name of the check
 	CheckName = "telemetry"
 	prefix    = "datadog.agent."
 )
@@ -109,6 +110,7 @@ func newCheck() *checkImpl {
 	}
 }
 
+// Factory creates a new check instance
 func Factory() check.Check {
 	return newCheck()
 }

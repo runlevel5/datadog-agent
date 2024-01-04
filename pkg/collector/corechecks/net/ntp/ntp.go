@@ -27,6 +27,7 @@ import (
 )
 
 const (
+	// CheckName is the name of the check
 	CheckName                    = "ntp"
 	defaultMinCollectionInterval = 900 // 15 minutes, to follow pool.ntp.org's guidelines on the query rate
 )
@@ -240,6 +241,7 @@ func (c *NTPCheck) queryOffset() (float64, error) {
 	return median, nil
 }
 
+// Factory creates a new check instance
 func Factory() check.Check {
 	return &NTPCheck{
 		CheckBase: core.NewCheckBaseWithInterval(CheckName, time.Duration(defaultMinCollectionInterval)*time.Second),

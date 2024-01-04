@@ -559,6 +559,7 @@ func (c *SystemdCheck) Configure(senderManager sender.SenderManager, integration
 	return nil
 }
 
+// Factory creates a new check instance
 func Factory() check.Check {
 	return &SystemdCheck{
 		stats:     &defaultSystemdStats{},

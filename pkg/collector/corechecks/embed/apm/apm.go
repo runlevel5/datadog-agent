@@ -248,6 +248,7 @@ func (c *APMCheck) GetDiagnoses() ([]diagnosis.Diagnosis, error) {
 	return nil, nil
 }
 
+// Factory creates a new check instance
 func Factory() check.Check {
 	return &APMCheck{
 		running:  atomic.NewBool(false),

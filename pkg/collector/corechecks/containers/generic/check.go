@@ -21,6 +21,7 @@ import (
 )
 
 const (
+	// CheckName is the name of the check
 	CheckName     = "container"
 	cacheValidity = 2 * time.Second
 )
@@ -47,6 +48,7 @@ func NewFactory(store workloadmeta.Component) func() check.Check {
 		return &ContainerCheck{
 			CheckBase: core.NewCheckBase(CheckName),
 			instance:  &ContainerConfig{},
+			store:     store,
 		}
 	}
 }

@@ -14,7 +14,9 @@ import (
 )
 
 const (
-	Enabled   = false
+	// Enabled is true if the check is enabled
+	Enabled = false
+	// CheckName is the name of the check
 	CheckName = "kubelet"
 )
 

@@ -62,6 +62,7 @@ func (c *IOCheck) commonConfigure(senderManager sender.SenderManager, integratio
 	return err
 }
 
+// Factory creates a new check instance
 func Factory() check.Check {
 	return &IOCheck{
 		CheckBase: core.NewCheckBase(CheckName),

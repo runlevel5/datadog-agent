@@ -13,10 +13,13 @@ import (
 )
 
 const (
-	Enabled   = false
+	// Enabled is true if the check is enabled
+	Enabled = false
+	// CheckName is the name of the check
 	CheckName = "sbom"
 )
 
-func NewFactory(store workloadmeta.Component) func() check.Check {
+// NewFactory returns a new check factory
+func NewFactory(_ workloadmeta.Component) func() check.Check {
 	return nil
 }

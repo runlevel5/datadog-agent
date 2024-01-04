@@ -15,6 +15,7 @@ const (
 	CheckName = "winkmem"
 )
 
+// Factory creates a new check instance
 func Factory() check.Check {
 	return nil
 }

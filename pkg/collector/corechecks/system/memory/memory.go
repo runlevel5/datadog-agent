@@ -11,8 +11,10 @@ import (
 	core "github.com/DataDog/datadog-agent/pkg/collector/corechecks"
 )
 
+// CheckName is the name of the check
 const CheckName = "memory"
 
+// Factory creates a new check instance
 func Factory() check.Check {
 	return &Check{
 		CheckBase: core.NewCheckBase(CheckName),

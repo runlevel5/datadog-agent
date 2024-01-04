@@ -32,7 +32,9 @@ import (
 )
 
 const (
-	Enabled   = true
+	// Enabled is true if the check is enabled
+	Enabled = true
+	// CheckName is the name of the check
 	CheckName = "process_agent"
 )
 
@@ -239,6 +241,7 @@ func (c *ProcessAgentCheck) GetDiagnoses() ([]diagnosis.Diagnosis, error) {
 	return nil, nil
 }
 
+// Factory creates a new check instance
 func Factory() check.Check {
 	return &ProcessAgentCheck{
 		stop:     make(chan struct{}),

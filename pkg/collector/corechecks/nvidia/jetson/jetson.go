@@ -199,6 +199,7 @@ func (c *JetsonCheck) Configure(senderManager sender.SenderManager, integrationC
 	return nil
 }
 
+// Factory creates a new check instance
 func Factory() check.Check {
 	return &JetsonCheck{
 		CheckBase: core.NewCheckBase(CheckName),

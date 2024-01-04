@@ -46,7 +46,9 @@ import (
 )
 
 const (
-	Enabled                 = true
+	// Enabled is true if the check is enabled
+	Enabled = true
+	// CheckName is the name of the check
 	CheckName               = "kubernetes_state_core"
 	maximumWaitForAPIServer = 10 * time.Second
 
@@ -448,7 +450,7 @@ func manageResourcesReplacement(c *apiserver.APIClient, factories []customresour
 
 	for _, resourceReplacement := range resourceReplacements {
 		for _, factory := range resourceReplacement {
-			factories = append(factories, Factory(c))
+			factories = append(factories, factory(c))
 		}
 	}
 
