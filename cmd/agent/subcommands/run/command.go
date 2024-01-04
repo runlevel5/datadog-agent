@@ -130,7 +130,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/orchestrator/pod"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/sbom"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/snmp"
-	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/cpu"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/cpu/cpu"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/cpu/load"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/disk/disk"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/disk/io"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/filehandles"
@@ -156,11 +157,13 @@ func registerChecks(store workloadmeta.Component) {
 	registerCheck(true, ntp.CheckName, ntp.Factory)
 	registerCheck(true, snmp.CheckName, snmp.Factory)
 	registerCheck(true, io.CheckName, io.Factory)
+	registerCheck(true, filehandles.CheckName, filehandles.Factory)
 	registerCheck(true, containerimage.CheckName, containerimage.NewFactory(store))
 	registerCheck(true, containerlifecycle.CheckName, containerlifecycle.NewFactory(store))
 	registerCheck(true, generic.CheckName, generic.NewFactory(store))
 
 	// Flavor specific checks
+	registerCheck(load.Enabled, load.CheckName, load.Factory)
 	registerCheck(kubernetesapiserver.Enabled, kubernetesapiserver.CheckName, kubernetesapiserver.Factory)
 	registerCheck(ksm.Enabled, ksm.CheckName, ksm.Factory)
 	registerCheck(helm.Enabled, helm.CheckName, helm.Factory)
@@ -174,7 +177,6 @@ func registerChecks(store workloadmeta.Component) {
 	registerCheck(nvidia.Enabled, nvidia.CheckName, nvidia.Factory)
 	registerCheck(oracle.Enabled, oracle.CheckName, oracle.Factory)
 	registerCheck(disk.Enabled, disk.CheckName, disk.Factory)
-	registerCheck(filehandles.Enabled, filehandles.CheckName, filehandles.Factory)
 	registerCheck(wincrashdetect.Enabled, wincrashdetect.CheckName, wincrashdetect.Factory)
 	registerCheck(winkmem.Enabled, winkmem.CheckName, winkmem.Factory)
 	registerCheck(winproc.Enabled, winproc.CheckName, winproc.Factory)

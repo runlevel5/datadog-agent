@@ -17,10 +17,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-const (
-	Enabled   = true
-	CheckName = "file_handle"
-)
+const CheckName = "file_handle"
 
 // For testing
 var fileNrHandle = "/proc/sys/fs/file-nr"

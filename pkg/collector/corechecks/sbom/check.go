@@ -28,10 +28,6 @@ const (
 	metricPeriod = 15 * time.Minute
 )
 
-func init() {
-	core.RegisterCheck(CheckName, CheckFactory)
-}
-
 // Config holds the container_image check configuration
 type Config struct {
 	ChunkSize                       int `yaml:"chunk_size"`

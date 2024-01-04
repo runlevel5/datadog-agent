@@ -4,16 +4,21 @@
 // Copyright 2016-present Datadog, Inc.
 //go:build !windows
 
-package cpu
+package load
 
 import (
 	"testing"
 
 	"github.com/shirou/gopsutil/v3/load"
 
+	psutilCpu "github.com/shirou/gopsutil/v3/cpu"
+
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
+	"github.com/DataDog/datadog-agent/pkg/corechecks/system/cpu/cpu"
 )
+
+var cpuInfo = psutilCpu.Info
 
 var avgSample = load.AvgStat{
 	Load1:  0.83,
@@ -27,7 +32,7 @@ func Avg() (*load.AvgStat, error) {
 
 func TestLoadCheckLinux(t *testing.T) {
 	loadAvg = Avg
-	cpuInfo = CPUInfo
+	cpuInfo = cpu.CPUInfo
 	loadCheck := new(LoadCheck)
 	mock := mocksender.NewMockSender(loadCheck.ID())
 	loadCheck.Configure(mock.GetSenderManager(), integration.FakeConfigHash, nil, nil, "test")

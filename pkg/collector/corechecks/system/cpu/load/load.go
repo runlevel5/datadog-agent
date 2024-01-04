@@ -4,11 +4,12 @@
 // Copyright 2016-present Datadog, Inc.
 //go:build !windows
 
-package cpu
+package load
 
 import (
 	"fmt"
 
+	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/load"
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
@@ -18,7 +19,12 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-const loadCheckName = "load"
+const (
+	// Enabled is true if the check is enabled
+	Enabled = true
+	// CheckName is the name of the check
+	CheckName = "load"
+)
 
 // For testing purpose
 var loadAvg = load.Avg
@@ -63,12 +69,12 @@ func (c *LoadCheck) Configure(senderManager sender.SenderManager, integrationCon
 	// NOTE: This check is disabled on windows - so the following doesn't apply
 	//       currently:
 	//
-	//       This runs before the python checks, so we should be good, but cpuInfo()
+	//       This runs before the python checks, so we should be good, but Info()
 	//       on windows initializes COM to the multithreaded model. Therefore,
 	//       if a python check has run on this native windows thread prior and
 	//       CoInitialized() the thread to a different model (ie. single-threaded)
-	//       This will cause cpuInfo() to fail.
-	info, err := cpuInfo()
+	//       This will cause Info() to fail.
+	info, err := cpu.Info()
 	if err != nil {
 		return fmt.Errorf("system.LoadCheck: could not query CPU info - %v", err)
 	}
@@ -78,12 +84,9 @@ func (c *LoadCheck) Configure(senderManager sender.SenderManager, integrationCon
 	return nil
 }
 
-func loadFactory() check.Check {
+// Factory creates a new check instance
+func Factory() check.Check {
 	return &LoadCheck{
-		CheckBase: core.NewCheckBase(loadCheckName),
+		CheckBase: core.NewCheckBase(CheckName),
 	}
-}
-
-func init() {
-	core.RegisterCheck(loadCheckName, loadFactory)
 }

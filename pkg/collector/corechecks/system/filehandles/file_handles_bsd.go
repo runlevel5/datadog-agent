@@ -19,7 +19,7 @@ import (
 // For testing purpose
 var getInt64 = sysctl.GetInt64
 
-const fileHandlesCheckName = "file_handle"
+const CheckName = "file_handle"
 
 type fhCheck struct {
 	core.CheckBase
@@ -60,12 +60,9 @@ func (c *fhCheck) Configure(senderManager sender.SenderManager, integrationConfi
 	return err
 }
 
-func fhFactory() check.Check {
+// Factory creates a new check instance
+func Factory() check.Check {
 	return &fhCheck{
-		CheckBase: core.NewCheckBase(fileHandlesCheckName),
+		CheckBase: core.NewCheckBase(CheckName),
 	}
-}
-
-func init() {
-	core.RegisterCheck(fileHandlesCheckName, fhFactory)
 }
