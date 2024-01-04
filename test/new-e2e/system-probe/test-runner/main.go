@@ -75,11 +75,11 @@ func getTimeout(pkg string) time.Duration {
 	return to
 }
 
-func pathEmbedded(fullPath, embedded string) bool {
-	normalized := fmt.Sprintf("/%s/", strings.Trim(embedded, "/"))
-
-	return strings.Contains(fullPath, normalized)
-}
+//func pathEmbedded(fullPath, embedded string) bool {
+//	normalized := fmt.Sprintf("/%s/", strings.Trim(embedded, "/"))
+//
+//	return strings.Contains(fullPath, normalized)
+//}
 
 func glob(dir, filePattern string, filterFn func(path string) bool) ([]string, error) {
 	var matches []string
