@@ -57,7 +57,6 @@ static void *(*bpf_telemetry_update_patch)(unsigned long, ...) = (void *)PATCH_T
 
 #define helper_with_telemetry(fn, ...)                                                          \
     ({                                                                                          \
-        int helper_indx = -1;                                                                   \
         long errno_slot;                                                                        \
         long errno_ret = fn(__VA_ARGS__);                                                       \
         unsigned long telemetry_program_id;                                                     \
@@ -66,30 +65,21 @@ static void *(*bpf_telemetry_update_patch)(unsigned long, ...) = (void *)PATCH_T
             helper_err_telemetry_t *entry =                                                     \
                 bpf_map_lookup_elem(&helper_err_telemetry_map, &telemetry_program_id);          \
             if (entry) {                                                                        \
-                helper_indx = MK_FN_INDX(fn);                                                   \
                 errno_slot = errno_ret * -1;                                                    \
-                if (errno_slot >= T_MAX_ERRNO) {                                                \
-                    errno_slot = T_MAX_ERRNO - 1;                                               \
-                    /* This is duplicated below because on clang 14.0.6 the compiler
-                     * concludes that this if-check will always force errno_slot in range
-                     * (0, T_MAX_ERRNO-1], and removes the bounds check, causing the verifier
-                     * to trip. Duplicating this check forces clang not to omit the check */    \
-                    errno_slot &= (T_MAX_ERRNO - 1);                                            \
-                }                                                                               \
-                errno_slot &= (T_MAX_ERRNO - 1);                                                \
-                if (helper_indx >= 0) {                                                         \
-                    long *target = &entry->err_count[(helper_indx * T_MAX_ERRNO) + errno_slot]; \
-                    unsigned long add = 1;                                                      \
-                    /* Patched instruction for 4.14+: __sync_fetch_and_add(target, 1);
-                     * This patch point is placed here because the above instruction
-                     * fails on the 4.4 verifier. On 4.4 this instruction is replaced
-                     * with a nop: r1 = r1 */                                                   \
-                    bpf_telemetry_update_patch((unsigned long)target, add);                     \
-                }                                                                               \
+                errno_slot = ((T_MAX_ERRNO-1)*(!!(errno_slot>>6))) + (errno_slot * (!(((T_MAX_ERRNO-1)+(~errno_slot+1)) >> 63))); \
+                errno_slot &= 63; \
+                long *target = &entry->err_count[(MK_FN_INDX(fn) * T_MAX_ERRNO) + errno_slot]; \
+                unsigned long add = 1;                                                      \
+                /* Patched instruction for 4.14+: __sync_fetch_and_add(target, 1);
+                 * This patch point is placed here because the above instruction
+                 * fails on the 4.4 verifier. On 4.4 this instruction is replaced
+                 * with a nop: r1 = r1 */                                                   \
+                bpf_telemetry_update_patch((unsigned long)target, add);                     \
             }                                                                                   \
         }                                                                                       \
         errno_ret;                                                                              \
     })
+
 
 #define bpf_map_update_with_telemetry(map, key, val, flags) \
     map_update_with_telemetry(bpf_map_update_elem, map, key, val, flags)
