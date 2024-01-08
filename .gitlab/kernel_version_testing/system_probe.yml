@@ -160,6 +160,7 @@ upload_dependencies_arm64:
     - ssh metal_instance "tar xzf /opt/kernel-version-testing/${TEST_ARCHIVE_NAME} -C /opt/kernel-version-testing"
     # give correct permissions to assets
     - ssh metal_instance "sudo find /opt/kernel-version-testing/system-probe-tests -name *.o -type f -exec chown root:root {} \;"
+    - ssh metal_instance "sudo mkdir -p /opt/kernel-version-testing/system-probe-tests/pkg/ebpf/bytecode/build/co-re && sudo mkdir -p /opt/system-probe-tests/pkg/ebpf/bytecode/build/co-re/btf && sudo ln -s /opt/system-probe-tests/pkg/ebpf/bytecode/build/co-re/btf /opt/kernel-version-testing/system-probe-tests/pkg/ebpf/bytecode/build/co-re/btf"
     # build connector
     - pushd $CI_PROJECT_DIR/test/new-e2e
     - go build -o $CI_PROJECT_DIR/connector-${ARCH} $CI_PROJECT_DIR/test/new-e2e/system-probe/connector/main.go
@@ -224,18 +225,18 @@ upload_system_probe_tests_arm64:
     - pushd $DD_AGENT_TESTING_DIR/$ARCH
     - tar czvf ../$ARCHIVE_NAME btfs
     - popd
+    # upload tests
     # Switch to new profile after the btfs have been downloaded. Switching before
     # causes permission issues.
     - !reference [.kernel_matrix_testing_new_profile]
     - !reference [.write_ssh_key_file]
-    - !reference [.shared_filters_and_queries]
+    - !reference [.wait_for_instances]
     - !reference [.get_instance_ip_by_type]
     - !reference [.setup_ssh_config]
     - scp $DD_AGENT_TESTING_DIR/$ARCHIVE_NAME metal_instance:/opt/kernel-version-testing/
-    - ssh metal_instance "tar xzf /opt/kernel-version-testing/${ARCHIVE_NAME} -C /opt/kernel-version-testing --strip-components=1"
   variables:
     DEPENDENCIES: $DD_AGENT_TESTING_DIR/$ARCH/btfs
-    BTF_DIR: system-probe-tests/pkg/ebpf/bytecode/build/co-re/btf
+    BTF_DIR: opt/system-probe-tests/pkg/ebpf/bytecode/build/co-re/btf
     AWS_EC2_SSH_KEY_FILE: $CI_PROJECT_DIR/ssh_key
 
 upload_minimized_btfs_x64:
@@ -243,7 +244,7 @@ upload_minimized_btfs_x64:
     - .upload_minimized_btfs
   needs: ["generate_minimized_btfs_x64"]
   variables:
-    ARCHIVE_NAME: btfs-archive-x86_64.tar.gz
+    ARCHIVE_NAME: btfs-x86_64.tar.gz
     ARCH: x86_64
     INSTANCE_TYPE: m5d.metal
 
@@ -252,9 +253,10 @@ upload_minimized_btfs_arm64:
     - .upload_minimized_btfs
   needs: ["generate_minimized_btfs_arm64"]
   variables:
-    ARCHIVE_NAME: btfs-archive-arm64.tar.gz
+    ARCHIVE_NAME: btfs-arm64.tar.gz
     ARCH: arm64
     INSTANCE_TYPE: m6gd.metal
+
 
 .kernel_matrix_testing_new_profile:
   - mkdir -p ~/.aws
