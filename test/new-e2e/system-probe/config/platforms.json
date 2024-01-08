@@ -14,8 +14,8 @@
         "debian_10": "usama.saqib/fetch-docker-independently/debian-10-generic-x86_64.qcow2.xz",
         "debian_11": "usama.saqib/fetch-docker-independently/debian-11-generic-x86_64.qcow2.xz",
         "debian_12": "usama.saqib/fetch-docker-independently/debian-12-generic-x86_64.qcow2.xz",
-        "centos_79": "usama.saqib/fetch-docker-independently/centos-7.9-x86_64.qcow2.xz",
-        "centos_8": "usama.saqib/fetch-docker-independently/centos-8-x86_64.qcow2.xz"
+        "centos_79": "master/centos-7.9-x86_64.qcow2.xz",
+        "centos_8": "master/centos-8-x86_64.qcow2.xz"
     },
     "arm64": {
         "ubuntu_18.04": "usama.saqib/fetch-docker-independently/ubuntu-18-arm64.qcow2.xz",
@@ -30,7 +30,7 @@
         "debian_10": "usama.saqib/fetch-docker-independently/debian-10-generic-arm64.qcow2.xz",
         "debian_11": "usama.saqib/fetch-docker-independently/debian-11-generic-arm64.qcow2.xz",
         "debian_12": "usama.saqib/fetch-docker-independently/debian-12-generic-arm64.qcow2.xz",
-        "centos_79": "usama.saqib/fetch-docker-independently/centos-7.9-arm64.qcow2.xz",
-        "centos_8": "usama.saqib/fetch-docker-independently/centos-8-arm64.qcow2.xz"
+        "centos_79": "master/centos-7.9-arm64.qcow2.xz",
+        "centos_8": "master/centos-8-arm64.qcow2.xz"
     }
 }
