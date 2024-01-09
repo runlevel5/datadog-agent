@@ -17,8 +17,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 )
 
-var cpuInfo = cpu.Info
-
 var avgSample = load.AvgStat{
 	Load1:  0.83,
 	Load5:  0.96,

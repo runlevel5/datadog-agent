@@ -29,6 +29,7 @@ const (
 
 // For testing purpose
 var loadAvg = load.Avg
+var cpuInfo = cpu.Info
 
 // LoadCheck doesn't need additional fields
 type LoadCheck struct {
@@ -75,7 +76,7 @@ func (c *LoadCheck) Configure(senderManager sender.SenderManager, integrationCon
 	//       if a python check has run on this native windows thread prior and
 	//       CoInitialized() the thread to a different model (ie. single-threaded)
 	//       This will cause Info() to fail.
-	info, err := cpu.Info()
+	info, err := cpuInfo()
 	if err != nil {
 		return fmt.Errorf("system.LoadCheck: could not query CPU info - %v", err)
 	}
