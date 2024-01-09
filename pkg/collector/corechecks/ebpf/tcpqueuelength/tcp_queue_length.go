@@ -9,6 +9,7 @@
 // Should be removed once `github.com/DataDog/agent-payload/v5/process` can be imported with CGO disabled.
 //go:build cgo && linux
 
+//nolint:revive // TODO(PLINT) Fix revive linter
 package tcpqueuelength
 
 import (
