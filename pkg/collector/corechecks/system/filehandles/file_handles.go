@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
+// CheckName is the name of the check
 const CheckName = "file_handle"
 
 // For testing

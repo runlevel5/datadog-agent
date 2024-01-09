@@ -37,8 +37,11 @@ import (
 )
 
 const (
-	Enabled       = true
-	CheckName     = "docker"
+	// Enabled is true if the check is enabled
+	Enabled = true
+	// CheckName is the name of the check
+	CheckName = "docker"
+
 	cacheValidity = 2 * time.Second
 )
 

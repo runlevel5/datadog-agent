@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build !process && (darwin || freebsd)
+//go:build !process || (!darwin && !freebsd)
 
 //nolint:revive // TODO(APM) Fix revive linter
 package process

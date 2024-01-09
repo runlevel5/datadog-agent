@@ -5,6 +5,7 @@
 
 //go:build linux
 
+//nolint:revive // TODO(PLINT) Fix revive linter
 package network
 
 import (
@@ -27,7 +28,9 @@ import (
 )
 
 const (
-	Enabled   = true
+	// Enabled is true if the check is enabled
+	Enabled = true
+	// CheckName is the name of the check
 	CheckName = "network"
 )
 

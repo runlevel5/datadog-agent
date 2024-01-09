@@ -38,7 +38,9 @@ import (
 )
 
 const (
-	Enabled   = true
+	// Enabled is true if the check is enabled
+	Enabled = true
+	// CheckName is the name of the check
 	CheckName = orchestrator.CheckName
 
 	maximumWaitForAPIServer = 10 * time.Second

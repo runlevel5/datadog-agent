@@ -29,6 +29,7 @@ import (
 )
 
 const (
+	// CheckName is the name of the check
 	CheckName = common.SnmpIntegrationName
 )
 

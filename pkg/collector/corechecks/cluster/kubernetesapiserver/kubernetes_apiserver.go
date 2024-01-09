@@ -37,9 +37,12 @@ import (
 
 // Covers the Control Plane service check and the in memory pod metadata.
 const (
+	// Enabled is true if the check is enabled
+	Enabled = true
+	// CheckName is the name of the check
+	CheckName = "kubernetes_apiserver"
+
 	KubeControlPaneCheck          = "kube_apiserver_controlplane.up"
-	Enabled                       = true
-	CheckName                     = "kubernetes_apiserver"
 	eventTokenKey                 = "event"
 	maxEventCardinality           = 300
 	defaultResyncPeriodInSecond   = 300

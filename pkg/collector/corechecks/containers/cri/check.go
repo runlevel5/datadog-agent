@@ -27,6 +27,7 @@ import (
 )
 
 const (
+	// CheckName is the name of the check// CheckName
 	CheckName     = "cri"
 	cacheValidity = 2 * time.Second
 )
