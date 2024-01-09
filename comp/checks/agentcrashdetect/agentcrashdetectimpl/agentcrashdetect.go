@@ -33,6 +33,7 @@ import (
 )
 
 const (
+	// CheckName is the name of the check
 	CheckName          = "agentcrashdetect"
 	maxStartupWarnings = 20
 	reportedKey        = `lastReported`
