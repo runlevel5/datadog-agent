@@ -75,6 +75,6 @@ func (c *fhCheck) Configure(senderManager sender.SenderManager, integrationConfi
 // Factory creates a new check instance
 func Factory() check.Check {
 	return &fhCheck{
-		CheckBase: core.NewCheckBase(fileHandlesCheckName),
+		CheckBase: core.NewCheckBase(CheckName),
 	}
 }

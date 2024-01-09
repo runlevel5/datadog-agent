@@ -131,8 +131,8 @@ func TestWinCrashReporting(t *testing.T) {
 
 		expected := event.Event{
 			Priority:       event.EventPriorityNormal,
-			SourceTypeName: crashDetectCheckName,
-			EventType:      crashDetectCheckName,
+			SourceTypeName: CheckName,
+			EventType:      CheckName,
 			AlertType:      event.EventAlertTypeError,
 			Title:          formatTitle(p),
 			Text:           formatText(p),

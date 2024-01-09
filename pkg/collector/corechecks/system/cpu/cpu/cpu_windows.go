@@ -176,6 +176,6 @@ func (c *Check) Configure(senderManager sender.SenderManager, integrationConfigD
 // Factory creates a new check instance
 func Factory() check.Check {
 	return &Check{
-		CheckBase: core.NewCheckBase(cpuCheckName),
+		CheckBase: core.NewCheckBase(CheckName),
 	}
 }

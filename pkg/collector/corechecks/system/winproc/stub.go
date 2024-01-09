@@ -3,6 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2021-present Datadog, Inc.
 
+//go:build !windows
+
 //nolint:revive // TODO(WINA) Fix revive linter
 package winproc
 

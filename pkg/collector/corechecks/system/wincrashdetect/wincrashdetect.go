@@ -96,8 +96,8 @@ func (wcd *WinCrashDetect) Run() error {
 	}
 	ev := event.Event{
 		Priority:       event.EventPriorityNormal,
-		SourceTypeName: crashDetectCheckName,
-		EventType:      crashDetectCheckName,
+		SourceTypeName: CheckName,
+		EventType:      CheckName,
 		Title:          formatTitle(crash),
 		Text:           formatText(crash),
 		AlertType:      event.EventAlertTypeError,
