@@ -86,7 +86,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/winproc"
 )
 
-func registerChecks(store workloadmeta.Component) {
+func registerChecks() {
 	// Required checks
 	registerCheck(true, cpu.CheckName, cpu.Factory)
 	registerCheck(true, memory.CheckName, memory.Factory)
@@ -309,7 +309,7 @@ func start(log log.Component, config config.Component, telemetry telemetry.Compo
 	common.LoadComponents(demultiplexer, secretResolver, pkgconfig.Datadog.GetString("confd_path"))
 
 	// Set up check collector
-	registerChecks(wmeta)
+	registerChecks()
 	common.AC.AddScheduler("check", collector.InitCheckScheduler(common.Coll, demultiplexer), true)
 	common.Coll.Start()
 
