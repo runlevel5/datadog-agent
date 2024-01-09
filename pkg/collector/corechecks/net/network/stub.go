@@ -5,6 +5,7 @@
 
 //go:build !linux
 
+//nolint:revive // TODO(PLINT) Fix revive linter
 package network
 
 import "github.com/DataDog/datadog-agent/pkg/collector/check"

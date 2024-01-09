@@ -5,6 +5,7 @@
 
 //go:build process && (darwin || freebsd)
 
+//nolint:revive // TODO(PLINT) Fix revive linter
 package process
 
 import (
