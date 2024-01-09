@@ -104,6 +104,7 @@ func getPathOwner(path string) (uint32, uint32, error) {
 // If this is not possible then we try 'root/tmp', and finally fail.
 func findWritableDest(cwd, root, agent string) (string, error) {
 	if unix.Access(cwd, unix.W_OK) == nil {
+		log.Debugf("Writing %q to working directory %q", agent, cwd)
 		return filepath.Join(cwd, filepath.Base(agent)), nil
 	}
 
@@ -378,8 +379,10 @@ func (h *Hotspot) Attach(agentPath string, args string, uid int, gid int) error 
 			return err
 		}
 	}
+	log.Debugf("Communication socket created")
 
 	// copy the agent in the cwd of the process and change his owner/group
+	log.Debugf("Attach: agentPath: %q\n", agentPath)
 	dstAgentPath, agentCleanup, err := h.copyAgent(agentPath, uid, gid)
 	if err != nil {
 		return err

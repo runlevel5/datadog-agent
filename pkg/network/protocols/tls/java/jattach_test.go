@@ -19,7 +19,18 @@ import (
 	javatestutil "github.com/DataDog/datadog-agent/pkg/network/protocols/tls/java/testutil"
 	"github.com/DataDog/datadog-agent/pkg/network/testutil"
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/cihub/seelog"
 )
+
+func TestMain(m *testing.M) {
+	logLevel := os.Getenv("DD_LOG_LEVEL")
+	if logLevel == "" {
+		logLevel = "warn"
+	}
+	log.SetupLogger(seelog.Default, logLevel)
+	os.Exit(m.Run())
+}
 
 func testInject(t *testing.T, prefix string) {
 	go func() {

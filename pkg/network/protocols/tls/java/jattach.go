@@ -59,6 +59,7 @@ func InjectAgent(pid int, agent, args string) error {
 		// wait and inject the agent asynchronously
 		go func() {
 			time.Sleep(time.Duration(minJavaAgeToAttachMS-ageMs) * time.Millisecond)
+			log.Debugf("agent %q\n", agent)
 			if err := injectAttach(pid, agent, args, int(proc.NsPid), fsUID, fsGID); err != nil {
 				log.Errorf("java attach pid %d failed %s", pid, err)
 			}
