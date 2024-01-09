@@ -19,6 +19,7 @@ import (
 // For testing purpose
 var getInt64 = sysctl.GetInt64
 
+// CheckName is the name of the check
 const CheckName = "file_handle"
 
 type fhCheck struct {

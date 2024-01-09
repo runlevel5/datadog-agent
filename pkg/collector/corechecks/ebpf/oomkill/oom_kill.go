@@ -9,7 +9,7 @@
 // Should be removed once `github.com/DataDog/agent-payload/v5/process` can be imported with CGO disabled.
 //go:build cgo && linux
 
-package ebpf
+package oomkill
 
 import (
 	"fmt"
@@ -33,7 +33,10 @@ import (
 )
 
 const (
-	oomKillCheckName = "oom_kill"
+	// Enabled is true if the check is enabled
+	Enabled = true
+	// CheckName is the name of the check
+	CheckName = "oom_kill"
 )
 
 // OOMKillConfig is the config of the OOMKill check
@@ -47,16 +50,12 @@ type OOMKillCheck struct {
 	instance *OOMKillConfig
 }
 
-// OOMKillFactory is exported for integration testing
-func OOMKillFactory() check.Check {
+// Factory creates a new check instance
+func Factory() check.Check {
 	return &OOMKillCheck{
-		CheckBase: core.NewCheckBase(oomKillCheckName),
+		CheckBase: core.NewCheckBase(CheckName),
 		instance:  &OOMKillConfig{},
 	}
-}
-
-func init() {
-	core.RegisterCheck(oomKillCheckName, OOMKillFactory)
 }
 
 // Parse parses the check configuration
@@ -139,8 +138,8 @@ func (m *OOMKillCheck) Run() error {
 		// submit event with a few more details
 		event := event.Event{
 			Priority:       event.EventPriorityNormal,
-			SourceTypeName: oomKillCheckName,
-			EventType:      oomKillCheckName,
+			SourceTypeName: CheckName,
+			EventType:      CheckName,
 			AggregationKey: containerID,
 			Title:          fmt.Sprintf("Process OOM Killed: oom_kill_process called on %s (pid: %d)", line.TComm, line.TPid),
 			Tags:           tags,

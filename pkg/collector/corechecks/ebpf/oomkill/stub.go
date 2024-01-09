@@ -3,10 +3,10 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build !process && (darwin || freebsd)
+//go:build !linux || !cgo
 
-//nolint:revive // TODO(APM) Fix revive linter
-package process
+//nolint:revive // TODO(CINT) Fix revive linter
+package oomkill
 
 import "github.com/DataDog/datadog-agent/pkg/collector/check"
 
@@ -14,7 +14,7 @@ const (
 	// Enabled is true if the check is enabled
 	Enabled = false
 	// CheckName is the name of the check
-	CheckName = "process_agent"
+	CheckName = "oom_kill"
 )
 
 // Factory creates a new check instance

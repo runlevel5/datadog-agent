@@ -9,7 +9,7 @@
 // Should be removed once `github.com/DataDog/agent-payload/v5/process` can be imported with CGO disabled.
 //go:build cgo && linux
 
-package ebpf
+package tcpqueuelength
 
 import (
 	yaml "gopkg.in/yaml.v2"
@@ -30,7 +30,10 @@ import (
 )
 
 const (
-	tcpQueueLengthCheckName = "tcp_queue_length"
+	// Enabled is true if the check is enabled
+	Enabled = true
+	// CheckName is the name of the check
+	CheckName = "tcp_queue_length"
 )
 
 // TCPQueueLengthConfig is the config of the TCP Queue Length check
@@ -44,14 +47,10 @@ type TCPQueueLengthCheck struct {
 	instance *TCPQueueLengthConfig
 }
 
-func init() {
-	core.RegisterCheck(tcpQueueLengthCheckName, TCPQueueLengthFactory)
-}
-
-// TCPQueueLengthFactory is exported for integration testing
-func TCPQueueLengthFactory() check.Check {
+// Factory creates a new check instance
+func Factory() check.Check {
 	return &TCPQueueLengthCheck{
-		CheckBase: core.NewCheckBase(tcpQueueLengthCheckName),
+		CheckBase: core.NewCheckBase(CheckName),
 		instance:  &TCPQueueLengthConfig{},
 	}
 }

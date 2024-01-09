@@ -121,6 +121,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/generic"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/kubelet"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/ebpf"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/ebpf/oomkill"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/ebpf/tcpqueuelength"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/embed/apm"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/embed/process"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/net/network"
@@ -171,6 +173,8 @@ func registerChecks(store workloadmeta.Component) {
 	registerCheck(containerd.Enabled, containerd.CheckName, containerd.Factory)
 	registerCheck(cri.Enabled, cri.CheckName, cri.Factory)
 	registerCheck(ebpf.Enabled, ebpf.CheckName, ebpf.Factory)
+	registerCheck(oomkill.Enabled, oomkill.CheckName, oomkill.Factory)
+	registerCheck(tcpqueuelength.Enabled, tcpqueuelength.CheckName, tcpqueuelength.Factory)
 	registerCheck(apm.Enabled, apm.CheckName, apm.Factory)
 	registerCheck(process.Enabled, process.CheckName, process.Factory)
 	registerCheck(network.Enabled, network.CheckName, network.Factory)
