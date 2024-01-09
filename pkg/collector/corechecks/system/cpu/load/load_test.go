@@ -11,14 +11,13 @@ import (
 
 	"github.com/shirou/gopsutil/v3/load"
 
-	psutilCpu "github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/cpu"
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
-	"github.com/DataDog/datadog-agent/pkg/corechecks/system/cpu/cpu"
 )
 
-var cpuInfo = psutilCpu.Info
+var cpuInfo = cpu.Info
 
 var avgSample = load.AvgStat{
 	Load1:  0.83,
@@ -30,9 +29,28 @@ func Avg() (*load.AvgStat, error) {
 	return &avgSample, nil
 }
 
+func CPUInfo() ([]cpu.InfoStat, error) {
+	return []cpu.InfoStat{
+		{
+			CPU:        0,
+			VendorID:   "GenuineIntel",
+			Family:     "6",
+			Model:      "61",
+			Stepping:   4,
+			PhysicalID: "0",
+			CoreID:     "0",
+			Cores:      1,
+			ModelName:  "Intel(R)Core(TM) i7-5557U CPU @3.10GHz",
+			Mhz:        3400,
+			CacheSize:  4096,
+			Flags:      nil,
+		},
+	}, nil
+}
+
 func TestLoadCheckLinux(t *testing.T) {
 	loadAvg = Avg
-	cpuInfo = cpu.CPUInfo
+	cpuInfo = CPUInfo
 	loadCheck := new(LoadCheck)
 	mock := mocksender.NewMockSender(loadCheck.ID())
 	loadCheck.Configure(mock.GetSenderManager(), integration.FakeConfigHash, nil, nil, "test")
