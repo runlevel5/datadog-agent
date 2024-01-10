@@ -5,7 +5,7 @@
 //go:build windows
 
 //nolint:revive // TODO(PLINT) Fix revive linter
-package disk
+package load
 
 import "github.com/DataDog/datadog-agent/pkg/collector/check"
 
