@@ -96,7 +96,11 @@ def make(ctx, install_prefix=None, python_runtimes='3', cmake_options='', arch="
         else:
             raise
 
-    ctx.run(f"cd {rtloader_build_path} && cmake {cmake_args} {get_rtloader_path()}")
+    build_env = os.environ
+    if install_prefix:
+        build_env['PKG_CONFIG_LIBDIR'] = f'{install_prefix}/lib/pkgconfig'
+
+    ctx.run(f"cd {rtloader_build_path} && cmake {cmake_args} {get_rtloader_path()}", env=build_env)
     run_make_command(ctx)
 
 
