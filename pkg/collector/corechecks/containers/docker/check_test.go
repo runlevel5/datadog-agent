@@ -287,6 +287,7 @@ func TestContainersRunning(t *testing.T) {
 		instance:        &DockerConfig{},
 		dockerHostname:  "testhostname",
 		containerFilter: &containers.Filter{},
+		store:           fxutil.Test[workloadmeta.Mock](t, core.MockBundle(), fx.Supply(workloadmeta.NewParams()), workloadmeta.MockModule()),
 	}
 
 	err := check.runDockerCustom(mockSender, &dockerClient, dockerClient.FakeContainerList)
