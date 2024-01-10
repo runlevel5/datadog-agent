@@ -8,10 +8,12 @@ package hostnameimpl
 import (
 	"context"
 
+	"go.uber.org/fx"
+
 	"github.com/DataDog/datadog-agent/comp/core/hostname"
+	hostnameComp "github.com/DataDog/datadog-agent/comp/core/hostname"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	pkghostname "github.com/DataDog/datadog-agent/pkg/util/hostname"
-	"go.uber.org/fx"
 )
 
 // Module defines the fx options for this component.
@@ -39,7 +41,7 @@ func (hs *service) GetSafe(ctx context.Context) string {
 }
 
 // GetWithProvider returns the hostname for the Agent and the provider that was use to retrieve it.
-func (hs *service) GetWithProvider(ctx context.Context) (pkghostname.Data, error) {
+func (hs *service) GetWithProvider(ctx context.Context) (hostnameComp.Data, error) {
 	return pkghostname.GetWithProvider(ctx)
 }
 

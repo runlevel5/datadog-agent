@@ -33,11 +33,6 @@ var (
 	osHostnameUsable  = isOSHostnameUsable
 )
 
-// Data contains hostname and the hostname provider
-type Data struct {
-	Hostname string
-	Provider string
-}
 
 func fromConfig(ctx context.Context, _ string) (string, error) {
 	configName := config.Datadog.GetString("hostname")

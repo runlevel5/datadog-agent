@@ -1,7 +1,7 @@
 // Unless explicitly stated otherwise all files in this repository are licensed
 // under the Apache License Version 2.0.
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2016-present Datadog, Inc.
+// This product includes software developed at hostnameComp.Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present hostnameComp.Datadog, Inc.
 
 //go:build !serverless
 
@@ -12,13 +12,9 @@ import (
 	"expvar"
 	"fmt"
 
+	hostnameComp "github.com/DataDog/datadog-agent/comp/core/hostname"
 	"github.com/DataDog/datadog-agent/pkg/util/cache"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
-)
-
-const (
-	configProvider  = "configuration"
-	fargateProvider = "fargate"
 )
 
 var (
@@ -63,7 +59,7 @@ type provider struct {
 // * EC2
 var providerCatalog = []provider{
 	{
-		name:             configProvider,
+		name:             hostnameComp.ConfigProvider,
 		cb:               fromConfig,
 		stopIfSuccessful: true,
 		expvarName:       "'hostname' configuration/environment",
@@ -75,7 +71,7 @@ var providerCatalog = []provider{
 		expvarName:       "'hostname_file' configuration/environment",
 	},
 	{
-		name:             fargateProvider,
+		name:             hostnameComp.FargateProvider,
 		cb:               fromFargate,
 		stopIfSuccessful: true,
 		expvarName:       "fargate",
@@ -121,18 +117,8 @@ var providerCatalog = []provider{
 	},
 }
 
-// FromConfiguration returns true if the hostname was found through the configuration file
-func (h Data) FromConfiguration() bool {
-	return h.Provider == configProvider
-}
-
-// FromFargate returns true if the hostname was found through Fargate
-func (h Data) FromFargate() bool {
-	return h.Provider == fargateProvider
-}
-
-func saveHostname(cacheHostnameKey string, hostname string, providerName string) Data {
-	data := Data{
+func saveHostname(cacheHostnameKey string, hostname string, providerName string) hostnameComp.Data {
+	data := hostnameComp.Data{
 		Hostname: hostname,
 		Provider: providerName,
 	}
@@ -140,19 +126,19 @@ func saveHostname(cacheHostnameKey string, hostname string, providerName string)
 	cache.Cache.Set(cacheHostnameKey, data, cache.NoExpiration)
 	// We don't have a hostname on fargate. 'fromFargate' will return an empty hostname and we don't want to show it
 	// in the status page.
-	if providerName != "" && providerName != fargateProvider {
+	if providerName != "" && providerName != hostnameComp.FargateProvider {
 		hostnameProvider.Set(providerName)
 	}
 	return data
 }
 
 // GetWithProvider returns the hostname for the Agent and the provider that was use to retrieve it
-func GetWithProvider(ctx context.Context) (Data, error) {
+func GetWithProvider(ctx context.Context) (hostnameComp.Data, error) {
 	cacheHostnameKey := cache.BuildAgentKey("hostname")
 
 	// first check if we have a hostname cached
 	if cacheHostname, found := cache.Cache.Get(cacheHostnameKey); found {
-		return cacheHostname.(Data), nil
+		return cacheHostname.(hostnameComp.Data), nil
 	}
 
 	var err error
@@ -191,7 +177,7 @@ func GetWithProvider(ctx context.Context) (Data, error) {
 	expErr := new(expvar.String)
 	expErr.Set(err.Error())
 	hostnameErrors.Set("all", expErr)
-	return Data{}, err
+	return hostnameComp.Data{}, err
 }
 
 // Get returns the host name for the agent

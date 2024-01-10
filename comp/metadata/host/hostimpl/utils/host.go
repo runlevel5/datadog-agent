@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	hostnameComp "github.com/DataDog/datadog-agent/comp/core/hostname"
 	"github.com/DataDog/datadog-agent/comp/otelcol/otlp"
 	"github.com/DataDog/datadog-agent/pkg/collector/python"
 	"github.com/DataDog/datadog-agent/pkg/config"
@@ -172,7 +173,7 @@ func GetPayload(ctx context.Context, conf config.Reader) *Payload {
 	hostnameData, err := hostname.GetWithProvider(ctx)
 	if err != nil {
 		log.Errorf("Error grabbing hostname for status: %v", err)
-		hostnameData = hostname.Data{Hostname: "unknown", Provider: "unknown"}
+		hostnameData = hostnameComp.Data{Hostname: "unknown", Provider: "unknown"}
 	}
 
 	meta := GetMeta(ctx, conf)
