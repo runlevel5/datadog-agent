@@ -1,6 +1,8 @@
 #!/bin/bash
 set -eEuxo pipefail
 
+date +%s
+
 retry_count=$1
 pkgs_run_config_file=$2
 docker_dir=/kmt-docker
