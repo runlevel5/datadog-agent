@@ -97,14 +97,13 @@ def trigger_macos_lint(
     _,
     datadog_agent_ref=DEFAULT_BRANCH,
     release_version="nightly-a7",
-    python_runtimes="3",
     version_cache=None,
 ):
     _trigger_macos_workflow(
         release_version,
+        python_runtimes=None,
         workflow_name="lint.yaml",
         datadog_agent_ref=datadog_agent_ref,
-        python_runtimes=python_runtimes,
         version_cache_file_content=version_cache,
     )
 
