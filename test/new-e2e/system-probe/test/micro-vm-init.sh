@@ -19,6 +19,7 @@ fi
 code=0
 
 date +%s
+
 /test-runner -retry "${retry_count}" -packages-run-config "${pkgs_run_config_file}" || code=$?
 
 if [[ -f "/job_env.txt" ]]; then
