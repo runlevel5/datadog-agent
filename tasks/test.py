@@ -1158,13 +1158,17 @@ def get_modified_packages(ctx) -> List[GoModule]:
         # If the package has been deleted we do not try to run tests
         if not os.path.exists(os.path.dirname(modified_file)):
             continue
-
         relative_target = "./" + os.path.relpath(os.path.dirname(modified_file), best_module_path)
-
+        if best_module_path == "pkg/util/log":
+            if "pkg/util/log" in modules_to_test:
+                print("MODIFIED DIR: ", os.path.dirname(modified_file))
+                print("CONTENT: ", modules_to_test[best_module_path].targets)
+            else:
+                print("CONTENT EMPTY")
         if best_module_path in modules_to_test:
             if (
                 modules_to_test[best_module_path].targets is not None
-                and os.path.dirname(modified_file) not in modules_to_test[best_module_path].targets
+                and relative_target not in modules_to_test[best_module_path].targets
             ):
                 modules_to_test[best_module_path].targets.append(relative_target)
         else:
@@ -1172,7 +1176,7 @@ def get_modified_packages(ctx) -> List[GoModule]:
 
     print("Running tests for the following modules:")
     for module in modules_to_test:
-        print(f"- {module}: {modules_to_test[module].targets}")
+        print(f"- {module}: {modules_to_test[module].targets} {len(modules_to_test[module].targets)}")
 
     return modules_to_test.values()
 
