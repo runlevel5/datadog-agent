@@ -1041,7 +1041,11 @@ func InitConfig(config Config) {
 	//
 	config.BindEnvAndSetDefault("admission_controller.agent_sidecar.enabled", true)
 	config.BindEnvAndSetDefault("admission_controller.agent_sidecar.endpoint", "/agentsidecar")
+	config.BindEnvAndSetDefault("admission_controller.agent_sidecar.labelSelector", map[string]string{})
+	config.BindEnvAndSetDefault("admission_controller.agent_sidecar.namespaceSelector", map[string]string{})
 	config.BindEnvAndSetDefault("admission_controller.agent_sidecar.sidecaryaml", "")
+	// DD_ADMISSION_CONTROLLER_AGENT_SIDECAR_SIDECARYAML_CM
+	config.BindEnvAndSetDefault("admission_controller.agent_sidecar.sidecaryaml_cm", "")
 	//
 	config.BindEnvAndSetDefault("admission_controller.inject_config.enabled", true)
 	config.BindEnvAndSetDefault("admission_controller.inject_config.endpoint", "/injectconfig")

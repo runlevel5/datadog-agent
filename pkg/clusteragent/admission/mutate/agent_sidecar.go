@@ -10,8 +10,10 @@ package mutate
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"gopkg.in/yaml.v2"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
 	authenticationv1 "k8s.io/api/authentication/v1"
@@ -37,13 +39,70 @@ func injectAgentSidecar(pod *corev1.Pod, _ string, _ dynamic.Interface) error {
 			return nil
 		}
 	}
-	sidecar := agentSidecar()
+	allSettings := config.Datadog.AllSettings()
+	log.Info("Reading config", "allSettings", allSettings)
+	sidecar := agentSidecarFromConfig()
 	pod.Spec.Containers = append(pod.Spec.Containers, *sidecar)
 	log.Info("Injecting side car; resulting pod", "pod", pod)
 
 	return nil
 }
 
+func agentSidecarFromConfig() *corev1.Container {
+	yamlContent := config.Datadog.GetString("admission_controller.agent_sidecar.sidecaryaml")
+	yamlContentCM := config.Datadog.GetString("admission_controller.agent_sidecar.sidecaryaml_cm")
+	log.Info("Reading side car", "yaml", yamlContent, "yaml_cm", yamlContentCM)
+
+	var containers []corev1.Container
+	err := yaml.Unmarshal([]byte(yamlContent), &containers)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return nil
+	}
+	log.Info("Umarshalled side car", "container", containers[0])
+	agentContainer := containers[0]
+	for i, _ := range agentContainer.Env {
+		if agentContainer.Env[i].Name == "DD_API_KEY" {
+			agentContainer.Env[i].ValueFrom = &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					Key: "api-key",
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "datadog-agent-linux",
+					},
+				},
+			}
+		} else if agentContainer.Env[i].Name == "DD_CLUSTER_AGENT_AUTH_TOKEN" {
+			agentContainer.Env[i].ValueFrom = &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					Key: "token",
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "datadog-cluster-agent",
+					},
+				},
+			}
+		} else if agentContainer.Env[i].Name == "DD_KUBERNETES_KUBELET_NODENAME" {
+			agentContainer.Env[i].ValueFrom = &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					APIVersion: "v1",
+					FieldPath:  "spec.nodeName",
+				},
+			}
+		}
+	}
+
+	return &containers[0]
+}
+
+// Default when side car injection is enabled
+// `agent_sidecar.sidecaryaml`
+// Two way to inject side car template
+// 1) env var, 2) config map
+//
+// we use config map for sidecar template
+//
+// Helm     -> env var or CM
+// Operator  -> env var; check in Operator (CustomConfigSpec ksm core)
+// DCA Deployment -> env var or CM
 func agentSidecar() *corev1.Container {
 	agentContainer := &corev1.Container{
 		// DD_API_KEY

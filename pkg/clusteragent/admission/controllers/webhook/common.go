@@ -84,6 +84,21 @@ func buildLabelSelectors(useNamespaceSelector bool) (namespaceSelector, objectSe
 	return nil, &labelSelector
 }
 
+// buildLabelSelectors returns the mutating webhooks object selector based on the configuration
+func buildPodSelectorForAgentSidecar() (namespaceSelector, objectSelector *metav1.LabelSelector) {
+	labelSelectorMap := config.Datadog.GetStringMapString("admission_controller.agent_sidecar.labelSelector")
+	objectSelector = &metav1.LabelSelector{
+		MatchLabels: labelSelectorMap,
+	}
+
+	nsSelectorMap := config.Datadog.GetStringMapString("admission_controller.agent_sidecar.namespaceSelector")
+	namespaceSelector = &metav1.LabelSelector{
+		MatchLabels: nsSelectorMap,
+	}
+
+	return namespaceSelector, objectSelector
+}
+
 // aksSelectors takes a label selector and builds a namespace and object
 // selector adapted for AKS. AKS adds automatically some selector requirements
 // if we don't, so we need to add them to avoid conflicts when updating the

@@ -191,7 +191,7 @@ func (c *ControllerV1beta1) generateTemplates() {
 	// side car injection
 	if config.Datadog.GetBool("admission_controller.agent_sidecar.enabled") {
 		// generate selectors
-		nsSelector, objSelector := buildLabelSelectors(c.config.useNamespaceSelector())
+		nsSelector, objSelector := buildPodSelectorForAgentSidecar()
 
 		webhook := c.getWebhookSkeleton(
 			"agent-sidecar",
