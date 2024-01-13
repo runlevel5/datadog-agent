@@ -10,6 +10,7 @@ package trivy
 import (
 	"context"
 	"encoding/json"
+	"github.com/containerd/containerd/images"
 	"io"
 	"os"
 	"strings"
@@ -65,9 +66,17 @@ func imageWriter(client *containerd.Client, img containerd.Image) imageSave {
 		imgOpts := archive.WithImage(client.ImageService(), ref[0])
 		manifestOpts := archive.WithManifest(img.Target())
 		platOpts := archive.WithPlatform(img.Platform())
+		// If the blob is an uncompressed layer and is not present in the store, it needs to be skipped.
+		uncompressedLayerFilter := archive.WithBlobFilter(func(desc ocispec.Descriptor) bool {
+			if !images.IsLayerType(desc.MediaType) {
+				return true
+			}
+			_, err := client.ContentStore().Info(ctx, desc.Digest)
+			return err == nil
+		})
 		pr, pw := io.Pipe()
 		go func() {
-			pw.CloseWithError(archive.Export(ctx, client.ContentStore(), pw, imgOpts, manifestOpts, platOpts))
+			pw.CloseWithError(archive.Export(ctx, client.ContentStore(), pw, imgOpts, manifestOpts, platOpts, uncompressedLayerFilter))
 		}()
 		return pr, nil
 	}
