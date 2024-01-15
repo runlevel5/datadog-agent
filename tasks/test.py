@@ -1180,12 +1180,18 @@ def get_modified_packages(ctx) -> List[GoModule]:
         else:
             modules_to_test[best_module_path] = GoModule(best_module_path, targets=[relative_target])
 
+    print("Running tests for the following modules:")
+    for module in modules_to_test:
+        modules_to_test[module].targets.sort()
+        print(f"- {module}: {modules_to_test[module].targets} {len(modules_to_test[module].targets)}")
+
     # Clean up duplicated paths to reduce Go test cmd length
     for module in modules_to_test:
         modules_to_test[module].targets = clean_nested_paths(modules_to_test[module].targets)
 
     print("Running tests for the following modules:")
     for module in modules_to_test:
+        modules_to_test[module].targets.sort()
         print(f"- {module}: {modules_to_test[module].targets} {len(modules_to_test[module].targets)}")
 
     return modules_to_test.values()
