@@ -21,9 +21,7 @@ import (
 
 // Isv4TaskEnabled returns true if the v4 task metadata collection is enabled
 func Isv4TaskEnabled() bool {
-	return config.Datadog.GetBool("orchestrator_explorer.enabled") &&
-		config.Datadog.GetBool("orchestrator_explorer.ecs_collection.enabled") &&
-		(flavor.GetFlavor() == flavor.DefaultAgent)
+	return config.Datadog.GetBool("ecs_metadata_use_v4") && (flavor.GetFlavor() == flavor.DefaultAgent)
 }
 
 // ParseV4Task parses a metadata v4 task into a workloadmeta.ECSTask
