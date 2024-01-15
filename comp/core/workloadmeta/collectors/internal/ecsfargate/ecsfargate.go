@@ -22,7 +22,6 @@ import (
 	ecsmeta "github.com/DataDog/datadog-agent/pkg/util/ecs/metadata"
 	v2 "github.com/DataDog/datadog-agent/pkg/util/ecs/metadata/v2"
 	"github.com/DataDog/datadog-agent/pkg/util/ecs/metadata/v3or4"
-	"github.com/DataDog/datadog-agent/pkg/util/flavor"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
@@ -43,15 +42,12 @@ type collector struct {
 
 // NewCollector returns a new ecsfargate collector provider and an error
 func NewCollector() (workloadmeta.CollectorProvider, error) {
-	v4TaskEnabled := config.Datadog.GetBool("orchestrator_explorer.enabled") &&
-		config.Datadog.GetBool("orchestrator_explorer.ecs_collection.enabled") &&
-		(flavor.GetFlavor() == flavor.DefaultAgent)
 	return workloadmeta.CollectorProvider{
 		Collector: &collector{
 			id:            collectorID,
 			catalog:       workloadmeta.NodeAgent | workloadmeta.ProcessAgent,
 			seen:          make(map[workloadmeta.EntityID]struct{}),
-			v4TaskEnabled: v4TaskEnabled,
+			v4TaskEnabled: util.Isv4TaskEnabled(),
 		},
 	}, nil
 }
@@ -118,7 +114,7 @@ func (c *collector) parseTask(task *v2.Task) []workloadmeta.CollectorEvent {
 	seen := make(map[workloadmeta.EntityID]struct{})
 
 	// We only want to collect tasks without a STOPPED status.
-	if task.KnownStatus == "STOPPED" {
+	if task.KnownStatus == workloadmeta.ECSTaskKnownStatusStopped {
 		return events
 	}
 

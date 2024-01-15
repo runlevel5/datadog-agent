@@ -27,7 +27,6 @@ import (
 	ecsmeta "github.com/DataDog/datadog-agent/pkg/util/ecs/metadata"
 	v1 "github.com/DataDog/datadog-agent/pkg/util/ecs/metadata/v1"
 	v3or4 "github.com/DataDog/datadog-agent/pkg/util/ecs/metadata/v3or4"
-	"github.com/DataDog/datadog-agent/pkg/util/flavor"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/retry"
 
@@ -65,9 +64,7 @@ type resourceTags struct {
 
 // NewCollector returns a new ecs collector provider and an error
 func NewCollector() (workloadmeta.CollectorProvider, error) {
-	v4TaskEnabled := config.Datadog.GetBool("orchestrator_explorer.enabled") &&
-		config.Datadog.GetBool("orchestrator_explorer.ecs_collection.enabled") &&
-		(flavor.GetFlavor() == flavor.DefaultAgent)
+	v4TaskEnabled := util.Isv4TaskEnabled()
 	v4TaskRefreshInterval := config.Datadog.GetDuration("ecs_ec2_task_cache_ttl")
 	v4TaskNumberLimitPerRun := config.Datadog.GetInt("ecs_ec2_task_limit_per_run")
 	v4TaskRateRPS := config.Datadog.GetInt("ecs_ec2_task_rate")
@@ -135,8 +132,11 @@ func (c *collector) Pull(ctx context.Context) error {
 	// immutable: the list of containers in the task changes as containers
 	// don't get added until they actually start running, and killed
 	// containers will get re-created.
-	c.store.Notify(c.parseTasks(ctx, tasks))
-
+	if c.v4TaskEnabled {
+		c.store.Notify(c.parseV4Tasks(ctx, tasks))
+	} else {
+		c.store.Notify(c.parseTasks(ctx, tasks))
+	}
 	return nil
 }
 
@@ -151,23 +151,10 @@ func (c *collector) GetTargetCatalog() workloadmeta.AgentType {
 func (c *collector) parseTasks(ctx context.Context, tasks []v1.Task) []workloadmeta.CollectorEvent {
 	events := []workloadmeta.CollectorEvent{}
 	seen := make(map[workloadmeta.EntityID]struct{})
-	// get task ARNs to fetch from the metadata v4 API
-	taskArns := c.getTaskArnsToFetch(tasks)
 
 	for _, task := range tasks {
 		// We only want to collect tasks without a STOPPED status.
-		if task.KnownStatus == "STOPPED" {
-			continue
-		}
-
-		// If the orchestrator explorer ecs collection is enabled, collector will query the v4 task endpoint for each task
-		// and store task and container in the store.
-		if c.v4TaskEnabled {
-			if _, ok := taskArns[task.Arn]; !ok {
-				events = append(events, util.ParseV4Task(v1TaskToV4Task(task), seen)...)
-			} else {
-				events = append(events, c.parseV4Task(ctx, task, seen)...)
-			}
+		if task.KnownStatus == workloadmeta.ECSTaskKnownStatusStopped {
 			continue
 		}
 
@@ -209,6 +196,36 @@ func (c *collector) parseTasks(ctx context.Context, tasks []v1.Task) []workloadm
 		})
 	}
 
+	return c.setLastSeenEntitiesAndUnsetEvents(events, seen)
+}
+
+// parseV4Tasks queries the v4 task endpoint for each task, parses them and stores them in the store.
+func (c *collector) parseV4Tasks(ctx context.Context, tasks []v1.Task) []workloadmeta.CollectorEvent {
+	events := []workloadmeta.CollectorEvent{}
+	seen := make(map[workloadmeta.EntityID]struct{})
+	// get task ARNs to fetch from the metadata v4 API
+	taskArns := c.getTaskArnsToFetch(tasks)
+
+	for _, task := range tasks {
+		// We only want to collect tasks without a STOPPED status.
+		if task.KnownStatus == workloadmeta.ECSTaskKnownStatusStopped {
+			continue
+		}
+
+		var v4Task v3or4.Task
+		if _, ok := taskArns[task.Arn]; ok {
+			v4Task = c.getV4TaskWithTags(ctx, task)
+		} else {
+			v4Task = v1TaskToV4Task(task)
+		}
+
+		events = append(events, util.ParseV4Task(v4Task, seen)...)
+	}
+
+	return c.setLastSeenEntitiesAndUnsetEvents(events, seen)
+}
+
+func (c *collector) setLastSeenEntitiesAndUnsetEvents(events []workloadmeta.CollectorEvent, seen map[workloadmeta.EntityID]struct{}) []workloadmeta.CollectorEvent {
 	for seenID := range c.seen {
 		if _, ok := seen[seenID]; ok {
 			continue
@@ -237,7 +254,6 @@ func (c *collector) parseTasks(ctx context.Context, tasks []v1.Task) []workloadm
 	}
 
 	c.seen = seen
-
 	return events
 }
 
@@ -276,11 +292,6 @@ func (c *collector) parseTaskContainers(
 	return taskContainers, events
 }
 
-func (c *collector) parseV4Task(ctx context.Context, task v1.Task, seen map[workloadmeta.EntityID]struct{}) []workloadmeta.CollectorEvent {
-	v4Task := c.getV4TaskWithTags(ctx, task)
-	return util.ParseV4Task(v4Task, seen)
-}
-
 // getV4TaskWithTags fetches task and tasks from the metadata v4 API
 func (c *collector) getV4TaskWithTags(ctx context.Context, task v1.Task) v3or4.Task {
 	var metaURI string
@@ -300,7 +311,7 @@ func (c *collector) getV4TaskWithTags(ctx context.Context, task v1.Task) v3or4.T
 	}
 
 	if metaURI == "" {
-		log.Errorf("failed to get client for metadata v3 or v4 API from task %s and the following containers: %v", task.Arn, task.Containers)
+		log.Errorf("failed to get client for metadata v4 API from task %s and the following containers: %v", task.Arn, task.Containers)
 		return v1TaskToV4Task(task)
 	}
 
@@ -473,13 +484,15 @@ func v1TaskToV4Task(task v1.Task) v3or4.Task {
 	return result
 }
 
+var hash32 = fnv.New32a()
+
 func jitter(s string) time.Duration {
-	h := fnv.New32a()
-	_, err := h.Write([]byte(s))
+	defer hash32.Reset()
+	_, err := hash32.Write([]byte(s))
 	if err != nil {
 		return 0
 	}
-	second := time.Duration(h.Sum32()%61) * time.Second
+	second := time.Duration(hash32.Sum32()%61) * time.Second
 	return second
 }
 

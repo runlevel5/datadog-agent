@@ -13,9 +13,18 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
+	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/ecs/metadata/v3or4"
+	"github.com/DataDog/datadog-agent/pkg/util/flavor"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
+
+// Isv4TaskEnabled returns true if the v4 task metadata collection is enabled
+func Isv4TaskEnabled() bool {
+	return config.Datadog.GetBool("orchestrator_explorer.enabled") &&
+		config.Datadog.GetBool("orchestrator_explorer.ecs_collection.enabled") &&
+		(flavor.GetFlavor() == flavor.DefaultAgent)
+}
 
 // ParseV4Task parses a metadata v4 task into a workloadmeta.ECSTask
 func ParseV4Task(task v3or4.Task, seen map[workloadmeta.EntityID]struct{}) []workloadmeta.CollectorEvent {

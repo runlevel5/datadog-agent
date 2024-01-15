@@ -853,6 +853,9 @@ func (d KubernetesDeployment) String(verbose bool) string {
 
 var _ Entity = &KubernetesDeployment{}
 
+// ECSTaskKnownStatusStopped is the known status of an ECS task that has stopped.
+const ECSTaskKnownStatusStopped = "STOPPED"
+
 // ECSTaskTags is a map of tags for an ECS task.
 type ECSTaskTags map[string]string
 
