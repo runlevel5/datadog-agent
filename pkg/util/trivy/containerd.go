@@ -20,7 +20,6 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images/archive"
-	"github.com/containerd/containerd/namespaces"
 	refdocker "github.com/containerd/containerd/reference/docker"
 	api "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -84,7 +83,6 @@ func imageWriter(client *containerd.Client, img containerd.Image) imageSave {
 
 // Custom code based on https://github.com/aquasecurity/trivy/blob/2206e008ea6e5f4e5c1aa7bc8fc77dae7041de6a/pkg/fanal/image/daemon/containerd.go `ContainerdImage`
 func convertContainerdImage(ctx context.Context, client *containerd.Client, imgMeta *workloadmeta.ContainerImageMetadata, img containerd.Image) (types.Image, func(), error) {
-	ctx = namespaces.WithNamespace(ctx, imgMeta.Namespace)
 	cleanup := func() {}
 
 	f, err := os.CreateTemp("", "fanal-containerd-*")

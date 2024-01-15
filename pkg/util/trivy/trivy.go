@@ -11,6 +11,7 @@ package trivy
 import (
 	"context"
 	"fmt"
+	"github.com/containerd/containerd/namespaces"
 	"os"
 	"path/filepath"
 	"sort"
@@ -240,6 +241,16 @@ func (c *Collector) ScanDockerImage(ctx context.Context, imgMeta *workloadmeta.C
 
 // ScanContainerdImage scans containerd image
 func (c *Collector) ScanContainerdImage(ctx context.Context, imgMeta *workloadmeta.ContainerImageMetadata, img containerd.Image, client cutil.ContainerdItf, scanOptions sbom.ScanOptions) (sbom.Report, error) {
+	// Pull image again image before scanning
+	ctx = namespaces.WithNamespace(ctx, imgMeta.Namespace)
+	cl := client.RawClient()
+	if cl != nil && len(imgMeta.RepoDigests) > 0 {
+		_, err := cl.Pull(ctx, imgMeta.RepoDigests[0])
+		if err != nil {
+			log.Errorf("error pulling image: %v", err)
+		}
+	}
+
 	fanalImage, cleanup, err := convertContainerdImage(ctx, client.RawClient(), imgMeta, img)
 	if cleanup != nil {
 		defer cleanup()
