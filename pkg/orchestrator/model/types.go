@@ -77,6 +77,8 @@ const (
 	K8sVerticalPodAutoscaler = 22
 	// K8sHorizontalPodAutoscaler represents a Kubernetes Horizontal Pod Autoscaler
 	K8sHorizontalPodAutoscaler = 23
+	// ECSTask represents an ECS Task
+	ECSTask = 24
 )
 
 // NodeTypes returns the current existing NodesTypes as a slice to iterate over.
@@ -105,6 +107,7 @@ func NodeTypes() []NodeType {
 		K8sCRD,
 		K8sVerticalPodAutoscaler,
 		K8sHorizontalPodAutoscaler,
+		ECSTask,
 	}
 }
 
@@ -158,6 +161,8 @@ func (n NodeType) String() string {
 		return "HorizontalPodAutoscaler"
 	case K8sUnsetType:
 		return "UnsetType"
+	case ECSTask:
+		return "ECSTask"
 	default:
 		_ = log.Errorf("Trying to convert unknown NodeType iota: %d", n)
 		return "Unknown"
@@ -192,6 +197,8 @@ func (n NodeType) Orchestrator() string {
 		K8sHorizontalPodAutoscaler,
 		K8sUnsetType:
 		return "k8s"
+	case ECSTask:
+		return "ecs"
 	default:
 		log.Errorf("Unknown NodeType %v", n)
 		return ""

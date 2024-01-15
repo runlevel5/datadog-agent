@@ -33,20 +33,21 @@ const (
 // OrchestratorConfig is the global config for the Orchestrator related packages. This information
 // is sourced from config files and the environment variables.
 type OrchestratorConfig struct {
-	CollectorDiscoveryEnabled      bool
-	OrchestrationCollectionEnabled bool
-	CoreCheck                      bool
-	KubeClusterName                string
-	IsScrubbingEnabled             bool
-	Scrubber                       *redact.DataScrubber
-	OrchestratorEndpoints          []apicfg.Endpoint
-	MaxPerMessage                  int
-	MaxWeightPerMessageBytes       int
-	PodQueueBytes                  int // The total number of bytes that can be enqueued for delivery to the orchestrator endpoint
-	ExtraTags                      []string
-	IsManifestCollectionEnabled    bool
-	BufferedManifestEnabled        bool
-	ManifestBufferFlushInterval    time.Duration
+	CollectorDiscoveryEnabled         bool
+	OrchestrationCollectionEnabled    bool
+	CoreCheck                         bool
+	KubeClusterName                   string
+	IsScrubbingEnabled                bool
+	Scrubber                          *redact.DataScrubber
+	OrchestratorEndpoints             []apicfg.Endpoint
+	MaxPerMessage                     int
+	MaxWeightPerMessageBytes          int
+	PodQueueBytes                     int // The total number of bytes that can be enqueued for delivery to the orchestrator endpoint
+	ExtraTags                         []string
+	IsManifestCollectionEnabled       bool
+	BufferedManifestEnabled           bool
+	ManifestBufferFlushInterval       time.Duration
+	OrchestrationECSCollectionEnabled bool
 }
 
 // NewDefaultOrchestratorConfig returns an NewDefaultOrchestratorConfig using a configuration file. It can be nil
@@ -119,6 +120,7 @@ func (oc *OrchestratorConfig) Load() error {
 	oc.IsManifestCollectionEnabled = config.Datadog.GetBool(OrchestratorNSKey("manifest_collection.enabled"))
 	oc.BufferedManifestEnabled = config.Datadog.GetBool(OrchestratorNSKey("manifest_collection.buffer_manifest"))
 	oc.ManifestBufferFlushInterval = config.Datadog.GetDuration(OrchestratorNSKey("manifest_collection.buffer_flush_interval"))
+	oc.OrchestrationECSCollectionEnabled = config.Datadog.GetBool(OrchestratorNSKey("ecs_collection.enabled"))
 
 	return nil
 }
@@ -193,4 +195,21 @@ func IsOrchestratorEnabled() (bool, bool, string) {
 	}
 	coreCheck := config.Datadog.GetBool(OrchestratorNSKey("run_on_node_agent"))
 	return enabled, coreCheck, clusterName
+}
+
+// IsOrchestratorECSExplorerEnabled checks if orchestrator ecs explorer features are enabled
+func IsOrchestratorECSExplorerEnabled() bool {
+	if !config.Datadog.GetBool(OrchestratorNSKey("enabled")) {
+		return false
+	}
+
+	if !config.Datadog.GetBool(OrchestratorNSKey("ecs_collection.enabled")) {
+		return false
+	}
+
+	if config.IsECS() || config.IsECSFargate() {
+		return true
+	}
+
+	return false
 }

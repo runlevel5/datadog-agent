@@ -21,7 +21,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"go.uber.org/fx"
-	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
 
 	"github.com/DataDog/datadog-agent/cmd/agent/command"
 	"github.com/DataDog/datadog-agent/cmd/agent/common"
@@ -32,6 +31,7 @@ import (
 	"github.com/DataDog/datadog-agent/cmd/agent/gui"
 	"github.com/DataDog/datadog-agent/cmd/agent/subcommands/run/internal/clcrunnerapi"
 	"github.com/DataDog/datadog-agent/cmd/manager"
+	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
 
 	// checks implemented as components
 
@@ -123,6 +123,7 @@ import (
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/net"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/nvidia/jetson"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/oracle-dbm"
+	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/orchestrator/ecs"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/orchestrator/pod"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/sbom"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/snmp"

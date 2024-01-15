@@ -5,7 +5,7 @@
 
 //go:build kubeapiserver && orchestrator
 
-//nolint:revive // TODO(CAPP) Fix revive linter
+// Package k8s defines collectors to collect kubernetes resources.
 package k8s
 
 import (
@@ -74,7 +74,7 @@ func (c *ClusterCollector) Run(rcfg *collectors.CollectorRunConfig) (*collectors
 		return nil, collectors.NewListingError(err)
 	}
 
-	ctx := collectors.NewProcessorContext(rcfg, c.metadata)
+	ctx := collectors.NewK8sProcessorContext(rcfg, c.metadata)
 
 	processResult, processed, err := c.processor.Process(ctx, list)
 

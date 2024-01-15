@@ -41,7 +41,7 @@ var (
 // to easily run them all.
 type CollectorBundle struct {
 	check               *OrchestratorCheck
-	collectors          []collectors.Collector
+	collectors          []collectors.K8sCollector
 	discoverCollectors  bool
 	extraSyncTimeout    time.Duration
 	inventory           *inventory.CollectorInventory
@@ -135,7 +135,7 @@ func (cb *CollectorBundle) skipImportingDefaultCollectors() bool {
 //   - <apigroup_and_version>/<collector_name> (e.g. "batch/v1/cronjobs")
 func (cb *CollectorBundle) addCollectorFromConfig(collectorName string, isCRD bool) {
 	var (
-		collector collectors.Collector
+		collector collectors.K8sCollector
 		err       error
 	)
 
@@ -229,11 +229,11 @@ func (cb *CollectorBundle) importCollectorsFromDiscovery() bool {
 
 	collectors, err := discovery.NewAPIServerDiscoveryProvider().Discover(cb.inventory)
 	if err != nil {
-		_ = cb.check.Warnf("Collector discovery failed: %s", err)
+		_ = cb.check.Warnf("K8sCollector discovery failed: %s", err)
 		return false
 	}
 	if len(collectors) == 0 {
-		_ = cb.check.Warn("Collector discovery returned no collector")
+		_ = cb.check.Warn("K8sCollector discovery returned no collector")
 		return false
 	}
 
