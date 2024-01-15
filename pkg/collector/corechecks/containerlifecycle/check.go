@@ -115,12 +115,27 @@ func (c *Check) Run() error {
 		workloadmeta.NewFilter(&podFilterParams),
 	)
 
+	taskFilterParams := workloadmeta.FilterParams{
+		Kinds:     []workloadmeta.Kind{workloadmeta.KindECSTask},
+		Source:    workloadmeta.SourceNodeOrchestrator,
+		EventType: workloadmeta.EventTypeUnset,
+	}
+
+	taskEventsCh := c.workloadmetaStore.Subscribe(
+		checkName+"-task",
+		workloadmeta.NormalPriority,
+		workloadmeta.NewFilter(&taskFilterParams),
+	)
+
 	pollInterval := time.Duration(c.instance.PollInterval) * time.Second
 
 	processorCtx, stopProcessor := context.WithCancel(context.Background())
 	c.processor.start(processorCtx, pollInterval)
 
-	defer stopProcessor()
+	defer func() {
+		c.sendFargateTaskEvent()
+		stopProcessor()
+	}()
 	for {
 		select {
 		case eventBundle, ok := <-contEventsCh:
@@ -129,6 +144,12 @@ func (c *Check) Run() error {
 			}
 			c.processor.processEvents(eventBundle)
 		case eventBundle, ok := <-podEventsCh:
+			if !ok {
+				stopProcessor()
+				return nil
+			}
+			c.processor.processEvents(eventBundle)
+		case eventBundle, ok := <-taskEventsCh:
 			if !ok {
 				stopProcessor()
 				return nil
@@ -145,6 +166,34 @@ func (c *Check) Stop() { close(c.stopCh) }
 
 // Interval returns 0, it makes container_lifecycle a long-running check
 func (c *Check) Interval() time.Duration { return 0 }
+
+// sendFargateTaskEvent sends Fargate task lifecycle event at the end of the check
+func (c *Check) sendFargateTaskEvent() {
+	shouldSend := ddConfig.Datadog.GetBool("orchestrator_explorer.enabled") &&
+		ddConfig.Datadog.GetBool("orchestrator_explorer.ecs_collection.enabled") &&
+		ddConfig.IsECSFargate()
+
+	if !shouldSend {
+		return
+	}
+
+	tasks := c.workloadmetaStore.ListECSTasks()
+	if len(tasks) != 1 {
+		log.Infof("Unable to send Fargate task lifecycle event, expected 1 task, got %d", len(tasks))
+		return
+	}
+
+	log.Infof("Send fargate task lifecycle event, task arn:%s", tasks[0].EntityID.ID)
+	c.processor.processEvents(workloadmeta.EventBundle{
+		Events: []workloadmeta.Event{
+			{
+				Type:   workloadmeta.EventTypeUnset,
+				Entity: tasks[0],
+			},
+		},
+		Ch: make(chan struct{}),
+	})
+}
 
 // CheckFactory registers the container_lifecycle check
 func CheckFactory() check.Check {
