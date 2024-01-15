@@ -13,8 +13,9 @@ import (
 	"testing"
 
 	"github.com/CycloneDX/cyclonedx-go"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	trivydx "github.com/aquasecurity/trivy/pkg/sbom/cyclonedx"
+
+	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 )
 
 func Test_UpdateSBOMRepoMetadata(t *testing.T) {

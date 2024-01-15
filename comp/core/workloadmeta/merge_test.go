@@ -38,6 +38,18 @@ func container1(testTime time.Time) Container {
 				Port: 42002,
 			},
 		},
+		Volumes: []ContainerVolume{
+			{
+				DockerName:  "vol1",
+				Destination: "/host/path",
+			},
+		},
+		Networks: []ContainerNetwork{
+			{
+				NetworkMode:   "bridge",
+				IPv4Addresses: []string{"172.17.0.2"},
+			},
+		},
 		State: ContainerState{
 			Running:    true,
 			CreatedAt:  testTime,
@@ -75,6 +87,18 @@ func container2(testTime time.Time) Container { //nolint:revive // TODO fix revi
 				Port: 42003,
 			},
 		},
+		Volumes: []ContainerVolume{
+			{
+				DockerName:  "vol1",
+				Destination: "/host/path",
+			},
+		},
+		Networks: []ContainerNetwork{
+			{
+				NetworkMode:   "bridge",
+				IPv4Addresses: []string{"172.17.0.2"},
+			},
+		},
 		State: ContainerState{
 			CreatedAt:  time.Time{},
 			StartedAt:  time.Time{},
@@ -96,6 +120,18 @@ func TestMerge(t *testing.T) {
 		EntityMeta: EntityMeta{
 			Name:      "foo1-name",
 			Namespace: "",
+		},
+		Volumes: []ContainerVolume{
+			{
+				DockerName:  "vol1",
+				Destination: "/host/path",
+			},
+		},
+		Networks: []ContainerNetwork{
+			{
+				NetworkMode:   "bridge",
+				IPv4Addresses: []string{"172.17.0.2"},
+			},
 		},
 		State: ContainerState{
 			Running:    true,
@@ -165,4 +201,87 @@ func TestMerge(t *testing.T) {
 	err = merge(&fromSource2, &fromSource1)
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, container1(testTime).Ports, fromSource2.Ports)
+}
+
+func TestMergeECSTask(t *testing.T) {
+	task1 := ECSTask{
+		EntityID: EntityID{
+			Kind: KindECSTask,
+			ID:   "foo1",
+		},
+		EntityMeta: EntityMeta{
+			Name: "foo1-name",
+		},
+		Family: "foo1-family",
+		Containers: []OrchestratorContainer{
+			{
+				ID:   "foo1-c1-id",
+				Name: "foo1-c1-name",
+			},
+		},
+		Tags: ECSTaskTags{
+			"tag1": "value1",
+		},
+	}
+
+	task2 := ECSTask{
+		EntityID: EntityID{
+			Kind: KindECSTask,
+			ID:   "foo1",
+		},
+		EntityMeta: EntityMeta{
+			Name: "foo1-name",
+		},
+		ServiceName: "foo1-service-name",
+		Containers: []OrchestratorContainer{
+			{
+				ID:   "foo1-c1-id",
+				Name: "foo1-c1-name",
+			},
+		},
+	}
+
+	expected := ECSTask{
+		EntityID: EntityID{
+			Kind: KindECSTask,
+			ID:   "foo1",
+		},
+		EntityMeta: EntityMeta{
+			Name: "foo1-name",
+		},
+		Family:      "foo1-family",
+		ServiceName: "foo1-service-name",
+		Containers: []OrchestratorContainer{
+			{
+				ID:   "foo1-c1-id",
+				Name: "foo1-c1-name",
+			},
+		},
+		Tags: ECSTaskTags{
+			"tag1": "value1",
+		},
+	}
+
+	err := merge(&task1, &task2)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, task1)
+
+	err = merge(&task2, &task1)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, task2)
+
+	// Tags should be overwritten by incoming task
+	task2.Tags = ECSTaskTags{
+		"tag2": "value2",
+	}
+	expected.Tags = ECSTaskTags{
+		"tag2": "value2",
+	}
+	err = merge(&task1, &task2)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, task1)
+
+	err = merge(&task2, &task1)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, task2)
 }

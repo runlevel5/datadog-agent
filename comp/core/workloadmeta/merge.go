@@ -7,6 +7,7 @@ package workloadmeta
 
 import (
 	"reflect"
+	"sort"
 	"strconv"
 	"time"
 
@@ -18,9 +19,14 @@ type (
 )
 
 var (
-	timeType       = reflect.TypeOf(time.Time{})
-	portSliceType  = reflect.TypeOf([]ContainerPort{})
-	mergerInstance = merger{}
+	timeType                       = reflect.TypeOf(time.Time{})
+	portSliceType                  = reflect.TypeOf([]ContainerPort{})
+	volumeSliceType                = reflect.TypeOf([]ContainerVolume{})
+	networkSliceType               = reflect.TypeOf([]ContainerNetwork{})
+	orchestratorContainerSliceType = reflect.TypeOf([]OrchestratorContainer{})
+	ecsTaskTagsType                = reflect.TypeOf(ECSTaskTags{})
+	containerInstanceTagsType      = reflect.TypeOf(ContainerInstanceTags{})
+	mergerInstance                 = merger{}
 )
 
 func (merger) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
@@ -28,7 +34,17 @@ func (merger) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
 	case timeType:
 		return timeMerge
 	case portSliceType:
-		return portSliceMerge
+		return sliceMerge[ContainerPort](mergeContainerPort)
+	case volumeSliceType:
+		return sliceMerge[ContainerVolume](mergeContainerVolume)
+	case networkSliceType:
+		return sliceMerge[ContainerNetwork](mergeContainerNetwork)
+	case orchestratorContainerSliceType:
+		return sliceMerge[OrchestratorContainer](mergeOrchestratorContainer)
+	case ecsTaskTagsType:
+		return mapOverwrite[ECSTaskTags]
+	case containerInstanceTagsType:
+		return mapOverwrite[ContainerInstanceTags]
 	}
 
 	return nil
@@ -47,35 +63,37 @@ func timeMerge(dst, src reflect.Value) error {
 	return nil
 }
 
-func portSliceMerge(dst, src reflect.Value) error {
-	if !dst.CanSet() {
+func sliceMerge[T any](mergeFunc func(mergeMap map[string]T, port T)) func(dst, src reflect.Value) error {
+	return func(dst, src reflect.Value) error {
+		if !dst.CanSet() {
+			return nil
+		}
+
+		srcSlice := src.Interface().([]T)
+		dstSlice := dst.Interface().([]T)
+
+		// Not allocation the map if nothing to do
+		if len(srcSlice) == 0 || len(dstSlice) == 0 {
+			return nil
+		}
+
+		mergeMap := make(map[string]T, len(srcSlice)+len(dstSlice))
+		for _, d := range dstSlice {
+			mergeFunc(mergeMap, d)
+		}
+
+		for _, s := range srcSlice {
+			mergeFunc(mergeMap, s)
+		}
+
+		dstSlice = make([]T, 0, len(mergeMap))
+		for _, volume := range mergeMap {
+			dstSlice = append(dstSlice, volume)
+		}
+		dst.Set(reflect.ValueOf(dstSlice))
+
 		return nil
 	}
-
-	srcSlice := src.Interface().([]ContainerPort)
-	dstSlice := dst.Interface().([]ContainerPort)
-
-	// Not allocation the map if nothing to do
-	if len(srcSlice) == 0 || len(dstSlice) == 0 {
-		return nil
-	}
-
-	mergeMap := make(map[string]ContainerPort, len(srcSlice)+len(dstSlice))
-	for _, port := range dstSlice {
-		mergeContainerPort(mergeMap, port)
-	}
-
-	for _, port := range srcSlice {
-		mergeContainerPort(mergeMap, port)
-	}
-
-	dstSlice = make([]ContainerPort, 0, len(mergeMap))
-	for _, port := range mergeMap {
-		dstSlice = append(dstSlice, port)
-	}
-	dst.Set(reflect.ValueOf(dstSlice))
-
-	return nil
 }
 
 func mergeContainerPort(mergeMap map[string]ContainerPort, port ContainerPort) {
@@ -89,6 +107,49 @@ func mergeContainerPort(mergeMap map[string]ContainerPort, port ContainerPort) {
 	} else {
 		mergeMap[portKey] = port
 	}
+}
+
+func mergeContainerVolume(mergeMap map[string]ContainerVolume, volume ContainerVolume) {
+	mergeMap[volume.Destination] = volume
+}
+
+func mergeContainerNetwork(mergeMap map[string]ContainerNetwork, network ContainerNetwork) {
+	sort.Strings(network.IPv4Addresses)
+	networkKey := ""
+	for _, ip := range network.IPv4Addresses {
+		networkKey += ip
+	}
+
+	mergeMap[networkKey] = network
+
+}
+
+func mergeOrchestratorContainer(mergeMap map[string]OrchestratorContainer, container OrchestratorContainer) {
+	mergeMap[container.ID] = container
+}
+
+func mapOverwrite[T ECSTaskTags | ContainerInstanceTags](dst, src reflect.Value) error {
+	if !dst.CanSet() {
+		return nil
+	}
+
+	srcSlice := src.Interface().(T)
+	dstSlice := dst.Interface().(T)
+
+	// Not allocation the map if nothing to do
+	if len(srcSlice) == 0 || len(dstSlice) == 0 {
+		return nil
+	}
+
+	mergeMap := make(map[string]string, len(srcSlice))
+
+	for k, v := range srcSlice {
+		mergeMap[k] = v
+	}
+
+	dst.Set(reflect.ValueOf(mergeMap))
+
+	return nil
 }
 
 func merge(dst, src interface{}) error {
