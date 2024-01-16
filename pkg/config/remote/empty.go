@@ -3,5 +3,5 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2022-present Datadog, Inc.
 
-// Package remote defines RC clients
+// Package remote defines RC cl ients
 package remote
