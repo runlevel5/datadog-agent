@@ -46,11 +46,24 @@ func (e *cachedEntity) set(source Source, entity Entity) (found, changed bool) {
 	}
 
 	newEntity := entity.DeepCopy()
+	shouldMerge := false
 	// If the entity is an ECSTask, we want to merge it with the existing one
-	// instead of replacing it. This is because the ECS metadata endpoint v1
-	// returns a partial task, and v4 returns a full task, so we want to merge the
-	// two to get the full picture.
-	if _, ok := entity.(*ECSTask); found && ok {
+	// instead of replacing it. This is because the ECS metadata endpoint v4 is used when ecs collector cache ttl is
+	// expired otherwise v1 is used. The v4 endpoint contains more information than the v1 endpoint.
+	switch e := entity.(type) {
+	case *ECSTask:
+		if found {
+			shouldMerge = true
+		}
+	case *Container:
+		if found && e.Owner != nil && e.Owner.Kind == KindECSTask {
+			shouldMerge = true
+		}
+	default:
+		shouldMerge = false
+	}
+
+	if shouldMerge {
 		err := newEntity.Merge(old)
 		if err != nil {
 			log.Errorf("Can not merge %+v into %+v: %s", old, newEntity, err)
