@@ -13,7 +13,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder/transaction"
 )
 
-// DestinationType is used to identified the expected endpoint
+// DestinationType is used to ident ified the expected endpoint
 type DestinationType int
 
 const (
