@@ -45,7 +45,19 @@ func (e *cachedEntity) set(source Source, entity Entity) (found, changed bool) {
 		return true, false
 	}
 
-	e.sources[source] = entity
+	newEntity := entity.DeepCopy()
+	// If the entity is an ECSTask, we want to merge it with the existing one
+	// instead of replacing it. This is because the ECS metadata endpoint v1
+	// returns a partial task, and v4 returns a full task, so we want to merge the
+	// two to get the full picture.
+	if _, ok := entity.(*ECSTask); found && ok {
+		err := newEntity.Merge(old)
+		if err != nil {
+			log.Errorf("Can not merge %+v into %+v: %s", old, newEntity, err)
+		}
+	}
+
+	e.sources[source] = newEntity
 	e.computeCache()
 
 	return found, true

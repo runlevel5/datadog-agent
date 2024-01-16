@@ -1139,6 +1139,91 @@ func TestGetImage(t *testing.T) {
 	}
 }
 
+func TestListECSTasks(t *testing.T) {
+	task1 := &ECSTask{
+		EntityID: EntityID{
+			Kind: KindECSTask,
+			ID:   "task-id-1",
+		},
+		VPCID: "123",
+	}
+	task2 := &ECSTask{
+		EntityID: EntityID{
+			Kind: KindECSTask,
+			ID:   "task-id-1",
+		},
+	}
+	task3 := &ECSTask{
+		EntityID: EntityID{
+			Kind: KindECSTask,
+			ID:   "task-id-2",
+		},
+	}
+	task4 := &ECSTask{
+		EntityID: EntityID{
+			Kind: KindECSTask,
+			ID:   "task-id-1",
+		},
+		VPCID: "123",
+	}
+
+	tests := []struct {
+		name          string
+		preEvents     []CollectorEvent
+		expectedTasks []*ECSTask
+	}{
+		{
+			name: "some tasks stored",
+			preEvents: []CollectorEvent{
+				{
+					Type:   EventTypeSet,
+					Source: fooSource,
+					Entity: task1,
+				},
+				{
+					Type:   EventTypeSet,
+					Source: fooSource,
+					Entity: task2,
+				},
+				{
+					Type:   EventTypeSet,
+					Source: fooSource,
+					Entity: task3,
+				},
+				{
+					Type:   EventTypeSet,
+					Source: fooSource,
+					Entity: task4,
+				},
+			},
+			expectedTasks: []*ECSTask{task1, task3},
+		},
+		{
+			name:          "no task stored",
+			preEvents:     nil,
+			expectedTasks: []*ECSTask{},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			deps := fxutil.Test[dependencies](t, fx.Options(
+				logimpl.MockModule(),
+				config.MockModule(),
+				fx.Supply(NewParams()),
+			))
+
+			s := newWorkloadMeta(deps).(*workloadmeta)
+
+			s.handleEvents(test.preEvents)
+
+			tasks := s.ListECSTasks()
+
+			tassert.ElementsMatch(t, test.expectedTasks, tasks)
+		})
+	}
+}
+
 func TestResetProcesses(t *testing.T) {
 	tests := []struct {
 		name         string
