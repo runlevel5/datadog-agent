@@ -280,7 +280,7 @@ upload_minimized_btfs_arm64:
   tags: ["arch:amd64"]
   variables:
     AWS_REGION: us-east-1
-    STACK_DIR: $CI_PROJECT_DIR/stack.dir
+    STACK_DIR: "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
     # The ssh key is created by the pulumi scenario, to be used for creating
     # instances in the build-stable account. We reuse this file to ssh into
     # the instances in subsequent jobs.
@@ -302,14 +302,16 @@ upload_minimized_btfs_arm64:
     - !reference [.kernel_matrix_testing_new_profile]
     - !reference [.write_ssh_key_file]
   script:
-    - echo "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE" > $STACK_DIR
-    - pulumi login $(cat $STACK_DIR | tr -d '\n')
+    - pulumi login $STACK_DIR
     - inv -e kmt.gen-config --ci --arch=$ARCH --output-file=$VMCONFIG_FILE --sets=$TEST_SETS
     - inv -e system-probe.start-microvms --provision --vmconfig=$VMCONFIG_FILE $INSTANCE_TYPE_ARG $AMI_ID_ARG --ssh-key-name=$AWS_EC2_SSH_KEY_NAME --ssh-key-path=$AWS_EC2_SSH_KEY_FILE --infra-env=$INFRA_ENV --stack-name=kernel-matrix-testing-$ARCH-$CI_PIPELINE_ID --run-agent
     - jq -r '.' $CI_PROJECT_DIR/stack.output
     - pulumi logout
   after_script:
     - export AWS_PROFILE=agent-qa-ci
+    - pulumi login $STACK_DIR
+    # remove stack so it does not interfere with re-runs
+    - pulumi stack rm --force -y
     - !reference [.shared_filters_and_queries]
     - mkdir -p $CI_PROJECT_DIR/libvirt/log/$ARCH $CI_PROJECT_DIR/libvirt/xml/$ARCH
     - !reference [.get_instance_ip_by_type]
