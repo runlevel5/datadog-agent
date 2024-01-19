@@ -59,6 +59,18 @@ def init_kernel_matrix_testing_system(ctx, lite):
         ctx.run(f"{sudo} sed --in-place 's/#user = \"root\"/user = \"{user}\"/' {kmt_os.qemu_conf}")
         ctx.run(f"{sudo} sed --in-place 's/#group = \"root\"/group = \"kvm\"/' {kmt_os.qemu_conf}")
 
+        # setup NFS share
+        newlines = list()
+        with open("/etc/exports", "r") as f:
+            lines = f.read().split("\n")
+            for line in lines:
+            if len(re.findall(r'/opt/kernel-\w+-testing.+$',line)) != 0:
+                line = ""
+            newlines.append(line)
+
+        ctx.run(f"echo {'\n'.join(newlines)} > /etc/exports")
+        ctx.run("exportfs -a")
+
         kmt_os.restart_libvirtd(ctx, sudo)
 
     # download dependencies
