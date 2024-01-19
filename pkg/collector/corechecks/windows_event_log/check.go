@@ -15,12 +15,13 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
+	"github.com/DataDog/datadog-agent/pkg/collector/check"
 	agentCheck "github.com/DataDog/datadog-agent/pkg/collector/check"
 	core "github.com/DataDog/datadog-agent/pkg/collector/corechecks"
 	agentEvent "github.com/DataDog/datadog-agent/pkg/metrics/event"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/util/optional"
 	evtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
-	winevtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api/windows"
 	evtsession "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/session"
 	evtsubscribe "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/subscription"
 
@@ -28,8 +29,6 @@ import (
 )
 
 const (
-	// Enabled is true if the check is enabled
-	Enabled = true
 	// CheckName is the name of the check
 	CheckName = "win32_event_log"
 )
@@ -291,10 +290,14 @@ func (c *Check) Cancel() {
 	}
 }
 
-// New creates a new check instance
-func New() agentCheck.Check {
+// NewFactory creates a new check factory
+func Factory() optional.Option[func() check.Check] {
+	return optional.NewOption(newCheck)
+}
+
+func new() agentCheck.Check {
 	return &Check{
 		CheckBase: core.NewCheckBase(CheckName),
-		evtapi:    winevtapi.New(),
+		evtapi:    winevtapi.newCheck(),
 	}
 }
