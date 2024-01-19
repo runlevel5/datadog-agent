@@ -466,7 +466,7 @@ Prelude
 -------
 
 Released on: 2022-07-26
-Pinned to datadog-agent v7.38.0: `CHANGELOG <https://github.com/DataDog/datadog-agent/blob/main/CHANGELOG.rst#7380--6380>`_.
+Pinned to datadog-agent v7.38.0: :doc:`<https://github.com/DataDog/datadog-agent/blob/main/CHANGELOG.rst#Release Notes_7.38.0>` by clicking [here](https://github.com/DataDog/datadog-agent/blob/main/CHANGELOG.rst#Release Notes_7.38.0).
 
 .. _Release Notes_dca-1.22.0_dca-1.22.X_New Features:
 
