@@ -8,37 +8,31 @@
 package telemetry
 
 import (
-	"io"
-
-	manager "github.com/DataDog/ebpf-manager"
+	"github.com/DataDog/datadog-agent/pkg/ebpf/manager"
 )
 
-// Manager wraps ebpf-manager.Manager to transparently handle eBPF telemetry
-type Manager struct {
-	*manager.Manager
+type telemetryManagerModifier struct {
 }
 
-// NewManager creates a Manager
-func NewManager(mgr *manager.Manager) *Manager {
-	return &Manager{
-		Manager: mgr,
-	}
+func (t *telemetryManagerModifier) Name() string {
+	return "telemetry"
 }
 
-// InitWithOptions is a wrapper around ebpf-manager.Manager.InitWithOptions
-func (m *Manager) InitWithOptions(bytecode io.ReaderAt, opts manager.Options) error {
-	if err := setupForTelemetry(m.Manager, &opts); err != nil {
-		return err
-	}
+func (t *telemetryManagerModifier) BeforeInit(m *manager.Manager, opts *manager.Options) error {
+	return setupForTelemetry(m.Manager, &opts.Options)
+}
 
-	if err := m.Manager.InitWithOptions(bytecode, opts); err != nil {
-		return err
-	}
-
+func (t *telemetryManagerModifier) AfterInit(m *manager.Manager, _ *manager.Options) error {
 	if bpfTelemetry != nil {
-		if err := bpfTelemetry.populateMapsWithKeys(m.Manager); err != nil {
-			return err
-		}
+		return bpfTelemetry.populateMapsWithKeys(m.Manager)
 	}
 	return nil
+}
+
+func (t *telemetryManagerModifier) OnStop(_ *manager.Manager) error {
+	return nil
+}
+
+func init() {
+	manager.RegisterModifier(&telemetryManagerModifier{})
 }
