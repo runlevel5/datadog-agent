@@ -103,6 +103,7 @@ func (p *WindowsProbe) Start() error {
 				// handle new fields
 				// CreatingPRocessId
 				// CreatingThreadId
+				// OwnerSidString
 				if start.RequiredSize != 0 {
 					// in this case, the command line and/or the image file might not be filled in
 					// depending upon how much space was needed.
@@ -114,7 +115,7 @@ func (p *WindowsProbe) Start() error {
 
 				}
 
-				pce, err = p.Resolvers.ProcessResolver.AddNewEntry(pid, uint32(start.PPid), start.ImageFile, start.CmdLine, start.OwnerSidString)
+				pce, err = p.Resolvers.ProcessResolver.AddNewEntry(pid, uint32(start.PPid), start.ImageFile, start.CmdLine)
 				if err != nil {
 					log.Errorf("error in resolver %v", err)
 					continue
