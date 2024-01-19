@@ -16,6 +16,8 @@
     E2E_OSVERS: "debian-10"
     E2E_CWS_SUPPORTED_OSVERS: "debian-10"
     E2E_BRANCH_OSVERS: "debian-10"
+  rules:
+    !reference [.on_kitchen_tests_a6]
   needs: ["deploy_deb_testing-a6_arm64"]
 
 .new-e2e_debian_a7_x86_64:
