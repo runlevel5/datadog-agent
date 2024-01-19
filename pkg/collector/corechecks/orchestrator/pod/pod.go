@@ -49,7 +49,7 @@ type Check struct {
 	config    *oconfig.OrchestratorConfig
 }
 
-// NewFactory creates a new check factory
+// Factory creates a new check factory
 func Factory() optional.Option[func() check.Check] {
 	return optional.NewOption(newCheck)
 }

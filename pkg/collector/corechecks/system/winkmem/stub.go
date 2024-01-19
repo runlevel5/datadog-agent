@@ -18,7 +18,7 @@ const (
 	CheckName = "winkmem"
 )
 
-// NewFactory creates a new check factory
+// Factory creates a new check factory
 func Factory() optional.Option[func() check.Check] {
 	return optional.NewNoneOption[func() check.Check]()
 }

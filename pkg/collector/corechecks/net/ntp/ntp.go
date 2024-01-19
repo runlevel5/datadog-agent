@@ -243,7 +243,7 @@ func (c *NTPCheck) queryOffset() (float64, error) {
 	return median, nil
 }
 
-// NewFactory creates a new check factory
+// Factory creates a new check factory
 func Factory() optional.Option[func() check.Check] {
 	return optional.NewOption(newCheck)
 }

@@ -105,7 +105,7 @@ func (c *checkImpl) buildTags(lps []*dto.LabelPair) []string {
 	return out
 }
 
-// NewFactory creates a new check factory
+// Factory creates a new check factory
 func Factory() optional.Option[func() check.Check] {
 	return optional.NewOption(newCheck)
 }

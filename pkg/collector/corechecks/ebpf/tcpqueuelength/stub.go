@@ -18,7 +18,7 @@ const (
 	CheckName = "tcp_queue_length"
 )
 
-// NewFactory creates a new check factory
+// Factory creates a new check factory
 func Factory() optional.Option[func() check.Check] {
 	return optional.NewNoneOption[func() check.Check]()
 }

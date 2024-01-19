@@ -93,7 +93,7 @@ func newOrchestratorCheck(base core.CheckBase, instance *OrchestratorInstance) *
 	}
 }
 
-// NewFactory creates a new check factory
+// Factory creates a new check factory
 func Factory() optional.Option[func() check.Check] {
 	return optional.NewOption(newCheck)
 }

@@ -85,7 +85,7 @@ func (cc *checkConfig) Parse(data []byte) error {
 	return yaml.Unmarshal(data, cc)
 }
 
-// NewFactory creates a new check factory
+// Factory creates a new check factory
 func Factory() optional.Option[func() check.Check] {
 	return optional.NewOption(newCheck)
 }
