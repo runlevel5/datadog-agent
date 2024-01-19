@@ -102,7 +102,7 @@ To connect to the VM first ssh to the remote machine, if required.
 
 Then connect to the VM as follows
 ```bash
-ssh -i /home/kernel-version-testing/ddvm_rsa -o StrictHostKeyChecking=no root@<ip>
+ssh -i /opt/kernel-matrix-testing/ddvm_rsa -o StrictHostKeyChecking=no root@<ip>
 ```
 
 ### Destroy stack

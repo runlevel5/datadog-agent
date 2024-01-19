@@ -1673,6 +1673,7 @@ def start_microvms(
     provision=False,
     run_agent=False,
     agent_version=None,
+    kmt_working_directory=None,
 ):
     args = [
         f"--instance-type-x86 {instance_type_x86}" if instance_type_x86 else "",
@@ -1691,6 +1692,7 @@ def start_microvms(
         "--local" if local else "",
         "--run-agent" if run_agent else "",
         f"--agent-version {agent_version}" if agent_version else "",
+        f"--kmt-working-dir {kmt_working_directory}" if kmt_working_directory else "",
     ]
 
     go_args = ' '.join(filter(lambda x: x != "", args))

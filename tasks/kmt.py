@@ -320,7 +320,7 @@ def clean(ctx, stack=None, container=False, image=False):
         "ddvm_rsa": "Path to the ddvm_rsa file to use for connecting to the VMs. Defaults to the path in the ami-builder repo",
     }
 )
-def ssh_config(_, stacks=None, ddvm_rsa="~/dd/ami-builder/scripts/kernel-version-testing/files/ddvm_rsa"):
+def ssh_config(_, stacks=None, ddvm_rsa="~/dd/ami-builder/scripts/kernel-matrix-testing/files/ddvm_rsa"):
     """
     Print the SSH config for the given stacks.
 

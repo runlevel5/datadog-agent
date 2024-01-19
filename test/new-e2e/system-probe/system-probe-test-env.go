@@ -52,20 +52,20 @@ var availabilityZones = map[string][]string{
 
 // EnvOpts are the options for the system-probe scenario
 type EnvOpts struct {
-	X86AmiID              string
-	ArmAmiID              string
-	SSHKeyPath            string
-	SSHKeyName            string
-	InfraEnv              string
-	Provision             bool
-	ShutdownPeriod        int
-	FailOnMissing         bool
-	DependenciesDirectory string
-	VMConfigPath          string
-	Local                 bool
-	RunAgent              bool
-	APIKey                string
-	AgentVersion          string
+	X86AmiID            string
+	ArmAmiID            string
+	SSHKeyPath          string
+	SSHKeyName          string
+	InfraEnv            string
+	Provision           bool
+	ShutdownPeriod      int
+	FailOnMissing       bool
+	VMConfigPath        string
+	Local               bool
+	RunAgent            bool
+	APIKey              string
+	AgentVersion        string
+	KMTWorkingDirectory string
 }
 
 // TestEnv represents options for a particular test environment
@@ -193,7 +193,7 @@ func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *EnvOpts) (*
 		"microvm:provision":                      auto.ConfigValue{Value: strconv.FormatBool(opts.Provision)},
 		"microvm:x86AmiID":                       auto.ConfigValue{Value: opts.X86AmiID},
 		"microvm:arm64AmiID":                     auto.ConfigValue{Value: opts.ArmAmiID},
-		"microvm:workingDir":                     auto.ConfigValue{Value: customAMIWorkingDir},
+		"microvm:kmtWorkingDir":                  auto.ConfigValue{Value: opts.KMTWorkingDirectory},
 		"ddagent:deploy":                         auto.ConfigValue{Value: strconv.FormatBool(opts.RunAgent)},
 		"ddagent:apiKey":                         auto.ConfigValue{Value: apiKey, Secret: true},
 	}

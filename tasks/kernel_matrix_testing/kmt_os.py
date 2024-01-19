@@ -5,11 +5,11 @@ from .tool import Exit
 
 
 def get_home_linux():
-    return os.path.join("/", "/home", "kernel-version-testing")
+    return os.path.join("/", "opt", "kernel-matrix-testing")
 
 
 def get_home_macos():
-    return os.path.join(os.path.expanduser('~'), "kernel-version-testing")
+    return os.path.join(os.path.expanduser('~'), "kernel-matrix-testing")
 
 
 def get_kmt_os():
@@ -28,7 +28,7 @@ class Linux:
     stacks_dir = os.path.join(kmt_dir, "stacks")
     packages_dir = os.path.join(kmt_dir, "kernel-packages")
     libvirt_dir = os.path.join(kmt_dir, "libvirt")
-    shared_dir = os.path.join("/", "opt", "kernel-version-testing")
+    shared_dir = os.path.join(kmt_dir, "shared")
 
     qemu_conf = os.path.join("/", "etc", "libvirt", "qemu.conf")
 
@@ -48,7 +48,7 @@ class MacOS:
     stacks_dir = os.path.join(kmt_dir, "stacks")
     packages_dir = os.path.join(kmt_dir, "kernel-packages")
     libvirt_dir = os.path.join(kmt_dir, "libvirt")
-    shared_dir = os.path.join("/", "opt", "kernel-version-testing")
+    shared_dir = os.path.join(kmt_dir, "shared")
 
     @staticmethod
     def assert_user_in_docker_group(_):
