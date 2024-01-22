@@ -82,7 +82,7 @@ type ebpfProgram struct {
 	buildMode  buildmode.Type
 }
 
-func newEBPFProgram(c *config.Config, sockFD, connectionProtocolMap *ebpf.Map, bpfTelemetry *ebpftelemetry.EBPFTelemetry) (*ebpfProgram, error) {
+func newEBPFProgram(c *config.Config, sockFD, connectionProtocolMap *ebpf.Map) (*ebpfProgram, error) {
 	mgr := &manager.Manager{
 		Maps: []*manager.Map{
 			{Name: protocols.TLSDispatcherProgramsMap},
@@ -133,12 +133,12 @@ func newEBPFProgram(c *config.Config, sockFD, connectionProtocolMap *ebpf.Map, b
 	}
 
 	program := &ebpfProgram{
-		Manager:               ebpftelemetry.NewManager(mgr, bpfTelemetry),
+		Manager:               ebpftelemetry.NewManager(mgr),
 		cfg:                   c,
 		connectionProtocolMap: connectionProtocolMap,
 	}
 
-	opensslSpec.Factory = newSSLProgramProtocolFactory(mgr, sockFD, bpfTelemetry)
+	opensslSpec.Factory = newSSLProgramProtocolFactory(mgr, sockFD)
 	goTLSSpec.Factory = newGoTLSProgramProtocolFactory(mgr, sockFD)
 
 	if err := program.initProtocols(c); err != nil {

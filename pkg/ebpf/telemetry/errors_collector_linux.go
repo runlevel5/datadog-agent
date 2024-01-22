@@ -16,7 +16,7 @@ import (
 // EBPFErrorsCollector implements the prometheus Collector interface
 // for collecting statistics about errors of ebpf helpers and ebpf maps operations.
 type EBPFErrorsCollector struct {
-	*EBPFTelemetry
+	*eBPFTelemetry
 }
 
 // NewEBPFErrorsCollector initializes a new Collector object for ebpf helper and map operations errors
@@ -25,10 +25,7 @@ func NewEBPFErrorsCollector() prometheus.Collector {
 		return nil
 	}
 	return &EBPFErrorsCollector{
-		&EBPFTelemetry{
-			mapKeys:   make(map[string]uint64),
-			probeKeys: make(map[string]uint64),
-		},
+		eBPFTelemetry:newEBPFTelemetry(),
 	}
 }
 

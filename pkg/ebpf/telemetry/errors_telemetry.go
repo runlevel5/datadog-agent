@@ -54,9 +54,9 @@ var helperNames = map[int]string{
 	perfEventOutput: "bpf_perf_event_output",
 }
 
-// EBPFTelemetry struct contains all the maps that
+// eBPFTelemetry struct contains all the maps that
 // are registered to have their telemetry collected.
-type EBPFTelemetry struct {
+type eBPFTelemetry struct {
 	sync.Mutex
 	mapErrMap    *ebpf.Map
 	helperErrMap *ebpf.Map
@@ -64,18 +64,18 @@ type EBPFTelemetry struct {
 	probeKeys    map[string]uint64
 }
 
-var bpfTelemetry *EBPFTelemetry
+var bpfTelemetry *eBPFTelemetry
 
 func init() {
 	bpfTelemetry = newEBPFTelemetry()
 }
 
-// NewEBPFTelemetry initializes a new EBPFTelemetry object
-func newEBPFTelemetry() *EBPFTelemetry {
+// NewEBPFTelemetry initializes a new eBPFTelemetry object
+func newEBPFTelemetry() *eBPFTelemetry {
 	if supported, _ := ebpfTelemetrySupported(); !supported {
 		return nil
 	}
-	return &EBPFTelemetry{
+	return &eBPFTelemetry{
 		mapKeys:   make(map[string]uint64),
 		probeKeys: make(map[string]uint64),
 	}
@@ -83,7 +83,7 @@ func newEBPFTelemetry() *EBPFTelemetry {
 
 // populateMapsWithKeys initializes the maps for holding telemetry info.
 // It must be called after the manager is initialized
-func (b *EBPFTelemetry) populateMapsWithKeys(m *manager.Manager) error {
+func (b *eBPFTelemetry) populateMapsWithKeys(m *manager.Manager) error {
 	b.Lock()
 	defer b.Unlock()
 
@@ -150,7 +150,7 @@ func probeKey(h hash.Hash64, funcName string) uint64 {
 	return h.Sum64()
 }
 
-func (b *EBPFTelemetry) initializeMapErrTelemetryMap(maps []*manager.Map) error {
+func (b *eBPFTelemetry) initializeMapErrTelemetryMap(maps []*manager.Map) error {
 	if b.mapErrMap == nil {
 		return nil
 	}
@@ -174,7 +174,7 @@ func (b *EBPFTelemetry) initializeMapErrTelemetryMap(maps []*manager.Map) error 
 	return nil
 }
 
-func (b *EBPFTelemetry) initializeHelperErrTelemetryMap() error {
+func (b *eBPFTelemetry) initializeHelperErrTelemetryMap() error {
 	if b.helperErrMap == nil {
 		return nil
 	}
@@ -190,7 +190,7 @@ func (b *EBPFTelemetry) initializeHelperErrTelemetryMap() error {
 	return nil
 }
 
-func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelemetry) error {
+func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *eBPFTelemetry) error {
 	const symbol = "telemetry_program_id_key"
 	newIns := asm.Mov.Reg(asm.R1, asm.R1)
 	if enable {
@@ -271,7 +271,7 @@ func setupForTelemetry(m *manager.Manager, options *manager.Options) error {
 	return nil
 }
 
-func (b *EBPFTelemetry) setupMapEditors(opts *manager.Options) {
+func (b *eBPFTelemetry) setupMapEditors(opts *manager.Options) {
 	if (b.mapErrMap != nil) || (b.helperErrMap != nil) {
 		if opts.MapEditors == nil {
 			opts.MapEditors = make(map[string]*ebpf.Map)
