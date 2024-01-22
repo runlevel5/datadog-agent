@@ -57,15 +57,21 @@ var helperNames = map[int]string{
 // EBPFTelemetry struct contains all the maps that
 // are registered to have their telemetry collected.
 type EBPFTelemetry struct {
-	mtx          sync.Mutex
+	sync.Mutex
 	mapErrMap    *ebpf.Map
 	helperErrMap *ebpf.Map
 	mapKeys      map[string]uint64
 	probeKeys    map[string]uint64
 }
 
+var bpfTelemetry *EBPFTelemetry
+
+func init() {
+	bpfTelemetry = newEBPFTelemetry()
+}
+
 // NewEBPFTelemetry initializes a new EBPFTelemetry object
-func NewEBPFTelemetry() *EBPFTelemetry {
+func newEBPFTelemetry() *EBPFTelemetry {
 	if supported, _ := ebpfTelemetrySupported(); !supported {
 		return nil
 	}
@@ -78,8 +84,8 @@ func NewEBPFTelemetry() *EBPFTelemetry {
 // populateMapsWithKeys initializes the maps for holding telemetry info.
 // It must be called after the manager is initialized
 func (b *EBPFTelemetry) populateMapsWithKeys(m *manager.Manager) error {
-	b.mtx.Lock()
-	defer b.mtx.Unlock()
+	b.Lock()
+	defer b.Unlock()
 
 	// first manager to call will populate the maps
 	if b.mapErrMap == nil {
@@ -235,7 +241,7 @@ func patchEBPFTelemetry(m *manager.Manager, enable bool, bpfTelemetry *EBPFTelem
 // It will patch the instructions of all the manager probes and `undefinedProbes` provided.
 // Constants are replaced for map error and helper error keys with their respective values.
 // This must be called before ebpf-manager.Manager.Init/InitWithOptions
-func setupForTelemetry(m *manager.Manager, options *manager.Options, bpfTelemetry *EBPFTelemetry) error {
+func setupForTelemetry(m *manager.Manager, options *manager.Options) error {
 	activateBPFTelemetry, err := ebpfTelemetrySupported()
 	if err != nil {
 		return err
