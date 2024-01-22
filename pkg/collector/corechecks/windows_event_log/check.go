@@ -293,12 +293,10 @@ func (c *Check) Cancel() {
 
 // Factory creates a new check factory
 func Factory() optional.Option[func() check.Check] {
-	return optional.NewOption(new)
-}
-
-func new() agentCheck.Check {
-	return &Check{
-		CheckBase: core.NewCheckBase(CheckName),
-		evtapi:    winevtapi.New(),
-	}
+	return optional.NewOption(func() check.Check {
+		return &Check{
+			CheckBase: core.NewCheckBase(CheckName),
+			evtapi:    winevtapi.New(),
+		}
+	})
 }
