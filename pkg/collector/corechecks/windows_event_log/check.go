@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/optional"
 	evtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
+	winevtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api/windows"
 	evtsession "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/session"
 	evtsubscribe "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/subscription"
 
@@ -292,12 +293,12 @@ func (c *Check) Cancel() {
 
 // Factory creates a new check factory
 func Factory() optional.Option[func() check.Check] {
-	return optional.NewOption(newCheck)
+	return optional.NewOption(new)
 }
 
 func new() agentCheck.Check {
 	return &Check{
 		CheckBase: core.NewCheckBase(CheckName),
-		evtapi:    winevtapi.newCheck(),
+		evtapi:    winevtapi.New(),
 	}
 }
