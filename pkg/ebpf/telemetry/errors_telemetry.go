@@ -16,7 +16,6 @@ import (
 	"syscall"
 	"unsafe"
 
-	manager "github.com/DataDog/ebpf-manager"
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/asm"
 	"github.com/prometheus/client_golang/prometheus"
@@ -25,6 +24,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
+	manager "github.com/DataDog/ebpf-manager"
 )
 
 const (
