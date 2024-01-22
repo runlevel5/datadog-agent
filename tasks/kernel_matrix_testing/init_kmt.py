@@ -64,11 +64,12 @@ def init_kernel_matrix_testing_system(ctx, lite):
         with open("/etc/exports", "r") as f:
             lines = f.read().split("\n")
             for line in lines:
-            if len(re.findall(r'/opt/kernel-\w+-testing.+$',line)) != 0:
-                line = ""
+                if len(re.findall(r'/opt/kernel-\w+-testing.+$',line)) != 0:
+                    line = ""
             newlines.append(line)
 
-        ctx.run(f"echo {'\n'.join(newlines)} > /etc/exports")
+        nfs = '\n'.join(newlines)
+        ctx.run(f"echo {nfs} > /etc/exports")
         ctx.run("exportfs -a")
 
         kmt_os.restart_libvirtd(ctx, sudo)
