@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/netpath/connpool"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/netpath/traceroute"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/epforwarder"
@@ -42,6 +43,8 @@ type Check struct {
 	lastTimes     cpu.TimesStat
 	config        *CheckConfig
 	lastCheckTime time.Time
+	connPoolRaw   *connpool.ConnPool
+	connPoolDgram *connpool.ConnPool
 }
 
 // Run executes the check
@@ -79,14 +82,20 @@ func (c *Check) Run() error {
 	senderInstance.Gauge("netpath.telemetry.check_runners", float64(numWorkers), "", tags)
 	senderInstance.Gauge("netpath.telemetry.fake_event_multiplier", float64(c.config.FakeEventMultiplier), "", tags)
 	senderInstance.Gauge("netpath.telemetry.hop_count", float64(hopCount), "", tags)
+	senderInstance.Gauge("netpath.telemetry.conn_pool.raw.size", float64(c.connPoolRaw.Size()), "", tags)
+	senderInstance.Gauge("netpath.telemetry.conn_pool.raw.cap", float64(c.connPoolRaw.Cap()), "", tags)
+	senderInstance.Gauge("netpath.telemetry.conn_pool.dgram.size", float64(c.connPoolDgram.Size()), "", tags)
+	senderInstance.Gauge("netpath.telemetry.conn_pool.dgram.cap", float64(c.connPoolDgram.Cap()), "", tags)
 	c.lastCheckTime = startTime
 	return nil
 }
 
 func (c *Check) traceroute(sender sender.Sender) (int, error) {
+	log.Debugf("[traceroute] c.config.Port: %d", c.config.Port)
 	options := traceroute.TracerouteOptions{}
 	options.SetRetries(1)
 	options.SetMaxHops(32)
+	options.SetPort(c.config.Port)
 	//options.SetFirstHop(traceroute.DEFAULT_FIRST_HOP)
 	times := 1
 	destinationHost := c.config.DestHostname
@@ -103,7 +112,7 @@ func (c *Check) traceroute(sender sender.Sender) (int, error) {
 
 	log.Debugf("traceroute to %v (%v), %v hops max, %v byte packets\n", destinationHost, ipAddr, options.MaxHops(), options.PacketSize())
 
-	hostHops := getHops(options, times, err, destinationHost)
+	hostHops := getHops(c.connPoolRaw, c.connPoolDgram, options, times, err, destinationHost)
 	if len(hostHops) == 0 {
 		return 0, errors.New("no hops")
 	}
@@ -118,7 +127,7 @@ func (c *Check) traceroute(sender sender.Sender) (int, error) {
 			return 0, err
 		}
 	}
-	return len(hostHops), nil
+	return len(hostHops[0]), nil
 }
 
 func (c *Check) traceRouteV1(sender sender.Sender, hostHops [][]traceroute.TracerouteHop, hname string, destinationHost string) error {
@@ -239,6 +248,9 @@ func (c *Check) Configure(integrationConfigDigest uint64, data integration.Data,
 		return err
 	}
 	c.config = config
+
+	c.connPoolRaw = connpool.GetGlobalConnPollRaw()
+	c.connPoolDgram = connpool.GetGlobalConnPollDgram()
 	return nil
 }
 

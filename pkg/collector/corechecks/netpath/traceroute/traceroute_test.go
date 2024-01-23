@@ -11,7 +11,7 @@ func printHop(hop TracerouteHop) {
 
 func TestTraceroute(t *testing.T) {
 	fmt.Println("Testing synchronous traceroute\n")
-	out, err := Traceroute("google.com", new(TracerouteOptions))
+	out, err := Traceroute(nil, nil, "google.com", new(TracerouteOptions))
 	if err == nil {
 		if len(out.Hops) == 0 {
 			t.Errorf("TestTraceroute failed. Expected at least one hop")
@@ -40,7 +40,7 @@ func TestTraceouteChannel(t *testing.T) {
 		}
 	}()
 
-	out, err := Traceroute("google.com", new(TracerouteOptions), c)
+	out, err := Traceroute(nil, nil, "google.com", new(TracerouteOptions), c)
 	if err == nil {
 		if len(out.Hops) == 0 {
 			t.Errorf("TestTracerouteChannel failed. Expected at least one hop")

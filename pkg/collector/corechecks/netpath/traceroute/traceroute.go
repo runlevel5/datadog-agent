@@ -5,6 +5,7 @@ package traceroute
 import (
 	"errors"
 	"fmt"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/netpath/connpool"
 	"net"
 	"syscall"
 	"time"
@@ -176,7 +177,7 @@ func closeNotify(channels []chan TracerouteHop) {
 //
 // Returns a TracerouteResult which contains an array of hops. Each hop includes
 // the elapsed time and its IP address.
-func Traceroute(dest string, options *TracerouteOptions, c ...chan TracerouteHop) (result TracerouteResult, err error) {
+func Traceroute(connPoolRaw *connpool.ConnPool, connPoolDgram *connpool.ConnPool, dest string, options *TracerouteOptions, c ...chan TracerouteHop) (result TracerouteResult, err error) {
 	result.Hops = []TracerouteHop{}
 	destAddr, err := destAddr(dest)
 	result.DestinationAddress = destAddr
@@ -190,8 +191,27 @@ func Traceroute(dest string, options *TracerouteOptions, c ...chan TracerouteHop
 
 	ttl := options.FirstHop()
 	retry := 0
+
+	//log.Infof("[Traceroute] Before connPoolRaw.Get()")
+	//recvSocket, err := connPoolRaw.Get()
+	//log.Infof("[Traceroute] After connPoolRaw.Get()")
+	//if err != nil {
+	//	return result, err
+	//}
+	//
+	//log.Infof("[Traceroute] Before connPoolDgram.Get()")
+	//sendSocket, err := connPoolDgram.Get()
+	//log.Infof("[Traceroute] After connPoolDgram.Get()")
+	//log.Infof("[Traceroute] options.Port(): %d", options.Port())
+	//if err != nil {
+	//	return result, err
+	//}
+	//
+	//defer connPoolRaw.Release(recvSocket)
+	//defer connPoolDgram.Release(sendSocket)
+
 	for {
-		//log.Println("HopTTL: ", ttl)
+		//log.Println("TTL: ", ttl)
 		start := time.Now()
 
 		// Set up the socket to receive inbound packets
@@ -260,4 +280,5 @@ func Traceroute(dest string, options *TracerouteOptions, c ...chan TracerouteHop
 		}
 
 	}
+
 }

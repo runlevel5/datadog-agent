@@ -2,13 +2,14 @@ package netpath
 
 import (
 	"fmt"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/netpath/connpool"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/netpath/traceroute"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"sort"
 	"strings"
 )
 
-func getHops(options traceroute.TracerouteOptions, times int, err error, host string) [][]traceroute.TracerouteHop {
+func getHops(connPool *connpool.ConnPool, dgram *connpool.ConnPool, options traceroute.TracerouteOptions, times int, err error, host string) [][]traceroute.TracerouteHop {
 	log.Debugf("options %+v\n\n", options)
 	allhops := [][]traceroute.TracerouteHop{}
 	for i := 0; i < times; i++ {
@@ -28,11 +29,11 @@ func getHops(options traceroute.TracerouteOptions, times int, err error, host st
 
 		//fmt.Printf("== Round %d ==\n", i)
 		//time.Sleep(50 * time.Millisecond)
-		_, err = traceroute.Traceroute(host, &options, c)
+		result, err := traceroute.Traceroute(connPool, dgram, host, &options, c)
 		if err != nil {
 			log.Errorf("Traceroute Error: %s", err)
 		}
-		allhops = append(allhops, hops)
+		allhops = append(allhops, result.Hops)
 	}
 	return allhops
 }
