@@ -443,7 +443,7 @@ func (s *usmGRPCSuite) TestLargeBodiesGRPCScenarios() {
 
 func (s *usmGRPCSuite) testGRPCScenarios(t *testing.T, srvPID int, runClientCallback func(*testing.T, int), expectedEndpoints map[http.Key]captureRange, clientCount int) {
 	cfg := s.getConfig()
-	usmMonitor, err := NewMonitor(cfg, nil, nil, nil)
+	usmMonitor, err := NewMonitor(cfg, nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, usmMonitor.Start())
 	t.Cleanup(usmMonitor.Stop)
