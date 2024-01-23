@@ -64,13 +64,14 @@ type eBPFTelemetry struct {
 	probeKeys    map[string]uint64
 }
 
+// we are using one ebpfTelemetry object for all ebpf programs.
 var bpfTelemetry *eBPFTelemetry
 
 func init() {
 	bpfTelemetry = newEBPFTelemetry()
 }
 
-// NewEBPFTelemetry initializes a new eBPFTelemetry object
+// private constructor
 func newEBPFTelemetry() *eBPFTelemetry {
 	if supported, _ := ebpfTelemetrySupported(); !supported {
 		return nil
