@@ -16,16 +16,13 @@ import (
 // EBPFErrorsCollector implements the prometheus Collector interface
 // for collecting statistics about errors of ebpf helpers and ebpf maps operations.
 type EBPFErrorsCollector struct {
-	*eBPFTelemetry
+	bpfTelemetry *eBPFTelemetry
 }
 
 // NewEBPFErrorsCollector initializes a new Collector object for ebpf helper and map operations errors
 func NewEBPFErrorsCollector() prometheus.Collector {
-	if supported, _ := ebpfTelemetrySupported(); !supported {
-		return nil
-	}
 	return &EBPFErrorsCollector{
-		eBPFTelemetry:newEBPFTelemetry(),
+		bpfTelemetry: bpfTelemetry,
 	}
 }
 
@@ -37,13 +34,13 @@ func (e *EBPFErrorsCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect returns the current state of all metrics of the collector
 func (e *EBPFErrorsCollector) Collect(ch chan<- prometheus.Metric) {
-	e.mtx.Lock()
-	defer e.mtx.Unlock()
+	e.bpfTelemetry.Lock()
+	defer e.bpfTelemetry.Unlock()
 
-	if e.helperErrMap != nil {
+	if e.bpfTelemetry.helperErrMap != nil {
 		var hval HelperErrTelemetry
-		for probeName, k := range e.probeKeys {
-			err := e.helperErrMap.Lookup(unsafe.Pointer(&k), unsafe.Pointer(&hval))
+		for probeName, k := range e.bpfTelemetry.probeKeys {
+			err := e.bpfTelemetry.helperErrMap.Lookup(unsafe.Pointer(&k), unsafe.Pointer(&hval))
 			if err != nil {
 				log.Debugf("failed to get telemetry for probe:key %s:%d\n", probeName, k)
 				continue
@@ -59,10 +56,10 @@ func (e *EBPFErrorsCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 
-	if e.mapErrMap != nil {
+	if e.bpfTelemetry.mapErrMap != nil {
 		var val MapErrTelemetry
-		for m, k := range e.mapKeys {
-			err := e.mapErrMap.Lookup(unsafe.Pointer(&k), unsafe.Pointer(&val))
+		for m, k := range e.bpfTelemetry.mapKeys {
+			err := e.bpfTelemetry.mapErrMap.Lookup(unsafe.Pointer(&k), unsafe.Pointer(&val))
 			if err != nil {
 				log.Debugf("failed to get telemetry for map:key %s:%d\n", m, k)
 				continue
