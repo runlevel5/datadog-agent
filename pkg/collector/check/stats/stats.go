@@ -154,6 +154,7 @@ func (cs *Stats) Add(t time.Duration, err error, warnings []error, metricStats S
 
 	// store execution times in Milliseconds
 	tms := t.Nanoseconds() / 1e6
+	cs.LongRunning = metricStats.LongRunningCheck
 	cs.LastExecutionTime = tms
 	cs.ExecutionTimes[cs.TotalRuns%uint64(len(cs.ExecutionTimes))] = tms
 	cs.TotalRuns++
