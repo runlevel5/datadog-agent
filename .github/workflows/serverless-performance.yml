@@ -20,6 +20,9 @@ jobs:
     steps:
       - name: Checkout dd-trace-js
         uses: actions/checkout@v4
+        with:
+            repository: DataDog/dd-trace-js
+            path: dd-trace-js
       - name: Checkout datadog-lambda-js
         uses: actions/checkout@v4
         with:
@@ -31,7 +34,8 @@ jobs:
       - name: Update package.json to the current ref
         run: |
           cd datadog-lambda-js
-          yarn add --dev https://github.com/DataDog/dd-trace-js#refs/heads/${GITHUB_HEAD_REF}
+          yarn add --dev https://github.com/DataDog/dd-trace-js#refs/heads/main
+        #   yarn add --dev https://github.com/DataDog/dd-trace-js#refs/heads/${GITHUB_HEAD_REF}
       - name: Build the layer
         env:
           NODE_VERSION: ${{ matrix.node-version }}
