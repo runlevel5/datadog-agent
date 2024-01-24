@@ -11,7 +11,7 @@ import (
 	"errors"
 	"time"
 
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
@@ -115,12 +115,12 @@ type Check struct {
 
 // CheckFactory registers the sbom check
 func CheckFactory() check.Check {
-	return &Check{
+	return core.NewLongRunningCheckWrapper(&Check{
 		CheckBase:         core.NewCheckBase(checkName),
 		workloadmetaStore: workloadmeta.GetGlobalStore(),
 		instance:          &Config{},
 		stopCh:            make(chan struct{}),
-	}
+	})
 }
 
 // Configure parses the check configuration and initializes the sbom check
