@@ -60,6 +60,10 @@ const (
 	LinkAtNr         = unix.SYS_LINKAT            // LinkAtNr defines the syscall ID for amd64
 	SymlinkNr        = unix.SYS_SYMLINK           // SymlinkNr defines the syscall ID for amd64
 	SymlinkAtNr      = unix.SYS_SYMLINKAT         // SymlinkAtNr defines the syscall ID for amd64
+	ChmodNr          = unix.SYS_CHMOD             // ChmodNr defines the syscall ID for amd64
+	FchmodNr         = unix.SYS_FCHMOD            // FchmodNr defines the syscall ID for amd64
+	FchmodAtNr       = unix.SYS_FCHMODAT          // FchmodAtNr defines the syscall ID for amd64
+	FchmodAt2Nr      = unix.SYS_FCHMODAT2         // FchmodAt2Nr defines the syscall ID for amd64
 )
 
 // https://github.com/torvalds/linux/blob/v5.0/arch/x86/entry/entry_64.S#L126

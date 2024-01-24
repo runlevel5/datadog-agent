@@ -57,7 +57,6 @@ func TestChmod(t *testing.T) {
 		}, func(event *model.Event, r *rules.Rule) {
 			assert.Equal(t, "chmod", event.GetType(), "wrong event type")
 			assertRights(t, uint16(event.Chmod.Mode), 0o707)
-			assert.Equal(t, getInode(t, testFile), event.Chmod.File.Inode, "wrong inode")
 			assertRights(t, event.Chmod.File.Mode, expectedMode, "wrong initial mode")
 			assertNearTime(t, event.Chmod.File.MTime)
 			assertNearTime(t, event.Chmod.File.CTime)
@@ -65,7 +64,10 @@ func TestChmod(t *testing.T) {
 			value, _ := event.GetFieldValue("event.async")
 			assert.Equal(t, value.(bool), false)
 
-			test.validateChmodSchema(t, event)
+			if !test.opts.staticOpts.enableEBPFLess {
+				assert.Equal(t, getInode(t, testFile), event.Chmod.File.Inode, "wrong inode")
+				test.validateChmodSchema(t, event)
+			}
 		})
 	})
 
@@ -80,7 +82,6 @@ func TestChmod(t *testing.T) {
 		}, func(event *model.Event, r *rules.Rule) {
 			assert.Equal(t, "chmod", event.GetType(), "wrong event type")
 			assertRights(t, uint16(event.Chmod.Mode), 0o757)
-			assert.Equal(t, getInode(t, testFile), event.Chmod.File.Inode, "wrong inode")
 			assertRights(t, event.Chmod.File.Mode, expectedMode)
 			assertNearTime(t, event.Chmod.File.MTime)
 			assertNearTime(t, event.Chmod.File.CTime)
@@ -88,7 +89,10 @@ func TestChmod(t *testing.T) {
 			value, _ := event.GetFieldValue("event.async")
 			assert.Equal(t, value.(bool), false)
 
-			test.validateChmodSchema(t, event)
+			if !test.opts.staticOpts.enableEBPFLess {
+				assert.Equal(t, getInode(t, testFile), event.Chmod.File.Inode, "wrong inode")
+				test.validateChmodSchema(t, event)
+			}
 		})
 	})
 
@@ -101,7 +105,6 @@ func TestChmod(t *testing.T) {
 		}, func(event *model.Event, r *rules.Rule) {
 			assert.Equal(t, "chmod", event.GetType(), "wrong event type")
 			assertRights(t, uint16(event.Chmod.Mode), 0o717, "wrong mode")
-			assert.Equal(t, getInode(t, testFile), event.Chmod.File.Inode, "wrong inode")
 			assertRights(t, event.Chmod.File.Mode, expectedMode, "wrong initial mode")
 			assertNearTime(t, event.Chmod.File.MTime)
 			assertNearTime(t, event.Chmod.File.CTime)
@@ -109,7 +112,10 @@ func TestChmod(t *testing.T) {
 			value, _ := event.GetFieldValue("event.async")
 			assert.Equal(t, value.(bool), false)
 
-			test.validateChmodSchema(t, event)
+			if !test.opts.staticOpts.enableEBPFLess {
+				assert.Equal(t, getInode(t, testFile), event.Chmod.File.Inode, "wrong inode")
+				test.validateChmodSchema(t, event)
+			}
 		})
 	}))
 }

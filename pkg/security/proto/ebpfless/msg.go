@@ -60,6 +60,8 @@ const (
 	SyscallTypeUtimes
 	// SyscallTypeLink link/linkat/symlink/symlinkat type
 	SyscallTypeLink
+	// SyscallTypeChmod chmod/fchmod/fchmodat type
+	SyscallTypeChmod
 )
 
 // ContainerContext defines a container context
@@ -201,6 +203,12 @@ type LinkSyscallMsg struct {
 	Link   OpenSyscallMsg
 }
 
+// ChmodSyscallMsg defines a chmod/fchmod/fchmodat/fchownat2 message
+type ChmodSyscallMsg struct {
+	File OpenSyscallMsg
+	Mode uint32
+}
+
 // SyscallMsg defines a syscall message
 type SyscallMsg struct {
 	Type      SyscallType
@@ -223,6 +231,7 @@ type SyscallMsg struct {
 	Mkdir     *MkdirSyscallMsg    `json:",omitempty"`
 	Utimes    *UtimesSyscallMsg   `json:",omitempty"`
 	Link      *LinkSyscallMsg     `json:",omitempty"`
+	Chmod     *ChmodSyscallMsg    `json:",omitempty"`
 
 	// internals
 	Dup   *DupSyscallFakeMsg   `json:",omitempty"`

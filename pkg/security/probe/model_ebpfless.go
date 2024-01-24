@@ -38,6 +38,7 @@ func NewEBPFLessModel() *model.Model {
 				!strings.HasPrefix(field, "mkdir.") &&
 				!strings.HasPrefix(field, "utimes.") &&
 				!strings.HasPrefix(field, "link.") &&
+				!strings.HasPrefix(field, "chmod.") &&
 				!strings.HasPrefix(field, "container.") {
 				return rules.ErrEventTypeNotEnabled
 			}

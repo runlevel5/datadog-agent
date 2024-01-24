@@ -165,6 +165,24 @@ func registerFIMHandlers(handlers map[int]syscallHandler) []string {
 			ShouldSend: isAcceptedRetval,
 			RetFunc:    handleLinksRet,
 		},
+		{
+			IDs:        []syscallID{{ID: ChmodNr, Name: "chmod"}},
+			Func:       handleChmod,
+			ShouldSend: isAcceptedRetval,
+			RetFunc:    nil,
+		},
+		{
+			IDs:        []syscallID{{ID: FchmodNr, Name: "fchmod"}},
+			Func:       handleFchmod,
+			ShouldSend: isAcceptedRetval,
+			RetFunc:    nil,
+		},
+		{
+			IDs:        []syscallID{{ID: FchmodAtNr, Name: "fchmodat"}, {ID: FchmodAt2Nr, Name: "fchmodat2"}},
+			Func:       handleFchmodAt,
+			ShouldSend: isAcceptedRetval,
+			RetFunc:    nil,
+		},
 	}
 
 	syscallList := []string{}
@@ -834,6 +852,66 @@ func handleSymlinkAt(tracer *Tracer, process *Process, msg *ebpfless.SyscallMsg,
 		},
 	}
 	return fillFileMetadata(targetFilename, &msg.Link.Target, disableStats)
+}
+
+func handleChmod(tracer *Tracer, process *Process, msg *ebpfless.SyscallMsg, regs syscall.PtraceRegs, disableStats bool) error {
+	filename, err := tracer.ReadArgString(process.Pid, regs, 0)
+	if err != nil {
+		return err
+	}
+	filename, err = getFullPathFromFilename(process, filename)
+	if err != nil {
+		return err
+	}
+	msg.Type = ebpfless.SyscallTypeChmod
+	msg.Chmod = &ebpfless.ChmodSyscallMsg{
+		File: ebpfless.OpenSyscallMsg{
+			Filename: filename,
+		},
+		Mode: uint32(tracer.ReadArgUint64(regs, 1)),
+	}
+	return fillFileMetadata(filename, &msg.Chmod.File, disableStats)
+}
+
+func handleFchmod(tracer *Tracer, process *Process, msg *ebpfless.SyscallMsg, regs syscall.PtraceRegs, disableStats bool) error {
+	fd := tracer.ReadArgInt32(regs, 0)
+
+	filename, found := process.Res.Fd[fd]
+	if !found {
+		return errors.New("FD cache incomplete")
+	}
+
+	msg.Type = ebpfless.SyscallTypeChmod
+	msg.Chmod = &ebpfless.ChmodSyscallMsg{
+		File: ebpfless.OpenSyscallMsg{
+			Filename: filename,
+		},
+		Mode: uint32(tracer.ReadArgUint64(regs, 1)),
+	}
+	return fillFileMetadata(filename, &msg.Chmod.File, disableStats)
+}
+
+func handleFchmodAt(tracer *Tracer, process *Process, msg *ebpfless.SyscallMsg, regs syscall.PtraceRegs, disableStats bool) error {
+	fd := tracer.ReadArgInt32(regs, 0)
+
+	filename, err := tracer.ReadArgString(process.Pid, regs, 1)
+	if err != nil {
+		return err
+	}
+
+	filename, err = getFullPathFromFd(process, filename, fd)
+	if err != nil {
+		return err
+	}
+
+	msg.Type = ebpfless.SyscallTypeChmod
+	msg.Chmod = &ebpfless.ChmodSyscallMsg{
+		File: ebpfless.OpenSyscallMsg{
+			Filename: filename,
+		},
+		Mode: uint32(tracer.ReadArgUint64(regs, 2)),
+	}
+	return fillFileMetadata(filename, &msg.Chmod.File, disableStats)
 }
 
 //
