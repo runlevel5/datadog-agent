@@ -58,6 +58,9 @@ type SenderStats struct {
 	HistogramBuckets int64
 	// EventPlatformEvents tracks the number of events submitted for each eventType
 	EventPlatformEvents map[string]int64
+
+	// LongRunningCheck is a field that is only set for long running checks
+	LongRunningCheck bool
 }
 
 // NewSenderStats creates a new SenderStats
@@ -79,10 +82,14 @@ func (s SenderStats) Copy() (result SenderStats) {
 
 // Stats holds basic runtime statistics about check instances
 type Stats struct {
-	CheckName                string
-	CheckVersion             string
-	CheckConfigSource        string
-	CheckID                  checkid.ID
+	CheckName         string
+	CheckVersion      string
+	CheckConfigSource string
+	CheckID           checkid.ID
+	Interval          time.Duration
+	// LongRunning is true if the check is a long running check
+	// converted to a normal check
+	LongRunning              bool
 	TotalRuns                uint64
 	TotalErrors              uint64
 	TotalWarnings            uint64

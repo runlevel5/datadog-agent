@@ -9,9 +9,11 @@ package corechecks
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
+	"github.com/DataDog/datadog-agent/pkg/collector/check/stats"
 )
 
 type LongRunningCheck interface {
@@ -59,4 +61,20 @@ func (cw *LongRunningCheckWrapper) Run() error {
 	}()
 
 	return nil
+}
+
+// Interval defines how frequently we should update the metrics.
+func (cw *LongRunningCheckWrapper) Interval() time.Duration {
+	return 15 * time.Second
+}
+
+// GetSenderStats returns the stats from the last run of the check and sets the field
+// LongRunningCheck to true.
+func (cw *LongRunningCheckWrapper) GetSenderStats() (stats.SenderStats, error) {
+	s, err := cw.LongRunningCheck.GetSenderStats()
+	if err != nil {
+		return stats.SenderStats{}, fmt.Errorf("error getting sender stats: %w", err)
+	}
+	s.LongRunningCheck = true
+	return s, nil
 }
