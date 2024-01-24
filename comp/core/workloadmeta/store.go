@@ -191,8 +191,11 @@ func (w *workloadmeta) GetContainer(id string) (*Container, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	return entity.(*Container), nil
+	c, ok := entity.(*Container)
+	if !ok {
+		return nil, errors.NewNotFound(id)
+	}
+	return c, nil
 }
 
 // ListContainers implements Store#ListContainers.
@@ -223,8 +226,11 @@ func (w *workloadmeta) GetKubernetesPod(id string) (*KubernetesPod, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	return entity.(*KubernetesPod), nil
+	p, ok := entity.(*KubernetesPod)
+	if !ok {
+		return nil, errors.NewNotFound(id)
+	}
+	return p, nil
 }
 
 // GetKubernetesPodByName implements Store#GetKubernetesPodByName
@@ -254,7 +260,11 @@ func (w *workloadmeta) GetProcess(pid int32) (*Process, error) {
 		return nil, err
 	}
 
-	return entity.(*Process), nil
+	p, ok := entity.(*Process)
+	if !ok {
+		return nil, errors.NewNotFound(fmt.Sprintf("pid %d", pid))
+	}
+	return p, nil
 }
 
 // ListProcesses implements Store#ListProcesses.
@@ -314,8 +324,11 @@ func (w *workloadmeta) GetKubernetesPodForContainer(containerID string) (*Kubern
 	if !ok {
 		return nil, errors.NewNotFound(container.Owner.ID)
 	}
-
-	return pod.cached.(*KubernetesPod), nil
+	p, ok := pod.cached.(*KubernetesPod)
+	if !ok {
+		return nil, errors.NewNotFound(container.Owner.ID)
+	}
+	return p, nil
 }
 
 // GetKubernetesNode implements Store#GetKubernetesNode
@@ -324,8 +337,11 @@ func (w *workloadmeta) GetKubernetesNode(id string) (*KubernetesNode, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	return entity.(*KubernetesNode), nil
+	n, ok := entity.(*KubernetesNode)
+	if !ok {
+		return nil, errors.NewNotFound(id)
+	}
+	return n, nil
 }
 
 // GetKubernetesDeployment implements Store#GetKubernetesDeployment
@@ -334,8 +350,11 @@ func (w *workloadmeta) GetKubernetesDeployment(id string) (*KubernetesDeployment
 	if err != nil {
 		return nil, err
 	}
-
-	return entity.(*KubernetesDeployment), nil
+	d, ok := entity.(*KubernetesDeployment)
+	if !ok {
+		return nil, errors.NewNotFound(id)
+	}
+	return d, nil
 }
 
 // GetECSTask implements Store#GetECSTask
@@ -344,8 +363,11 @@ func (w *workloadmeta) GetECSTask(id string) (*ECSTask, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	return entity.(*ECSTask), nil
+	t, ok := entity.(*ECSTask)
+	if !ok {
+		return nil, errors.NewNotFound(id)
+	}
+	return t, nil
 }
 
 // ListImages implements Store#ListImages
@@ -367,8 +389,11 @@ func (w *workloadmeta) GetImage(id string) (*ContainerImageMetadata, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	return entity.(*ContainerImageMetadata), nil
+	i, ok := entity.(*ContainerImageMetadata)
+	if !ok {
+		return nil, errors.NewNotFound(id)
+	}
+	return i, nil
 }
 
 // Notify implements Store#Notify
