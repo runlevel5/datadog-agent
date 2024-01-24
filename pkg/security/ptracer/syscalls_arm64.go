@@ -45,6 +45,7 @@ const (
 	MkdirAtNr        = unix.SYS_MKDIRAT           // MkdirAtNr defines the syscall ID for arm64
 	UtimensAtNr      = unix.SYS_UTIMENSAT         // UtimensAtNr defines the syscall ID for arm64
 	LinkAtNr         = unix.SYS_LINKAT            // LinkAtNr defines the syscall ID for arm64
+	SymlinkAtNr      = unix.SYS_SYMLINKAT         // SymlinkAtNr defines the syscall ID for arm64
 
 	OpenNr      = -1  // OpenNr not available on arm64
 	ForkNr      = -2  // ForkNr not available on arm64
@@ -59,6 +60,7 @@ const (
 	UtimesNr    = -11 // UtimesNr not available on arm64
 	FutimesAtNr = -12 // FutimesAtNr not available on arm64
 	LinkNr      = -13 // LinkNr not available on arm64
+	SymlinkNr   = -14 // SymlinkNr not available on arm64
 )
 
 func (t *Tracer) argToRegValue(regs syscall.PtraceRegs, arg int) uint64 {

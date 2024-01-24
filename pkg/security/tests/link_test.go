@@ -56,7 +56,6 @@ func TestLink(t *testing.T) {
 			return nil
 		}, func(event *model.Event, rule *rules.Rule) {
 			assert.Equal(t, "link", event.GetType(), "wrong event type")
-			assert.Equal(t, getInode(t, testNewFile), event.Link.Source.Inode, "wrong inode")
 			assertRights(t, event.Link.Source.Mode, uint16(expectedMode))
 			assertRights(t, event.Link.Target.Mode, uint16(expectedMode))
 			assertNearTime(t, event.Link.Source.MTime)
@@ -67,7 +66,10 @@ func TestLink(t *testing.T) {
 			value, _ := event.GetFieldValue("event.async")
 			assert.Equal(t, value.(bool), false)
 
-			test.validateLinkSchema(t, event)
+			if !test.opts.staticOpts.enableEBPFLess {
+				assert.Equal(t, getInode(t, testNewFile), event.Link.Source.Inode, "wrong inode")
+				test.validateLinkSchema(t, event)
+			}
 		})
 
 		if err = os.Remove(testNewFile); err != nil {
@@ -84,7 +86,6 @@ func TestLink(t *testing.T) {
 			return nil
 		}, func(event *model.Event, rule *rules.Rule) {
 			assert.Equal(t, "link", event.GetType(), "wrong event type")
-			assert.Equal(t, getInode(t, testNewFile), event.Link.Source.Inode, "wrong inode")
 			assertRights(t, event.Link.Source.Mode, uint16(expectedMode))
 			assertRights(t, event.Link.Target.Mode, uint16(expectedMode))
 			assertNearTime(t, event.Link.Source.MTime)
@@ -95,7 +96,10 @@ func TestLink(t *testing.T) {
 			value, _ := event.GetFieldValue("event.async")
 			assert.Equal(t, value.(bool), false)
 
-			test.validateLinkSchema(t, event)
+			if !test.opts.staticOpts.enableEBPFLess {
+				assert.Equal(t, getInode(t, testNewFile), event.Link.Source.Inode, "wrong inode")
+				test.validateLinkSchema(t, event)
+			}
 		})
 
 		if err = os.Remove(testNewFile); err != nil {
@@ -104,6 +108,9 @@ func TestLink(t *testing.T) {
 	})
 
 	t.Run("io_uring", func(t *testing.T) {
+		if test.opts.staticOpts.enableEBPFLess {
+			t.Skip("io_uring not supported")
+		}
 		iour, err := iouring.New(1)
 		if err != nil {
 			if errors.Is(err, unix.ENOTSUP) {

@@ -184,6 +184,7 @@ type UtimesSyscallMsg struct {
 	MTime uint64 // in nanoseconds
 }
 
+// LinkType to handle the different link types
 type LinkType uint8
 
 const (
