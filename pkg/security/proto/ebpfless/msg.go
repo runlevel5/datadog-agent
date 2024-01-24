@@ -58,6 +58,8 @@ const (
 	SyscallTypeMkdir
 	// SyscallTypeUtimes utime/utimes/utimensat/futimesat type
 	SyscallTypeUtimes
+	// SyscallTypeLink link/linkat/symlink/symlinkat type
+	SyscallTypeLink
 )
 
 // ContainerContext defines a container context
@@ -182,6 +184,22 @@ type UtimesSyscallMsg struct {
 	MTime uint64 // in nanoseconds
 }
 
+type LinkType uint8
+
+const (
+	// LinkTypeSymbolic defines a symbolic link type
+	LinkTypeSymbolic LinkType = iota
+	// LinkTypeHardlink defines an hard link type
+	LinkTypeHardlink
+)
+
+// LinkSyscallMsg defines a link/linkat/symlink/symlinkat message
+type LinkSyscallMsg struct {
+	Type   LinkType
+	Target OpenSyscallMsg
+	Link   OpenSyscallMsg
+}
+
 // SyscallMsg defines a syscall message
 type SyscallMsg struct {
 	Type      SyscallType
@@ -203,6 +221,7 @@ type SyscallMsg struct {
 	Rename    *RenameSyscallMsg   `json:",omitempty"`
 	Mkdir     *MkdirSyscallMsg    `json:",omitempty"`
 	Utimes    *UtimesSyscallMsg   `json:",omitempty"`
+	Link      *LinkSyscallMsg     `json:",omitempty"`
 
 	// internals
 	Dup   *DupSyscallFakeMsg   `json:",omitempty"`

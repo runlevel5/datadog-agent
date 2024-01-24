@@ -56,6 +56,8 @@ const (
 	UtimesNr         = unix.SYS_UTIMES            // UtimesNr defines the syscall ID for amd64
 	UtimensAtNr      = unix.SYS_UTIMENSAT         // UtimensAtNr defines the syscall ID for amd64
 	FutimesAtNr      = unix.SYS_FUTIMESAT         // FutimesAtNr defines the syscall ID for amd64
+	LinkNr           = unix.SYS_LINK              // LinkNr defines the syscall ID for amd64
+	LinkAtNr         = unix.SYS_LINKAT            // LinkAtNr defines the syscall ID for amd64
 )
 
 // https://github.com/torvalds/linux/blob/v5.0/arch/x86/entry/entry_64.S#L126

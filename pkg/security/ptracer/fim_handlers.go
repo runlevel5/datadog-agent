@@ -141,6 +141,18 @@ func registerFIMHandlers(handlers map[int]syscallHandler) []string {
 			ShouldSend: isAcceptedRetval,
 			RetFunc:    nil,
 		},
+		{
+			IDs:        []syscallID{{ID: LinkNr, Name: "link"}},
+			Func:       handleLink,
+			ShouldSend: isAcceptedRetval,
+			RetFunc:    handleLinksRet,
+		},
+		{
+			IDs:        []syscallID{{ID: LinkAtNr, Name: "linkat"}},
+			Func:       handleLinkAt,
+			ShouldSend: isAcceptedRetval,
+			RetFunc:    handleLinksRet,
+		},
 	}
 
 	syscallList := []string{}
@@ -668,6 +680,78 @@ func handleUtimensAt(tracer *Tracer, process *Process, msg *ebpfless.SyscallMsg,
 	return fillFileMetadata(msg.Utimes.File.Filename, &msg.Utimes.File, disableStats)
 }
 
+func handleLink(tracer *Tracer, process *Process, msg *ebpfless.SyscallMsg, regs syscall.PtraceRegs, disableStats bool) error {
+	targetFilename, err := tracer.ReadArgString(process.Pid, regs, 0)
+	if err != nil {
+		return err
+	}
+
+	targetFilename, err = getFullPathFromFilename(process, targetFilename)
+	if err != nil {
+		return err
+	}
+
+	linkFilename, err := tracer.ReadArgString(process.Pid, regs, 1)
+	if err != nil {
+		return err
+	}
+
+	linkFilename, err = getFullPathFromFilename(process, linkFilename)
+	if err != nil {
+		return err
+	}
+
+	msg.Type = ebpfless.SyscallTypeLink
+	msg.Link = &ebpfless.LinkSyscallMsg{
+		Type: ebpfless.LinkTypeHardlink,
+		Target: ebpfless.OpenSyscallMsg{
+			Filename: targetFilename,
+		},
+		Link: ebpfless.OpenSyscallMsg{
+			Filename: linkFilename,
+		},
+	}
+	return fillFileMetadata(targetFilename, &msg.Link.Target, disableStats)
+}
+
+func handleLinkAt(tracer *Tracer, process *Process, msg *ebpfless.SyscallMsg, regs syscall.PtraceRegs, disableStats bool) error {
+	targetFD := tracer.ReadArgInt32(regs, 0)
+
+	targetFilename, err := tracer.ReadArgString(process.Pid, regs, 1)
+	if err != nil {
+		return err
+	}
+
+	targetFilename, err = getFullPathFromFd(process, targetFilename, targetFD)
+	if err != nil {
+		return err
+	}
+
+	linkFD := tracer.ReadArgInt32(regs, 2)
+
+	linkFilename, err := tracer.ReadArgString(process.Pid, regs, 3)
+	if err != nil {
+		return err
+	}
+
+	linkFilename, err = getFullPathFromFd(process, linkFilename, linkFD)
+	if err != nil {
+		return err
+	}
+
+	msg.Type = ebpfless.SyscallTypeLink
+	msg.Link = &ebpfless.LinkSyscallMsg{
+		Type: ebpfless.LinkTypeHardlink,
+		Target: ebpfless.OpenSyscallMsg{
+			Filename: targetFilename,
+		},
+		Link: ebpfless.OpenSyscallMsg{
+			Filename: linkFilename,
+		},
+	}
+	return fillFileMetadata(targetFilename, &msg.Link.Target, disableStats)
+}
+
 //
 // handlers called on syscall return
 //
@@ -735,6 +819,13 @@ func handleRenamesRet(tracer *Tracer, _ *Process, msg *ebpfless.SyscallMsg, regs
 func handleMkdirRet(tracer *Tracer, _ *Process, msg *ebpfless.SyscallMsg, regs syscall.PtraceRegs, disableStats bool) error {
 	if ret := tracer.ReadRet(regs); msg.Mkdir != nil && ret == 0 {
 		return fillFileMetadata(msg.Mkdir.Dir.Filename, &msg.Mkdir.Dir, disableStats)
+	}
+	return nil
+}
+
+func handleLinksRet(tracer *Tracer, _ *Process, msg *ebpfless.SyscallMsg, regs syscall.PtraceRegs, disableStats bool) error {
+	if ret := tracer.ReadRet(regs); msg.Link != nil && ret == 0 {
+		return fillFileMetadata(msg.Link.Link.Filename, &msg.Link.Link, disableStats)
 	}
 	return nil
 }

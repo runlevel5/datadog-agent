@@ -196,6 +196,12 @@ func (p *EBPFLessProbe) handleSyscallMsg(cl *client, syscallMsg *ebpfless.Syscal
 		event.Utimes.Atime = time.Unix(0, int64(syscallMsg.Utimes.ATime))
 		event.Utimes.Mtime = time.Unix(0, int64(syscallMsg.Utimes.MTime))
 		copyFileAttributes(&syscallMsg.Utimes.File, &event.Utimes.File)
+
+	case ebpfless.SyscallTypeLink:
+		event.Type = uint32(model.FileLinkEventType)
+		event.Link.Retval = syscallMsg.Retval
+		copyFileAttributes(&syscallMsg.Link.Target, &event.Link.Source)
+		copyFileAttributes(&syscallMsg.Link.Link, &event.Link.Target)
 	}
 
 	// container context
