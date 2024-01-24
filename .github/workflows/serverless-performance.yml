@@ -34,7 +34,7 @@ jobs:
       - name: Update package.json to the current ref
         run: |
           cd datadog-lambda-js
-          yarn add --dev https://github.com/DataDog/dd-trace-js#refs/heads/main
+          yarn add --dev https://github.com/DataDog/dd-trace-js
         #   yarn add --dev https://github.com/DataDog/dd-trace-js#refs/heads/${GITHUB_HEAD_REF}
       - name: Build the layer
         env:
