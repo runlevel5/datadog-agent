@@ -278,7 +278,7 @@ func (z *Span) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				err = msgp.WrapError(err, "Metrics")
 				return
 			}
-			if z.Metrics == nil && zb0003 > 0 {
+			if z.Metrics == nil && zb0003 > 0{
 				z.Metrics = make(map[string]float64, zb0003)
 			} else if len(z.Metrics) > 0 {
 				for key := range z.Metrics {
@@ -424,7 +424,7 @@ func (z *SpanLink) MarshalMsg(b []byte) (o []byte, err error) {
 	// omitempty: check for empty values
 	zb0001Len := uint32(6)
 	var zb0001Mask uint8 /* 6 bits */
-	if z.TraceIDHigh == 0 {
+	if z.TraceIdHigh == 0 {
 		zb0001Len--
 		zb0001Mask |= 0x2
 	}
@@ -447,15 +447,15 @@ func (z *SpanLink) MarshalMsg(b []byte) (o []byte, err error) {
 	}
 	// string "trace_id"
 	o = append(o, 0xa8, 0x74, 0x72, 0x61, 0x63, 0x65, 0x5f, 0x69, 0x64)
-	o = msgp.AppendUint64(o, z.TraceID)
+	o = msgp.AppendUint64(o, z.TraceId)
 	if (zb0001Mask & 0x2) == 0 { // if not empty
 		// string "trace_id_high"
 		o = append(o, 0xad, 0x74, 0x72, 0x61, 0x63, 0x65, 0x5f, 0x69, 0x64, 0x5f, 0x68, 0x69, 0x67, 0x68)
-		o = msgp.AppendUint64(o, z.TraceIDHigh)
+		o = msgp.AppendUint64(o, z.TraceIdHigh)
 	}
 	// string "span_id"
 	o = append(o, 0xa7, 0x73, 0x70, 0x61, 0x6e, 0x5f, 0x69, 0x64)
-	o = msgp.AppendUint64(o, z.SpanID)
+	o = msgp.AppendUint64(o, z.SpanId)
 	if (zb0001Mask & 0x8) == 0 { // if not empty
 		// string "attributes"
 		o = append(o, 0xaa, 0x61, 0x74, 0x74, 0x72, 0x69, 0x62, 0x75, 0x74, 0x65, 0x73)
@@ -497,21 +497,21 @@ func (z *SpanLink) UnmarshalMsg(bts []byte) (o []byte, err error) {
 		}
 		switch msgp.UnsafeString(field) {
 		case "trace_id":
-			z.TraceID, bts, err = msgp.ReadUint64Bytes(bts)
+			z.TraceId, bts, err = msgp.ReadUint64Bytes(bts)
 			if err != nil {
-				err = msgp.WrapError(err, "TraceID")
+				err = msgp.WrapError(err, "TraceId")
 				return
 			}
 		case "trace_id_high":
-			z.TraceIDHigh, bts, err = msgp.ReadUint64Bytes(bts)
+			z.TraceIdHigh, bts, err = msgp.ReadUint64Bytes(bts)
 			if err != nil {
-				err = msgp.WrapError(err, "TraceIDHigh")
+				err = msgp.WrapError(err, "TraceIdHigh")
 				return
 			}
 		case "span_id":
-			z.SpanID, bts, err = msgp.ReadUint64Bytes(bts)
+			z.SpanId, bts, err = msgp.ReadUint64Bytes(bts)
 			if err != nil {
-				err = msgp.WrapError(err, "SpanID")
+				err = msgp.WrapError(err, "SpanId")
 				return
 			}
 		case "attributes":
