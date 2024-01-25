@@ -30,7 +30,6 @@ import (
 	tracecfg "github.com/DataDog/datadog-agent/pkg/trace/config"
 	"github.com/DataDog/datadog-agent/pkg/trace/info"
 	"github.com/DataDog/datadog-agent/pkg/trace/metrics"
-	"github.com/DataDog/datadog-agent/pkg/trace/metrics/timing"
 	"github.com/DataDog/datadog-agent/pkg/trace/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/trace/watchdog"
 	"github.com/DataDog/datadog-agent/pkg/util"
@@ -170,7 +169,6 @@ func stopAgentSidekicks(cfg config.Component) {
 	log.Flush()
 	metrics.Flush()
 
-	timing.Stop()
 	err := tagger.Stop()
 	if err != nil {
 		log.Error(err)
