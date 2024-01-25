@@ -1035,6 +1035,10 @@ func testDNSStats(t *testing.T, tr *Tracer, domain string, success, failure, tim
 		startChildren := timeSyscall(syscall.RUSAGE_CHILDREN)
 		realStart := time.Now().UnixMicro()
 		dnsConn, err := dnsClient.Dial(dnsServerAddr.String())
+		realEnd := time.Now().UnixMicro()
+		endSelf := timeSyscall(syscall.RUSAGE_SELF)
+		endThread := timeSyscall(syscall.RUSAGE_THREAD)
+		endChildren := timeSyscall(syscall.RUSAGE_CHILDREN)
 		if startSelf != nil && startThread != nil && startChildren != nil && endSelf != nil && endThread != nil && endChildren != nil {
 			t.Logf("[Self] User time (sec): %d User time (usec): %d\n", endSelf.Utime.Sec-startSelf.Utime.Sec, endSelf.Utime.Usec-startSelf.Utime.Usec)
 			t.Logf("[Self] Sys time (sec): %d Sys time (usec): %d\n", endSelf.Stime.Sec-startSelf.Stime.Sec, endSelf.Stime.Usec-startSelf.Stime.Usec)
