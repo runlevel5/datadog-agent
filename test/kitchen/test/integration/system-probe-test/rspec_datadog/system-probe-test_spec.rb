@@ -80,7 +80,7 @@ describe "system-probe" do
         xmlpath = "/tmp/junit/#{junitfile}"
         cmd = ["sudo", "-E",
           "/go/bin/gotestsum",
-          "--format", "dots",
+          "--format", "standard-verbose",
           "--junitfile", xmlpath,
           "--jsonfile", "/tmp/pkgjson/#{pkg.gsub("/","-")}.json",
           "--rerun-fails=2",
