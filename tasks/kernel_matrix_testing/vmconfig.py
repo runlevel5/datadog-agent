@@ -502,6 +502,8 @@ def generate_vmconfig(vm_config, normalized_vm_defs, vcpu, memory, sets, ci, hos
         if ci:
             add_console(vmset)
 
+        add_available_cpus(vmset, host_cpus)
+
     return vm_config
 
 
