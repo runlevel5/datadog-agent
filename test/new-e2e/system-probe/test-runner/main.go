@@ -55,6 +55,7 @@ var baseEnv = []string{
 	"GOVERSION=" + runtime.Version(),
 	"DD_SYSTEM_PROBE_BPF_DIR=" + filepath.Join(testDirRoot, "pkg/ebpf/bytecode/build"),
 	"DD_SYSTEM_PROBE_JAVA_DIR=" + filepath.Join(testDirRoot, "pkg/network/protocols/tls/java"),
+	"DD_LOG_LEVEL=debug",
 }
 
 var timeouts = map[*regexp.Regexp]time.Duration{
@@ -108,7 +109,7 @@ func pathToPackage(path string) string {
 
 func buildCommandArgs(pkg string, xmlpath string, jsonpath string, file string, testConfig *testConfig) []string {
 	args := []string{
-		"--format", "testname",
+		"--format", "standard-verbose",
 		"--junitfile", xmlpath,
 		"--jsonfile", jsonpath,
 		fmt.Sprintf("--rerun-fails=%d", testConfig.retryCount),
