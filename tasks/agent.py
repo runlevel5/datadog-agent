@@ -72,6 +72,7 @@ AGENT_CORECHECKS = [
 
 WINDOWS_CORECHECKS = [
     "agentcrashdetect",
+    "sbom",
     "windows_registry",
     "winkmem",
     "wincrashdetect",
