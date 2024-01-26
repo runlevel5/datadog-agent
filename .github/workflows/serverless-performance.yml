@@ -35,7 +35,6 @@ jobs:
         run: |
           cd datadog-lambda-js
           yarn add --dev https://github.com/DataDog/dd-trace-js
-        #   yarn add --dev https://github.com/DataDog/dd-trace-js#refs/heads/${GITHUB_HEAD_REF}
       - name: Build the layer
         env:
           NODE_VERSION: ${{ matrix.node-version }}
@@ -49,9 +48,9 @@ jobs:
           layer_path: 'datadog-lambda-js/.layers/datadog_lambda_node${{ matrix.node-version }}.zip'
           layer_name: 'performance-tester-nodejs-${{ matrix.node-version }}'
           role: arn:aws:iam::425362996713:role/serverless-integration-test-lambda-role
-          pr_number: ${{ github.event.pull_request.number }}
+        #   pr_number: ${{ github.event.pull_request.number }}
+          pr_number: hello-from-dylan
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.SERVERLESS_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.SERVERLESS_AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: sa-east-1
-          DD_API_KEY: ${{ secrets.SERVERLESS_DD_API_KEY }}
