@@ -54,4 +54,5 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.SERVERLESS_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.SERVERLESS_AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: sa-east-1
+          DD_API_KEY: empty
           DD_KMS_API_KEY: arn:aws:kms:sa-east-1:425362996713:key/ccf15e2e-6d83-48fb-92ae-d5869062b4a0
