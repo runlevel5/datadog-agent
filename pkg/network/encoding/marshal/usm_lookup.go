@@ -10,6 +10,7 @@ package marshal
 import (
 	"github.com/DataDog/datadog-agent/pkg/network"
 	"github.com/DataDog/datadog-agent/pkg/network/types"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 // USMLookup determines the strategy for associating a given connection to USM
@@ -26,9 +27,11 @@ func USMLookup[K comparable, V any](c network.ConnectionStats, data map[types.Co
 	network.WithKey(c, func(key types.ConnectionKey) (stopIteration bool) {
 		val, ok := data[key]
 		if !ok {
+			log.Debugf("USM: could not find matching NPM connection for %v", &key)
 			return false
 		}
 
+		log.Debugf("USM: found matching NPM connection for %v", &key)
 		connectionData = val
 		return true
 	})

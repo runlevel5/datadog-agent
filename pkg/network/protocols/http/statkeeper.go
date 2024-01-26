@@ -163,6 +163,8 @@ func (h *StatKeeper) add(tx Transaction) {
 		h.stats[key] = stats
 	}
 
+	log.Debugf("new HTTP request: %s: latency: %v", string(path[:]), latency/1000000000)
+
 	stats.AddRequest(tx.StatusCode(), latency, tx.StaticTags(), tx.DynamicTags())
 }
 

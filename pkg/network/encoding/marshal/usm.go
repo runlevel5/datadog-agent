@@ -183,9 +183,14 @@ func (bc *USMConnectionIndex[K, V]) Close() {
 
 		// Determine count of orphan aggregations
 		var total int
+
 		for _, value := range bc.data {
 			if !value.claimed {
 				total += len(value.Data)
+
+				for _, genVal := range value.Data {
+					log.Debugf("USM: Orphan aggregation: %v", genVal.Key)
+				}
 			}
 		}
 

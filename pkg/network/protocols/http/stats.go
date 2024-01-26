@@ -72,6 +72,10 @@ type Path struct {
 	FullPath bool
 }
 
+func (p Path) String() string {
+	return p.Content.Get()
+}
+
 // Key is an identifier for a group of HTTP transactions
 type Key struct {
 	// this field order is intentional to help the GC pointer tracking
