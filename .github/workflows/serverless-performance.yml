@@ -42,7 +42,7 @@ jobs:
           cd datadog-lambda-js
           ./scripts/build_layers.sh
       - name: Performance tests
-        uses: DataDog/serverless-performance-test-action@main
+        uses: DylanLovesCoffee/dylan-sls-perf-test@dyl/test
         with:
           runtime_id: '${{ matrix.aws-runtime-name }}'
           layer_path: 'datadog-lambda-js/.layers/datadog_lambda_node${{ matrix.node-version }}.zip'
@@ -54,5 +54,5 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.SERVERLESS_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.SERVERLESS_AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: sa-east-1
-          DD_API_KEY: empty
+        #   DD_API_KEY: empty
           DD_API_KEY_SECRET_ARN: arn:aws:secretsmanager:sa-east-1:425362996713:secret:dylansecret-I2cXev
