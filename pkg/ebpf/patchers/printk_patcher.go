@@ -5,14 +5,17 @@
 
 //go:build linux_bpf
 
-package runtime
+// Package patchers contains functions for patching eBPF programs
+package patchers
 
 import (
 	"errors"
 
-	manager "github.com/DataDog/ebpf-manager"
+	ebpfmanager "github.com/DataDog/ebpf-manager"
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/asm"
+
+	manager "github.com/DataDog/datadog-agent/pkg/ebpf/manager"
 
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -26,7 +29,7 @@ import (
 // that adds a newline to the message before calling bpf_trace_printk. In older kernels
 // this ensures that a newline is added. In newer ones it would mean that two newlines are
 // added, so this patcher removes that newline in those cases.
-func PatchPrintkNewline(m *manager.Manager) error {
+func PatchPrintkNewline(m *ebpfmanager.Manager) error {
 	kernelVersion, err := kernel.HostVersion()
 	if err != nil {
 		return err // can't detect kernel version, don't patch
@@ -206,4 +209,28 @@ func patchPrintkInstructions(p *ebpf.ProgramSpec) (int, error) {
 	log.Debugf("Patched %d instructions for %s, errors: %v", numPatches, p.Name, errs)
 
 	return numPatches, errors.Join(errs...)
+}
+
+type printkPatcherModifier struct {
+}
+
+func (t *printkPatcherModifier) Name() string {
+	return "printk_patcher"
+}
+
+func (t *printkPatcherModifier) BeforeInit(m *manager.Manager, _ *manager.Options) error {
+	m.InstructionPatcher = PatchPrintkNewline
+	return nil
+}
+
+func (t *printkPatcherModifier) AfterInit(_ *manager.Manager, _ *manager.Options) error {
+	return nil
+}
+
+func (t *printkPatcherModifier) OnStop(_ *manager.Manager) error {
+	return nil
+}
+
+func init() {
+	manager.RegisterModifier(&printkPatcherModifier{})
 }
