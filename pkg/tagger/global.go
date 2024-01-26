@@ -212,6 +212,7 @@ func globalTagBuilder(cardinality collectors.TagCardinality, tb tagset.TagsAccum
 	}
 	mux.RUnlock()
 
+	_ = defaultTagger.AccumulateTagsFor(collectors.HostEntityID, cardinality, tb)
 	return defaultTagger.AccumulateTagsFor(collectors.GlobalEntityID, cardinality, tb)
 }
 

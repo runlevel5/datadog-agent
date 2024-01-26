@@ -98,6 +98,9 @@ type Component interface {
 	// filter evaluates to true.
 	ListProcessesWithFilter(filterFunc ProcessFilterFunc) []*Process
 
+	// GetHostTagas gets all of the host tags
+	GetHostTags() []string
+
 	// Notify notifies the store with a slice of events.  It should only be
 	// used by workloadmeta collectors.
 	Notify(events []CollectorEvent)

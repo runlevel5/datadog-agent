@@ -10,19 +10,22 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/fx"
+
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider"
 	"github.com/DataDog/datadog-agent/pkg/util/common"
 	"github.com/DataDog/datadog-agent/pkg/util/optional"
-	"go.uber.org/fx"
 )
 
 // store is a central storage of metadata about workloads. A workload is any
 // unit of work being done by a piece of software, like a process, a container,
 // a kubernetes pod, or a task in any cloud provider.
 type workloadmeta struct {
-	log    log.Component
-	config config.Component
+	log             log.Component
+	config          config.Component
+	hosttagprovider hosttagprovider.Component
 
 	// Store related
 	storeMut sync.RWMutex
@@ -54,10 +57,13 @@ type dependencies struct {
 	Config  config.Component
 	Catalog CollectorList `group:"workloadmeta"`
 
+	Hosttagprovider hosttagprovider.Component
+
 	Params Params
 }
 
 func newWorkloadMeta(deps dependencies) Component {
+
 	candidates := make(map[string]Collector)
 	for _, c := range deps.Catalog {
 		if (c.GetTargetCatalog() & deps.Params.AgentType) > 0 {
@@ -66,8 +72,9 @@ func newWorkloadMeta(deps dependencies) Component {
 	}
 
 	wm := &workloadmeta{
-		log:    deps.Log,
-		config: deps.Config,
+		log:             deps.Log,
+		config:          deps.Config,
+		hosttagprovider: deps.Hosttagprovider,
 
 		store:        make(map[Kind]map[string]*cachedEntity),
 		candidates:   candidates,
