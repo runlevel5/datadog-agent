@@ -49,7 +49,7 @@ jobs:
           layer_name: 'performance-tester-nodejs-${{ matrix.node-version }}'
           role: arn:aws:iam::425362996713:role/serverless-integration-test-lambda-role
         #   pr_number: ${{ github.event.pull_request.number }}
-          pr_number: hello-from-dylan
+          pr_number: dylan-test
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.SERVERLESS_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.SERVERLESS_AWS_SECRET_ACCESS_KEY }}
