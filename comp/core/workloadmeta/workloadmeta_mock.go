@@ -360,6 +360,11 @@ func (w *workloadMetaMock) GetConfig() pkgconfig.Reader {
 	return w.config
 }
 
+// GetHostTagas gets all of the host tags
+func (w *workloadMetaMock) GetHostTags() []string {
+	return []string{}
+}
+
 // MockStore is a store designed to be used in unit tests
 type workloadMetaMockV2 struct {
 	*workloadmeta
@@ -412,4 +417,9 @@ func (w *workloadMetaMockV2) Unset(e Entity) {
 			Entity: e,
 		},
 	})
+}
+
+// GetHostTagas gets all of the host tags
+func (w *workloadMetaMockV2) GetHostTags() []string {
+	return []string{}
 }
