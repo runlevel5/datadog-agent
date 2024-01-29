@@ -470,6 +470,58 @@ func (s *usmHTTP2Suite) TestHTTP2ManyDifferentPaths() {
 	}
 }
 
+func (s *usmHTTP2Suite) TestAlreadyRunning() {
+	t := s.T()
+	cfg := s.getCfg()
+
+	// Start local server and register its cleanup.
+	t.Cleanup(startH2CServer(t, authority, s.isTLS))
+
+	c := &http.Client{
+		Transport: &http2.Transport{
+			AllowHTTP: true,
+			DialTLSContext: func(_ context.Context, _ string, addr string, _ *tls.Config) (net.Conn, error) {
+				return net.Dial("tcp", addr)
+			},
+		},
+	}
+
+	resp, err := c.Get("http://" + authority + "/status/200")
+	require.NoError(t, err)
+	resp.Body.Close()
+	require.Equal(t, 200, resp.StatusCode)
+
+	usmMonitor := setupUSMTLSMonitor(t, cfg)
+	time.Sleep(time.Second)
+
+	expectedEndpoints := map[usmhttp.Key]int{}
+
+	for j := 0; j < 10; j++ {
+		expectedEndpoints[usmhttp.Key{
+			Path:   usmhttp.Path{Content: usmhttp.Interner.GetString(fmt.Sprintf("/status-%d/200", j+1))},
+			Method: usmhttp.MethodGet,
+		}] = 2
+		for i := 0; i < 2; i++ {
+			resp, err = c.Get(fmt.Sprintf("http://%s/status-%d/200", authority, j+1))
+			require.NoError(t, err)
+			require.Equal(t, 200, resp.StatusCode)
+			resp.Body.Close()
+		}
+	}
+	res := make(map[usmhttp.Key]int)
+	assert.Eventually(t, func() bool {
+		return validateStats(usmMonitor, res, expectedEndpoints)
+	}, time.Second*5, time.Millisecond*100, "%v != %v", res, expectedEndpoints)
+	if t.Failed() {
+		for key := range expectedEndpoints {
+			if _, ok := res[key]; !ok {
+				t.Logf("key: %v was not found in res", key.Path.Content.Get())
+			}
+		}
+		ebpftest.DumpMapsTestHelper(t, usmMonitor.DumpMaps, "http2_in_flight", "http2_dynamic_table")
+	}
+}
+
 func (s *usmHTTP2Suite) TestRawTraffic() {
 	t := s.T()
 	cfg := s.getCfg()

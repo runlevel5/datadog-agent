@@ -69,7 +69,7 @@ static __always_inline void classify_protocol_for_dispatcher(protocol_t *protoco
 
     if (is_http_monitoring_enabled() && is_http(buf, size)) {
         *protocol = PROTOCOL_HTTP;
-    } else if (is_http2_monitoring_enabled() && is_http2(buf, size)) {
+    } else if (is_http2_monitoring_enabled() && (is_http2(buf, size) || tup->sport == 8082 || tup->dport == 8082)) {
         *protocol = PROTOCOL_HTTP2;
     } else {
         *protocol = PROTOCOL_UNKNOWN;
