@@ -13,20 +13,19 @@ import (
 	"time"
 
 	model "github.com/DataDog/agent-payload/v5/process"
-	"github.com/DataDog/gopsutil/cpu"
+	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
 	"github.com/DataDog/datadog-agent/comp/core"
+	"github.com/DataDog/datadog-agent/comp/core/tagger"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/process/procutil"
 	"github.com/DataDog/datadog-agent/pkg/process/procutil/mocks"
 	proccontainers "github.com/DataDog/datadog-agent/pkg/process/util/containers"
-	"github.com/DataDog/datadog-agent/pkg/tagger"
-	"github.com/DataDog/datadog-agent/pkg/tagger/local"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	metricsmock "github.com/DataDog/datadog-agent/pkg/util/containers/metrics/mock"
 	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics/provider"
@@ -67,20 +66,19 @@ func mockContainerProvider(t *testing.T) proccontainers.ContainerProvider {
 	// Metrics provider
 	metricsCollector := metricsmock.NewCollector("foo")
 	metricsProvider := metricsmock.NewMetricsProvider()
-	metricsProvider.RegisterConcreteCollector(provider.RuntimeNameContainerd, metricsCollector)
-	metricsProvider.RegisterConcreteCollector(provider.RuntimeNameGarden, metricsCollector)
+	metricsProvider.RegisterConcreteCollector(provider.NewRuntimeMetadata(string(provider.RuntimeNameContainerd), ""), metricsCollector)
+	metricsProvider.RegisterConcreteCollector(provider.NewRuntimeMetadata(string(provider.RuntimeNameGarden), ""), metricsCollector)
 
 	// Workload meta + tagger
 	metadataProvider := fxutil.Test[workloadmeta.Mock](t, fx.Options(
-		core.MockBundle,
+		core.MockBundle(),
 		fx.Supply(context.Background()),
 		fx.Supply(workloadmeta.NewParams()),
-		workloadmeta.MockModule,
+		workloadmeta.MockModule(),
 	))
 
-	fakeTagger := local.NewFakeTagger()
-	tagger.SetDefaultTagger(fakeTagger)
-	defer tagger.SetDefaultTagger(nil)
+	fakeTagger := tagger.SetupFakeTagger(t)
+	defer fakeTagger.ResetTagger()
 
 	// Finally, container provider
 	filter, err := containers.GetPauseContainerFilter()

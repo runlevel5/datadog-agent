@@ -23,12 +23,11 @@ import (
 
 	"github.com/DataDog/datadog-agent/comp/core"
 	compcfg "github.com/DataDog/datadog-agent/comp/core/config"
+	"github.com/DataDog/datadog-agent/comp/core/tagger"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta/collectors"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/listeners"
 	"github.com/DataDog/datadog-agent/pkg/config"
-	"github.com/DataDog/datadog-agent/pkg/tagger"
-	"github.com/DataDog/datadog-agent/pkg/tagger/local"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
@@ -37,7 +36,6 @@ import (
 
 type DockerListenerTestSuite struct {
 	suite.Suite
-	store      workloadmeta.Component
 	compose    utils.ComposeConf
 	listener   listeners.ServiceListener
 	dockerutil *docker.DockerUtil
@@ -66,19 +64,18 @@ func (suite *DockerListenerTestSuite) SetupSuite() {
 	}
 
 	var err error
-	suite.store = fxutil.Test[workloadmeta.Component](suite.T(), fx.Options(
-		core.MockBundle,
+	_ = fxutil.Test[tagger.Component](suite.T(), fx.Options(
+		core.MockBundle(),
 		fx.Replace(compcfg.MockParams{
 			Overrides: overrides,
 			Features:  []config.Feature{config.Docker},
 		}),
 		fx.Supply(workloadmeta.NewParams()),
 		collectors.GetCatalog(),
-		workloadmeta.Module,
+		workloadmeta.Module(),
+		tagger.Module(),
+		fx.Supply(tagger.NewTaggerParams()),
 	))
-
-	tagger.SetDefaultTagger(local.NewTagger(suite.store))
-	tagger.Init(context.Background())
 
 	suite.dockerutil, err = docker.GetDockerUtil()
 	require.Nil(suite.T(), err, "can't connect to docker")

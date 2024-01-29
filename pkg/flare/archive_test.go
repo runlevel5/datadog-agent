@@ -24,9 +24,9 @@ import (
 
 	"github.com/DataDog/datadog-agent/cmd/agent/common"
 	flarehelpers "github.com/DataDog/datadog-agent/comp/core/flare/helpers"
+	tagger_api "github.com/DataDog/datadog-agent/comp/core/tagger/api"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/config"
-	tagger_api "github.com/DataDog/datadog-agent/pkg/tagger/api"
 )
 
 func TestGoRoutines(t *testing.T) {
@@ -103,7 +103,7 @@ func setupIPCAddress(t *testing.T, URL string) *config.MockConfig {
 	require.NoError(t, err)
 
 	confMock := config.Mock(t)
-	confMock.SetWithoutSource("ipc_address", host)
+	confMock.SetWithoutSource("cmd_host", host)
 	confMock.SetWithoutSource("cmd_port", port)
 	confMock.SetWithoutSource("process_config.cmd_port", port)
 
