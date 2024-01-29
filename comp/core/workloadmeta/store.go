@@ -371,10 +371,6 @@ func (w *workloadmeta) GetImage(id string) (*ContainerImageMetadata, error) {
 	return entity.(*ContainerImageMetadata), nil
 }
 
-func (w *workloadmeta) GetHostTags() []string {
-	return w.hosttagprovider.HostTags()
-}
-
 // Notify implements Store#Notify
 func (w *workloadmeta) Notify(events []CollectorEvent) {
 	if len(events) > 0 {

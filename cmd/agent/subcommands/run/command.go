@@ -59,7 +59,6 @@ import (
 	"github.com/DataDog/datadog-agent/comp/forwarder"
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
 	orchestratorForwarderImpl "github.com/DataDog/datadog-agent/comp/forwarder/orchestrator/orchestratorimpl"
-	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagproviderimpl"
 	langDetectionCl "github.com/DataDog/datadog-agent/comp/languagedetection/client"
 	langDetectionClimpl "github.com/DataDog/datadog-agent/comp/languagedetection/client/clientimpl"
 	"github.com/DataDog/datadog-agent/comp/logs"
@@ -277,7 +276,6 @@ func getSharedFxOption() fx.Option {
 		}),
 
 		// workloadmeta setup
-		hosttagproviderimpl.Module(),
 		collectors.GetCatalog(),
 		fx.Provide(defaults.DefaultParams),
 		workloadmeta.Module(),

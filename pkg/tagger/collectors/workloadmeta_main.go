@@ -13,6 +13,7 @@ import (
 	"github.com/gobwas/glob"
 
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
+	"github.com/DataDog/datadog-agent/comp/metadata/host/hostimpl/hosttags"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 	"github.com/DataDog/datadog-agent/pkg/tagger/utils"
@@ -87,7 +88,7 @@ func (c *WorkloadMetaCollector) injectHostTags() {
 		{
 			Source:      hostSource,
 			Entity:      HostEntityID,
-			LowCardTags: c.store.GetHostTags(),
+			LowCardTags: hosttags.GetHostTags(context.TODO(), false, config.Datadog).System,
 			ExpiryDate:  time.Now().Add(duration), // Ensure host tags are expired after the configured interval
 		},
 	})
