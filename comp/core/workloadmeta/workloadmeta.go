@@ -10,12 +10,11 @@ import (
 	"sync"
 	"time"
 
-	"go.uber.org/fx"
-
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/pkg/util/common"
 	"github.com/DataDog/datadog-agent/pkg/util/optional"
+	"go.uber.org/fx"
 )
 
 // store is a central storage of metadata about workloads. A workload is any
@@ -59,7 +58,6 @@ type dependencies struct {
 }
 
 func newWorkloadMeta(deps dependencies) Component {
-
 	candidates := make(map[string]Collector)
 	for _, c := range deps.Catalog {
 		if (c.GetTargetCatalog() & deps.Params.AgentType) > 0 {
