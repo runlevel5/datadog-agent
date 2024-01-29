@@ -17,7 +17,7 @@ import (
 )
 
 // NewRemoteConfigService returns a new remote configuration service
-func NewRemoteConfigService(hostname string) (*remoteconfig.Service, error) {
+func NewRemoteConfigService(hostname string, telemetryReporter *DdRcTelemetryReporter) (*remoteconfig.Service, error) {
 	apiKey := config.Datadog.GetString("api_key")
 	if config.Datadog.IsSet("remote_configuration.api_key") {
 		apiKey = config.Datadog.GetString("remote_configuration.api_key")
@@ -26,10 +26,9 @@ func NewRemoteConfigService(hostname string) (*remoteconfig.Service, error) {
 	baseRawURL := configUtils.GetMainEndpoint(config.Datadog, "https://config.", "remote_configuration.rc_dd_url")
 	traceAgentEnv := configUtils.GetTraceAgentDefaultEnv(config.Datadog)
 	configuredTags := configUtils.GetConfiguredTags(config.Datadog, false)
+	dbName := "remote-config.db"
 
-	telemetryReporter := newRcTelemetryReporter()
-
-	configService, err := remoteconfig.NewService(config.Datadog, apiKey, baseRawURL, hostname, configuredTags, telemetryReporter, version.AgentVersion, remoteconfig.WithTraceAgentEnv(traceAgentEnv))
+	configService, err := remoteconfig.NewService(config.Datadog, apiKey, baseRawURL, hostname, configuredTags, telemetryReporter, version.AgentVersion, dbName, remoteconfig.WithTraceAgentEnv(traceAgentEnv))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create remote-config service: %w", err)
 	}
@@ -37,26 +36,42 @@ func NewRemoteConfigService(hostname string) (*remoteconfig.Service, error) {
 	return configService, nil
 }
 
-// ddRcTelemetryReporter is a datadog-agent telemetry counter for RC cache bypass metrics. It implements the RcTelemetryReporter interface.
-type ddRcTelemetryReporter struct {
+// NewHARemoteConfigService returns a new remote configuration service that uses the failover DC endpoint
+func NewHARemoteConfigService(hostname string, telemetryReporter *DdRcTelemetryReporter) (*remoteconfig.Service, error) {
+	apiKey := configUtils.SanitizeAPIKey(config.Datadog.GetString("ha.api_key"))
+	baseRawURL := configUtils.GetHAEndpoint(config.Datadog, "https://config.", "ha.rc_dd_url")
+	traceAgentEnv := configUtils.GetTraceAgentDefaultEnv(config.Datadog)
+	configuredTags := configUtils.GetConfiguredTags(config.Datadog, false)
+	dbName := "remote-config-ha.db"
+
+	configService, err := remoteconfig.NewService(config.Datadog, apiKey, baseRawURL, hostname, configuredTags, telemetryReporter, version.AgentVersion, dbName, remoteconfig.WithTraceAgentEnv(traceAgentEnv))
+	if err != nil {
+		return nil, fmt.Errorf("unable to create HA remote-config service: %w", err)
+	}
+
+	return configService, nil
+}
+
+// DdRcTelemetryReporter is a datadog-agent telemetry counter for RC cache bypass metrics. It implements the RcTelemetryReporter interface.
+type DdRcTelemetryReporter struct {
 	BypassRateLimitCounter telemetry.Counter
 	BypassTimeoutCounter   telemetry.Counter
 }
 
 // IncRateLimit increments the ddRcTelemetryReporter BypassRateLimitCounter counter.
-func (r *ddRcTelemetryReporter) IncRateLimit() {
+func (r *DdRcTelemetryReporter) IncRateLimit() {
 	r.BypassRateLimitCounter.Inc()
 }
 
 // IncTimeout increments the ddRcTelemetryReporter BypassTimeoutCounter counter.
-func (r *ddRcTelemetryReporter) IncTimeout() {
+func (r *DdRcTelemetryReporter) IncTimeout() {
 	r.BypassTimeoutCounter.Inc()
 }
 
-// newRcTelemetryReporter returns a new ddRcTelemetryReporter that uses the datadog-agent telemetry package to emit metrics.
-func newRcTelemetryReporter() *ddRcTelemetryReporter {
+// NewRcTelemetryReporter returns a new ddRcTelemetryReporter that uses the datadog-agent telemetry package to emit metrics.
+func NewRcTelemetryReporter() *DdRcTelemetryReporter {
 	commonOpts := telemetry.Options{NoDoubleUnderscoreSep: true}
-	return &ddRcTelemetryReporter{
+	return &DdRcTelemetryReporter{
 		BypassRateLimitCounter: telemetry.NewCounterWithOpts(
 			"remoteconfig",
 			"cache_bypass_ratelimiter_skip",

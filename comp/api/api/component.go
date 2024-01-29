@@ -28,6 +28,7 @@ import (
 type Component interface {
 	StartServer(
 		configService *remoteconfig.Service,
+		configServiceHA *remoteconfig.Service,
 		wmeta workloadmeta.Component,
 		tagger tagger.Component,
 		logsAgent optional.Option[logsAgent.Component],
