@@ -20,6 +20,7 @@ import (
 	compConfig "github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagprovidermock"
 	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
 	coreConfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/logs/internal/util/containersorpods"
@@ -197,6 +198,7 @@ func TestMakeK8sSource(t *testing.T) {
 	store := fxutil.Test[workloadmeta.Mock](t, fx.Options(
 		logimpl.MockModule(),
 		compConfig.MockModule(),
+		hosttagprovidermock.MockModule(),
 		fx.Supply(context.Background()),
 		fx.Supply(workloadmeta.NewParams()),
 		workloadmeta.MockModuleV2(),
@@ -254,6 +256,7 @@ func TestMakeK8sSource_pod_not_found(t *testing.T) {
 	workloadmetaStore := fxutil.Test[workloadmeta.Mock](t, fx.Options(
 		logimpl.MockModule(),
 		compConfig.MockModule(),
+		hosttagprovidermock.MockModule(),
 		fx.Supply(context.Background()),
 		fx.Supply(workloadmeta.NewParams()),
 		workloadmeta.MockModuleV2(),

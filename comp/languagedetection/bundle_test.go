@@ -8,15 +8,17 @@ package languagedetection
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+	"go.uber.org/fx"
+
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
 	"github.com/DataDog/datadog-agent/comp/core/secrets"
 	"github.com/DataDog/datadog-agent/comp/core/secrets/secretsimpl"
 	"github.com/DataDog/datadog-agent/comp/core/telemetry"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagproviderimpl"
 	"github.com/DataDog/datadog-agent/comp/languagedetection/client"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/fx"
 )
 
 func TestBundleDependencies(t *testing.T) {
@@ -30,6 +32,7 @@ func TestBundleDependencies(t *testing.T) {
 		fx.Provide(func() secrets.Component { return secretsimpl.NewMock() }),
 		secretsimpl.MockModule(),
 		fx.Supply(logimpl.Params{}),
+		hosttagproviderimpl.Module(),
 		workloadmeta.Module(),
 		fx.Supply(workloadmeta.NewParams()),
 		fx.Invoke(func(client.Component) {}),

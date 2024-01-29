@@ -3,6 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2024-present Datadog, Inc.
 
+// Package hosttagproviderimpl is an implementation of the hosttagprovider.Component interface.
 package hosttagproviderimpl
 
 import (
@@ -10,7 +11,7 @@ import (
 
 	"go.uber.org/fx"
 
-	"github.com/DataDog/datadog-agent/comp/core/hosttagprovider"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider"
 	hostMetadataUtils "github.com/DataDog/datadog-agent/comp/metadata/host/hostimpl/utils"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
@@ -19,17 +20,16 @@ import (
 // Module defines the fx options for this component.
 func Module() fxutil.Module {
 	return fxutil.Component(
-		fx.Provide(newhosttagprovider),
+		fx.Provide(newHostTagProviderImpl),
 	)
 }
 
-type hosttagproviderimpl struct {
+type hostTagProviderImpl struct{}
+
+func newHostTagProviderImpl() hosttagprovider.Component {
+	return &hostTagProviderImpl{}
 }
 
-func newhosttagprovider() hosttagprovider.Component {
-	return &hosttagproviderimpl{}
-}
-
-func (h *hosttagproviderimpl) HostTags() []string {
+func (h *hostTagProviderImpl) HostTags() []string {
 	return hostMetadataUtils.GetHostTags(context.TODO(), false, config.Datadog).System
 }

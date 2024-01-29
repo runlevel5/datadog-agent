@@ -17,7 +17,6 @@ import (
 
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/hostname/hostnameimpl"
-	"github.com/DataDog/datadog-agent/comp/core/hosttagprovider/hosttagproviderimpl"
 	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
 	"github.com/DataDog/datadog-agent/comp/core/secrets"
 	"github.com/DataDog/datadog-agent/comp/core/secrets/secretsimpl"
@@ -42,6 +41,5 @@ func Bundle() fxutil.BundleOptions {
 		sysprobeconfigimpl.Module(),
 		telemetry.Module(),
 		hostnameimpl.Module(),
-		hosttagproviderimpl.Module(),
 	)
 }

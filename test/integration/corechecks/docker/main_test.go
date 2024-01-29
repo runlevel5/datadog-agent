@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta/collectors"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagproviderimpl"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
@@ -119,6 +120,7 @@ func setup() (workloadmeta.Component, error) {
 		compcfg.Module(),
 		fx.Supply(logimpl.ForOneShot("TEST", "info", false)),
 		logimpl.Module(),
+		hosttagproviderimpl.Module(),
 		fx.Supply(workloadmeta.NewParams()),
 		collectors.GetCatalog(),
 		workloadmeta.Module(),

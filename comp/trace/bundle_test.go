@@ -10,9 +10,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
+
+	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagproviderimpl"
 
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/secrets/secretsimpl"
@@ -31,6 +33,7 @@ func TestBundleDependencies(t *testing.T) {
 		fx.Provide(func() context.Context { return context.TODO() }), // fx.Supply(ctx) fails with a missing type error.
 		fx.Supply(core.BundleParams{}),
 		core.Bundle(),
+		hosttagproviderimpl.Module(),
 		fx.Supply(workloadmeta.NewParams()),
 		workloadmeta.Module(),
 		statsd.Module(),
@@ -55,6 +58,7 @@ func TestMockBundleDependencies(t *testing.T) {
 		fx.Provide(func() context.Context { return context.TODO() }), // fx.Supply(ctx) fails with a missing type error.
 		fx.Supply(core.BundleParams{}),
 		traceMockBundle,
+		hosttagproviderimpl.Module(),
 		fx.Supply(workloadmeta.NewParams()),
 		workloadmeta.Module(),
 		fx.Invoke(func(_ config.Component) {}),

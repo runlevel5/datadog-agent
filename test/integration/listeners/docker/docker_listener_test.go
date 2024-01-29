@@ -25,6 +25,7 @@ import (
 	compcfg "github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta/collectors"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagproviderimpl"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/listeners"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/tagger"
@@ -72,6 +73,7 @@ func (suite *DockerListenerTestSuite) SetupSuite() {
 			Overrides: overrides,
 			Features:  []config.Feature{config.Docker},
 		}),
+		hosttagproviderimpl.Module(),
 		fx.Supply(workloadmeta.NewParams()),
 		collectors.GetCatalog(),
 		workloadmeta.Module(),

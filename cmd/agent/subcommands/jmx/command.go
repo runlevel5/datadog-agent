@@ -26,6 +26,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/aggregator/diagnosesendermanager"
 	"github.com/DataDog/datadog-agent/comp/aggregator/diagnosesendermanager/diagnosesendermanagerimpl"
 	internalAPI "github.com/DataDog/datadog-agent/comp/api/api"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagproviderimpl"
 
 	"github.com/DataDog/datadog-agent/comp/api/api/apiimpl"
 	"github.com/DataDog/datadog-agent/comp/core"
@@ -117,6 +118,7 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 			core.Bundle(),
 			diagnosesendermanagerimpl.Module(),
 			// workloadmeta setup
+			hosttagproviderimpl.Module(),
 			collectors.GetCatalog(),
 			fx.Supply(workloadmeta.Params{
 				InitHelper: common.GetWorkloadmetaInit(),

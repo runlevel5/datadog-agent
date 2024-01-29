@@ -12,13 +12,15 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagprovidermock"
 	"github.com/DataDog/datadog-agent/pkg/languagedetection/languagemodels"
 	langUtil "github.com/DataDog/datadog-agent/pkg/languagedetection/util"
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/process"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
-	"github.com/stretchr/testify/assert"
 
 	"go.uber.org/fx"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -212,6 +214,7 @@ func TestGetOwnersLanguages(t *testing.T) {
 func TestDetectedNewLanguages(t *testing.T) {
 	mockStore := fxutil.Test[workloadmeta.Mock](t, fx.Options(
 		core.MockBundle(),
+		hosttagprovidermock.MockModule(),
 		fx.Supply(workloadmeta.NewParams()),
 		workloadmeta.MockModuleV2(),
 	))
@@ -262,6 +265,7 @@ func TestPatchOwner(t *testing.T) {
 
 	mockStore := fxutil.Test[workloadmeta.Mock](t, fx.Options(
 		core.MockBundle(),
+		hosttagprovidermock.MockModule(),
 		fx.Supply(workloadmeta.NewParams()),
 		workloadmeta.MockModuleV2(),
 	))
@@ -326,6 +330,7 @@ func TestPatchOwner(t *testing.T) {
 func TestPatchAllOwners(t *testing.T) {
 	mockStore := fxutil.Test[workloadmeta.Mock](t, fx.Options(
 		core.MockBundle(),
+		hosttagprovidermock.MockModule(),
 		fx.Supply(workloadmeta.NewParams()),
 		workloadmeta.MockModuleV2(),
 	))

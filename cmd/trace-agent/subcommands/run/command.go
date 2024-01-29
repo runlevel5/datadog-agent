@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta/collectors"
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/statsd"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagproviderimpl"
 	"github.com/DataDog/datadog-agent/comp/trace"
 	"github.com/DataDog/datadog-agent/comp/trace/agent"
 	"github.com/DataDog/datadog-agent/comp/trace/config"
@@ -75,6 +76,7 @@ func runTraceAgentProcess(ctx context.Context, cliParams *RunParams, defaultConf
 		}),
 		corelogimpl.TraceModule(),
 		// setup workloadmeta
+		hosttagproviderimpl.Module(),
 		collectors.GetCatalog(),
 		fx.Supply(workloadmeta.Params{
 			AgentType:  workloadmeta.NodeAgent,

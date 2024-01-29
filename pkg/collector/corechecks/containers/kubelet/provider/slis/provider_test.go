@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta/collectors"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagprovidermock"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
 	checkid "github.com/DataDog/datadog-agent/pkg/collector/check/id"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/kubelet/common"
@@ -163,6 +164,7 @@ func TestProvider_Provide(t *testing.T) {
 
 			store := fxutil.Test[workloadmeta.Mock](t, fx.Options(
 				core.MockBundle(),
+				hosttagprovidermock.MockModule(),
 				collectors.GetCatalog(),
 				fx.Supply(workloadmeta.NewParams()),
 				workloadmeta.MockModuleV2(),

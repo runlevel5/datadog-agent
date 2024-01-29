@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core"
 	compcfg "github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagprovidermock"
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/process/checks"
 	workloadmetaExtractor "github.com/DataDog/datadog-agent/pkg/process/metadata/workloadmeta"
@@ -82,6 +83,7 @@ func setUpCollectorTest(t *testing.T) *collectorTest {
 
 	store := fxutil.Test[workloadmeta.Mock](t, fx.Options(
 		core.MockBundle(),
+		hosttagprovidermock.MockModule(),
 		fx.Replace(compcfg.MockParams{Overrides: overrides}),
 		fx.Supply(context.Background()),
 		fx.Supply(workloadmeta.NewParams()),

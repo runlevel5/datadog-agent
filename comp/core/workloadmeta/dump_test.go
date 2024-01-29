@@ -9,11 +9,13 @@ import (
 	"context"
 	"testing"
 
-	"github.com/DataDog/datadog-agent/comp/core/config"
-	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
-	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/fx"
+
+	"github.com/DataDog/datadog-agent/comp/core/config"
+	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagprovidermock"
+	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
 func TestDump(t *testing.T) {
@@ -21,6 +23,7 @@ func TestDump(t *testing.T) {
 	deps := fxutil.Test[dependencies](t, fx.Options(
 		logimpl.MockModule(),
 		config.MockModule(),
+		hosttagprovidermock.MockModule(),
 		fx.Supply(context.Background()),
 		fx.Supply(NewParams()),
 	))

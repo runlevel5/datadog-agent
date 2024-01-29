@@ -15,6 +15,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagproviderimpl"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
@@ -22,6 +23,7 @@ func TestLifecycle(t *testing.T) {
 	_ = fxutil.Test[Component](t, fx.Options(
 		Module(),
 		core.MockBundle(),
+		hosttagproviderimpl.Module(),
 		fx.Supply(workloadmeta.NewParams()),
 		workloadmeta.Module(),
 	))

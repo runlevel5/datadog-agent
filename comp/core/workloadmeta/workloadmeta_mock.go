@@ -14,6 +14,8 @@ import (
 	"context"
 	"sync"
 
+	"go.uber.org/fx"
+
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
@@ -23,6 +25,18 @@ import (
 const (
 	mockSource = Source("mockSource")
 )
+
+type mockDependencies struct {
+	fx.In
+
+	Lc fx.Lifecycle
+
+	Log     log.Component
+	Config  config.Component
+	Catalog CollectorList `group:"workloadmeta"`
+
+	Params Params
+}
 
 // store is a central storage of metadata about workloads. A workload is any
 // unit of work being done by a piece of software, like a process, a container,
@@ -36,7 +50,7 @@ type workloadMetaMock struct {
 	notifiedEvents []CollectorEvent
 }
 
-func newWorkloadMetaMock(deps dependencies) Mock {
+func newWorkloadMetaMock(deps mockDependencies) Mock {
 
 	mock := &workloadMetaMock{
 		log:    deps.Log,

@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagprovidermock"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 
 	"github.com/stretchr/testify/assert"
@@ -40,6 +41,7 @@ func testCollectEvent(t *testing.T, createResource func(*fake.Clientset) error, 
 
 	wlm := fxutil.Test[workloadmeta.Mock](t, fx.Options(
 		core.MockBundle(),
+		hosttagprovidermock.MockModule(),
 		fx.Replace(config.MockParams{Overrides: overrides}),
 		fx.Supply(context.Background()),
 		fx.Supply(workloadmeta.NewParams()),

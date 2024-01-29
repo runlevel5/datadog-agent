@@ -15,6 +15,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagprovidermock"
 	"github.com/DataDog/datadog-agent/pkg/errors"
 	"github.com/DataDog/datadog-agent/pkg/languagedetection/languagemodels"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
@@ -31,6 +32,7 @@ func TestHandleEvents(t *testing.T) {
 	deps := fxutil.Test[dependencies](t, fx.Options(
 		logimpl.MockModule(),
 		config.MockModule(),
+		hosttagprovidermock.MockModule(),
 		fx.Supply(NewParams()),
 	))
 
@@ -592,6 +594,7 @@ func TestSubscribe(t *testing.T) {
 			deps := fxutil.Test[dependencies](t, fx.Options(
 				logimpl.MockModule(),
 				config.MockModule(),
+				hosttagprovidermock.MockModule(),
 				fx.Supply(NewParams()),
 			))
 
@@ -634,6 +637,7 @@ func TestGetKubernetesDeployment(t *testing.T) {
 	deps := fxutil.Test[dependencies](t, fx.Options(
 		logimpl.MockModule(),
 		config.MockModule(),
+		hosttagprovidermock.MockModule(),
 		fx.Supply(NewParams()),
 	))
 
@@ -677,6 +681,7 @@ func TestGetProcess(t *testing.T) {
 	deps := fxutil.Test[dependencies](t, fx.Options(
 		logimpl.MockModule(),
 		config.MockModule(),
+		hosttagprovidermock.MockModule(),
 		fx.Supply(NewParams()),
 	))
 
@@ -756,6 +761,7 @@ func TestListContainers(t *testing.T) {
 			deps := fxutil.Test[dependencies](t, fx.Options(
 				logimpl.MockModule(),
 				config.MockModule(),
+				hosttagprovidermock.MockModule(),
 				fx.Supply(NewParams()),
 			))
 
@@ -794,6 +800,7 @@ func TestListContainersWithFilter(t *testing.T) {
 	deps := fxutil.Test[dependencies](t, fx.Options(
 		logimpl.MockModule(),
 		config.MockModule(),
+		hosttagprovidermock.MockModule(),
 		fx.Supply(NewParams()),
 	))
 
@@ -853,6 +860,7 @@ func TestListProcesses(t *testing.T) {
 			deps := fxutil.Test[dependencies](t, fx.Options(
 				logimpl.MockModule(),
 				config.MockModule(),
+				hosttagprovidermock.MockModule(),
 				fx.Supply(NewParams()),
 			))
 
@@ -891,6 +899,7 @@ func TestListProcessesWithFilter(t *testing.T) {
 	deps := fxutil.Test[dependencies](t, fx.Options(
 		logimpl.MockModule(),
 		config.MockModule(),
+		hosttagprovidermock.MockModule(),
 		fx.Supply(NewParams()),
 	))
 
@@ -1008,6 +1017,7 @@ func TestGetKubernetesPodByName(t *testing.T) {
 			deps := fxutil.Test[dependencies](t, fx.Options(
 				logimpl.MockModule(),
 				config.MockModule(),
+				hosttagprovidermock.MockModule(),
 				fx.Supply(NewParams()),
 			))
 
@@ -1069,6 +1079,7 @@ func TestListImages(t *testing.T) {
 			deps := fxutil.Test[dependencies](t, fx.Options(
 				logimpl.MockModule(),
 				config.MockModule(),
+				hosttagprovidermock.MockModule(),
 				fx.Supply(NewParams()),
 			))
 
@@ -1121,6 +1132,7 @@ func TestGetImage(t *testing.T) {
 			deps := fxutil.Test[dependencies](t, fx.Options(
 				logimpl.MockModule(),
 				config.MockModule(),
+				hosttagprovidermock.MockModule(),
 				fx.Supply(NewParams()),
 			))
 
@@ -1216,6 +1228,7 @@ func TestResetProcesses(t *testing.T) {
 			deps := fxutil.Test[dependencies](t, fx.Options(
 				logimpl.MockModule(),
 				config.MockModule(),
+				hosttagprovidermock.MockModule(),
 				fx.Supply(NewParams()),
 			))
 
@@ -1414,6 +1427,7 @@ func TestReset(t *testing.T) {
 			deps := fxutil.Test[dependencies](t, fx.Options(
 				logimpl.MockModule(),
 				config.MockModule(),
+				hosttagprovidermock.MockModule(),
 				fx.Supply(NewParams()),
 			))
 
@@ -1461,6 +1475,7 @@ func TestNoDataRace(t *testing.T) { //nolint:revive // TODO fix revive unused-pa
 	deps := fxutil.Test[dependencies](t, fx.Options(
 		logimpl.MockModule(),
 		config.MockModule(),
+		hosttagprovidermock.MockModule(),
 		fx.Supply(NewParams()),
 	))
 
@@ -1491,6 +1506,7 @@ func TestPushEvents(t *testing.T) {
 	deps := fxutil.Test[dependencies](t, fx.Options(
 		logimpl.MockModule(),
 		config.MockModule(),
+		hosttagprovidermock.MockModule(),
 		fx.Supply(NewParams()),
 	))
 

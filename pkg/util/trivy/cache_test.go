@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagprovidermock"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 
 	"github.com/aquasecurity/trivy/pkg/fanal/types"
@@ -225,6 +226,7 @@ func TestCustomBoltCache_GarbageCollector(t *testing.T) {
 	workloadmetaStore := fxutil.Test[workloadmeta.Mock](t, fx.Options(
 		logimpl.MockModule(),
 		config.MockModule(),
+		hosttagprovidermock.MockModule(),
 		fx.Supply(context.Background()),
 		fx.Supply(workloadmeta.NewParams()),
 		workloadmeta.MockModuleV2(),

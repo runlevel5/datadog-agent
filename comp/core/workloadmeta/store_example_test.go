@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"testing"
 
+	"go.uber.org/fx"
+
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagprovidermock"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
-	"go.uber.org/fx"
 )
 
 func TestExampleStoreSubscribe(t *testing.T) {
@@ -20,6 +22,7 @@ func TestExampleStoreSubscribe(t *testing.T) {
 	deps := fxutil.Test[dependencies](t, fx.Options(
 		logimpl.MockModule(),
 		config.MockModule(),
+		hosttagprovidermock.MockModule(),
 		fx.Supply(NewParams()),
 	))
 

@@ -30,6 +30,8 @@ import (
 	"go.uber.org/fx"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagprovidermock"
 )
 
 func TestGetContainerStats_Containerd(t *testing.T) {
@@ -106,6 +108,7 @@ func TestGetContainerStats_Containerd(t *testing.T) {
 			workloadmetaStore := fxutil.Test[workloadmeta.Mock](t, fx.Options(
 				logimpl.MockModule(),
 				config.MockModule(),
+				hosttagprovidermock.MockModule(),
 				fx.Supply(workloadmeta.NewParams()),
 				workloadmeta.MockModuleV2(),
 			))
@@ -173,6 +176,7 @@ func TestGetContainerNetworkStats_Containerd(t *testing.T) {
 			workloadmetaStore := fxutil.Test[workloadmeta.Mock](t, fx.Options(
 				logimpl.MockModule(),
 				config.MockModule(),
+				hosttagprovidermock.MockModule(),
 				fx.Supply(workloadmeta.NewParams()),
 				workloadmeta.MockModuleV2(),
 			))

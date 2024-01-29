@@ -5,11 +5,10 @@
 
 //go:build test
 
-package hosttagproviderimpl
+// Package hosttagprovider defines host tag provider Component
+package hosttagprovider
 
-// // MockModule defines the fx options for the mock component.
-// func MockModule() fxutil.Module {
-// 	return fxutil.Component(
-// 		fx.Provide(newMock),
-// 	)
-// }
+// Mock implements mock-specific methods.
+type Mock interface {
+	Component
+}

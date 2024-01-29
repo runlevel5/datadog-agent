@@ -27,6 +27,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta/collectors/internal/remote"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagprovidermock"
 	"github.com/DataDog/datadog-agent/pkg/api/security"
 	"github.com/DataDog/datadog-agent/pkg/languagedetection/languagemodels"
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/process"
@@ -245,6 +246,7 @@ func TestCollection(t *testing.T) {
 			// and initialize it out-of-band below. That's OK.
 			mockStore := fxutil.Test[workloadmeta.Mock](t, fx.Options(
 				core.MockBundle(),
+				hosttagprovidermock.MockModule(),
 				fx.Replace(config.MockParams{Overrides: overrides}),
 				fx.Supply(workloadmeta.Params{
 					AgentType: workloadmeta.Remote,

@@ -38,6 +38,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/forwarder"
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
 	orchestratorForwarderImpl "github.com/DataDog/datadog-agent/comp/forwarder/orchestrator/orchestratorimpl"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagproviderimpl"
 
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
 
@@ -113,6 +114,7 @@ func (s *service) Run(svcctx context.Context) error {
 		}),
 
 		// workloadmeta setup
+		hosttagproviderimpl.Module(),
 		collectors.GetCatalog(),
 		workloadmeta.Module(),
 		fx.Provide(func(config config.Component) workloadmeta.Params {

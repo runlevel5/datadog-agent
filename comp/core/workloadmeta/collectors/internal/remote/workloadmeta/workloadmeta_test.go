@@ -17,18 +17,20 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
-	"github.com/DataDog/datadog-agent/comp/core"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta/collectors/internal/remote"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta/server"
-	"github.com/DataDog/datadog-agent/pkg/api/security"
-	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
-	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
-	"github.com/DataDog/datadog-agent/pkg/util/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/DataDog/datadog-agent/comp/core"
+	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
+	"github.com/DataDog/datadog-agent/comp/core/workloadmeta/collectors/internal/remote"
+	"github.com/DataDog/datadog-agent/comp/core/workloadmeta/server"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagprovidermock"
+	"github.com/DataDog/datadog-agent/pkg/api/security"
+	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
+	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
+	"github.com/DataDog/datadog-agent/pkg/util/proto"
 )
 
 type serverSecure struct {
@@ -146,6 +148,7 @@ func TestCollection(t *testing.T) {
 	// workloadmeta server
 	mockServerStore := fxutil.Test[workloadmeta.Mock](t, fx.Options(
 		core.MockBundle(),
+		hosttagprovidermock.MockModule(),
 		fx.Supply(workloadmeta.NewParams()),
 		workloadmeta.MockModuleV2(),
 	))
@@ -182,6 +185,7 @@ func TestCollection(t *testing.T) {
 	// workloadmeta client store
 	mockClientStore := fxutil.Test[workloadmeta.Mock](t, fx.Options(
 		core.MockBundle(),
+		hosttagprovidermock.MockModule(),
 		fx.Supply(workloadmeta.Params{
 			AgentType: workloadmeta.Remote,
 		}),

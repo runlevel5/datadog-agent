@@ -47,6 +47,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/forwarder"
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
 	orchestratorForwarderImpl "github.com/DataDog/datadog-agent/comp/forwarder/orchestrator/orchestratorimpl"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagproviderimpl"
 	logagent "github.com/DataDog/datadog-agent/comp/logs/agent"
 	"github.com/DataDog/datadog-agent/comp/metadata/host"
 	"github.com/DataDog/datadog-agent/comp/metadata/inventoryagent"
@@ -148,6 +149,7 @@ func MakeCommand(globalParamsGetter func() GlobalParams) *cobra.Command {
 				core.Bundle(),
 
 				// workloadmeta setup
+				hosttagproviderimpl.Module(),
 				collectors.GetCatalog(),
 				fx.Provide(defaults.DefaultParams),
 				workloadmeta.Module(),

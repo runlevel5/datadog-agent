@@ -13,18 +13,20 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/fx"
+
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
 	"github.com/DataDog/datadog-agent/comp/core/telemetry"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagprovidermock"
 	clientComp "github.com/DataDog/datadog-agent/comp/languagedetection/client"
 	"github.com/DataDog/datadog-agent/pkg/languagedetection/languagemodels"
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/process"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/optional"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/fx"
 
 	langUtil "github.com/DataDog/datadog-agent/pkg/languagedetection/util"
 )
@@ -51,6 +53,7 @@ func newTestClient(t *testing.T) (*client, chan *pbgo.ParentLanguageAnnotationRe
 		}}),
 		telemetry.MockModule(),
 		logimpl.MockModule(),
+		hosttagprovidermock.MockModule(),
 		fx.Supply(workloadmeta.NewParams()),
 		workloadmeta.MockModuleV2(),
 		fx.Provide(func(m workloadmeta.Mock) workloadmeta.Component {
@@ -88,6 +91,7 @@ func TestClientEnabled(t *testing.T) {
 				}}),
 				telemetry.MockModule(),
 				logimpl.MockModule(),
+				hosttagprovidermock.MockModule(),
 				fx.Supply(workloadmeta.NewParams()),
 				workloadmeta.MockModuleV2(),
 				fx.Provide(func(m workloadmeta.Mock) workloadmeta.Component {

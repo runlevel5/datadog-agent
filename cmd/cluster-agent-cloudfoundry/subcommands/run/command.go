@@ -37,6 +37,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/forwarder"
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
 	orchestratorForwarderImpl "github.com/DataDog/datadog-agent/comp/forwarder/orchestrator/orchestratorimpl"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagproviderimpl"
 	"github.com/DataDog/datadog-agent/pkg/api/healthprobe"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/clusterchecks"
@@ -78,6 +79,7 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 					return params
 				}),
 				// setup workloadmeta
+				hosttagproviderimpl.Module(),
 				collectors.GetCatalog(),
 				fx.Supply(workloadmeta.Params{
 					InitHelper: common.GetWorkloadmetaInit(),

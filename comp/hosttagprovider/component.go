@@ -3,11 +3,12 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2024-present Datadog, Inc.
 
-//go:build test
-
+// Package hosttagprovider defines host tag provider Component
 package hosttagprovider
 
-// Mock implements mock-specific methods.
-type Mock interface {
-	Component
+// team: /* TODO: add team name */
+
+// Component is the component type.
+type Component interface {
+	HostTags() []string
 }
