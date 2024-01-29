@@ -49,6 +49,8 @@ const (
 	FchmodNr         = unix.SYS_FCHMOD            // FchmodNr defines the syscall ID for arm64
 	FchmodAtNr       = unix.SYS_FCHMODAT          // FchmodAtNr defines the syscall ID for arm64
 	FchmodAt2Nr      = unix.SYS_FCHMODAT2         // FchmodAt2Nr defines the syscall ID for arm64
+	FchownNr         = unix.SYS_FCHOWN            // FchownNr defines the syscall ID for arm64
+	FchownAtNr       = unix.SYS_FCHOWNAT          // FchownAtNr defines the syscall ID for arm64
 
 	OpenNr      = -1  // OpenNr not available on arm64
 	ForkNr      = -2  // ForkNr not available on arm64
@@ -65,6 +67,8 @@ const (
 	LinkNr      = -13 // LinkNr not available on arm64
 	SymlinkNr   = -14 // SymlinkNr not available on arm64
 	ChmodNr     = -15 // ChmodNr not available on arm64
+	ChownNr     = -16 // ChownNr not available on arm64
+	LchownNr    = -17 // LchownNr not available on arm64
 )
 
 func (t *Tracer) argToRegValue(regs syscall.PtraceRegs, arg int) uint64 {

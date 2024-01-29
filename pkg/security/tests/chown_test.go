@@ -82,7 +82,6 @@ func TestChown(t *testing.T) {
 			assert.Equal(t, "chown", event.GetType(), "wrong event type")
 			assert.Equal(t, int64(100), event.Chown.UID, "wrong user")
 			assert.Equal(t, int64(200), event.Chown.GID, "wrong user")
-			assert.Equal(t, getInode(t, testFile), event.Chown.File.Inode, "wrong inode")
 			assertRights(t, event.Chown.File.Mode, uint16(expectedMode), "wrong initial mode")
 			assert.Equal(t, uint32(prevUID), event.Chown.File.UID, "wrong initial user")
 			assert.Equal(t, uint32(prevGID), event.Chown.File.GID, "wrong initial group")
@@ -92,7 +91,10 @@ func TestChown(t *testing.T) {
 			value, _ := event.GetFieldValue("event.async")
 			assert.Equal(t, value.(bool), false)
 
-			test.validateChownSchema(t, event)
+			if !test.opts.staticOpts.enableEBPFLess {
+				assert.Equal(t, getInode(t, testFile), event.Chown.File.Inode, "wrong inode")
+				test.validateChownSchema(t, event)
+			}
 		})
 	})
 
@@ -111,7 +113,6 @@ func TestChown(t *testing.T) {
 			assert.Equal(t, "chown", event.GetType(), "wrong event type")
 			assert.Equal(t, int64(101), event.Chown.UID, "wrong user")
 			assert.Equal(t, int64(201), event.Chown.GID, "wrong user")
-			assert.Equal(t, getInode(t, testFile), event.Chown.File.Inode, "wrong inode")
 			assertRights(t, event.Chown.File.Mode, uint16(expectedMode), "wrong initial mode")
 			assert.Equal(t, uint32(prevUID), event.Chown.File.UID, "wrong initial user")
 			assert.Equal(t, uint32(prevGID), event.Chown.File.GID, "wrong initial group")
@@ -121,7 +122,10 @@ func TestChown(t *testing.T) {
 			value, _ := event.GetFieldValue("event.async")
 			assert.Equal(t, value.(bool), false)
 
-			test.validateChownSchema(t, event)
+			if !test.opts.staticOpts.enableEBPFLess {
+				assert.Equal(t, getInode(t, testFile), event.Chown.File.Inode, "wrong inode")
+				test.validateChownSchema(t, event)
+			}
 		})
 	})
 
@@ -150,7 +154,6 @@ func TestChown(t *testing.T) {
 			assertTriggeredRule(t, rule, "test_rule2")
 			assert.Equal(t, int64(102), event.Chown.UID, "wrong user")
 			assert.Equal(t, int64(202), event.Chown.GID, "wrong user")
-			assert.Equal(t, getInode(t, testSymlink), event.Chown.File.Inode, "wrong inode")
 			assertRights(t, event.Chown.File.Mode, 0o777, "wrong initial mode")
 			assert.Equal(t, uint32(0), event.Chown.File.UID, "wrong initial user")
 			assert.Equal(t, uint32(0), event.Chown.File.GID, "wrong initial group")
@@ -160,7 +163,10 @@ func TestChown(t *testing.T) {
 			value, _ := event.GetFieldValue("event.async")
 			assert.Equal(t, value.(bool), false)
 
-			test.validateChownSchema(t, event)
+			if !test.opts.staticOpts.enableEBPFLess {
+				assert.Equal(t, getInode(t, testSymlink), event.Chown.File.Inode, "wrong inode")
+				test.validateChownSchema(t, event)
+			}
 		})
 	}))
 
@@ -176,7 +182,6 @@ func TestChown(t *testing.T) {
 			assert.Equal(t, "chown", event.GetType(), "wrong event type")
 			assert.Equal(t, int64(103), event.Chown.UID, "wrong user")
 			assert.Equal(t, int64(203), event.Chown.GID, "wrong user")
-			assert.Equal(t, getInode(t, testFile), event.Chown.File.Inode, "wrong inode")
 			assertRights(t, event.Chown.File.Mode, uint16(expectedMode), "wrong initial mode")
 			assert.Equal(t, uint32(prevUID), event.Chown.File.UID, "wrong initial user")
 			assert.Equal(t, uint32(prevGID), event.Chown.File.GID, "wrong initial group")
@@ -186,7 +191,10 @@ func TestChown(t *testing.T) {
 			value, _ := event.GetFieldValue("event.async")
 			assert.Equal(t, value.(bool), false)
 
-			test.validateChownSchema(t, event)
+			if !test.opts.staticOpts.enableEBPFLess {
+				assert.Equal(t, getInode(t, testFile), event.Chown.File.Inode, "wrong inode")
+				test.validateChownSchema(t, event)
+			}
 		})
 	}))
 
@@ -208,7 +216,9 @@ func TestChown(t *testing.T) {
 			value, _ := event.GetFieldValue("event.async")
 			assert.Equal(t, value.(bool), false)
 
-			test.validateChownSchema(t, event)
+			if !test.opts.staticOpts.enableEBPFLess {
+				test.validateChownSchema(t, event)
+			}
 		})
 	}))
 
@@ -230,7 +240,9 @@ func TestChown(t *testing.T) {
 			value, _ := event.GetFieldValue("event.async")
 			assert.Equal(t, value.(bool), false)
 
-			test.validateChownSchema(t, event)
+			if !test.opts.staticOpts.enableEBPFLess {
+				test.validateChownSchema(t, event)
+			}
 		})
 	}))
 

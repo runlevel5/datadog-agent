@@ -183,6 +183,25 @@ func registerFIMHandlers(handlers map[int]syscallHandler) []string {
 			ShouldSend: isAcceptedRetval,
 			RetFunc:    nil,
 		},
+
+		{
+			IDs:        []syscallID{{ID: ChownNr, Name: "chown"}, {ID: LchownNr, Name: "lchown"}, {ID: Chown32Nr, Name: "chown32"}},
+			Func:       handleChown,
+			ShouldSend: isAcceptedRetval,
+			RetFunc:    nil,
+		},
+		{
+			IDs:        []syscallID{{ID: FchownNr, Name: "fchown"}},
+			Func:       handleFchown,
+			ShouldSend: isAcceptedRetval,
+			RetFunc:    nil,
+		},
+		{
+			IDs:        []syscallID{{ID: FchownAtNr, Name: "fchownat"}},
+			Func:       handleFchownAt,
+			ShouldSend: isAcceptedRetval,
+			RetFunc:    nil,
+		},
 	}
 
 	syscallList := []string{}
@@ -912,6 +931,71 @@ func handleFchmodAt(tracer *Tracer, process *Process, msg *ebpfless.SyscallMsg, 
 		Mode: uint32(tracer.ReadArgUint64(regs, 2)),
 	}
 	return fillFileMetadata(filename, &msg.Chmod.File, disableStats)
+}
+
+func handleChown(tracer *Tracer, process *Process, msg *ebpfless.SyscallMsg, regs syscall.PtraceRegs, disableStats bool) error {
+	filename, err := tracer.ReadArgString(process.Pid, regs, 0)
+	if err != nil {
+		return err
+	}
+
+	filename, err = getFullPathFromFilename(process, filename)
+	if err != nil {
+		return err
+	}
+
+	msg.Type = ebpfless.SyscallTypeChown
+	msg.Chown = &ebpfless.ChownSyscallMsg{
+		File: ebpfless.OpenSyscallMsg{
+			Filename: filename,
+		},
+		UID: int32(tracer.ReadArgUint64(regs, 1)),
+		GID: int32(tracer.ReadArgUint64(regs, 2)),
+	}
+	return fillFileMetadata(filename, &msg.Chown.File, disableStats)
+}
+
+func handleFchown(tracer *Tracer, process *Process, msg *ebpfless.SyscallMsg, regs syscall.PtraceRegs, disableStats bool) error {
+	fd := tracer.ReadArgInt32(regs, 0)
+
+	filename, found := process.Res.Fd[fd]
+	if !found {
+		return errors.New("FD cache incomplete")
+	}
+
+	msg.Type = ebpfless.SyscallTypeChown
+	msg.Chown = &ebpfless.ChownSyscallMsg{
+		File: ebpfless.OpenSyscallMsg{
+			Filename: filename,
+		},
+		UID: int32(tracer.ReadArgUint64(regs, 1)),
+		GID: int32(tracer.ReadArgUint64(regs, 2)),
+	}
+	return fillFileMetadata(filename, &msg.Chown.File, disableStats)
+}
+
+func handleFchownAt(tracer *Tracer, process *Process, msg *ebpfless.SyscallMsg, regs syscall.PtraceRegs, disableStats bool) error {
+	fd := tracer.ReadArgInt32(regs, 0)
+
+	filename, err := tracer.ReadArgString(process.Pid, regs, 1)
+	if err != nil {
+		return err
+	}
+
+	filename, err = getFullPathFromFd(process, filename, fd)
+	if err != nil {
+		return err
+	}
+
+	msg.Type = ebpfless.SyscallTypeChown
+	msg.Chown = &ebpfless.ChownSyscallMsg{
+		File: ebpfless.OpenSyscallMsg{
+			Filename: filename,
+		},
+		UID: int32(tracer.ReadArgUint64(regs, 2)),
+		GID: int32(tracer.ReadArgUint64(regs, 3)),
+	}
+	return fillFileMetadata(filename, &msg.Chown.File, disableStats)
 }
 
 //

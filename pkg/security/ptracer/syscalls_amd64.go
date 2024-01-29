@@ -64,6 +64,10 @@ const (
 	FchmodNr         = unix.SYS_FCHMOD            // FchmodNr defines the syscall ID for amd64
 	FchmodAtNr       = unix.SYS_FCHMODAT          // FchmodAtNr defines the syscall ID for amd64
 	FchmodAt2Nr      = unix.SYS_FCHMODAT2         // FchmodAt2Nr defines the syscall ID for amd64
+	ChownNr          = unix.SYS_CHOWN             // ChownNr defines the syscall ID for amd64
+	FchownNr         = unix.SYS_FCHOWN            // FchownNr defines the syscall ID for amd64
+	FchownAtNr       = unix.SYS_FCHOWNAT          // FchownAtNr defines the syscall ID for amd64
+	LchownNr         = unix.SYS_LCHOWN            // LchownNr defines the syscall ID for amd64
 )
 
 // https://github.com/torvalds/linux/blob/v5.0/arch/x86/entry/entry_64.S#L126

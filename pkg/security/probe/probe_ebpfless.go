@@ -208,6 +208,13 @@ func (p *EBPFLessProbe) handleSyscallMsg(cl *client, syscallMsg *ebpfless.Syscal
 		event.Chmod.Retval = syscallMsg.Retval
 		event.Chmod.Mode = syscallMsg.Chmod.Mode
 		copyFileAttributes(&syscallMsg.Chmod.File, &event.Chmod.File)
+
+	case ebpfless.SyscallTypeChown:
+		event.Type = uint32(model.FileChownEventType)
+		event.Chown.Retval = syscallMsg.Retval
+		event.Chown.UID = int64(syscallMsg.Chown.UID)
+		event.Chown.GID = int64(syscallMsg.Chown.GID)
+		copyFileAttributes(&syscallMsg.Chown.File, &event.Chown.File)
 	}
 
 	// container context
