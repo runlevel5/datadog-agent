@@ -26,6 +26,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/security/config"
 	"github.com/DataDog/datadog-agent/pkg/security/probe/kfilters"
+	"github.com/DataDog/datadog-agent/pkg/security/probe/packet"
 	"github.com/DataDog/datadog-agent/pkg/security/proto/ebpfless"
 	"github.com/DataDog/datadog-agent/pkg/security/resolvers"
 	"github.com/DataDog/datadog-agent/pkg/security/resolvers/process"
@@ -55,7 +56,8 @@ type clientMsg struct {
 type EBPFLessProbe struct {
 	sync.Mutex
 
-	Resolvers *resolvers.EBPFLessResolvers
+	Resolvers     *resolvers.EBPFLessResolvers
+	packetManager *packet.Manager
 
 	// Constants and configuration
 	opts         Opts
@@ -384,6 +386,9 @@ func (p *EBPFLessProbe) Start() error {
 
 	seclog.Infof("starting listening for ebpf less events on : %s", p.config.RuntimeSecurity.EBPFLessSocket)
 
+	p.packetManager.UpdateFilters(packet.WithDNSFilter())
+	seclog.Infof("starting capture dns packets")
+
 	return nil
 }
 
@@ -487,6 +492,8 @@ func NewEBPFLessProbe(probe *Probe, config *config.Config, opts Opts) (*EBPFLess
 	if err != nil {
 		return nil, err
 	}
+
+	p.packetManager = packet.NewManager(ctx)
 
 	p.fieldHandlers = &EBPFLessFieldHandlers{resolvers: p.Resolvers}
 
