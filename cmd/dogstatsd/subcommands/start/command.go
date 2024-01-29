@@ -23,6 +23,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig"
+	"github.com/DataDog/datadog-agent/comp/hosttagprovider/hosttagproviderimpl"
 
 	//nolint:revive // TODO(AML) Fix revive linter
 	logComponent "github.com/DataDog/datadog-agent/comp/core/log/logimpl"
@@ -123,6 +124,7 @@ func RunDogstatsdFct(cliParams *CLIParams, defaultConfPath string, defaultLogFil
 		forwarder.Bundle(),
 		fx.Provide(defaultforwarder.NewParams),
 		// workloadmeta setup
+		hosttagproviderimpl.Module(),
 		collectors.GetCatalog(),
 		fx.Provide(func(config config.Component) workloadmeta.Params {
 			catalog := workloadmeta.NodeAgent
