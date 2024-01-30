@@ -16,7 +16,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/proto/ebpfless"
 )
 
-func registerProcessHandlers(handlers map[int]syscallHandler) []string {
+func registerProcessHandlers(handlers map[int]syscallHandler) ([]string, []string) {
 	processHandlers := []syscallHandler{
 		{
 			IDs:        []syscallID{{ID: ExecveNr, Name: "execve"}},
@@ -86,16 +86,21 @@ func registerProcessHandlers(handlers map[int]syscallHandler) []string {
 		},
 	}
 
-	syscallList := []string{}
+	syscallList32 := []string{}
+	syscallList64 := []string{}
 	for _, h := range processHandlers {
 		for _, id := range h.IDs {
 			if id.ID >= 0 { // insert only available syscalls
 				handlers[id.ID] = h
-				syscallList = append(syscallList, id.Name)
+				if id.SyscallABI == syscallABI32Bits {
+					syscallList32 = append(syscallList32, id.Name)
+				} else {
+					syscallList64 = append(syscallList64, id.Name)
+				}
 			}
 		}
 	}
-	return syscallList
+	return syscallList32, syscallList64
 }
 
 //

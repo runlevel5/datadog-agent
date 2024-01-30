@@ -11,6 +11,7 @@ package ptracer
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"syscall"
 	"time"
 
@@ -19,7 +20,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/proto/ebpfless"
 )
 
-func registerFIMHandlers(handlers map[int]syscallHandler) []string {
+func registerFIMHandlers(handlers map[int]syscallHandler) ([]string, []string) {
 	fimHandlers := []syscallHandler{
 		{
 			IDs:        []syscallID{{ID: OpenNr, Name: "open"}},
@@ -178,14 +179,22 @@ func registerFIMHandlers(handlers map[int]syscallHandler) []string {
 			RetFunc:    nil,
 		},
 		{
-			IDs:        []syscallID{{ID: FchmodAtNr, Name: "fchmodat"}, {ID: FchmodAt2Nr, Name: "fchmodat2"}},
+			// IDs:        []syscallID{{ID: FchmodAtNr, Name: "fchmodat"}, {ID: FchmodAt2Nr, Name: "fchmodat2"}},
+			IDs:        []syscallID{{ID: FchmodAtNr, Name: "fchmodat"}},
 			Func:       handleFchmodAt,
 			ShouldSend: isAcceptedRetval,
 			RetFunc:    nil,
 		},
 
 		{
-			IDs:        []syscallID{{ID: ChownNr, Name: "chown"}, {ID: LchownNr, Name: "lchown"}, {ID: Chown32Nr, Name: "chown32"}},
+			IDs: []syscallID{
+				{ID: ChownNr, Name: "chown"},
+				{ID: LchownNr, Name: "lchown"},
+				// {ID: ChownNr | 0x40000000, Name: "chown", SyscallABI: syscallABI32Bits},
+				{ID: 182 /* 1073741916 */ /* 92 | 0x40000000 */, Name: "chown", SyscallABI: syscallABI32Bits},
+				{ID: 95 /* 1073741916 */ /* 92 | 0x40000000 */, Name: "fchown", SyscallABI: syscallABI32Bits},
+			},
+			// IDs:        []syscallID{{ID: ChownNr, Name: "chown"}, {ID: LchownNr, Name: "lchown"}},
 			Func:       handleChown,
 			ShouldSend: isAcceptedRetval,
 			RetFunc:    nil,
@@ -204,16 +213,21 @@ func registerFIMHandlers(handlers map[int]syscallHandler) []string {
 		},
 	}
 
-	syscallList := []string{}
+	syscallList32 := []string{}
+	syscallList64 := []string{}
 	for _, h := range fimHandlers {
 		for _, id := range h.IDs {
 			if id.ID >= 0 { // insert only available syscalls
 				handlers[id.ID] = h
-				syscallList = append(syscallList, id.Name)
+				if id.SyscallABI == syscallABI32Bits {
+					syscallList32 = append(syscallList32, id.Name)
+				} else {
+					syscallList64 = append(syscallList64, id.Name)
+				}
 			}
 		}
 	}
-	return syscallList
+	return syscallList32, syscallList64
 }
 
 //
@@ -934,7 +948,22 @@ func handleFchmodAt(tracer *Tracer, process *Process, msg *ebpfless.SyscallMsg, 
 }
 
 func handleChown(tracer *Tracer, process *Process, msg *ebpfless.SyscallMsg, regs syscall.PtraceRegs, disableStats bool) error {
-	filename, err := tracer.ReadArgString(process.Pid, regs, 0)
+
+	dumpRegs(regs)
+
+	// ARG0
+	arg0, err := tracer.readString32(process.Pid, uint32(regs.R15))
+	if err != nil {
+		return err
+	}
+	// ARG1
+	arg1 := uint32(regs.R15 >> 32)
+	// ARG2
+	arg2 := uint32(regs.R14)
+	fmt.Printf("ARG0: %s, ARG1: %d, ARG2: %d\n", arg0, arg1, arg2)
+
+	// filename, err := tracer.ReadArgString(process.Pid, regs, 0)
+	filename, err := tracer.ReadArgString(process.Pid, regs, 3)
 	if err != nil {
 		return err
 	}

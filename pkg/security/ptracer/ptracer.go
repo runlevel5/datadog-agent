@@ -11,11 +11,13 @@ package ptracer
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"runtime"
+	"strings"
 	"syscall"
 
-	"github.com/elastic/go-seccomp-bpf"
+	seccomp "github.com/elastic/go-seccomp-bpf"
 	"github.com/elastic/go-seccomp-bpf/arch"
 	"golang.org/x/net/bpf"
 	"golang.org/x/sys/unix"
@@ -68,9 +70,10 @@ type Creds struct {
 
 // Opts defines syscall filters
 type Opts struct {
-	Syscalls []string
-	Creds    Creds
-	Logger   Logger
+	Syscalls32 []string
+	Syscalls64 []string
+	Creds      Creds
+	Logger     Logger
 }
 
 func processVMReadv(pid int, addr uintptr, data []byte) (int, error) {
@@ -88,6 +91,21 @@ func processVMReadv(pid int, addr uintptr, data []byte) (int, error) {
 }
 
 func (t *Tracer) readString(pid int, ptr uint64) (string, error) {
+	data := make([]byte, MaxStringSize)
+
+	_, err := processVMReadv(pid, uintptr(ptr), data)
+	if err != nil {
+		return "", err
+	}
+
+	n := bytes.Index(data[:], []byte{0})
+	if n < 0 {
+		return "", nil
+	}
+	return string(data[:n]), nil
+}
+
+func (t *Tracer) readString32(pid int, ptr uint32) (string, error) {
 	data := make([]byte, MaxStringSize)
 
 	_, err := processVMReadv(pid, uintptr(ptr), data)
@@ -275,6 +293,7 @@ func (t *Tracer) Trace(cb func(cbType CallbackType, nr int, pid int, ppid int, r
 			}
 
 			nr := GetSyscallNr(regs)
+			fmt.Printf("GetSyscallNr: %d\n", nr)
 			if nr == 0 {
 				nr = prevNr
 			}
@@ -323,21 +342,146 @@ func (t *Tracer) Trace(cb func(cbType CallbackType, nr int, pid int, ppid int, r
 	return nil
 }
 
+func myToSyscallsWithConditions(group *seccomp.SyscallGroup, arch *arch.Info) ([]seccomp.SyscallWithConditions, error) {
+	var (
+		syscalls []seccomp.SyscallWithConditions
+		problems []string
+	)
+	for _, name := range group.Names {
+		if num, found := arch.SyscallNames[name]; found {
+			syscall := uint32(num | arch.SeccompMask)
+			syscalls = append(syscalls, seccomp.SyscallWithConditions{Num: syscall})
+			fmt.Printf("Add %s:%d:%d\n", name, num, syscall)
+			// no check of duplicates
+		} else {
+			problems = append(problems, fmt.Sprintf("found unknown syscalls for arch %v: %v", arch.Name, name))
+		}
+	}
+
+	// syscalls = append(syscalls, seccomp.SyscallWithConditions{
+	// 	// Num: 212 | 0x40000000 /* arch.X32.SeccompMask */})
+	// 	Num: ChownNr | 0x40000000 /* arch.X32.SeccompMask */})
+
+	if len(problems) > 0 {
+		return nil, fmt.Errorf(strings.Join(problems, "\n"))
+	}
+	return syscalls, nil
+}
+
+func myGroupAssemble(group *seccomp.SyscallGroup, arch *arch.Info, defaultAction seccomp.Action) ([]bpf.Instruction, error) {
+	// Validate the syscalls.
+	syscalls, err := myToSyscallsWithConditions(group, arch)
+	if err != nil {
+		return nil, err
+	}
+
+	p := seccomp.NewProgram()
+
+	action := p.NewLabel()
+	for _, syscall := range syscalls {
+		syscall.Assemble(&p, action)
+	}
+
+	p.Ret(defaultAction)
+
+	p.SetLabel(action)
+	p.Ret(group.Action)
+
+	return p.Assemble()
+}
+
+func myPolicyAssemble(policy *seccomp.Policy) ([]bpf.Instruction, error) {
+	if len(policy.Syscalls) != 2 {
+		return nil, errors.New("policy should contains 2 groups of syscalls, one for 32 and one for 64bits ABIs")
+	}
+
+	arch64, err := arch.GetInfo("")
+	if err != nil {
+		return nil, err
+	}
+
+	var arch32 *arch.Info
+	if arch64.Name == "x86_64" {
+		// TODO: handle both x32 and i386 abis
+		// arch32 = arch.X32
+		arch32 = arch.I386
+	} else if arch64.Name == "aarch64" {
+		arch32 = arch.ARM
+	} else {
+		return nil, errors.New("Arch " + arch64.Name + " not supported")
+	}
+
+	var instructions []bpf.Instruction
+
+	group64 := policy.Syscalls[0]
+	insts64, err := myGroupAssemble(&group64, arch64, policy.DefaultAction)
+	if err != nil {
+		return nil, err
+	}
+	instructions = insts64
+
+	group32 := policy.Syscalls[1]
+	insts32, err := myGroupAssemble(&group32, arch32, policy.DefaultAction)
+	if err != nil {
+		return nil, err
+	}
+	instructions = append(instructions, insts32...)
+
+	fmt.Printf("\ninstructions: %+v\n\n", instructions)
+
+	program := []bpf.Instruction{bpf.LoadAbsolute{Off: 4 /* archOffset */, Size: 4 /* sizeOfUint32 */}}
+
+	// // TODO: handle both 64 and 32 bits ABIs, specially for ARM (x86_64/x32 have the same ID)
+	// // If the loaded arch ID is not equal p.arch.ID, jump to the final Ret instruction.
+	// jumpN := len(instructions) - 1
+	// fmt.Printf("jumpN: %d\n", jumpN)
+	// if jumpN <= 255 {
+	// 	program = append(program, bpf.JumpIf{Cond: bpf.JumpNotEqual, Val: uint32(arch64.ID), SkipTrue: uint8(jumpN)})
+	// } else {
+	// 	// JumpIf can not handle long jumps, so we switch to two instructions for this case.
+	// 	program = append(program, bpf.JumpIf{Cond: bpf.JumpEqual, Val: uint32(arch64.ID), SkipTrue: 1})
+	// 	program = append(program, bpf.Jump{Skip: uint32(jumpN)})
+	// }
+	// program = append(program, bpf.LoadAbsolute{Size: 4 /* sizeOfUint32 */})
+	// program = append(program, instructions...)
+
+	// If the loaded arch ID is not equal p.arch.ID, jump to the final Ret instruction.
+	jumpN := len(insts32) - 1
+	if jumpN <= 255 {
+		program = append(program, bpf.JumpIf{Cond: bpf.JumpNotEqual, Val: uint32(arch32.ID), SkipTrue: uint8(jumpN)})
+	} else {
+		// JumpIf can not handle long jumps, so we switch to two instructions for this case.
+		program = append(program, bpf.JumpIf{Cond: bpf.JumpEqual, Val: uint32(arch64.ID), SkipTrue: 1})
+		program = append(program, bpf.Jump{Skip: uint32(jumpN)})
+	}
+	program = append(program, bpf.LoadAbsolute{Size: 4 /* sizeOfUint32 */})
+	program = append(program, instructions...)
+
+	fmt.Printf("\nprogram: %+v\n\n", program)
+
+	return program, nil
+}
+
 func traceFilterProg(opts Opts) (*syscall.SockFprog, error) {
 	policy := seccomp.Policy{
 		DefaultAction: seccomp.ActionAllow,
 		Syscalls: []seccomp.SyscallGroup{
 			{
 				Action: seccomp.ActionTrace,
-				Names:  opts.Syscalls,
+				Names:  opts.Syscalls64,
+			},
+			{
+				Action: seccomp.ActionTrace,
+				Names:  opts.Syscalls32,
 			},
 		},
 	}
 
-	insts, err := policy.Assemble()
+	insts, err := myPolicyAssemble(&policy)
 	if err != nil {
 		return nil, err
 	}
+
 	rawInsts, err := bpf.Assemble(insts)
 	if err != nil {
 		return nil, err

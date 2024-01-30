@@ -33,9 +33,17 @@ type syscallHandlerFunc func(tracer *Tracer, process *Process, msg *ebpfless.Sys
 
 type shouldSendFunc func(ret int64) bool
 
+type syscallABI uint8
+
+const (
+	syscallABI64Bits syscallABI = iota
+	syscallABI32Bits
+)
+
 type syscallID struct {
-	ID   int
-	Name string
+	ID         int
+	Name       string
+	SyscallABI syscallABI
 }
 
 type syscallHandler struct {
@@ -168,13 +176,16 @@ func StartCWSPtracer(args []string, envs []string, probeAddr string, creds Creds
 	}
 
 	syscallHandlers := make(map[int]syscallHandler)
-	PtracedSyscalls := registerFIMHandlers(syscallHandlers)
-	PtracedSyscalls = append(PtracedSyscalls, registerProcessHandlers(syscallHandlers)...)
+	PtracedSyscalls32, PtracedSyscalls64 := registerFIMHandlers(syscallHandlers)
+	p32, p64 := registerProcessHandlers(syscallHandlers)
+	PtracedSyscalls32 = append(PtracedSyscalls32, p32...)
+	PtracedSyscalls64 = append(PtracedSyscalls64, p64...)
 
 	opts := Opts{
-		Syscalls: PtracedSyscalls,
-		Creds:    creds,
-		Logger:   logger,
+		Syscalls32: PtracedSyscalls32,
+		Syscalls64: PtracedSyscalls64,
+		Creds:      creds,
+		Logger:     logger,
 	}
 
 	tracer, err := NewTracer(entry, args, envs, opts)

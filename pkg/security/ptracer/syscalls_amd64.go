@@ -8,6 +8,7 @@
 package ptracer
 
 import (
+	"fmt"
 	"syscall"
 
 	"golang.org/x/sys/unix"
@@ -90,6 +91,52 @@ func (t *Tracer) argToRegValue(regs syscall.PtraceRegs, arg int) uint64 {
 	return 0
 }
 
+func (t *Tracer) argToRegValue32(regs syscall.PtraceRegs, arg int) uint32 {
+	switch arg {
+	case 0:
+		return uint32(regs.R15)
+	case 1:
+		return uint32(regs.R15 >> 32)
+	case 2:
+		return uint32(regs.R14)
+		// case 3:
+		// 	return regs.R10
+		// case 4:
+		// 	return regs.R8
+		// case 5:
+		// 	return regs.R9
+	}
+
+	return 0
+}
+
+/*
+32bits:
+   SYSCALL ID: RBX
+ARG0: R15
+ARG1: R15 >> 32
+ARG2: R14
+ARG3:
+ARG4:
+ARG5:
+*/
+
+func dumpRegs(regs syscall.PtraceRegs) {
+	fmt.Printf("ALL REGS: %+v\n\n", regs)
+	fmt.Printf("REG R15   : %d\n", uint32(regs.R15))
+	fmt.Printf("REG R15 >>: %d\n", uint32(regs.R15>>32))
+	fmt.Printf("REG R14   : %d\n", uint32(regs.R14))
+	fmt.Printf("REG R14 >>: %d\n", uint32(regs.R14>>32))
+	fmt.Printf("REG R13   : %d\n", uint32(regs.R13))
+	fmt.Printf("REG R13 >>: %d\n", uint32(regs.R13>>32))
+	fmt.Printf("REG R12   : %d\n", uint32(regs.R12))
+	fmt.Printf("REG R12 >>: %d\n", uint32(regs.R12>>32))
+	fmt.Printf("REG R11   : %d\n", uint32(regs.R11))
+	fmt.Printf("REG R11 >>: %d\n", uint32(regs.R11>>32))
+	fmt.Printf("REG R10   : %d\n", uint32(regs.R10))
+	fmt.Printf("REG R10 >>: %d\n", uint32(regs.R10>>32))
+}
+
 // ReadRet reads and returns the return value
 func (t *Tracer) ReadRet(regs syscall.PtraceRegs) int64 {
 	return int64(regs.Rax)
@@ -97,5 +144,11 @@ func (t *Tracer) ReadRet(regs syscall.PtraceRegs) int64 {
 
 // GetSyscallNr returns the given syscall number
 func GetSyscallNr(regs syscall.PtraceRegs) int {
-	return int(regs.Orig_rax)
+	sys64 := int(regs.Orig_rax)
+	if sys64 != 0 {
+		return sys64
+	} else if regs.Rbx != 0 { // 32bit abi stores it in RBX
+		return int(uint32(regs.Rbx >> 32))
+	}
+	return 0
 }
