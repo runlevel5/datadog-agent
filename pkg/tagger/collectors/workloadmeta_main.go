@@ -84,11 +84,14 @@ func (c *WorkloadMetaCollector) injectHostTags() {
 	if duration <= 0 {
 		return
 	}
+	tags := hosttags.GetHostTags(context.TODO(), false, config.Datadog).System
+	log.Debugf("Adding host tags to metrics for %v : %v", duration, tags)
+
 	c.tagProcessor.ProcessTagInfo([]*TagInfo{
 		{
 			Source:      hostSource,
 			Entity:      HostEntityID,
-			LowCardTags: hosttags.GetHostTags(context.TODO(), false, config.Datadog).System,
+			LowCardTags: tags,
 			ExpiryDate:  time.Now().Add(duration), // Ensure host tags are expired after the configured interval
 		},
 	})
