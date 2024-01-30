@@ -98,5 +98,4 @@ class TestModules(unittest.TestCase):
                 self.assertIsInstance(module, dict)
                 required = self.get_agent_required(module)
                 replaced = self.get_agent_replaced(module)
-                required_not_replaced = required - replaced
-                self.assertEqual(required_not_replaced, set(), f"in module {module_path}")
+                self.assertEqual(required, replaced, f"in module {module_path}")

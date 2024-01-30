@@ -3,9 +3,7 @@ module github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder
 go 1.21
 
 replace (
-	github.com/DataDog/datadog-agent/cmd/agent/common/path => ../../../cmd/agent/common/path
 	github.com/DataDog/datadog-agent/comp/core/config => ../../core/config
-	github.com/DataDog/datadog-agent/comp/core/flare/types => ../../core/flare/types
 	github.com/DataDog/datadog-agent/comp/core/log => ../../core/log
 	github.com/DataDog/datadog-agent/comp/core/secrets => ../../core/secrets
 	github.com/DataDog/datadog-agent/comp/core/status => ../../core/status
@@ -27,7 +25,6 @@ replace (
 	github.com/DataDog/datadog-agent/pkg/util/common => ../../../pkg/util/common
 	github.com/DataDog/datadog-agent/pkg/util/executable => ../../../pkg/util/executable
 	github.com/DataDog/datadog-agent/pkg/util/filesystem => ../../../pkg/util/filesystem
-	github.com/DataDog/datadog-agent/pkg/util/flavor => ../../../pkg/util/flavor
 	github.com/DataDog/datadog-agent/pkg/util/fxutil => ../../../pkg/util/fxutil
 	github.com/DataDog/datadog-agent/pkg/util/hostname/validate => ../../../pkg/util/hostname/validate
 	github.com/DataDog/datadog-agent/pkg/util/http => ../../../pkg/util/http

@@ -3,13 +3,10 @@ module github.com/DataDog/datadog-agent/pkg/config/remote
 go 1.21
 
 replace (
-	github.com/DataDog/datadog-agent/comp/core/telemetry => ../../../comp/core/telemetry
 	github.com/DataDog/datadog-agent/pkg/config/model => ../model
 	github.com/DataDog/datadog-agent/pkg/proto => ../../proto
 	github.com/DataDog/datadog-agent/pkg/remoteconfig/state => ../../remoteconfig/state
-	github.com/DataDog/datadog-agent/pkg/telemetry => ../../telemetry
 	github.com/DataDog/datadog-agent/pkg/util/backoff => ../../util/backoff
-	github.com/DataDog/datadog-agent/pkg/util/fxutil => ../../util/fxutil
 	github.com/DataDog/datadog-agent/pkg/util/grpc => ../../util/grpc
 	github.com/DataDog/datadog-agent/pkg/util/http => ../../util/http
 	github.com/DataDog/datadog-agent/pkg/util/log => ../../util/log

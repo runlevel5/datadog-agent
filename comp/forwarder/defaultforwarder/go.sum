@@ -38,6 +38,10 @@ cloud.google.com/go/storage v1.14.0/go.mod h1:GrKmX003DSIwi9o29oFT7YDnHYwZoctc3f
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
+github.com/DataDog/datadog-agent/cmd/agent/common/path v0.51.0-rc.2 h1:k7quK7Nk4q8UKHYfXzH5F8beZbm64/koL0QgX6M0HMs=
+github.com/DataDog/datadog-agent/cmd/agent/common/path v0.51.0-rc.2/go.mod h1:R2OQin8PNzv0r73boYfFcqdkIWU3qvgJFtDtBSYe4tI=
+github.com/DataDog/datadog-agent/comp/core/flare/types v0.51.0-rc.2 h1:ZkaW23KeBQ0FxG8FXztOCYeJL1P47URfrWZkaFRjZ0Q=
+github.com/DataDog/datadog-agent/comp/core/flare/types v0.51.0-rc.2/go.mod h1:h0h6cm8eqb1JnuqHMCdTir+c4IUlOUnOy6xrmvhQXOY=
 github.com/DataDog/datadog-agent/pkg/util/testutil v0.50.2 h1:o7Ys6VLP6wVQULSOlTlv/N9X9l4toLUBJSE+iOdA2vo=
 github.com/DataDog/datadog-agent/pkg/util/testutil v0.50.2/go.mod h1:X7ODRWbUGbvM07oZPDbrYzKqt8205dXjD35M9yWrMm8=
 github.com/DataDog/datadog-go/v5 v5.4.0 h1:Ea3eXUVwrVV28F/fo3Dr3aa+TL/Z7Xi6SUPKW8L99aI=

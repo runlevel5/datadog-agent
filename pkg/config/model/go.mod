@@ -5,7 +5,6 @@ go 1.21
 replace (
 	github.com/DataDog/datadog-agent/pkg/util/log => ../../util/log/
 	github.com/DataDog/datadog-agent/pkg/util/scrubber => ../../util/scrubber/
-	github.com/DataDog/datadog-agent/pkg/util/system/socket => ../../util/system/socket/
 )
 
 require (
