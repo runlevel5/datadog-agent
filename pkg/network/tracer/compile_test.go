@@ -10,6 +10,7 @@ package tracer
 import (
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
