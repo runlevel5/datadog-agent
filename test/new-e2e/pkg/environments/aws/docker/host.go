@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
 	"github.com/DataDog/test-infra-definitions/components/datadog/dockeragentparams"
 	"github.com/DataDog/test-infra-definitions/components/docker"
+	"github.com/DataDog/test-infra-definitions/components/remote"
 	"github.com/DataDog/test-infra-definitions/resources/aws"
 	"github.com/DataDog/test-infra-definitions/scenarios/aws/ec2"
 	"github.com/DataDog/test-infra-definitions/scenarios/aws/fakeintake"
@@ -29,14 +30,17 @@ const (
 	defaultVMName     = "dockervm"
 )
 
+type CustomPulumiCallback func(ctx *pulumi.Context, pulumiEnv *ProvisionerPulumiEnv, env any) error
+
 // ProvisionerParams contains all the parameters needed to create the environment
 type ProvisionerParams struct {
 	name string
 
-	vmOptions         []ec2.VMOption
-	agentOptions      []dockeragentparams.Option
-	fakeintakeOptions []fakeintake.Option
-	extraConfigParams runner.ConfigMap
+	vmOptions            []ec2.VMOption
+	agentOptions         []dockeragentparams.Option
+	fakeintakeOptions    []fakeintake.Option
+	extraConfigParams    runner.ConfigMap
+	customPulumiCallback CustomPulumiCallback
 }
 
 func newProvisionerParams() *ProvisionerParams {
@@ -107,6 +111,20 @@ func WithoutAgent() ProvisionerOption {
 		params.agentOptions = nil
 		return nil
 	}
+}
+
+// WithCustomPulumiCallback sets a custom callback to be called by the provisioner
+func WithCustomPulumiCallback(callback CustomPulumiCallback, extraEnv any) ProvisionerOption {
+	return func(params *ProvisionerParams) error {
+		params.customPulumiCallback = callback
+		return nil
+	}
+}
+
+type ProvisionerPulumiEnv struct {
+	AwsEnvironment *aws.Environment
+	Host           *remote.Host
+	DockerManager  *docker.Manager
 }
 
 // Provisioner creates a VM environment with an EC2 VM with Docker, an ECS Fargate FakeIntake and a Docker Agent configured to talk to each other.
@@ -180,6 +198,16 @@ func Provisioner(opts ...ProvisionerOption) e2e.TypedProvisioner[environments.Do
 		} else {
 			// Suite inits all fields by default, so we need to explicitly set it to nil
 			env.Agent = nil
+		}
+
+		provisionerCtx := &ProvisionerPulumiEnv{
+			AwsEnvironment: &awsEnv,
+			Host:           host,
+			DockerManager:  manager,
+		}
+
+		if params.customPulumiCallback != nil {
+			params.customPulumiCallback(ctx, provisionerCtx, env)
 		}
 
 		return nil
