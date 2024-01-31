@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/tagger/local"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/remote"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/replay"
+	"github.com/DataDog/datadog-agent/comp/core/tagger/tagstore"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/types"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/utils"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
@@ -118,7 +119,7 @@ func newTaggerClient(deps dependencies) Component {
 		}
 	case LocalTaggerAgent:
 		taggerClient = &TaggerClient{
-			defaultTagger: local.NewTagger(deps.Wmeta),
+			defaultTagger: local.NewTagger(deps.Wmeta, tagstore.NewTagStore()),
 			captureTagger: nil,
 		}
 	case FakeTagger:
@@ -292,6 +293,8 @@ func (t *TaggerClient) globalTagBuilder(cardinality collectors.TagCardinality, t
 		}
 	}
 	t.mux.RUnlock()
+
+	// Accumulate host tags - it's ok to ignore the error here since collecting host tags is an optional setting configured by the user.
 	_ = t.defaultTagger.AccumulateTagsFor(collectors.HostEntityID, cardinality, tb)
 	return t.defaultTagger.AccumulateTagsFor(collectors.GlobalEntityID, cardinality, tb)
 }
