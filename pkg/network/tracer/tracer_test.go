@@ -22,6 +22,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -1001,18 +1002,6 @@ func getConnections(t require.TestingT, tr *Tracer) *network.Connections {
 	connections, err := tr.GetActiveConnections(clientID)
 	require.NoError(t, err)
 	return connections
-}
-
-func timeSyscall(who int) *syscall.Rusage {
-	var rusage syscall.Rusage
-
-	err := syscall.Getrusage(who, &rusage)
-	if err != nil {
-		log.Errorf("syscall rusage failed: %v\n", err)
-		return nil
-	}
-
-	return &rusage
 }
 
 func testDNSStats(t *testing.T, tr *Tracer, domain string, success, failure, timeout int, serverIP string) {

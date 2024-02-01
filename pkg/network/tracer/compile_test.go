@@ -23,7 +23,6 @@ func timeSyscall(who int) *syscall.Rusage {
 
 	err := syscall.Getrusage(who, &rusage)
 	if err != nil {
-		log.Errorf("syscall rusage failed: %v\n", err)
 		return nil
 	}
 
