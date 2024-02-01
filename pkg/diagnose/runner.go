@@ -16,8 +16,10 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
+	"github.com/DataDog/datadog-agent/pkg/epforwarder"
+
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
-	_ "github.com/DataDog/datadog-agent/pkg/diagnose/connectivity" // no direct calls to connectivity but there is a callback
+	"github.com/DataDog/datadog-agent/pkg/diagnose/connectivity"
 	"github.com/DataDog/datadog-agent/pkg/diagnose/diagnosis"
 	"github.com/fatih/color"
 )
@@ -177,7 +179,7 @@ func matchConfigFilters(filter diagSuiteFilter, s string) bool {
 	return true
 }
 
-func getSortedAndFilteredDiagnoseSuites(diagCfg diagnosis.Config) ([]diagnosis.Suite, error) {
+func getSortedAndFilteredDiagnoseSuites(diagCfg diagnosis.Config, suites []diagnosis.Suite) ([]diagnosis.Suite, error) {
 
 	var filter diagSuiteFilter
 	var err error
@@ -198,8 +200,8 @@ func getSortedAndFilteredDiagnoseSuites(diagCfg diagnosis.Config) ([]diagnosis.S
 		}
 	}
 
-	sortedSuites := make([]diagnosis.Suite, len(diagnosis.Catalog))
-	copy(sortedSuites, diagnosis.Catalog)
+	sortedSuites := make([]diagnosis.Suite, len(suites))
+	copy(sortedSuites, suites)
 	sort.Slice(sortedSuites, func(i, j int) bool {
 		return sortedSuites[i].SuitName < sortedSuites[j].SuitName
 	})
@@ -253,7 +255,7 @@ func ListStdOut(w io.Writer, diagCfg diagnosis.Config) {
 
 	fmt.Fprintf(w, "Diagnose suites ...\n")
 
-	sortedSuites, err := getSortedAndFilteredDiagnoseSuites(diagCfg)
+	sortedSuites, err := getSortedAndFilteredDiagnoseSuites(diagCfg, getSuites())
 	if err != nil {
 		fmt.Fprintf(w, "Failed to get list of diagnose suites. Validate your command line options. Error: %s\n", err.Error())
 		return
@@ -268,8 +270,8 @@ func ListStdOut(w io.Writer, diagCfg diagnosis.Config) {
 
 // Enumerate registered Diagnose suites and get their diagnoses
 // for structural output
-func getDiagnosesFromCurrentProcess(diagCfg diagnosis.Config, senderManager sender.DiagnoseSenderManager) ([]diagnosis.Diagnoses, error) {
-	suites, err := getSortedAndFilteredDiagnoseSuites(diagCfg)
+func getDiagnosesFromCurrentProcess(diagCfg diagnosis.Config, senderManager sender.DiagnoseSenderManager, suites []diagnosis.Suite) ([]diagnosis.Diagnoses, error) {
+	suites, err := getSortedAndFilteredDiagnoseSuites(diagCfg, suites)
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +343,7 @@ func Run(diagCfg diagnosis.Config, senderManager sender.DiagnoseSenderManager) (
 	}
 
 	// Collect local diagnoses
-	diagnoses, err := getDiagnosesFromCurrentProcess(diagCfg, senderManager)
+	diagnoses, err := getDiagnosesFromCurrentProcess(diagCfg, senderManager, getSuites())
 	if err != nil {
 		return nil, err
 	}
@@ -399,4 +401,15 @@ func RunStdOut(w io.Writer, diagCfg diagnosis.Config, senderManager sender.Diagn
 	c.summary(w)
 
 	return nil
+}
+
+func getSuites() []diagnosis.Suite {
+	catalog := diagnosis.NewCatalog()
+
+	catalog.Register("check-datadog", diagnose)
+	catalog.Register("connectivity-datadog-core-endpoints", connectivity.Diagnose)
+	catalog.Register("connectivity-datadog-autodiscovery", connectivity.DiagnoseMetadataAutodiscoveryConnectivity)
+	catalog.Register("connectivity-datadog-event-platform", epforwarder.Diagnose)
+
+	return catalog.GetSuites()
 }
