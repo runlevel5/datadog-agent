@@ -502,7 +502,8 @@ def generate_vmconfig(vm_config, normalized_vm_defs, vcpu, memory, sets, ci, hos
         if ci:
             add_console(vmset)
 
-        add_available_cpus(vmset, host_cpus)
+        if host_cpus > 0:
+            add_available_cpus(vmset, host_cpus)
 
     return vm_config
 
@@ -613,6 +614,8 @@ def gen_config(ctx, stack, vms, sets, init_stack, vcpu, memory, new, ci, arch, o
         arch_ls = [arch_mapping[arch]]
 
     vms_to_generate = list_all_distro_normalized_vms(arch_ls)
+    if host_cpus is None:
+        host_cpus = 0
     vm_config = generate_vmconfig(
         {"vmsets": []},
         vms_to_generate,
