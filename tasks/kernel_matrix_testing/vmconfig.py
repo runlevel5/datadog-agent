@@ -595,8 +595,6 @@ def gen_config(ctx, stack, vms, sets, init_stack, vcpu, memory, new, ci, arch, o
         set_ls = sets.split(",")
 
     if not ci:
-        if host_cpus is None:
-            host_cpus = multiprocessing.cpu_count()
         return gen_config_for_stack(
             ctx,
             stack,
@@ -615,8 +613,6 @@ def gen_config(ctx, stack, vms, sets, init_stack, vcpu, memory, new, ci, arch, o
         arch_ls = [arch_mapping[arch]]
 
     vms_to_generate = list_all_distro_normalized_vms(arch_ls)
-    if host_cpus is None:
-        raise Exit("no value for available cpus provided")
     vm_config = generate_vmconfig(
         {"vmsets": []},
         vms_to_generate,
