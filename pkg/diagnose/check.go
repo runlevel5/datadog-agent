@@ -120,7 +120,7 @@ func diagnoseChecksInCLIProcess(diagCfg diagnosis.Config, senderManager diagnose
 	common.AC.LoadAndRun(context.Background())
 
 	// Create the CheckScheduler, but do not attach it to
-	// AutoDiscovery.  NOTE: we do not start common.Coll, either.
+	// AutoDiscovery.
 	pkgcollector.InitCheckScheduler(optional.NewNoneOption[pkgcollector.Collector](), senderManagerInstance)
 
 	// Load matching configurations (should we use common.AC.GetAllConfigs())

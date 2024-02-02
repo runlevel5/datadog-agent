@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"sync"
 
 	"github.com/DataDog/datadog-agent/cmd/agent/common/path"
 	"github.com/DataDog/datadog-agent/comp/core/secrets"
@@ -36,8 +35,6 @@ func GetWorkloadmetaInit() workloadmeta.InitHelper {
 		return nil
 	})
 }
-
-var collectorOnce sync.Once
 
 // LoadComponents configures several common Agent components:
 // tagger, collector, scheduler and autodiscovery

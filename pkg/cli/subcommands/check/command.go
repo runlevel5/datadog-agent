@@ -281,7 +281,7 @@ func run(
 	common.AC.LoadAndRun(context.Background())
 
 	// Create the CheckScheduler, but do not attach it to
-	// AutoDiscovery.  NOTE: we do not start common.Coll, either.
+	// AutoDiscovery.
 	pkgcollector.InitCheckScheduler(optional.NewNoneOption[pkgcollector.Collector](), demultiplexer)
 
 	waitCtx, cancelTimeout := context.WithTimeout(

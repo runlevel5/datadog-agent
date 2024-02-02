@@ -299,7 +299,7 @@ func runJmxCommandConsole(
 	common.AC.LoadAndRun(context.Background())
 
 	// Create the CheckScheduler, but do not attach it to
-	// AutoDiscovery.  NOTE: we do not start common.Coll, either.
+	// AutoDiscovery.
 	pkgcollector.InitCheckScheduler(optional.NewNoneOption[pkgcollector.Collector](), senderManager)
 
 	// if cliSelectedChecks is empty, then we want to fetch all check configs;
