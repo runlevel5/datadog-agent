@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 
 	"github.com/DataDog/datadog-agent/cmd/agent/common/path"
-	"github.com/DataDog/datadog-agent/comp/collector"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery"
 	"github.com/DataDog/datadog-agent/pkg/config"
@@ -27,9 +26,6 @@ import (
 var (
 	// AC is the global object orchestrating checks' loading and running
 	AC *autodiscovery.AutoConfig
-
-	// Coll is the global collector instance
-	Coll collector.Component
 
 	// ExpvarServer is the global expvar server
 	ExpvarServer *http.Server

@@ -28,6 +28,7 @@ import (
 	internalAPI "github.com/DataDog/datadog-agent/comp/api/api"
 
 	"github.com/DataDog/datadog-agent/comp/api/api/apiimpl"
+	"github.com/DataDog/datadog-agent/comp/collector"
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/flare"
@@ -47,10 +48,11 @@ import (
 	"github.com/DataDog/datadog-agent/comp/metadata/packagesigning"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/cli/standalone"
-	"github.com/DataDog/datadog-agent/pkg/collector"
+	pkgcollector "github.com/DataDog/datadog-agent/pkg/collector"
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/model"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
+	"github.com/DataDog/datadog-agent/pkg/util/optional"
 )
 
 type cliParams struct {
@@ -269,7 +271,16 @@ func disableCmdPort() {
 
 // runJmxCommandConsole sets up the common utils necessary for JMX, and executes the command
 // with the Console reporter
-func runJmxCommandConsole(config config.Component, cliParams *cliParams, wmeta workloadmeta.Component, taggerComp tagger.Component, diagnoseSendermanager diagnosesendermanager.Component, secretResolver secrets.Component, agentAPI internalAPI.Component) error {
+func runJmxCommandConsole(
+	config config.Component,
+	cliParams *cliParams,
+	wmeta workloadmeta.Component,
+	taggerComp tagger.Component,
+	diagnoseSendermanager diagnosesendermanager.Component,
+	secretResolver secrets.Component,
+	agentAPI internalAPI.Component,
+	collector collector.Component,
+) error {
 	// This prevents log-spam from "comp/core/workloadmeta/collectors/internal/remote/process_collector/process_collector.go"
 	// It appears that this collector creates some contention in AD.
 	// Disabling it is both more efficient and gets rid of this log spam
@@ -291,7 +302,7 @@ func runJmxCommandConsole(config config.Component, cliParams *cliParams, wmeta w
 
 	// Create the CheckScheduler, but do not attach it to
 	// AutoDiscovery.  NOTE: we do not start common.Coll, either.
-	collector.InitCheckScheduler(common.Coll, senderManager)
+	pkgcollector.InitCheckScheduler(optional.NewNoneOption[pkgcollector.Collector](), senderManager)
 
 	// if cliSelectedChecks is empty, then we want to fetch all check configs;
 	// otherwise, we fetch only the matching cehck configs.
