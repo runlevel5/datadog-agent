@@ -3,6 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2024-present Datadog, Inc.
 
+// Package collectorimpl provides the implementation of the collector component.
 package collectorimpl
 
 import (

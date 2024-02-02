@@ -5,6 +5,7 @@
 
 //go:build test
 
+// Package collectorimpl provides the implementation of the collector component.
 package collectorimpl
 
 import (

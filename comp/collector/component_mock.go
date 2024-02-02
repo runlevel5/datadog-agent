@@ -5,6 +5,7 @@
 
 //go:build test
 
+// Package collector defines the collector component.
 package collector
 
 // Mock implements mock-specific methods.
