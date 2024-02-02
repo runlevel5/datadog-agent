@@ -295,7 +295,7 @@ func runJmxCommandConsole(
 	}
 	// The Autoconfig instance setup happens in the workloadmeta start hook
 	// create and setup the Collector and others.
-	common.LoadComponents(senderManager, secretResolver, wmeta, config.GetString("confd_path"))
+	common.LoadComponents(secretResolver, wmeta, config.GetString("confd_path"))
 	common.AC.LoadAndRun(context.Background())
 
 	// Create the CheckScheduler, but do not attach it to

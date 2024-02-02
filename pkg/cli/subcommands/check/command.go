@@ -277,7 +277,7 @@ func run(
 	check.InitializeInventoryChecksContext(invChecks)
 	commonchecks.RegisterChecks(wmeta)
 
-	common.LoadComponents(demultiplexer, secretResolver, wmeta, pkgconfig.Datadog.GetString("confd_path"))
+	common.LoadComponents(secretResolver, wmeta, pkgconfig.Datadog.GetString("confd_path"))
 	common.AC.LoadAndRun(context.Background())
 
 	// Create the CheckScheduler, but do not attach it to
