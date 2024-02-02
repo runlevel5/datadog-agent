@@ -40,6 +40,8 @@ import (
 	"github.com/DataDog/datadog-agent/comp/aggregator/demultiplexer/demultiplexerimpl"
 	internalAPI "github.com/DataDog/datadog-agent/comp/api/api"
 	"github.com/DataDog/datadog-agent/comp/api/api/apiimpl"
+	"github.com/DataDog/datadog-agent/comp/collector"
+	"github.com/DataDog/datadog-agent/comp/collector/collectorimpl"
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/flare"
@@ -87,7 +89,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/api/healthprobe"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/providers"
 	"github.com/DataDog/datadog-agent/pkg/cloudfoundry/containertagger"
-	"github.com/DataDog/datadog-agent/pkg/collector"
+	pkgcollector "github.com/DataDog/datadog-agent/pkg/collector"
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/embed/jmx"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/net"
@@ -206,6 +208,7 @@ func run(log log.Component,
 	agentAPI internalAPI.Component,
 	_ packagesigning.Component,
 	statusComponent status.Component,
+	collector collector.Component,
 ) error {
 	defer func() {
 		stopAgent(cliParams, server, agentAPI)
@@ -266,6 +269,7 @@ func run(log log.Component,
 		agentAPI,
 		invChecks,
 		statusComponent,
+		collector,
 	); err != nil {
 		return err
 	}
@@ -369,9 +373,7 @@ func getSharedFxOption() fx.Option {
 		ndmtmp.Bundle(),
 		netflow.Bundle(),
 		snmptraps.Bundle(),
-		fx.Provide(func(demultiplexer demultiplexer.Component) optional.Option[collector.Collector] {
-			return optional.NewOption(common.LoadCollector(demultiplexer))
-		}),
+		collectorimpl.Module(),
 	)
 }
 
@@ -395,8 +397,11 @@ func startAgent(
 	agentAPI internalAPI.Component,
 	invChecks inventorychecks.Component,
 	statusComponent status.Component,
+	collector collector.Component,
 ) error {
 
+	// TODO: (components) - to be remvoed in followup PR with collector component implementation
+	common.Coll = collector
 	var err error
 
 	// Setup logger
@@ -581,7 +586,7 @@ func startAgent(
 
 	// Set up check collector
 	commonchecks.RegisterChecks(wmeta)
-	common.AC.AddScheduler("check", collector.InitCheckScheduler(common.Coll, demultiplexer), true)
+	common.AC.AddScheduler("check", pkgcollector.InitCheckScheduler(common.Coll, demultiplexer), true)
 	common.Coll.Start()
 
 	demultiplexer.AddAgentStartupTelemetry(version.AgentVersion)
