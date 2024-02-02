@@ -128,6 +128,12 @@ func (pc *processCache) HandleProcessEvent(entry *events.Process) {
 
 	p := pc.processEvent(entry)
 	if p == nil {
+		var containerID string
+		if entry.ContainerID != nil {
+			containerID = entry.ContainerID.Get().(string)
+		}
+
+		log.Debugf("skipping process event %+v with container id %s", entry, containerID)
 		processCacheTelemetry.eventsSkipped.Inc()
 		return
 	}
