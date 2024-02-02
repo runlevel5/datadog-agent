@@ -288,6 +288,7 @@ func (l *UDSListener) handleConnection(conn *net.UnixConn) error {
 			if capBuff != nil {
 				capBuff.Oob = oob
 				capBuff.Pid = int32(pid)
+				capBuff.Pb.Pid = int32(pid)
 				capBuff.Pb.AncillarySize = int32(oobn)
 				capBuff.Pb.Ancillary = oobS[:oobn]
 			}
