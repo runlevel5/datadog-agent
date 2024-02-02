@@ -168,6 +168,7 @@ static __always_inline void http_process(http_event_t *event, skb_info_t *skb_in
     // This is to prevent things such as keep-alives adding up to the transaction latency
     if (((skb_info && !is_payload_empty(skb_info)) || !skb_info) && http_responding(http)) {
         http->response_last_seen = bpf_ktime_get_ns();
+        log_debug("http_response: last_seen=%llx\n", http->response_last_seen);
     }
 
     if (http_closed(skb_info)) {

@@ -72,12 +72,21 @@ type Path struct {
 	FullPath bool
 }
 
+func (p Path) String() string {
+	return p.Content.Get()
+}
+
 // Key is an identifier for a group of HTTP transactions
 type Key struct {
 	// this field order is intentional to help the GC pointer tracking
 	Path Path
 	types.ConnectionKey
 	Method Method
+}
+
+// String returns a string representation of the Key
+func (k Key) String() string {
+	return "{IP: " + k.ConnectionKey.String() + ", Method: " + k.Method.String() + ", Path: " + k.Path.Content.Get() + "}"
 }
 
 // NewKey generates a new Key
