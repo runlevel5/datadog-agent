@@ -368,6 +368,12 @@ kernel_matrix_testing_setup_env_x64:
         echo "These jobs do not permit retries. The go tests are retried a user-specified number of times automatically. In order to re-run the tests, you must trigger the pipeline again"
         'false'
       fi
+    - BOOT_STATUS=$(jq --exit-status --arg TAG $TAG --arg ARCH $ARCH --arg TEST_SET $TEST_SET -r '.[$ARCH].microvms | map(select(."vmset-tags"| index($TEST_SET))) | map(select(.tag==$TAG)) | .[]."boot-status"' $CI_PROJECT_DIR/stack.output)
+    - |
+      if [ "$BOOT_STATUS" = "false" ]; then
+        echo "failed to boot this VM. Aborting test run."
+        'false'
+      fi
     - MICRO_VM_IP=$(jq --exit-status --arg TAG $TAG --arg ARCH $ARCH --arg TEST_SET $TEST_SET -r '.[$ARCH].microvms | map(select(."vmset-tags"| index($TEST_SET))) | map(select(.tag==$TAG)) | .[].ip' $CI_PROJECT_DIR/stack.output)
     - MICRO_VM_NAME=$(jq --exit-status --arg TAG $TAG --arg ARCH $ARCH --arg TEST_SET $TEST_SET -r '.[$ARCH].microvms | map(select(."vmset-tags"| index($TEST_SET))) | map(select(.tag==$TAG)) | .[].id' $CI_PROJECT_DIR/stack.output)
     - GO_VERSION=$(inv go-version)
