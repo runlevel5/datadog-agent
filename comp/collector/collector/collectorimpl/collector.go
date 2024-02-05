@@ -15,7 +15,6 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/DataDog/datadog-agent/cmd/agent/common"
-	"github.com/DataDog/datadog-agent/comp/aggregator/demultiplexer"
 	"github.com/DataDog/datadog-agent/comp/collector/collector"
 	"github.com/DataDog/datadog-agent/comp/collector/collector/collectorimpl/internal/middleware"
 	"github.com/DataDog/datadog-agent/comp/core/config"
@@ -44,7 +43,7 @@ type dependencies struct {
 	Config config.Component
 	Log    log.Component
 
-	Demultiplexer demultiplexer.Component
+	SenderManager sender.SenderManager
 }
 
 type collectorImpl struct {
@@ -91,7 +90,7 @@ func ModuleNoneCollector() fxutil.Module {
 func newCollector(deps dependencies) provides {
 	c := &collectorImpl{
 		log:                deps.Log,
-		senderManager:      deps.Demultiplexer,
+		senderManager:      deps.SenderManager,
 		checks:             make(map[checkid.ID]*middleware.CheckWrapper),
 		state:              atomic.NewUint32(stopped),
 		checkInstances:     int64(0),

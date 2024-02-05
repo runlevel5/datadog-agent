@@ -8,9 +8,11 @@
 package collector
 
 import (
+	"github.com/stretchr/testify/mock"
+
+	"github.com/DataDog/datadog-agent/comp/collector/collector"
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
 	checkid "github.com/DataDog/datadog-agent/pkg/collector/check/id"
-	"github.com/stretchr/testify/mock"
 )
 
 // MockCollector mock the Collector interface
@@ -75,6 +77,6 @@ func (c *MockCollector) ReloadAllCheckInstances(name string, newInstances []chec
 }
 
 // AddEventReceiver adds a callback to the collector to be called each time a check is added or removed.
-func (c *MockCollector) AddEventReceiver(cb EventReceiver) {
+func (c *MockCollector) AddEventReceiver(cb collector.EventReceiver) {
 	c.Called(cb)
 }
