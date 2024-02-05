@@ -11,8 +11,6 @@ package collectorimpl
 import (
 	"go.uber.org/fx"
 
-	"github.com/stretchr/testify/mock"
-
 	"github.com/DataDog/datadog-agent/comp/collector/collector"
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
 	checkid "github.com/DataDog/datadog-agent/pkg/collector/check/id"
@@ -23,6 +21,7 @@ import (
 // MockModule defines the fx options for the mock component.
 func MockModule() fxutil.Module {
 	return fxutil.Component(
+		fx.Supply(MockParams{}),
 		fx.Provide(newMock),
 		fx.Provide(func(collector collector.Component) optional.Option[collector.Component] {
 			return optional.NewOption(collector)
@@ -30,64 +29,66 @@ func MockModule() fxutil.Module {
 	)
 }
 
+type MockParams struct {
+	ChecksInfo []check.Info
+}
+
+type mockDependencies struct {
+	fx.In
+
+	Params MockParams
+}
+
 type mockimpl struct {
 	collector.Component
 
-	mock.Mock
 	checksInfo []check.Info
 }
 
-func newMock() collector.Component {
-	return &mockimpl{}
+func newMock(deps mockDependencies) collector.Component {
+	return &mockimpl{
+		checksInfo: deps.Params.ChecksInfo,
+	}
 }
 
 // Start begins the collector's operation.  The scheduler will not run any checks until this has been called.
 func (c *mockimpl) Start() {
-	c.Called()
 }
 
 // Stop halts any component involved in running a Check
 func (c *mockimpl) Stop() {
-	c.Called()
 }
 
 // RunCheck sends a Check in the execution queue
 func (c *mockimpl) RunCheck(inner check.Check) (checkid.ID, error) {
-	args := c.Called(inner)
-	return args.Get(0).(checkid.ID), args.Error(1)
+	return checkid.ID(""), nil
 }
 
 // StopCheck halts a check and remove the instance
 func (c *mockimpl) StopCheck(id checkid.ID) error {
-	args := c.Called(id)
-	return args.Error(0)
+	return nil
 }
 
 // MapOverChecks call the callback with the list of checks locked.
 func (c *mockimpl) MapOverChecks(cb func([]check.Info)) {
-	c.Called(cb)
 	cb(c.checksInfo)
 }
 
 // GetChecks copies checks
 func (c *mockimpl) GetChecks() []check.Check {
-	args := c.Called()
-	return args.Get(0).([]check.Check)
+	return nil
 }
 
 // GetAllInstanceIDs returns the ID's of all instances of a check
 func (c *mockimpl) GetAllInstanceIDs(checkName string) []checkid.ID {
-	args := c.Called(checkName)
-	return args.Get(0).([]checkid.ID)
+	return nil
 }
 
 // ReloadAllCheckInstances completely restarts a check with a new configuration
 func (c *mockimpl) ReloadAllCheckInstances(name string, newInstances []check.Check) ([]checkid.ID, error) {
-	args := c.Called(name, newInstances)
-	return args.Get(0).([]checkid.ID), args.Error(1)
+	return []checkid.ID{checkid.ID("")}, nil
 }
 
 // AddEventReceiver adds a callback to the collector to be called each time a check is added or removed.
 func (c *mockimpl) AddEventReceiver(cb collector.EventReceiver) {
-	c.Called(cb)
 }
