@@ -7,12 +7,24 @@
 package collector
 
 import (
-	"github.com/DataDog/datadog-agent/pkg/collector"
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
 	checkid "github.com/DataDog/datadog-agent/pkg/collector/check/id"
 )
 
 // team: agent-metrics-logs
+
+// EventType represents the type of events emitted by the collector
+type EventType uint32
+
+const (
+	// CheckRun is emitted when a check is added to the collector
+	CheckRun EventType = iota
+	// CheckStop is emitted when a check is stopped and removed from the collector
+	CheckStop
+)
+
+// EventReceiver represents a function to receive notification from the collector when running or stopping checks.
+type EventReceiver func(checkid.ID, EventType)
 
 // Component is the component type.
 type Component interface {
@@ -33,5 +45,5 @@ type Component interface {
 	// ReloadAllCheckInstances completely restarts a check with a new configuration
 	ReloadAllCheckInstances(name string, newInstances []check.Check) ([]checkid.ID, error)
 	// AddEventReceiver adds a callback to the collector to be called each time a check is added or removed.
-	AddEventReceiver(cb collector.EventReceiver)
+	AddEventReceiver(cb EventReceiver)
 }

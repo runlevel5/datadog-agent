@@ -146,7 +146,7 @@ func run(log log.Component, taggerComp tagger.Component, demultiplexer demultipl
 	common.LoadComponents(secretResolver, wmeta, pkgconfig.Datadog.GetString("confd_path"))
 
 	// Set up check collector
-	common.AC.AddScheduler("check", pkgcollector.InitCheckScheduler(optional.NewOption[pkgcollector.Collector](collector), demultiplexer), true)
+	common.AC.AddScheduler("check", pkgcollector.InitCheckScheduler(optional.NewOption(collector), demultiplexer), true)
 	collector.Start()
 	diagnose.Init(optional.NewOption(collector))
 

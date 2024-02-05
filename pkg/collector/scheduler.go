@@ -14,6 +14,7 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
+	"github.com/DataDog/datadog-agent/comp/collector/collector"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
@@ -54,13 +55,13 @@ func init() {
 type CheckScheduler struct {
 	configToChecks map[string][]checkid.ID // cache the ID of checks we load for each config
 	loaders        []check.Loader
-	collector      optional.Option[Collector]
+	collector      optional.Option[collector.Component]
 	senderManager  sender.SenderManager
 	m              sync.RWMutex
 }
 
 // InitCheckScheduler creates and returns a check scheduler
-func InitCheckScheduler(collector optional.Option[Collector], senderManager sender.SenderManager) *CheckScheduler {
+func InitCheckScheduler(collector optional.Option[collector.Component], senderManager sender.SenderManager) *CheckScheduler {
 	checkScheduler = &CheckScheduler{
 		collector:      collector,
 		senderManager:  senderManager,

@@ -12,7 +12,6 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/DataDog/datadog-agent/comp/collector/collector"
-	pkgcollector "github.com/DataDog/datadog-agent/pkg/collector"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/optional"
 )
@@ -28,7 +27,7 @@ func MockModule() fxutil.Module {
 }
 
 type mock struct {
-	pkgcollector.Collector
+	collector.Component
 }
 
 func newMock() collector.Component {

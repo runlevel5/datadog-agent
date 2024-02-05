@@ -5,7 +5,7 @@
 
 //go:build test
 
-package collector
+package collectorimpl
 
 import (
 	"sort"
@@ -81,7 +81,7 @@ func (p ChecksList) Less(i, j int) bool { return p[i] < p[j] }
 
 type CollectorTestSuite struct {
 	suite.Suite
-	c *collector
+	c *collectorImpl
 }
 
 func (suite *CollectorTestSuite) SetupTest() {

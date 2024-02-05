@@ -301,7 +301,7 @@ func start(log log.Component, config config.Component, taggerComp tagger.Compone
 
 	// Set up check collector
 	registerChecks()
-	common.AC.AddScheduler("check", pkgcollector.InitCheckScheduler(optional.NewOption[pkgcollector.Collector](collector), demultiplexer), true)
+	common.AC.AddScheduler("check", pkgcollector.InitCheckScheduler(optional.NewOption(collector), demultiplexer), true)
 	collector.Start()
 
 	// start the autoconfig, this will immediately run any configured check
