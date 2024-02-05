@@ -186,7 +186,7 @@ func (p *WindowsProbe) setupEtw() error {
 			switch e.EventHeader.EventDescriptor.ID {
 			case idCreate:
 			case idCreateNewFile:
-				if ca, err := parseCreateArgs(e); err == nil {
+				if ca, err := parseCreateNewFileArgs(e); err == nil {
 					log.Infof("Got create/create new file on file %s", ca.string())
 
 				}
