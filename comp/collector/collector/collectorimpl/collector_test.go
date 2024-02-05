@@ -8,6 +8,7 @@
 package collectorimpl
 
 import (
+	"context"
 	"sort"
 	"time"
 
@@ -96,11 +97,11 @@ func (suite *CollectorTestSuite) SetupTest() {
 		fx.Replace(config.MockParams{
 			Overrides: map[string]interface{}{"check_cancel_timeout": 500 * time.Millisecond},
 		})))
-	suite.c.Start()
+	suite.c.start(context.TODO())
 }
 
 func (suite *CollectorTestSuite) TearDownTest() {
-	suite.c.Stop()
+	suite.c.stop(context.TODO())
 	suite.c = nil
 }
 
@@ -111,7 +112,7 @@ func (suite *CollectorTestSuite) TestNewCollector() {
 }
 
 func (suite *CollectorTestSuite) TestStop() {
-	suite.c.Stop()
+	suite.c.stop(context.TODO())
 	assert.Nil(suite.T(), suite.c.runner)
 	assert.Nil(suite.T(), suite.c.scheduler)
 	assert.Equal(suite.T(), stopped, suite.c.state.Load())
@@ -187,7 +188,7 @@ func (suite *CollectorTestSuite) TestDelete() {
 
 func (suite *CollectorTestSuite) TestStarted() {
 	assert.True(suite.T(), suite.c.started())
-	suite.c.Stop()
+	suite.c.stop(context.TODO())
 	assert.False(suite.T(), suite.c.started())
 }
 

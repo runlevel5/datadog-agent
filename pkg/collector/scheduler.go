@@ -138,12 +138,8 @@ func (s *CheckScheduler) Unschedule(configs []integration.Config) {
 	}
 }
 
-// Stop handles clean stop of registered schedulers
-func (s *CheckScheduler) Stop() {
-	if coll, ok := s.collector.Get(); ok {
-		coll.Stop()
-	}
-}
+// Stop is a stub to satisfy the scheduler interface
+func (s *CheckScheduler) Stop() {}
 
 // AddLoader adds a new Loader that AutoConfig can use to load a check.
 func (s *CheckScheduler) AddLoader(loader check.Loader) {

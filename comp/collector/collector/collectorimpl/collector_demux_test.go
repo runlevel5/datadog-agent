@@ -8,6 +8,7 @@
 package collectorimpl
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -46,11 +47,11 @@ func (suite *CollectorDemuxTestSuite) SetupTest() {
 			Overrides: map[string]interface{}{"check_cancel_timeout": 500 * time.Millisecond},
 		})))
 
-	suite.c.Start()
+	suite.c.start(context.TODO())
 }
 
 func (suite *CollectorDemuxTestSuite) TearDownTest() {
-	suite.c.Stop()
+	suite.c.stop(context.TODO())
 	suite.demux.Stop(false)
 	suite.c = nil
 }

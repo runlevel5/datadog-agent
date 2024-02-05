@@ -7,6 +7,7 @@
 package collectorimpl
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -110,6 +111,11 @@ func newCollector(deps dependencies) provides {
 		c.log.Errorf("Unable to perform additional configuration of the python environment: %v", err)
 	}
 
+	deps.Lc.Append(fx.Hook{
+		OnStart: c.start,
+		OnStop:  c.stop,
+	})
+
 	c.log.Debug("Collector up and running!")
 	return provides{
 		Comp:         c,
@@ -139,14 +145,10 @@ func (c *collectorImpl) notify(cid checkid.ID, e collector.EventType) {
 	}
 }
 
-// Start begins the collector's operation.  The scheduler will not run any checks until this has been called.
-func (c *collectorImpl) Start() {
+// start begins the collector's operation.  The scheduler will not run any checks until this has been called.
+func (c *collectorImpl) start(_ context.Context) error {
 	c.m.Lock()
 	defer c.m.Unlock()
-
-	if c.state.Load() == started {
-		return
-	}
 
 	run := runner.NewRunner(c.senderManager)
 	sched := scheduler.NewScheduler(run.GetChan())
@@ -158,16 +160,14 @@ func (c *collectorImpl) Start() {
 	c.scheduler = sched
 	c.runner = run
 	c.state.Store(started)
+
+	return nil
 }
 
-// Stop halts any component involved in running a Check
-func (c *collectorImpl) Stop() {
+// stop halts any component involved in running a Check
+func (c *collectorImpl) stop(_ context.Context) error {
 	c.m.Lock()
 	defer c.m.Unlock()
-
-	if c.state.Load() == stopped {
-		return
-	}
 
 	if c.scheduler != nil {
 		c.scheduler.Stop() //nolint:errcheck
@@ -178,6 +178,7 @@ func (c *collectorImpl) Stop() {
 		c.runner = nil
 	}
 	c.state.Store(stopped)
+	return nil
 }
 
 // RunCheck sends a Check in the execution queue

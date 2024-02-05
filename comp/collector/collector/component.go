@@ -28,10 +28,6 @@ type EventReceiver func(checkid.ID, EventType)
 
 // Component is the component type.
 type Component interface {
-	// Start begins the collector's operation.  The scheduler will not run any checks until this has been called.
-	Start()
-	// Stop halts any component involved in running a Check
-	Stop()
 	// RunCheck sends a Check in the execution queue
 	RunCheck(inner check.Check) (checkid.ID, error)
 	// StopCheck halts a check and remove the instance
