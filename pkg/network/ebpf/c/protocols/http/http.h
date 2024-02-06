@@ -23,14 +23,14 @@ static __always_inline void http_begin_request(http_transaction_t *http, http_me
     http->response_last_seen = 0;
     http->response_status_code = 0;
     bpf_memcpy(&http->request_fragment, buffer, HTTP_BUFFER_SIZE);
-    log_debug("http_begin_request: htx=%llx method=%d start=%llx\n", http, http->request_method, http->request_started);
+    log_debug("http_begin_request: htx=%llx method=%d start=%lld\n", http, http->request_method, http->request_started);
 }
 
 static __always_inline void http_begin_response(http_transaction_t *http, const char *buffer) {
     u16 status_code = 0;
-    status_code += (buffer[HTTP_STATUS_OFFSET+0]-'0') * 100;
-    status_code += (buffer[HTTP_STATUS_OFFSET+1]-'0') * 10;
-    status_code += (buffer[HTTP_STATUS_OFFSET+2]-'0') * 1;
+    status_code += (buffer[HTTP_STATUS_OFFSET + 0] - '0') * 100;
+    status_code += (buffer[HTTP_STATUS_OFFSET + 1] - '0') * 10;
+    status_code += (buffer[HTTP_STATUS_OFFSET + 2] - '0') * 1;
     http->response_status_code = status_code;
     log_debug("http_begin_response: htx=%llx status=%d\n", http, status_code);
 }
@@ -41,6 +41,11 @@ static __always_inline void http_batch_enqueue_wrapper(conn_tuple_t *tuple, http
     if (!event) {
         return;
     }
+
+    if (http->response_last_seen - http->request_started > 1000000000) {
+        log_debug("http_enqueue: htx=%llx MORE THAN A SECOND!\n", http, http->response_last_seen);
+    }
+    log_debug("http_enqueue: htx=%llx last_seen=%lld\n", http, http->response_last_seen);
 
     bpf_memcpy(&event->tuple, tuple, sizeof(conn_tuple_t));
     bpf_memcpy(&event->http, http, sizeof(http_transaction_t));
@@ -151,11 +156,13 @@ static __always_inline void http_process(http_event_t *event, skb_info_t *skb_in
     }
 
     if (http_should_flush_previous_state(http, packet_type)) {
+        log_debug("http_process: htx=%llx flushing previous state", http);
         http_batch_enqueue_wrapper(tuple, http);
         bpf_memcpy(http, &event->http, sizeof(http_transaction_t));
     }
 
-    log_debug("http_process: type=%d method=%d\n", packet_type, method);
+    log_debug("http_process: htx=%llx tuple: sport=%u dport=%u", http, tuple->sport, tuple->dport);
+    log_debug("http_process: htx=%llx type=%d method=%d\n", http, packet_type, method);
     if (packet_type == HTTP_REQUEST) {
         http_begin_request(http, method, buffer);
     } else if (packet_type == HTTP_RESPONSE) {
@@ -168,10 +175,11 @@ static __always_inline void http_process(http_event_t *event, skb_info_t *skb_in
     // This is to prevent things such as keep-alives adding up to the transaction latency
     if (((skb_info && !is_payload_empty(skb_info)) || !skb_info) && http_responding(http)) {
         http->response_last_seen = bpf_ktime_get_ns();
-        log_debug("http_response: last_seen=%llx\n", http->response_last_seen);
+        log_debug("http_response: htx=%llx, last_seen=%lld\n", http, http->response_last_seen);
     }
 
     if (http_closed(skb_info)) {
+        log_debug("http_process: htx=%llx enqueuing on close", http);
         http_batch_enqueue_wrapper(tuple, http);
         bpf_map_delete_elem(&http_in_flight, tuple);
     }
