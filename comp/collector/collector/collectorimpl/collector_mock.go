@@ -29,6 +29,7 @@ func MockModule() fxutil.Module {
 	)
 }
 
+// MockParams defines the parameters for the mock component.
 type MockParams struct {
 	ChecksInfo []check.Info
 }
