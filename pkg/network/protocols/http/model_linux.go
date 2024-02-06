@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/network/protocols"
 
 	"github.com/DataDog/datadog-agent/pkg/network/types"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 // Path returns the URL from the request fragment captured in eBPF with
@@ -73,6 +74,10 @@ func (e *EbpfEvent) ResponseLastSeen() uint64 {
 
 // SetResponseLastSeen of the HTTP transaction
 func (e *EbpfEvent) SetResponseLastSeen(lastSeen uint64) {
+	if e.Tuple.Dport == 7443 {
+		log.Debugf("SetResponseLastSeen: before=%v after=%v", e.Http.Response_last_seen, lastSeen)
+	}
+
 	e.Http.Response_last_seen = lastSeen
 }
 

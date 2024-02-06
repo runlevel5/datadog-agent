@@ -165,6 +165,11 @@ func (p *protocol) DumpMaps(output *strings.Builder, mapName string, currentMap 
 
 func (p *protocol) processHTTP(data []byte) {
 	tx := (*EbpfEvent)(unsafe.Pointer(&data[0]))
+
+	if tx.Tuple.Dport == 7443 {
+		log.Debugf("processHTTP: %#v", tx.RequestLatency())
+	}
+
 	p.telemetry.Count(tx)
 	p.statkeeper.Process(tx)
 }

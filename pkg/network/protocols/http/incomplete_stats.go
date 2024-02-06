@@ -13,6 +13,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/network/config"
 	"github.com/DataDog/datadog-agent/pkg/network/types"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 const (
@@ -138,6 +139,7 @@ func (b *incompleteBuffer) Flush(now time.Time) []Transaction {
 			}
 
 			// Merge response into request
+			log.Debugf("Incomplete buffer joining: reqLastSeen=%v resLastSeen=%v", request.ResponseLastSeen(), response.ResponseLastSeen())
 			request.SetStatusCode(response.StatusCode())
 			request.SetResponseLastSeen(response.ResponseLastSeen())
 			joined = append(joined, request)

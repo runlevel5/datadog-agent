@@ -61,6 +61,10 @@ func (h *StatKeeper) Process(tx Transaction) {
 	defer h.mux.Unlock()
 
 	if tx.Incomplete() {
+		log.Debugf("StatKeeper.Process: adding incomplete: %v", tx.ConnTuple())
+		if tx.ConnTuple().DstPort == 7443 {
+			log.Debugf("StatKeeper.Process: adding incomplete with lat: %v", tx.RequestLatency())
+		}
 		h.incomplete.Add(tx)
 		return
 	}
