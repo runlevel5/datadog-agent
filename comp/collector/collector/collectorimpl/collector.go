@@ -77,7 +77,7 @@ type provides struct {
 // Module defines the fx options for this component.
 func Module() fxutil.Module {
 	return fxutil.Component(
-		fx.Provide(newCollector),
+		fx.Provide(newProvides),
 	)
 }
 
@@ -88,7 +88,23 @@ func ModuleNoneCollector() fxutil.Module {
 	)
 }
 
-func newCollector(deps dependencies) provides {
+func newProvides(deps dependencies) provides {
+	c := newCollector(deps)
+	return provides{
+		Comp:         c,
+		OptionalComp: optional.NewOption[collector.Component](c),
+		Provider:     status.NewInformationProvider(collectorStatus.Provider{}),
+	}
+}
+
+func newNoneCollector() provides {
+	return provides{
+		OptionalComp: optional.NewNoneOption[collector.Component](),
+		Provider:     status.NewInformationProvider(collectorStatus.Provider{}),
+	}
+}
+
+func newCollector(deps dependencies) *collectorImpl {
 	c := &collectorImpl{
 		log:                deps.Log,
 		senderManager:      deps.SenderManager,
@@ -117,18 +133,7 @@ func newCollector(deps dependencies) provides {
 	})
 
 	c.log.Debug("Collector up and running!")
-	return provides{
-		Comp:         c,
-		OptionalComp: optional.NewOption[collector.Component](c),
-		Provider:     status.NewInformationProvider(collectorStatus.Provider{}),
-	}
-}
-
-func newNoneCollector() provides {
-	return provides{
-		OptionalComp: optional.NewNoneOption[collector.Component](),
-		Provider:     status.NewInformationProvider(collectorStatus.Provider{}),
-	}
+	return c
 }
 
 // AddEventReceiver adds a callback to the collector to be called each time a check is added or removed.
