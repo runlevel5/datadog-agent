@@ -251,6 +251,7 @@ func run(
 	agentAPI internalAPI.Component,
 	invChecks inventorychecks.Component,
 	statusComponent status.Component,
+	collector optional.Option[collector.Component],
 ) error {
 	previousIntegrationTracing := false
 	previousIntegrationTracingExhaustive := false
@@ -306,11 +307,11 @@ func run(
 			fmt.Println("Please consider using the 'jmx' command instead of 'check jmx'")
 			selectedChecks := []string{cliParams.checkName}
 			if cliParams.checkRate {
-				if err := standalone.ExecJmxListWithRateMetricsJSON(selectedChecks, config.GetString("log_level"), allConfigs, wmeta, taggerComp, demultiplexer, agentAPI); err != nil {
+				if err := standalone.ExecJmxListWithRateMetricsJSON(selectedChecks, config.GetString("log_level"), allConfigs, wmeta, taggerComp, demultiplexer, agentAPI, collector); err != nil {
 					return fmt.Errorf("while running the jmx check: %v", err)
 				}
 			} else {
-				if err := standalone.ExecJmxListWithMetricsJSON(selectedChecks, config.GetString("log_level"), allConfigs, wmeta, taggerComp, demultiplexer, agentAPI); err != nil {
+				if err := standalone.ExecJmxListWithMetricsJSON(selectedChecks, config.GetString("log_level"), allConfigs, wmeta, taggerComp, demultiplexer, agentAPI, collector); err != nil {
 					return fmt.Errorf("while running the jmx check: %v", err)
 				}
 			}
