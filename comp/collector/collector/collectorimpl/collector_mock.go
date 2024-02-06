@@ -60,12 +60,12 @@ func (c *mockimpl) Stop() {
 }
 
 // RunCheck sends a Check in the execution queue
-func (c *mockimpl) RunCheck(inner check.Check) (checkid.ID, error) {
+func (c *mockimpl) RunCheck(_ check.Check) (checkid.ID, error) {
 	return checkid.ID(""), nil
 }
 
 // StopCheck halts a check and remove the instance
-func (c *mockimpl) StopCheck(id checkid.ID) error {
+func (c *mockimpl) StopCheck(_ checkid.ID) error {
 	return nil
 }
 
@@ -80,15 +80,14 @@ func (c *mockimpl) GetChecks() []check.Check {
 }
 
 // GetAllInstanceIDs returns the ID's of all instances of a check
-func (c *mockimpl) GetAllInstanceIDs(checkName string) []checkid.ID {
+func (c *mockimpl) GetAllInstanceIDs(_ string) []checkid.ID {
 	return nil
 }
 
 // ReloadAllCheckInstances completely restarts a check with a new configuration
-func (c *mockimpl) ReloadAllCheckInstances(name string, newInstances []check.Check) ([]checkid.ID, error) {
+func (c *mockimpl) ReloadAllCheckInstances(_ string, _ []check.Check) ([]checkid.ID, error) {
 	return []checkid.ID{checkid.ID("")}, nil
 }
 
 // AddEventReceiver adds a callback to the collector to be called each time a check is added or removed.
-func (c *mockimpl) AddEventReceiver(cb collector.EventReceiver) {
-}
+func (c *mockimpl) AddEventReceiver(_ collector.EventReceiver) {}
