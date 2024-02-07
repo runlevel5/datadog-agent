@@ -16,14 +16,12 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/flare/types"
 )
 
-// FlareBuilderMock offers all the helpers to test flare providers.
 type FlareBuilderMock struct {
 	Fb   types.FlareBuilder
 	Root string
 	t    *testing.T
 }
 
-// NewFlareBuilderMock return a FlareBuilderMock to test flare providers.
 func NewFlareBuilderMock(t *testing.T, local bool) *FlareBuilderMock {
 	root := t.TempDir()
 
@@ -62,7 +60,7 @@ func (m *FlareBuilderMock) AssertFileContent(content string, paths ...string) {
 	}
 }
 
-// AssertFileContentMatch asserts that a file exists within the flare and has the correct content
+// AssertFileContent asserts that a file exists within the flare and has the correct content
 func (m *FlareBuilderMock) AssertFileContentMatch(pattern string, paths ...string) {
 	path := m.filePath(paths...)
 

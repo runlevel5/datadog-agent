@@ -61,6 +61,7 @@ const (
 
 	GuessCtTupleOrigin GuessWhat = C.GUESS_CT_TUPLE_ORIGIN
 	GuessCtTupleReply  GuessWhat = C.GUESS_CT_TUPLE_REPLY
+	GuessCtStatus      GuessWhat = C.GUESS_CT_STATUS
 	GuessCtNet         GuessWhat = C.GUESS_CT_NET
 
 	GuessNotApplicable GuessWhat = 99999

@@ -8,24 +8,21 @@ package examples
 import (
 	"testing"
 
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
-	awshost "github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments/aws/host"
-	"github.com/DataDog/test-infra-definitions/components/os"
-	"github.com/DataDog/test-infra-definitions/scenarios/aws/ec2"
-
+	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/utils/e2e"
+	"github.com/DataDog/test-infra-definitions/scenarios/aws/vm/ec2os"
+	"github.com/DataDog/test-infra-definitions/scenarios/aws/vm/ec2params"
 	"github.com/stretchr/testify/assert"
 )
 
-type myVMSuite struct {
-	e2e.BaseSuite[environments.Host]
+type vmSuiteEx1 struct {
+	e2e.Suite[e2e.VMEnv]
 }
 
-func TestMyVMSuite(t *testing.T) {
-	e2e.Run(t, &myVMSuite{}, e2e.WithProvisioner(awshost.ProvisionerNoAgentNoFakeIntake(awshost.WithEC2InstanceOptions(ec2.WithOSArch(os.AmazonLinux2023, os.ARM64Arch)))))
+func TestVMSuiteEx1(t *testing.T) {
+	e2e.Run(t, &vmSuiteEx1{}, e2e.EC2VMStackDef(ec2params.WithOS(ec2os.UbuntuOS)))
 }
 
-func (v *myVMSuite) TestIsAmazonLinux() {
-	res := v.Env().RemoteHost.MustExecute("cat /etc/os-release")
-	assert.Contains(v.T(), res, "Amazon Linux")
+func (v *vmSuiteEx1) TestItIsUbuntu() {
+	res := v.Env().VM.Execute("cat /etc/os-release")
+	assert.Contains(v.T(), res, "Ubuntu")
 }

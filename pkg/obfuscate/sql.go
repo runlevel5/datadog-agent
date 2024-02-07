@@ -458,8 +458,6 @@ func (o *Obfuscator) ObfuscateWithSQLLexer(in string, opts *SQLConfig) (*Obfusca
 		sqllexer.WithCollectProcedures(opts.CollectProcedures),
 		sqllexer.WithKeepSQLAlias(opts.KeepSQLAlias),
 		sqllexer.WithRemoveSpaceBetweenParentheses(opts.RemoveSpaceBetweenParentheses),
-		sqllexer.WithKeepTrailingSemicolon(opts.KeepTrailingSemicolon),
-		sqllexer.WithKeepIdentifierQuotation(opts.KeepIdentifierQuotation),
 	)
 	out, statementMetadata, err := sqllexer.ObfuscateAndNormalize(
 		in,

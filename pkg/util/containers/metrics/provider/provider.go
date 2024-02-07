@@ -13,7 +13,6 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/DataDog/datadog-agent/pkg/config/env"
 	"github.com/DataDog/datadog-agent/pkg/util/retry"
 )
 
@@ -66,41 +65,9 @@ var (
 	}
 )
 
-// RuntimeFlavor is a typed string for supported container runtime flavors
-type RuntimeFlavor string
-
-// Known container runtime flavors
-const (
-	RuntimeFlavorDefault RuntimeFlavor = ""
-	RuntimeFlavorKata    RuntimeFlavor = "kata"
-)
-
-// RuntimeMetadata contains the runtime flavor and runtime name
-type RuntimeMetadata struct {
-	flavor  RuntimeFlavor
-	runtime Runtime
-}
-
-// NewRuntimeMetadata returns a new RuntimeMetadata
-func NewRuntimeMetadata(runtime, flavor string) RuntimeMetadata {
-	return RuntimeMetadata{
-		flavor:  RuntimeFlavor(flavor),
-		runtime: Runtime(runtime),
-	}
-}
-
-// String returns the runtime compose.
-func (r *RuntimeMetadata) String() string {
-	if r.flavor != "" {
-		return string(r.runtime) + "-" + string(r.flavor)
-	}
-
-	return string(r.runtime)
-}
-
 // Provider interface allows to mock the metrics provider
 type Provider interface {
-	GetCollector(RuntimeMetadata) Collector
+	GetCollector(runtime string) Collector
 	GetMetaCollector() MetaCollector
 }
 
@@ -111,7 +78,7 @@ var (
 
 // GenericProvider offers an interface to retrieve a metrics collector
 type GenericProvider struct {
-	collectors    map[RuntimeMetadata]*collectorImpl
+	collectors    map[Runtime]*collectorImpl
 	cache         *Cache
 	metaCollector *metaCollector
 }
@@ -130,13 +97,6 @@ func newProvider() *GenericProvider {
 		cache:         NewCache(cacheGCInterval),
 		metaCollector: newMetaCollector(),
 	}
-	if env.IsServerless() {
-		// TODO: quick fix to unblock some Serverless test.
-		// Serverless doesn't rely on the provider collector,
-		// so we avoid running the provider.collectorsUpdatedCallback.
-		// a proper fix should be to not register the collector if we are in the serveless agent.
-		return provider
-	}
 	registry.run(context.TODO(), provider.cache, provider.collectorsUpdatedCallback)
 
 	return provider
@@ -145,9 +105,9 @@ func newProvider() *GenericProvider {
 // GetCollector returns the best collector for given runtime.
 // The best collector may change depending on other collectors availability.
 // You should not cache the result from this function.
-func (mp *GenericProvider) GetCollector(r RuntimeMetadata) Collector {
+func (mp *GenericProvider) GetCollector(runtime string) Collector {
 	// we can't return mp.collectors[runtime] directly because it will return a typed nil
-	if runtime, found := mp.collectors[r]; found {
+	if runtime, found := mp.collectors[Runtime(runtime)]; found {
 		return runtime
 	}
 
@@ -161,7 +121,7 @@ func (mp *GenericProvider) GetMetaCollector() MetaCollector {
 
 func (mp *GenericProvider) collectorsUpdatedCallback(collectorsCatalog CollectorCatalog) {
 	// Update local collectors
-	newCollectors := make(map[RuntimeMetadata]*collectorImpl, len(collectorsCatalog))
+	newCollectors := make(map[Runtime]*collectorImpl, len(collectorsCatalog))
 	for runtime, collectors := range collectorsCatalog {
 		newCollectors[runtime] = fromCollectors(collectors)
 	}

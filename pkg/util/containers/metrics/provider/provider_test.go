@@ -12,39 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRuntimeMetadataString(t *testing.T) {
-	for _, test := range []struct {
-		name     string
-		runtime  string
-		flavor   string
-		expected string
-	}{
-		{
-			name:     "containerd",
-			runtime:  string(RuntimeNameContainerd),
-			flavor:   "",
-			expected: "containerd",
-		},
-		{
-			name:     "containerd with kata",
-			runtime:  string(RuntimeNameContainerd),
-			flavor:   "kata",
-			expected: "containerd-kata",
-		},
-		{
-			name:     "containerd with runc",
-			runtime:  string(RuntimeNameContainerd),
-			flavor:   "runc",
-			expected: "containerd-runc",
-		},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			actual := NewRuntimeMetadata(test.runtime, test.flavor)
-			assert.Equal(t, test.expected, actual.String())
-		})
-	}
-}
-
 func TestGenericProvider(t *testing.T) {
 	provider := newProvider()
 
@@ -94,15 +61,13 @@ func TestGenericProvider(t *testing.T) {
 		},
 	}
 
-	runtimeMetadata := NewRuntimeMetadata(string(RuntimeNameDocker), "")
-
 	// Verify that at first we get nothing
-	actualCollector := provider.GetCollector(runtimeMetadata)
+	actualCollector := provider.GetCollector(string(RuntimeNameDocker))
 	assert.Nil(t, actualCollector)
 
 	// Register collectors, one is empty (PIDs)
 	provider.collectorsUpdatedCallback(CollectorCatalog{
-		RuntimeMetadata{runtime: RuntimeNameDocker}: &Collectors{
+		RuntimeNameDocker: &Collectors{
 			Stats: CollectorRef[ContainerStatsGetter]{
 				Collector: statsCollector,
 				Priority:  1,
@@ -118,7 +83,7 @@ func TestGenericProvider(t *testing.T) {
 		},
 	})
 
-	actualCollector = provider.GetCollector(runtimeMetadata)
+	actualCollector = provider.GetCollector(string(RuntimeNameDocker))
 	assert.NotNil(t, actualCollector)
 
 	// Verify that we get the data
@@ -148,7 +113,7 @@ func TestGenericProvider(t *testing.T) {
 
 	// Update priority of the second collector
 	provider.collectorsUpdatedCallback(CollectorCatalog{
-		RuntimeMetadata{runtime: RuntimeNameDocker}: &Collectors{
+		RuntimeNameDocker: &Collectors{
 			Stats: CollectorRef[ContainerStatsGetter]{
 				Collector: processCollector,
 				Priority:  0,
@@ -164,7 +129,7 @@ func TestGenericProvider(t *testing.T) {
 		},
 	})
 
-	actualCollector = provider.GetCollector(runtimeMetadata)
+	actualCollector = provider.GetCollector(string(RuntimeNameDocker))
 	assert.NotNil(t, actualCollector)
 
 	statsC1, err = actualCollector.GetContainerStats("", "cID1", 0)

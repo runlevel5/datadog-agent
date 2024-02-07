@@ -20,8 +20,7 @@ import (
 	apiv1 "github.com/DataDog/datadog-agent/pkg/clusteragent/api/v1"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/custommetrics"
 	"github.com/DataDog/datadog-agent/pkg/config"
-	clusteragentStatus "github.com/DataDog/datadog-agent/pkg/status/clusteragent"
-	"github.com/DataDog/datadog-agent/pkg/status/render"
+	"github.com/DataDog/datadog-agent/pkg/status"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/apiserver"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -52,7 +51,7 @@ func createDCAArchive(fb flaretypes.FlareBuilder, confSearchPaths map[string]str
 	} else {
 		// The Status will be unavailable unless the agent is running.
 		// Only zip it up if the agent is running
-		err := fb.AddFileFromFunc("cluster-agent-status.log", clusteragentStatus.GetAndFormatStatus)
+		err := fb.AddFileFromFunc("cluster-agent-status.log", status.GetAndFormatDCAStatus)
 		if err != nil {
 			log.Errorf("Error getting the status of the DCA, %q", err)
 			return
@@ -108,7 +107,7 @@ func getMetadataMap(fb flaretypes.FlareBuilder) error {
 		return log.Errorf("Error while marshalling the cluster level metadata: %q", err)
 	}
 
-	str, err := render.FormatMetadataMapCLI(metaBytes)
+	str, err := status.FormatMetadataMapCLI(metaBytes)
 	if err != nil {
 		return log.Errorf("Error while rendering the cluster level metadata: %q", err)
 	}
@@ -139,7 +138,7 @@ func getHPAStatus(fb flaretypes.FlareBuilder) error {
 		return log.Errorf("Error while marshalling the cluster level metadata: %q", err)
 	}
 
-	str, err := render.FormatHPAStatus(statsBytes)
+	str, err := status.FormatHPAStatus(statsBytes)
 	if err != nil {
 		return log.Errorf("Could not collect custommetricsprovider.log: %s", err)
 	}

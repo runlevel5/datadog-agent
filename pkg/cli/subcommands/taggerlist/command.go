@@ -14,7 +14,6 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
-	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
 	tagger_api "github.com/DataDog/datadog-agent/pkg/tagger/api"
@@ -56,18 +55,18 @@ func MakeCommand(globalParamsGetter func() GlobalParams) *cobra.Command {
 			return fxutil.OneShot(taggerList,
 				fx.Supply(cliParams),
 				fx.Supply(core.BundleParams{
-					ConfigParams: config.NewAgentParams(
+					ConfigParams: config.NewAgentParamsWithoutSecrets(
 						globalParams.ConfFilePath,
 						config.WithConfigName(globalParams.ConfigName),
 					),
-					LogParams: logimpl.ForOneShot(globalParams.LoggerName, "off", true)}),
-				core.Bundle(),
+					LogParams: log.ForOneShot(globalParams.LoggerName, "off", true)}),
+				core.Bundle,
 			)
 		},
 	}
 }
 
-func taggerList(_ log.Component, config config.Component, _ *cliParams) error {
+func taggerList(log log.Component, config config.Component, cliParams *cliParams) error {
 	// Set session token
 	if err := util.SetAuthToken(); err != nil {
 		return err
@@ -81,7 +80,7 @@ func taggerList(_ log.Component, config config.Component, _ *cliParams) error {
 	return tagger_api.GetTaggerList(color.Output, url)
 }
 
-func getTaggerURL(_ config.Component) (string, error) {
+func getTaggerURL(config config.Component) (string, error) {
 	ipcAddress, err := pkgconfig.GetIPCAddress()
 	if err != nil {
 		return "", err

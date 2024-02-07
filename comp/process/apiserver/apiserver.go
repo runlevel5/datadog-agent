@@ -36,7 +36,6 @@ type dependencies struct {
 	APIServerDeps api.APIServerDeps
 }
 
-//nolint:revive // TODO(PROC) Fix revive linter
 func newApiServer(deps dependencies) Component {
 	initRuntimeSettings(deps.Log)
 

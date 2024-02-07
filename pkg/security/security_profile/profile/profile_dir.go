@@ -29,6 +29,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/config"
 	"github.com/DataDog/datadog-agent/pkg/security/metrics"
 	cgroupModel "github.com/DataDog/datadog-agent/pkg/security/resolvers/cgroup/model"
+	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
 	"github.com/DataDog/datadog-agent/pkg/security/utils"
 )
@@ -53,6 +54,7 @@ type DirectoryProvider struct {
 	sync.Mutex
 	directory      string
 	watcherEnabled bool
+	status         model.Status
 
 	// attributes used by the inotify watcher
 	cancelFnc         func()
@@ -72,7 +74,7 @@ type DirectoryProvider struct {
 }
 
 // NewDirectoryProvider returns a new instance of DirectoryProvider
-func NewDirectoryProvider(directory string, watch bool) (*DirectoryProvider, error) {
+func NewDirectoryProvider(directory string, watch bool, status model.Status) (*DirectoryProvider, error) {
 	// check if the provided directory exists
 	if _, err := os.Stat(directory); err != nil {
 		if os.IsNotExist(err) {
@@ -89,6 +91,7 @@ func NewDirectoryProvider(directory string, watch bool) (*DirectoryProvider, err
 		watcherEnabled: watch,
 		profileMapping: make(map[cgroupModel.WorkloadSelector]profileFSEntry),
 		newFiles:       make(map[string]bool),
+		status:         status,
 	}
 	dp.workloadSelectorDebouncer = debouncer.New(workloadSelectorDebounceDelay, dp.onNewProfileDebouncerCallback)
 	dp.newFilesDebouncer = debouncer.New(newFileDebounceDelay, dp.onHandleFilesFromWatcher)
@@ -207,6 +210,10 @@ func (dp *DirectoryProvider) loadProfile(profilePath string) error {
 		return fmt.Errorf("couldn't load profile %s: %w", profilePath, err)
 	}
 
+	if dp.status != 0 {
+		profile.Status = uint32(dp.status)
+	}
+
 	workloadSelector, err := cgroupModel.NewWorkloadSelector(utils.GetTagValue("image_name", profile.Tags), utils.GetTagValue("image_tag", profile.Tags))
 	if err != nil {
 		return err
@@ -219,7 +226,7 @@ func (dp *DirectoryProvider) loadProfile(profilePath string) error {
 	// update profile mapping
 	if existingProfile, ok := dp.profileMapping[workloadSelector]; ok {
 		if existingProfile.version > profile.Version {
-			seclog.Warnf("ignoring %s (version: %v): a more recent version of this profile already exists (existing version is %v)", profilePath, profile.Version, existingProfile.version)
+			seclog.Warnf("ignoring %s (version: %v status: %s): a more recent version of this profile already exists (existing version is %v)", profilePath, profile.Version, model.Status(profile.Status), existingProfile.version)
 			return nil
 		}
 	}
@@ -228,7 +235,7 @@ func (dp *DirectoryProvider) loadProfile(profilePath string) error {
 		version: profile.Version,
 	}
 
-	seclog.Debugf("security profile %s (version: %s) loaded from file system", workloadSelector, profile.Version)
+	seclog.Debugf("security profile %s (version: %s status: %s) loaded from file system", workloadSelector, profile.Version, model.Status(profile.Status))
 
 	if dp.onNewProfileCallback == nil {
 		return nil

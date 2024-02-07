@@ -31,7 +31,7 @@ func TestRename(t *testing.T) {
 		Expression: `rename.file.path == "{{.Root}}/test-rename" && rename.file.uid == 98 && rename.file.gid == 99 && rename.file.destination.path == "{{.Root}}/test2-rename" && rename.file.destination.uid == 98 && rename.file.destination.gid == 99`,
 	}
 
-	test, err := newTestModule(t, nil, []*rules.RuleDefinition{rule})
+	test, err := newTestModule(t, nil, []*rules.RuleDefinition{rule}, testOpts{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,11 +64,8 @@ func TestRename(t *testing.T) {
 			return nil
 		}, func(event *model.Event, rule *rules.Rule) {
 			assert.Equal(t, "rename", event.GetType(), "wrong event type")
-			if !test.opts.staticOpts.enableEBPFLess {
-				assert.Equal(t, getInode(t, testNewFile), event.Rename.New.Inode, "wrong inode")
-				assertFieldEqual(t, event, "rename.file.destination.inode", int(getInode(t, testNewFile)), "wrong inode")
-				test.validateRenameSchema(t, event)
-			}
+			assert.Equal(t, getInode(t, testNewFile), event.Rename.New.Inode, "wrong inode")
+			assertFieldEqual(t, event, "rename.file.destination.inode", int(getInode(t, testNewFile)), "wrong inode")
 			assertRights(t, event.Rename.Old.Mode, expectedMode)
 			assertNearTime(t, event.Rename.Old.MTime)
 			assertNearTime(t, event.Rename.Old.CTime)
@@ -78,6 +75,8 @@ func TestRename(t *testing.T) {
 
 			value, _ := event.GetFieldValue("event.async")
 			assert.Equal(t, value.(bool), false)
+
+			test.validateRenameSchema(t, event)
 		})
 	}))
 
@@ -96,11 +95,8 @@ func TestRename(t *testing.T) {
 			return nil
 		}, func(event *model.Event, rule *rules.Rule) {
 			assert.Equal(t, "rename", event.GetType(), "wrong event type")
-			if !test.opts.staticOpts.enableEBPFLess {
-				assert.Equal(t, getInode(t, testNewFile), event.Rename.New.Inode, "wrong inode")
-				assertFieldEqual(t, event, "rename.file.destination.inode", int(getInode(t, testNewFile)), "wrong inode")
-				test.validateRenameSchema(t, event)
-			}
+			assert.Equal(t, getInode(t, testNewFile), event.Rename.New.Inode, "wrong inode")
+			assertFieldEqual(t, event, "rename.file.destination.inode", int(getInode(t, testNewFile)), "wrong inode")
 			assertRights(t, event.Rename.Old.Mode, expectedMode)
 			assertNearTime(t, event.Rename.Old.MTime)
 			assertNearTime(t, event.Rename.Old.CTime)
@@ -110,6 +106,8 @@ func TestRename(t *testing.T) {
 
 			value, _ := event.GetFieldValue("event.async")
 			assert.Equal(t, value.(bool), false)
+
+			test.validateRenameSchema(t, event)
 		})
 	})
 
@@ -129,11 +127,8 @@ func TestRename(t *testing.T) {
 			return nil
 		}, func(event *model.Event, rule *rules.Rule) {
 			assert.Equal(t, "rename", event.GetType(), "wrong event type")
-			if !test.opts.staticOpts.enableEBPFLess {
-				assert.Equal(t, getInode(t, testNewFile), event.Rename.New.Inode, "wrong inode")
-				assertFieldEqual(t, event, "rename.file.destination.inode", int(getInode(t, testNewFile)), "wrong inode")
-				test.validateRenameSchema(t, event)
-			}
+			assert.Equal(t, getInode(t, testNewFile), event.Rename.New.Inode, "wrong inode")
+			assertFieldEqual(t, event, "rename.file.destination.inode", int(getInode(t, testNewFile)), "wrong inode")
 			assertRights(t, event.Rename.Old.Mode, expectedMode)
 			assertNearTime(t, event.Rename.Old.MTime)
 			assertNearTime(t, event.Rename.Old.CTime)
@@ -143,6 +138,8 @@ func TestRename(t *testing.T) {
 
 			value, _ := event.GetFieldValue("event.async")
 			assert.Equal(t, value.(bool), false)
+
+			test.validateRenameSchema(t, event)
 		})
 	})
 
@@ -151,10 +148,6 @@ func TestRename(t *testing.T) {
 	}
 
 	t.Run("io_uring", func(t *testing.T) {
-		if test.opts.staticOpts.enableEBPFLess {
-			t.Skip("io_uring not supported")
-		}
-
 		iour, err := iouring.New(1)
 		if err != nil {
 			if errors.Is(err, unix.ENOTSUP) {
@@ -218,7 +211,7 @@ func TestRenameInvalidate(t *testing.T) {
 		Expression: `rename.file.path in ["{{.Root}}/test-rename", "{{.Root}}/test2-rename"]`,
 	}
 
-	test, err := newTestModule(t, nil, []*rules.RuleDefinition{rule})
+	test, err := newTestModule(t, nil, []*rules.RuleDefinition{rule}, testOpts{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,9 +242,8 @@ func TestRenameInvalidate(t *testing.T) {
 		}, func(event *model.Event, rule *rules.Rule) {
 			assert.Equal(t, "rename", event.GetType(), "wrong event type")
 			assertFieldEqual(t, event, "rename.file.destination.path", testNewFile)
-			if !test.opts.staticOpts.enableEBPFLess {
-				test.validateRenameSchema(t, event)
-			}
+
+			test.validateRenameSchema(t, event)
 		})
 
 		// swap
@@ -282,12 +274,9 @@ func TestRenameReuseInode(t *testing.T) {
 	}
 	defer testDrive.Close()
 
-	test, err := newTestModule(t, nil, ruleDefs, withDynamicOpts(dynamicTestOpts{testDir: testDrive.Root()}))
+	test, err := newTestModule(t, nil, ruleDefs, testOpts{testDir: testDrive.Root()})
 	if err != nil {
 		t.Fatal(err)
-	}
-	if test.opts.staticOpts.enableEBPFLess {
-		t.Skip("inodes not supported yet")
 	}
 	defer test.Close()
 
@@ -361,7 +350,7 @@ func TestRenameFolder(t *testing.T) {
 		Expression: `open.file.name == "test-rename" && (open.flags & O_CREAT) > 0`,
 	}
 
-	test, err := newTestModule(t, nil, []*rules.RuleDefinition{rule})
+	test, err := newTestModule(t, nil, []*rules.RuleDefinition{rule}, testOpts{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -393,9 +382,7 @@ func TestRenameFolder(t *testing.T) {
 			assert.Equal(t, "open", event.GetType(), "wrong event type")
 			assertFieldEqual(t, event, "open.file.path", filename)
 
-			if !test.opts.staticOpts.enableEBPFLess {
-				test.validateOpenSchema(t, event)
-			}
+			test.validateOpenSchema(t, event)
 
 			// swap
 			if err := os.Rename(testOldFolder, testNewFolder); err != nil {

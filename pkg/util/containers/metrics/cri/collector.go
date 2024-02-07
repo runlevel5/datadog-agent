@@ -56,14 +56,12 @@ func newCRICollector(cache *provider.Cache) (provider.CollectorMetadata, error) 
 	return provider.CollectorMetadata{
 		ID: collectorID,
 		Collectors: provider.CollectorCatalog{
-			provider.NewRuntimeMetadata(string(provider.RuntimeNameCRIO), ""): provider.MakeCached(collectorID, cache, collectors),
+			provider.RuntimeNameCRIO: provider.MakeCached(collectorID, cache, collectors),
 		},
 	}, nil
 }
 
 // GetContainerStats returns stats by container ID.
-//
-//nolint:revive // TODO(CINT) Fix revive linter
 func (collector *criCollector) GetContainerStats(containerNS, containerID string, cacheValidity time.Duration) (*provider.ContainerStats, error) {
 	stats, err := collector.getCriContainerStats(containerID)
 	if err != nil {

@@ -19,10 +19,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/DataDog/datadog-agent/cmd/process-agent/command"
-	hostMetadataUtils "github.com/DataDog/datadog-agent/comp/metadata/host/hostimpl/utils"
+	hostMetadataUtils "github.com/DataDog/datadog-agent/comp/metadata/host/utils"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/process/util/status"
-	"github.com/DataDog/datadog-agent/pkg/status/render"
+	ddstatus "github.com/DataDog/datadog-agent/pkg/status"
 	"github.com/DataDog/datadog-agent/pkg/trace/log"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
@@ -42,8 +42,7 @@ func fakeStatusServer(t *testing.T, stats status.Status) *httptest.Server {
 
 func TestStatus(t *testing.T) {
 	testTime := time.Now()
-	statusData := map[string]status.Status{}
-	statusInfo := status.Status{
+	expectedStatus := status.Status{
 		Date: float64(testTime.UnixNano()),
 		Core: status.CoreStatus{
 			Metadata: hostMetadataUtils.Payload{
@@ -52,20 +51,19 @@ func TestStatus(t *testing.T) {
 		},
 		Expvars: status.ProcessExpvars{},
 	}
-	statusData["processAgentStatus"] = statusInfo
 
-	server := fakeStatusServer(t, statusInfo)
+	server := fakeStatusServer(t, expectedStatus)
 	defer server.Close()
 
 	// Build what the expected status should be
-	j, err := json.Marshal(statusData)
+	j, err := json.Marshal(expectedStatus)
 	require.NoError(t, err)
-	expectedOutput, err := render.FormatProcessAgentStatus(j)
+	expectedOutput, err := ddstatus.FormatProcessAgentStatus(j)
 	require.NoError(t, err)
 
 	// Build the actual status
 	var statusBuilder strings.Builder
-	getAndWriteStatus(log.NoopLogger, server.URL, &statusBuilder)
+	getAndWriteStatus(log.NoopLogger, server.URL, &statusBuilder, status.OverrideTime(testTime))
 
 	assert.Equal(t, expectedOutput, statusBuilder.String())
 }
@@ -89,7 +87,7 @@ func TestNotRunning(t *testing.T) {
 // a connection error
 func TestError(t *testing.T) {
 	cfg := config.Mock(t)
-	cfg.SetWithoutSource("cmd_host", "8.8.8.8") // Non-local ip address will cause error in `GetIPCAddress`
+	cfg.SetWithoutSource("ipc_address", "8.8.8.8") // Non-local ip address will cause error in `GetIPCAddress`
 	_, ipcError := config.GetIPCAddress()
 
 	var errText, expectedErrText strings.Builder

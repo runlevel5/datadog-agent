@@ -27,7 +27,7 @@ func TestUtimes(t *testing.T) {
 		Expression: `utimes.file.path == "{{.Root}}/test-utime" && utimes.file.uid == 98 && utimes.file.gid == 99`,
 	}
 
-	test, err := newTestModule(t, nil, []*rules.RuleDefinition{ruleDef})
+	test, err := newTestModule(t, nil, []*rules.RuleDefinition{ruleDef}, testOpts{})
 	if err != nil {
 		t.Fatal(err)
 	}

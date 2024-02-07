@@ -1,9 +1,8 @@
-optimization_goal: memory
+optimization_goal: egress_throughput
 erratic: true
 
 environment:
   DD_TELEMETRY_ENABLED: true
-  DD_API_KEY: 00000001
   DD_RUNTIME_SECURITY_CONFIG_ENABLED: true
   DD_RUNTIME_SECURITY_CONFIG_NETWORK_ENABLED: true
   DD_RUNTIME_SECURITY_CONFIG_REMOTE_CONFIGURATION_ENABLED: true

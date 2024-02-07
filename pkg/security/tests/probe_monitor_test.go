@@ -31,7 +31,8 @@ func TestRulesetLoaded(t *testing.T) {
 		Expression: `open.file.path == "/aaaaaaaaaaaaaaaaaaaaaaaaa" && open.flags & O_CREAT != 0`,
 	}
 
-	test, err := newTestModule(t, nil, []*rules.RuleDefinition{rule})
+	probeMonitorOpts := testOpts{}
+	test, err := newTestModule(t, nil, []*rules.RuleDefinition{rule}, probeMonitorOpts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +74,8 @@ func TestHeartbeatSent(t *testing.T) {
 		Expression: `open.file.path == "/aaaaaaaaaaaaaaaaaaaaaaaaa" && open.flags & O_CREAT != 0`,
 	}
 
-	test, err := newTestModule(t, nil, []*rules.RuleDefinition{rule})
+	probeMonitorOpts := testOpts{}
+	test, err := newTestModule(t, nil, []*rules.RuleDefinition{rule}, probeMonitorOpts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +100,7 @@ func TestHeartbeatSent(t *testing.T) {
 	})
 }
 
-func truncatedParents(t *testing.T, staticOpts testOpts, dynamicOpts dynamicTestOpts) {
+func truncatedParents(t *testing.T, opts testOpts) {
 	var truncatedParents string
 	for i := 0; i < model.MaxPathDepth; i++ {
 		truncatedParents += "a/"
@@ -110,7 +112,7 @@ func truncatedParents(t *testing.T, staticOpts testOpts, dynamicOpts dynamicTest
 		Expression: `open.file.path =~ "*/a/**" && open.flags & O_CREAT != 0`,
 	}
 
-	test, err := newTestModule(t, nil, []*rules.RuleDefinition{rule}, withStaticOpts(staticOpts), withDynamicOpts(dynamicOpts))
+	test, err := newTestModule(t, nil, []*rules.RuleDefinition{rule}, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,9 +178,9 @@ func cleanupABottomUp(path string) {
 }
 
 func TestTruncatedParentsMap(t *testing.T) {
-	truncatedParents(t, testOpts{disableERPCDentryResolution: true}, dynamicTestOpts{disableAbnormalPathCheck: true})
+	truncatedParents(t, testOpts{disableERPCDentryResolution: true, disableAbnormalPathCheck: true})
 }
 
 func TestTruncatedParentsERPC(t *testing.T) {
-	truncatedParents(t, testOpts{disableMapDentryResolution: true}, dynamicTestOpts{disableAbnormalPathCheck: true})
+	truncatedParents(t, testOpts{disableMapDentryResolution: true, disableAbnormalPathCheck: true})
 }

@@ -16,14 +16,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/DataDog/datadog-agent/comp/core/log"
-	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
-	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
 	checkid "github.com/DataDog/datadog-agent/pkg/collector/check/id"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
 	"github.com/DataDog/datadog-agent/pkg/metrics/event"
 	"github.com/DataDog/datadog-agent/pkg/metrics/servicecheck"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
-	"github.com/DataDog/datadog-agent/pkg/util/optional"
 )
 
 type senderWithChans struct {
@@ -50,8 +47,7 @@ func initSender(id checkid.ID, defaultHostname string) (s senderWithChans) {
 func testDemux(log log.Component) *AgentDemultiplexer {
 	opts := DefaultAgentDemultiplexerOptions()
 	opts.DontStartForwarders = true
-	orchestratorForwarder := optional.NewOption[defaultforwarder.Forwarder](defaultforwarder.NoopForwarder{})
-	demux := initAgentDemultiplexer(log, NewForwarderTest(log), &orchestratorForwarder, opts, defaultHostname)
+	demux := initAgentDemultiplexer(log, NewForwarderTest(log), opts, defaultHostname)
 	return demux
 }
 
@@ -71,7 +67,7 @@ func assertAggSamplersLen(t *testing.T, agg *BufferedAggregator, n int) {
 func TestGetDefaultSenderReturnsSameSender(t *testing.T) {
 	// this test not using anything global
 	// -
-	log := fxutil.Test[log.Component](t, logimpl.MockModule())
+	log := fxutil.Test[log.Component](t, log.MockModule)
 	demux := testDemux(log)
 	aggregatorInstance := demux.Aggregator()
 	go aggregatorInstance.run()
@@ -91,7 +87,7 @@ func TestGetDefaultSenderReturnsSameSender(t *testing.T) {
 func TestGetSenderWithDifferentIDsReturnsDifferentCheckSamplers(t *testing.T) {
 	// this test not using anything global
 	// -
-	log := fxutil.Test[log.Component](t, logimpl.MockModule())
+	log := fxutil.Test[log.Component](t, log.MockModule)
 	demux := testDemux(log)
 
 	aggregatorInstance := demux.Aggregator()
@@ -121,7 +117,7 @@ func TestGetSenderWithSameIDsReturnsSameSender(t *testing.T) {
 	// this test not using anything global
 	// -
 
-	log := fxutil.Test[log.Component](t, logimpl.MockModule())
+	log := fxutil.Test[log.Component](t, log.MockModule)
 	demux := testDemux(log)
 	aggregatorInstance := demux.Aggregator()
 	go aggregatorInstance.run()
@@ -144,7 +140,7 @@ func TestDestroySender(t *testing.T) {
 	// this test not using anything global
 	// -
 
-	log := fxutil.Test[log.Component](t, logimpl.MockModule())
+	log := fxutil.Test[log.Component](t, log.MockModule)
 	demux := testDemux(log)
 	aggregatorInstance := demux.Aggregator()
 	go aggregatorInstance.run()
@@ -174,7 +170,7 @@ func TestGetAndSetSender(t *testing.T) {
 	// this test not using anything global
 	// -
 
-	log := fxutil.Test[log.Component](t, logimpl.MockModule())
+	log := fxutil.Test[log.Component](t, log.MockModule)
 	demux := testDemux(log)
 
 	itemChan := make(chan senderItem, 10)
@@ -197,7 +193,7 @@ func TestGetSenderDefaultHostname(t *testing.T) {
 	// this test not using anything global
 	// -
 
-	log := fxutil.Test[log.Component](t, logimpl.MockModule())
+	log := fxutil.Test[log.Component](t, log.MockModule)
 	demux := testDemux(log)
 	aggregatorInstance := demux.Aggregator()
 	go aggregatorInstance.run()

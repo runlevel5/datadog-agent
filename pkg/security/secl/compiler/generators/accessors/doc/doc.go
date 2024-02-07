@@ -97,10 +97,6 @@ func GenerateDocJSON(module *common.Module, seclModelPath, outputPath string) er
 	cachedDocumentation := make(map[string]*propertyDocumentation)
 
 	for name, field := range module.Fields {
-		if field.GettersOnly {
-			continue
-		}
-
 		var propertyKey string
 		var propertySuffix string
 		var propertyDefinition string

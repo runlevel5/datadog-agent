@@ -59,8 +59,6 @@ import (
 	"sync"
 	"time"
 
-	"go.uber.org/atomic"
-
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	flaretypes "github.com/DataDog/datadog-agent/comp/core/flare/types"
 	"github.com/DataDog/datadog-agent/comp/core/log"
@@ -98,8 +96,8 @@ type InventoryPayload struct {
 	LastCollect   time.Time
 	MinInterval   time.Duration
 	MaxInterval   time.Duration
-	forceRefresh  atomic.Bool
-	FlareFileName string
+	ForceRefresh  bool
+	flareFileName string
 }
 
 // CreateInventoryPayload returns an initialized InventoryPayload. 'getPayload' will be called each time a new payload
@@ -121,7 +119,8 @@ func CreateInventoryPayload(conf config.Component, l log.Component, s serializer
 		log:           l,
 		serializer:    s,
 		getPayload:    getPayload,
-		FlareFileName: flareFileName,
+		flareFileName: flareFileName,
+		LastCollect:   time.Now(),
 		MinInterval:   minInterval,
 		MaxInterval:   maxInterval,
 	}
@@ -149,11 +148,11 @@ func (i *InventoryPayload) collect(_ context.Context) time.Duration {
 
 	// Collect will be called every MinInterval second. We send a new payload if a refresh was trigger or if it's
 	// been at least MaxInterval seconds since the last payload.
-	if !i.forceRefresh.Load() && i.MaxInterval-timeSince(i.LastCollect) > 0 {
+	if !i.ForceRefresh && i.MaxInterval-timeSince(i.LastCollect) > 0 {
 		return i.MinInterval
 	}
 
-	i.forceRefresh.Store(false)
+	i.ForceRefresh = false
 	i.LastCollect = time.Now()
 
 	p := i.getPayload()
@@ -169,18 +168,13 @@ func (i *InventoryPayload) Refresh() {
 		return
 	}
 
-	// For a refresh we want to resend a new payload as soon as possible but still respect MinInterval second
-	// since the last update. The Refresh method set forceRefresh to true which will trigger a new payload when
-	// Collect is called every MinInterval.
-	i.forceRefresh.Store(true)
-}
+	i.m.Lock()
+	defer i.m.Unlock()
 
-// RefreshTriggered returns true if a refresh was trigger but not yet done.
-func (i *InventoryPayload) RefreshTriggered() bool {
-	if !i.Enabled {
-		return false
-	}
-	return i.forceRefresh.Load()
+	// For a refresh we want to resend a new payload as soon as possible but still respect MinInterval second
+	// since the last update. The Refresh method set ForceRefresh to true which will trigger a new payload when
+	// Collect is called every MinInterval.
+	i.ForceRefresh = true
 }
 
 // GetAsJSON returns the payload as a JSON string. Useful to be displayed in the CLI or added to a flare.
@@ -197,7 +191,7 @@ func (i *InventoryPayload) GetAsJSON() ([]byte, error) {
 
 // fillFlare add the inventory payload to flares.
 func (i *InventoryPayload) fillFlare(fb flaretypes.FlareBuilder) error {
-	path := filepath.Join("metadata", "inventory", i.FlareFileName)
+	path := filepath.Join("metadata", "inventory", i.flareFileName)
 	if !i.Enabled {
 		fb.AddFile(path, []byte("inventory metadata is disabled"))
 		return nil

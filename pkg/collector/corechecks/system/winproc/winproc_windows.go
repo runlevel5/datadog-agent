@@ -11,7 +11,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
 	core "github.com/DataDog/datadog-agent/pkg/collector/corechecks"
-	"github.com/DataDog/datadog-agent/pkg/util/pdhutil"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/pdhutil"
 )
 
 const winprocCheckName = "winproc"

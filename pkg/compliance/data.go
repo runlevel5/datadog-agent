@@ -81,7 +81,6 @@ type CheckEvent struct {
 	ResourceType string                 `json:"resource_type,omitempty"`
 	ResourceID   string                 `json:"resource_id,omitempty"`
 	Container    *CheckContainerMeta    `json:"container,omitempty"`
-	K8SManaged   *string                `json:"k8s_managed,omitempty"`
 	Tags         []string               `json:"tags"`
 	Data         map[string]interface{} `json:"data"`
 
@@ -171,8 +170,6 @@ func NewCheckSkipped(
 		AgentVersion: version.AgentVersion,
 		RuleID:       rule.ID,
 		FrameworkID:  benchmark.FrameworkID,
-		ResourceID:   resourceID,
-		ResourceType: resourceType,
 		Evaluator:    evaluator,
 		Result:       CheckSkipped,
 		Data:         map[string]interface{}{"error": skipReason.Error()},

@@ -3,7 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-// Package ec2 provides information when running in ec2
 package ec2
 
 import (
@@ -11,10 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/metadata/inventories"
 	"github.com/DataDog/datadog-agent/pkg/util/cachedfetch"
 	httputils "github.com/DataDog/datadog-agent/pkg/util/http"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -35,8 +34,7 @@ var (
 	// DMIBoardVendor contains the DMI board vendor for EC2
 	DMIBoardVendor = "Amazon EC2"
 
-	currentMetadataSource      = metadataSourceNone
-	currentMetadataSourceMutex sync.Mutex
+	currentMetadataSource = metadataSourceNone
 )
 
 func init() {
@@ -64,32 +62,27 @@ const (
 // Since some ways can temporary fail, we always register the "best" that worked at some point. This is mainly aimed at
 // IMDS which is sometimes unavailable at startup.
 func setCloudProviderSource(source int) {
-	currentMetadataSourceMutex.Lock()
-	defer currentMetadataSourceMutex.Unlock()
-
 	if source <= currentMetadataSource {
 		return
 	}
 
+	sourceName := ""
 	currentMetadataSource = source
-}
 
-// GetSourceName returns the source used to pull information for EC2 (UUID, DMI, IMDSv1 or IMDSv2)
-func GetSourceName() string {
-	currentMetadataSourceMutex.Lock()
-	defer currentMetadataSourceMutex.Unlock()
-
-	switch currentMetadataSource {
+	switch source {
 	case metadataSourceUUID:
-		return "UUID"
+		sourceName = "UUID"
 	case metadataSourceDMI:
-		return "DMI"
+		sourceName = "DMI"
 	case metadataSourceIMDSv1:
-		return "IMDSv1"
+		sourceName = "IMDSv1"
 	case metadataSourceIMDSv2:
-		return "IMDSv2"
+		sourceName = "IMDSv2"
+	default: // unknown source or metadataSourceNone
+		return
 	}
-	return ""
+
+	inventories.SetHostMetadata(inventories.HostCloudProviderSource, sourceName)
 }
 
 var instanceIDFetcher = cachedfetch.Fetcher{
@@ -102,17 +95,6 @@ var instanceIDFetcher = cachedfetch.Fetcher{
 // GetInstanceID fetches the instance id for current host from the EC2 metadata API
 func GetInstanceID(ctx context.Context) (string, error) {
 	return instanceIDFetcher.FetchString(ctx)
-}
-
-// GetHostID returns the instanceID for the current EC2 host using IMDSv2 only.
-func GetHostID(ctx context.Context) string {
-	instanceID, err := getMetadataItemWithMaxLength(ctx, imdsInstanceID, true)
-	log.Debugf("instanceID from IMDSv2 '%s' (error: %v)", instanceID, err)
-
-	if err == nil {
-		return instanceID
-	}
-	return ""
 }
 
 // IsRunningOn returns true if the agent is running on AWS
@@ -129,6 +111,9 @@ func IsRunningOn(ctx context.Context) bool {
 
 // GetHostAliases returns the host aliases from the EC2 metadata API.
 func GetHostAliases(ctx context.Context) ([]string, error) {
+	// We leverage GetHostAliases to register the instance ID in inventories
+	registerCloudProviderHostnameID(ctx)
+
 	instanceID, err := GetInstanceID(ctx)
 	if err == nil {
 		return []string{instanceID}, nil

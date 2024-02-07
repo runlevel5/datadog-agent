@@ -81,11 +81,11 @@ func (p ChecksList) Less(i, j int) bool { return p[i] < p[j] }
 
 type CollectorTestSuite struct {
 	suite.Suite
-	c *collector
+	c *Collector
 }
 
 func (suite *CollectorTestSuite) SetupTest() {
-	suite.c = NewCollector(aggregator.NewNoOpSenderManager(), 500*time.Millisecond).(*collector)
+	suite.c = NewCollector(aggregator.NewNoOpSenderManager(), 500*time.Millisecond)
 	suite.c.Start()
 }
 

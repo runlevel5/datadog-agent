@@ -5,7 +5,6 @@
 
 //go:build !linux && !windows
 
-// Package runtime holds runtime related files
 package runtime
 
 import (
@@ -22,13 +21,11 @@ import (
 	ddgostatsd "github.com/DataDog/datadog-go/v5/statsd"
 )
 
-// Commands returns the runtime security commands
-func Commands(*command.GlobalParams) []*cobra.Command {
+func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 	return nil
 }
 
-// StartRuntimeSecurity starts runtime security
-func StartRuntimeSecurity(log log.Component, config config.Component, _ string, _ startstop.Stopper, _ ddgostatsd.ClientInterface, _ sender.SenderManager) (*secagent.RuntimeSecurityAgent, error) {
+func StartRuntimeSecurity(log log.Component, config config.Component, hostname string, stopper startstop.Stopper, statsdClient *ddgostatsd.Client, senderManager sender.SenderManager) (*secagent.RuntimeSecurityAgent, error) {
 	enabled := config.GetBool("runtime_security_config.enabled")
 	if !enabled {
 		log.Info("Datadog runtime security agent disabled by config")

@@ -23,11 +23,9 @@ func MakeCommand(subcommandFactories []SubcommandFactory) *cobra.Command {
 		Use:   fmt.Sprintf("%s [command]", os.Args[0]),
 		Short: "Datadog Agent CWS Injector",
 		Long: `
-The Datadog Agent CWS Injector is used for multiple purposes:
-1/ to instrument remote User Sessions (like SSH sessions or Kubernetes
-   remote access sessions) so that CWS can enrich its events with the
-   real user context.
-2/ to trace workloads using ptrace when EBPF is not available.`,
+The Datadog Agent CWS Injector is used to instrument remote User Sessions
+(like SSH sessions or Kubernetes remote access sessions) so that CWS can
+enrich its events with the real user context.`,
 		SilenceUsage: true,
 	}
 

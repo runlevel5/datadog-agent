@@ -3,7 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2017-present Datadog, Inc.
 
-//nolint:revive // TODO(AML) Fix revive linter
 package corechecks
 
 import (
@@ -17,7 +16,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/check/defaults"
 	checkid "github.com/DataDog/datadog-agent/pkg/collector/check/id"
 	"github.com/DataDog/datadog-agent/pkg/collector/check/stats"
-	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/utils"
 	"github.com/DataDog/datadog-agent/pkg/diagnose/diagnosis"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -64,7 +62,7 @@ func NewCheckBaseWithInterval(name string, defaultInterval time.Duration) CheckB
 		checkName:     name,
 		checkID:       checkid.ID(name),
 		checkInterval: defaultInterval,
-		telemetry:     utils.IsCheckTelemetryEnabled(name, config.Datadog),
+		telemetry:     utils.IsCheckTelemetryEnabled(name),
 	}
 }
 
@@ -96,8 +94,6 @@ func (c *CheckBase) Configure(senderManager sender.SenderManager, integrationCon
 
 // CommonConfigure is called when checks implement their own Configure method,
 // in order to setup common options (run interval, empty hostname)
-//
-//nolint:revive // TODO(AML) Fix revive linter
 func (c *CheckBase) CommonConfigure(senderManager sender.SenderManager, integrationConfigDigest uint64, initConfig, instanceConfig integration.Data, source string) error {
 	c.senderManager = senderManager
 	handleConf := func(conf integration.Data, c *CheckBase) error {

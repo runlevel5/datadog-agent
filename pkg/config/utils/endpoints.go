@@ -11,8 +11,7 @@ import (
 	"regexp"
 	"strings"
 
-	pkgconfigmodel "github.com/DataDog/datadog-agent/pkg/config/model"
-	pkgconfigsetup "github.com/DataDog/datadog-agent/pkg/config/setup"
+	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/version"
 )
@@ -21,7 +20,7 @@ const (
 	infraURLPrefix = "https://app."
 )
 
-func getResolvedDDUrl(c pkgconfigmodel.Reader, urlKey string) string {
+func getResolvedDDUrl(c config.Reader, urlKey string) string {
 	resolvedDDURL := c.GetString(urlKey)
 	if c.IsSet("site") {
 		log.Infof("'site' and '%s' are both set in config: setting main endpoint to '%s': \"%s\"", urlKey, urlKey, c.GetString(urlKey))
@@ -69,7 +68,7 @@ func mergeAdditionalEndpoints(keysPerDomain, additionalEndpoints map[string][]st
 }
 
 // GetMainEndpointBackwardCompatible implements the logic to extract the DD URL from a config, based on `site`,ddURLKey and a backward compatible key
-func GetMainEndpointBackwardCompatible(c pkgconfigmodel.Reader, prefix string, ddURLKey string, backwardKey string) string {
+func GetMainEndpointBackwardCompatible(c config.Reader, prefix string, ddURLKey string, backwardKey string) string {
 	if c.IsSet(ddURLKey) && c.GetString(ddURLKey) != "" {
 		// value under ddURLKey takes precedence over backwardKey and 'site'
 		return getResolvedDDUrl(c, ddURLKey)
@@ -79,11 +78,11 @@ func GetMainEndpointBackwardCompatible(c pkgconfigmodel.Reader, prefix string, d
 	} else if c.GetString("site") != "" {
 		return prefix + strings.TrimSpace(c.GetString("site"))
 	}
-	return prefix + pkgconfigsetup.DefaultSite
+	return prefix + config.DefaultSite
 }
 
 // GetMultipleEndpoints returns the api keys per domain specified in the main agent config
-func GetMultipleEndpoints(c pkgconfigmodel.Reader) (map[string][]string, error) {
+func GetMultipleEndpoints(c config.Reader) (map[string][]string, error) {
 	ddURL := GetInfraEndpoint(c)
 	// Validating domain
 	if _, err := url.Parse(ddURL); err != nil {
@@ -101,18 +100,18 @@ func GetMultipleEndpoints(c pkgconfigmodel.Reader) (map[string][]string, error) 
 }
 
 // GetMainEndpoint returns the main DD URL defined in the config, based on `site` and the prefix, or ddURLKey
-func GetMainEndpoint(c pkgconfigmodel.Reader, prefix string, ddURLKey string) string {
+func GetMainEndpoint(c config.Reader, prefix string, ddURLKey string) string {
 	// value under ddURLKey takes precedence over 'site'
 	if c.IsSet(ddURLKey) && c.GetString(ddURLKey) != "" {
 		return getResolvedDDUrl(c, ddURLKey)
 	} else if c.GetString("site") != "" {
 		return prefix + strings.TrimSpace(c.GetString("site"))
 	}
-	return prefix + pkgconfigsetup.DefaultSite
+	return prefix + config.DefaultSite
 }
 
 // GetInfraEndpoint returns the main DD Infra URL defined in config, based on the value of `site` and `dd_url`
-func GetInfraEndpoint(c pkgconfigmodel.Reader) string {
+func GetInfraEndpoint(c config.Reader) string {
 	return GetMainEndpoint(c, infraURLPrefix, "dd_url")
 }
 

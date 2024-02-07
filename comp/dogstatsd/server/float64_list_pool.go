@@ -8,7 +8,6 @@ package server
 import (
 	"sync"
 
-	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/utils"
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 )
@@ -43,7 +42,7 @@ func newFloat64ListPool() *float64ListPool {
 			},
 		},
 		// telemetry
-		tlmEnabled: utils.IsTelemetryEnabled(config.Datadog),
+		tlmEnabled: utils.IsTelemetryEnabled(),
 	}
 }
 

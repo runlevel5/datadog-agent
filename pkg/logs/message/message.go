@@ -3,7 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//nolint:revive // TODO(AML) Fix revive linter
 package message
 
 import (
@@ -32,7 +31,6 @@ type Payload struct {
 // Message represents a log line sent to datadog, with its metadata
 type Message struct {
 	MessageContent
-	Hostname           string
 	Origin             *Origin
 	Status             string
 	IngestionTimestamp int64
@@ -309,10 +307,6 @@ func (m *Message) GetLatency() int64 {
 
 // GetHostname returns the hostname to applied the given log message
 func (m *Message) GetHostname() string {
-	if m.Hostname != "" {
-		return m.Hostname
-	}
-
 	if m.Lambda != nil {
 		return m.Lambda.ARN
 	}

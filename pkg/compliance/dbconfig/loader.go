@@ -89,7 +89,11 @@ func ListProcesses(ctx context.Context) map[utils.ContainerID]int32 {
 		if !ok {
 			continue
 		}
-		containerID, _ := utils.GetProcessContainerID(proc.Pid)
+
+		containerID, ok := utils.GetProcessContainerID(proc.Pid)
+		if !ok {
+			continue
+		}
 		// We dedupe our scans based on the resource type and the container
 		// ID, assuming that we will scan the same configuration for each
 		// containers running the process.
@@ -105,35 +109,36 @@ func ListProcesses(ctx context.Context) map[utils.ContainerID]int32 {
 
 // LoadDBResourceFromPID loads and returns an optional DBResource associated
 // with the given process PID.
-func LoadDBResourceFromPID(ctx context.Context, pid int32) (*DBResource, bool) {
+func LoadDBResourceFromPID(ctx context.Context, pid int32) (resource *DBResource, ok bool) {
 	proc, err := process.NewProcessWithContext(ctx, pid)
 	if err != nil {
-		return nil, false
+		return
 	}
 
 	resourceType, ok := getProcResourceType(proc)
 	if !ok {
-		return nil, false
+		return
 	}
-	containerID, _ := utils.GetProcessContainerID(pid)
+	containerID, ok := utils.GetProcessContainerID(pid)
+	if !ok {
+		return
+	}
 	hostroot, ok := utils.GetProcessRootPath(pid)
 	if !ok {
-		return nil, false
+		return
 	}
 
 	var conf *DBConfig
 	switch resourceType {
 	case postgresqlResourceType:
-		conf, ok = LoadPostgreSQLConfig(ctx, hostroot, proc)
+		conf, _ = LoadPostgreSQLConfig(ctx, hostroot, proc)
 	case mongoDBResourceType:
-		conf, ok = LoadMongoDBConfig(ctx, hostroot, proc)
+		conf, _ = LoadMongoDBConfig(ctx, hostroot, proc)
 	case cassandraResourceType:
-		conf, ok = LoadCassandraConfig(ctx, hostroot, proc)
-	default:
-		ok = false
+		conf, _ = LoadCassandraConfig(ctx, hostroot, proc)
 	}
-	if !ok || conf == nil {
-		return nil, false
+	if conf == nil {
+		return
 	}
 	return &DBResource{
 		Type:        resourceType,

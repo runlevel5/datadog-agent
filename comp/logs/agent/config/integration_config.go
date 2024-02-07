@@ -6,12 +6,11 @@
 package config
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
 
-	pkgconfigmodel "github.com/DataDog/datadog-agent/pkg/config/model"
+	pkgConfig "github.com/DataDog/datadog-agent/pkg/config"
 )
 
 // Logs source types
@@ -46,7 +45,6 @@ type LogsConfig struct {
 	ExcludePaths []string `mapstructure:"exclude_paths" json:"exclude_paths"`   // File
 	TailingMode  string   `mapstructure:"start_position" json:"start_position"` // File
 
-	//nolint:revive // TODO(AML) Fix revive linter
 	ConfigId           string   `mapstructure:"config_id" json:"config_id"`                   // Journald
 	IncludeSystemUnits []string `mapstructure:"include_units" json:"include_units"`           // Journald
 	ExcludeSystemUnits []string `mapstructure:"exclude_units" json:"exclude_units"`           // Journald
@@ -162,39 +160,6 @@ func (c *LogsConfig) Dump(multiline bool) string {
 	return b.String()
 }
 
-// PublicJSON serialize the structure to make sure we only export fields that can be relevant to customers.
-// This is used to send the logs config to the backend as part of the metadata payload.
-func (c *LogsConfig) PublicJSON() ([]byte, error) {
-	// Export only fields that are explicitly documented in the public documentation
-	return json.Marshal(&struct {
-		Type            string            `json:"type,omitempty"`
-		Port            int               `json:"port,omitempty"`           // Network
-		Path            string            `json:"path,omitempty"`           // File, Journald
-		Encoding        string            `json:"encoding,omitempty"`       // File
-		ExcludePaths    []string          `json:"exclude_paths,omitempty"`  // File
-		TailingMode     string            `json:"start_position,omitempty"` // File
-		ChannelPath     string            `json:"channel_path,omitempty"`   // Windows Event
-		Service         string            `json:"service,omitempty"`
-		Source          string            `json:"source,omitempty"`
-		Tags            []string          `json:"tags,omitempty"`
-		ProcessingRules []*ProcessingRule `json:"log_processing_rules,omitempty"`
-		AutoMultiLine   *bool             `json:"auto_multi_line_detection,omitempty"`
-	}{
-		Type:            c.Type,
-		Port:            c.Port,
-		Path:            c.Path,
-		Encoding:        c.Encoding,
-		ExcludePaths:    c.ExcludePaths,
-		TailingMode:     c.TailingMode,
-		ChannelPath:     c.ChannelPath,
-		Service:         c.Service,
-		Source:          c.Source,
-		Tags:            c.Tags,
-		ProcessingRules: c.ProcessingRules,
-		AutoMultiLine:   c.AutoMultiLine,
-	})
-}
-
 // TailingMode type
 type TailingMode uint8
 
@@ -278,7 +243,7 @@ func (c *LogsConfig) validateTailingMode() error {
 // AutoMultiLineEnabled determines whether auto multi line detection is enabled for this config,
 // considering both the agent-wide logs_config.auto_multi_line_detection and any config for this
 // particular log source.
-func (c *LogsConfig) AutoMultiLineEnabled(coreConfig pkgconfigmodel.Reader) bool {
+func (c *LogsConfig) AutoMultiLineEnabled(coreConfig pkgConfig.Reader) bool {
 	if c.AutoMultiLine != nil {
 		return *c.AutoMultiLine
 	}

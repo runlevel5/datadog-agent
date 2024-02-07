@@ -380,10 +380,7 @@ int test_bind_af_inet(int argc, char** argv) {
     }
 
     addr.sin_port = htons(4242);
-    if (bind(s, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-        perror("Failed to bind port");
-        return EXIT_FAILURE;
-    }
+    bind(s, (struct sockaddr*)&addr, sizeof(addr));
 
     close (s);
     return EXIT_SUCCESS;
@@ -416,10 +413,7 @@ int test_bind_af_inet6(int argc, char** argv) {
     }
 
     addr.sin6_port = htons(4242);
-    if (bind(s, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-        perror("Failed to bind port");
-        return EXIT_FAILURE;
-    }
+    bind(s, (struct sockaddr*)&addr, sizeof(addr));
 
     close(s);
     return EXIT_SUCCESS;
@@ -479,13 +473,13 @@ int test_forkexec(int argc, char **argv) {
             }
             return EXIT_SUCCESS;
         } else if (strcmp(subcmd, "mmap") == 0) {
-            open("/dev/null", O_RDONLY);
+            mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
             return EXIT_SUCCESS;
         }
     } else if (argc == 1) {
         int child = fork();
         if (child == 0) {
-            open("/dev/null", O_RDONLY);
+            mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
             return EXIT_SUCCESS;
         } else if (child > 0) {
             wait(NULL);

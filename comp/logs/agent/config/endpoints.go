@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	pkgconfigsetup "github.com/DataDog/datadog-agent/pkg/config/setup"
+	"github.com/DataDog/datadog-agent/pkg/config"
 )
 
 // EPIntakeVersion is the events platform intake API version
@@ -37,9 +37,9 @@ type Endpoint struct {
 	APIKey                  string `mapstructure:"api_key" json:"api_key"`
 	Host                    string
 	Port                    int
-	UseSSL                  *bool `mapstructure:"use_ssl" json:"use_ssl"`
-	UseCompression          bool  `mapstructure:"use_compression" json:"use_compression"`
-	CompressionLevel        int   `mapstructure:"compression_level" json:"compression_level"`
+	UseSSL                  bool
+	UseCompression          bool `mapstructure:"use_compression" json:"use_compression"`
+	CompressionLevel        int  `mapstructure:"compression_level" json:"compression_level"`
 	ProxyAddress            string
 	IsReliable              *bool `mapstructure:"is_reliable" json:"is_reliable"`
 	ConnectionResetInterval time.Duration
@@ -56,11 +56,6 @@ type Endpoint struct {
 	Origin    IntakeOrigin
 }
 
-// GetUseSSL returns the UseSSL config setting
-func (e *Endpoint) GetUseSSL() bool {
-	return e.UseSSL == nil || *e.UseSSL
-}
-
 // GetStatus returns the endpoint status
 func (e *Endpoint) GetStatus(prefix string, useHTTP bool) string {
 	compression := "uncompressed"
@@ -73,7 +68,7 @@ func (e *Endpoint) GetStatus(prefix string, useHTTP bool) string {
 
 	var protocol string
 	if useHTTP {
-		if e.GetUseSSL() {
+		if e.UseSSL {
 			protocol = "HTTPS"
 			if port == 0 {
 				port = 443 // use default port
@@ -88,7 +83,7 @@ func (e *Endpoint) GetStatus(prefix string, useHTTP bool) string {
 			}
 		}
 	} else {
-		if e.GetUseSSL() {
+		if e.UseSSL {
 			protocol = "SSL encrypted TCP"
 		} else {
 			protocol = "TCP"
@@ -135,11 +130,11 @@ func NewEndpoints(main Endpoint, additionalEndpoints []Endpoint, useProto bool, 
 		Endpoints:              append([]Endpoint{main}, additionalEndpoints...),
 		UseProto:               useProto,
 		UseHTTP:                useHTTP,
-		BatchWait:              pkgconfigsetup.DefaultBatchWait,
-		BatchMaxConcurrentSend: pkgconfigsetup.DefaultBatchMaxConcurrentSend,
-		BatchMaxSize:           pkgconfigsetup.DefaultBatchMaxSize,
-		BatchMaxContentSize:    pkgconfigsetup.DefaultBatchMaxContentSize,
-		InputChanSize:          pkgconfigsetup.DefaultInputChanSize,
+		BatchWait:              config.DefaultBatchWait,
+		BatchMaxConcurrentSend: config.DefaultBatchMaxConcurrentSend,
+		BatchMaxSize:           config.DefaultBatchMaxSize,
+		BatchMaxContentSize:    config.DefaultBatchMaxContentSize,
+		InputChanSize:          config.DefaultInputChanSize,
 	}
 }
 

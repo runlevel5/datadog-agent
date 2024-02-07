@@ -3,7 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//nolint:revive // TODO(PROC) Fix revive linter
 package containers
 
 import (
@@ -12,14 +11,13 @@ import (
 
 	model "github.com/DataDog/agent-payload/v5/process"
 
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/tagger"
 	"github.com/DataDog/datadog-agent/pkg/tagger/collectors"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics"
-	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics/provider"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 )
 
 const (
@@ -71,12 +69,12 @@ func GetSharedContainerProvider() ContainerProvider {
 // containerProvider provides data about containers usable by process-agent
 type containerProvider struct {
 	metricsProvider metrics.Provider
-	metadataStore   workloadmeta.Component
+	metadataStore   workloadmeta.Store
 	filter          *containers.Filter
 }
 
 // NewContainerProvider returns a ContainerProvider instance
-func NewContainerProvider(provider metrics.Provider, metadataStore workloadmeta.Component, filter *containers.Filter) ContainerProvider {
+func NewContainerProvider(provider metrics.Provider, metadataStore workloadmeta.Store, filter *containers.Filter) ContainerProvider {
 	return &containerProvider{
 		metricsProvider: provider,
 		metadataStore:   metadataStore,
@@ -91,7 +89,6 @@ func NewDefaultContainerProvider() ContainerProvider {
 		log.Warnf("Can't get container include/exclude filter, no filtering will be applied: %v", err)
 	}
 
-	// TODO(components): stop relying on globals and use injected components instead whenever possible.
 	return NewContainerProvider(metrics.GetProvider(), workloadmeta.GetGlobalStore(), containerFilter)
 }
 
@@ -145,10 +142,7 @@ func (p *containerProvider) GetContainers(cacheValidity time.Duration, previousC
 			previousContainerRates = &NullContainerRates
 		}
 
-		collector := p.metricsProvider.GetCollector(provider.NewRuntimeMetadata(
-			string(container.Runtime),
-			string(container.RuntimeFlavor),
-		))
+		collector := p.metricsProvider.GetCollector(string(container.Runtime))
 		if collector == nil {
 			log.Infof("No metrics collector available for runtime: %s, skipping container: %s", container.Runtime, container.ID)
 			continue

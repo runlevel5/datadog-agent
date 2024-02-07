@@ -7,31 +7,10 @@
 package probe
 
 import (
-	"fmt"
-	"strings"
-
-	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 )
 
-// NewWindowsModel returns a new model with some extra field validation
-func NewWindowsModel(_ *WindowsProbe) *model.Model {
-	return &model.Model{
-		ExtraValidateFieldFnc: func(field eval.Field, fieldValue eval.FieldValue) error {
-			// TODO(safchain) remove this check when multiple model per platform will be supported in the SECL package
-			if !strings.HasPrefix(field, "exec.") &&
-				!strings.HasPrefix(field, "exit.") &&
-				!strings.HasPrefix(field, "process.") {
-				return fmt.Errorf("%s is not available with the Windows version", field)
-			}
-			return nil
-		},
-	}
-}
-
-// NewWindowsEvent returns a new event
-func NewWindowsEvent(fh *FieldHandlers) *model.Event {
-	event := model.NewDefaultEvent()
-	event.FieldHandlers = fh
-	return event
+// NewModel returns a new model with some extra field validation
+func NewModel(probe *Probe) *model.Model {
+	return &model.Model{}
 }

@@ -12,13 +12,12 @@ import (
 
 	"github.com/DataDog/datadog-agent/cmd/system-probe/api/module"
 	"github.com/DataDog/datadog-agent/cmd/system-probe/config"
-	sysconfigtypes "github.com/DataDog/datadog-agent/cmd/system-probe/config/types"
 	"github.com/DataDog/datadog-agent/cmd/system-probe/modules"
 )
 
 func restartModuleHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	moduleName := sysconfigtypes.ModuleName(vars["module-name"])
+	moduleName := config.ModuleName(vars["module-name"])
 
 	if moduleName == config.EventMonitorModule {
 		w.WriteHeader(http.StatusOK)

@@ -5,21 +5,19 @@
 
 package utils
 
-import (
-	pkgconfigmodel "github.com/DataDog/datadog-agent/pkg/config/model"
-)
+import "github.com/DataDog/datadog-agent/pkg/config"
 
 // IsCheckTelemetryEnabled returns if we want telemetry for the given check.
 // Returns true if a * is present in the telemetry.checks list.
-func IsCheckTelemetryEnabled(checkName string, cfg pkgconfigmodel.Reader) bool {
+func IsCheckTelemetryEnabled(checkName string) bool {
 	// false if telemetry is disabled
-	if !IsTelemetryEnabled(cfg) {
+	if !IsTelemetryEnabled() {
 		return false
 	}
 
 	// by default, we don't enable telemetry for every checks stats
-	if cfg.IsSet("telemetry.checks") {
-		for _, check := range cfg.GetStringSlice("telemetry.checks") {
+	if config.Datadog.IsSet("telemetry.checks") {
+		for _, check := range config.Datadog.GetStringSlice("telemetry.checks") {
 			if check == "*" {
 				return true
 			} else if check == checkName {
@@ -31,6 +29,6 @@ func IsCheckTelemetryEnabled(checkName string, cfg pkgconfigmodel.Reader) bool {
 }
 
 // IsTelemetryEnabled returns whether or not telemetry is enabled
-func IsTelemetryEnabled(cfg pkgconfigmodel.Reader) bool {
-	return cfg.IsSet("telemetry.enabled") && cfg.GetBool("telemetry.enabled")
+func IsTelemetryEnabled() bool {
+	return config.Datadog.IsSet("telemetry.enabled") && config.Datadog.GetBool("telemetry.enabled")
 }

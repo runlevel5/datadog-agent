@@ -18,7 +18,7 @@ import (
 	"github.com/cihub/seelog"
 )
 
-// ServiceName is the name of the Windows Service the agent runs as
+// Name of the Windows Service the agent runs as
 const ServiceName = "DatadogAgent"
 
 func init() {
@@ -49,7 +49,7 @@ func CheckAndUpgradeConfig() error {
 		return nil
 	}
 	config.Datadog.AddConfigPath(path.DefaultConfPath)
-	_, err := config.LoadWithoutSecret()
+	_, err := config.Load()
 	if err == nil {
 		// was able to read config, check for api key
 		if config.Datadog.GetString("api_key") != "" {

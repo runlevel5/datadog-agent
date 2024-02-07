@@ -3,13 +3,12 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build !windows
-
 // Package main implements the SSH connector between gitlab runners, metal instances, and micro VMs
 package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -23,7 +22,6 @@ import (
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV2"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/DataDog/datadog-agent/test/new-e2e/system-probe/connector/metric"
 	"github.com/DataDog/datadog-agent/test/new-e2e/system-probe/connector/sshtools"
 )
 
@@ -134,7 +132,7 @@ func run() (err error) {
 	var failType string
 	result := fail
 	defer func() {
-		if serr := metric.SubmitExecutionMetric(buildMetric(cinfo, failType, result)); serr != nil {
+		if serr := submitExecutionMetric(cinfo, failType, result); serr != nil {
 			err = serr
 		}
 	}()
@@ -201,4 +199,29 @@ func buildMetric(cinfo connectorInfo, failType, result string) datadogV2.MetricP
 			},
 		},
 	}
+}
+
+func submitExecutionMetric(cinfo connectorInfo, failType, result string) error {
+	if _, ok := os.LookupEnv("DD_API_KEY"); !ok {
+		fmt.Fprintf(os.Stderr, "skipping sending metric because DD_API_KEY not present")
+		return nil
+	}
+
+	metricBody := buildMetric(cinfo, failType, result)
+
+	ctx := datadog.NewDefaultContext(context.Background())
+	configuration := datadog.NewConfiguration()
+	apiClient := datadog.NewAPIClient(configuration)
+	api := datadogV2.NewMetricsApi(apiClient)
+	resp, r, err := api.SubmitMetrics(ctx, metricBody, *datadogV2.NewSubmitMetricsOptionalParameters())
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return fmt.Errorf("error when calling `MetricsApi.SubmitMetrics`: %v", err)
+	}
+
+	responseContent, _ := json.MarshalIndent(resp, "", "  ")
+	fmt.Fprintf(os.Stdout, "Response from `MetricsApi.SubmitMetrics`:\n%s\n", responseContent)
+
+	return nil
 }

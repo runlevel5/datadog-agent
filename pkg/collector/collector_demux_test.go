@@ -11,13 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/DataDog/datadog-agent/comp/aggregator/demultiplexer"
-	"github.com/DataDog/datadog-agent/comp/aggregator/demultiplexer/demultiplexerimpl"
+	"github.com/DataDog/datadog-agent/comp/core/log"
+	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/collector/check/stub"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
@@ -26,13 +25,14 @@ import (
 type CollectorDemuxTestSuite struct {
 	suite.Suite
 
-	demux demultiplexer.FakeSamplerMock
-	c     *collector
+	demux *aggregator.TestAgentDemultiplexer
+	c     *Collector
 }
 
 func (suite *CollectorDemuxTestSuite) SetupTest() {
-	suite.demux = fxutil.Test[demultiplexer.FakeSamplerMock](suite.T(), logimpl.MockModule(), demultiplexerimpl.FakeSamplerMockModule())
-	suite.c = NewCollector(suite.demux, 500*time.Millisecond).(*collector)
+	log := fxutil.Test[log.Component](suite.T(), log.MockModule)
+	suite.demux = aggregator.InitTestAgentDemultiplexerWithFlushInterval(log, 100*time.Hour)
+	suite.c = NewCollector(suite.demux, 500*time.Millisecond)
 
 	suite.c.Start()
 }
@@ -148,7 +148,7 @@ func (suite *CollectorDemuxTestSuite) TestRescheduledCheckReusesSampler() {
 	// Wait for the check to drop the sender
 	require.Eventually(suite.T(), func() bool {
 		// returns error if sender was not found, which is what we are waiting for
-		sender, _ := suite.demux.GetAgentDemultiplexer().PeekSender(ch.ID())
+		sender, _ := suite.demux.PeekSender(ch.ID())
 		return sender == nil
 	}, time.Second, 10*time.Millisecond)
 
@@ -180,7 +180,7 @@ type cancelledCheck struct {
 	stub.StubCheck
 	flip  chan struct{}
 	flop  chan struct{}
-	demux demultiplexer.FakeSamplerMock
+	demux *aggregator.TestAgentDemultiplexer
 }
 
 func (c *cancelledCheck) Run() error {

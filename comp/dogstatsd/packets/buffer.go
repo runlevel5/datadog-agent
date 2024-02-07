@@ -54,10 +54,6 @@ func (pb *Buffer) flushLoop() {
 func (pb *Buffer) Append(packet *Packet) {
 	pb.m.Lock()
 	defer pb.m.Unlock()
-
-	packet.ListenerID = pb.listenerID
-	tlmBufferSizeBytes.Add(float64(packet.SizeInBytes()+packet.DataSizeInBytes()), pb.listenerID)
-
 	pb.packets = append(pb.packets, packet)
 
 	tlmBufferSize.Set(float64(len(pb.packets)), pb.listenerID)
@@ -71,10 +67,6 @@ func (pb *Buffer) Append(packet *Packet) {
 func (pb *Buffer) flush() {
 	if len(pb.packets) > 0 {
 		t1 := time.Now()
-
-		TelemetryTrackPackets(pb.packets, pb.listenerID)
-		tlmBufferSizeBytes.Add(-float64(pb.packets.SizeInBytes()+pb.packets.DataSizeInBytes()), pb.listenerID)
-
 		pb.outputChannel <- pb.packets
 		t2 := time.Now()
 		tlmListenerChannel.Observe(float64(t2.Sub(t1).Nanoseconds()), pb.listenerID)
@@ -82,8 +74,8 @@ func (pb *Buffer) flush() {
 		pb.packets = make(Packets, 0, pb.bufferSize)
 	}
 	tlmBufferSize.Set(float64(len(pb.packets)), pb.listenerID)
-	tlmChannelSize.Set(float64(len(pb.outputChannel)))
-
+	// FIXME: it's not per listener
+	tlmChannelSize.Set(float64(len(pb.outputChannel)), pb.listenerID)
 }
 
 // Close closes the packet buffer

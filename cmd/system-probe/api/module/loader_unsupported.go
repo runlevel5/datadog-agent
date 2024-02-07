@@ -7,12 +7,12 @@
 
 package module
 
-import sysconfigtypes "github.com/DataDog/datadog-agent/cmd/system-probe/config/types"
+import "github.com/DataDog/datadog-agent/cmd/system-probe/config"
 
-func preRegister(_ *sysconfigtypes.Config, _ []Factory) error {
+func preRegister(_ *config.Config) error {
 	return nil
 }
 
-func postRegister(_ *sysconfigtypes.Config, _ []Factory) error {
+func postRegister(_ *config.Config) error {
 	return nil
 }

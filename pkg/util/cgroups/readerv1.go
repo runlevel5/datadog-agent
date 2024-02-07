@@ -19,11 +19,10 @@ const (
 )
 
 type readerV1 struct {
-	mountPoints    map[string]string
-	cgroupRoot     string
-	filter         ReaderFilter
-	pidMapper      pidMapper
-	baseController string
+	mountPoints map[string]string
+	cgroupRoot  string
+	filter      ReaderFilter
+	pidMapper   pidMapper
 }
 
 func newReaderV1(procPath string, mountPoints map[string]string, baseController string, filter ReaderFilter) (*readerV1, error) {
@@ -33,11 +32,10 @@ func newReaderV1(procPath string, mountPoints map[string]string, baseController 
 
 	if path, found := mountPoints[baseController]; found {
 		return &readerV1{
-			mountPoints:    mountPoints,
-			cgroupRoot:     path,
-			filter:         filter,
-			pidMapper:      getPidMapper(procPath, path, baseController, filter),
-			baseController: baseController,
+			mountPoints: mountPoints,
+			cgroupRoot:  path,
+			filter:      filter,
+			pidMapper:   getPidMapper(procPath, path, baseController, filter),
 		}, nil
 	}
 
@@ -51,22 +49,21 @@ func (r *readerV1) parseCgroups() (map[string]Cgroup, error) {
 		AllowNonDirectory: true,
 		Unsorted:          true,
 		Callback: func(fullPath string, de *godirwalk.Dirent) error {
-			if !de.IsDir() {
-				return nil
-			}
+			if de.IsDir() {
+				id, err := r.filter(fullPath, de.Name())
+				if id != "" {
+					relPath, err := filepath.Rel(r.cgroupRoot, fullPath)
+					if err != nil {
+						return err
+					}
 
-			id, err := r.filter(fullPath, de.Name())
-			if id != "" {
-				relPath, err := filepath.Rel(r.cgroupRoot, fullPath)
-				if err != nil {
-					return err
+					res[id] = newCgroupV1(id, relPath, r.mountPoints, r.pidMapper)
 				}
 
-				res[id] = newCgroupV1(id, relPath, r.baseController, r.mountPoints, r.pidMapper)
+				return err
 			}
 
-			return err
-
+			return nil
 		},
 	})
 

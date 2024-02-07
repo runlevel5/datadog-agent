@@ -62,16 +62,13 @@ func processEvents(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			log("processEvent context done")
 			return
 		default:
 			res, err := extensionClient.NextEvent(ctx)
 			if err != nil {
-				log("an error occurred: %v", err)
 				return
 			}
 			if res.EventType == Shutdown {
-				log("shutdown signal received")
 				time.Sleep(1900 * time.Millisecond)
 				return
 			}
@@ -175,7 +172,7 @@ func (e *Client) NextEvent(ctx context.Context) (*NextEventResponse, error) {
 		return nil, err
 	}
 	if httpRes.StatusCode != 200 {
-		return nil, fmt.Errorf("%s %s failed with status %s", httpReq.Method, httpReq.URL.String(), httpRes.Status)
+		return nil, fmt.Errorf("request failed with status %s", httpRes.Status)
 	}
 	defer httpRes.Body.Close()
 	body, err := io.ReadAll(httpRes.Body)
@@ -200,12 +197,12 @@ func startHTTPServer(port string) {
 		nbHitMetrics++
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			log("error while reading HTTP request body: %v", err)
+			fmt.Printf("Error while reading HTTP request body: %s \n", err)
 			return
 		}
 		pl := new(gogen.SketchPayload)
 		if err := pl.Unmarshal(body); err != nil {
-			log("error while unmarshalling sketches: %v", err)
+			fmt.Printf("Error while unmarshalling sketches %s \n", err)
 			return
 		}
 
@@ -215,7 +212,7 @@ func startHTTPServer(port string) {
 			// two calls + shutdown
 			jsonSketch, err := json.Marshal(outputSketches)
 			if err != nil {
-				log("error while JSON encoding the sketch: %v", err)
+				fmt.Printf("Error while JSON encoding the sketch")
 			}
 			fmt.Printf("%s%s%s\n", "BEGINMETRIC", string(jsonSketch), "ENDMETRIC")
 		}
@@ -235,14 +232,9 @@ func startHTTPServer(port string) {
 			return
 		}
 
-		privateLogPrefix := fmt.Sprintf("[%s]", extensionName)
 		for _, log := range messages {
 			msg := log.Message.Message
-			if strings.Contains(msg, "BEGINMETRIC") ||
-				strings.Contains(msg, "BEGINLOG") ||
-				strings.Contains(msg, "BEGINTRACE") ||
-				// "Private" entries produced by the "log" function are not reported back to the test suites.
-				strings.Contains(msg, privateLogPrefix) {
+			if strings.Contains(msg, "BEGINMETRIC") || strings.Contains(msg, "BEGINLOG") || strings.Contains(msg, "BEGINTRACE") {
 				continue
 			}
 			if strings.HasPrefix(msg, "REPORT RequestId:") {
@@ -254,7 +246,7 @@ func startHTTPServer(port string) {
 		if nbReport == 2 && !hasBeenOutput {
 			jsonLogs, err := json.Marshal(outputLogs)
 			if err != nil {
-				log("error while JSON encoding the logs: %v", err)
+				fmt.Printf("Error while JSON encoding the logs")
 			}
 			fmt.Printf("%s%s%s\n", "BEGINLOG", string(jsonLogs), "ENDLOG")
 			hasBeenOutput = true // make sure not re re-output the logs
@@ -262,47 +254,37 @@ func startHTTPServer(port string) {
 
 	})
 
-	for _, version := range []string{"v0.2", "v0.4"} {
-		http.HandleFunc(fmt.Sprintf("/api/%s/traces", version), func(w http.ResponseWriter, r *http.Request) {
-			nbHitTraces++
-			body, err := io.ReadAll(r.Body)
+	http.HandleFunc("/api/v0.2/traces", func(w http.ResponseWriter, r *http.Request) {
+		nbHitTraces++
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			return
+		}
+		decompressedBody, err := decompress(body)
+		if err != nil {
+			return
+		}
+		pl := new(pb.AgentPayload)
+		if err := pl.Unmarshal(decompressedBody); err != nil {
+			fmt.Printf("Error while unmarshalling traces %s \n", err)
+			return
+		}
+
+		outputTraces = append(outputTraces, pl.TracerPayloads...)
+
+		if nbHitTraces == 2 {
+			jsonLogs, err := json.Marshal(outputTraces)
 			if err != nil {
-				return
+				fmt.Printf("Error while JSON encoding the traces")
 			}
-			decompressedBody, err := decompress(body)
-			if err != nil {
-				return
-			}
-			pl := new(pb.AgentPayload)
-			if err := pl.Unmarshal(decompressedBody); err != nil {
-				log("error while unmarshalling traces: %s", err)
-				return
-			}
+			fmt.Printf("%s%s%s\n", "BEGINTRACE", string(jsonLogs), "ENDTRACE")
+		}
+	})
 
-			outputTraces = append(outputTraces, pl.TracerPayloads...)
+	http.HandleFunc("/api/v1/series", func(w http.ResponseWriter, r *http.Request) {
+	})
 
-			if nbHitTraces == 2 {
-				jsonLogs, err := json.Marshal(outputTraces)
-				if err != nil {
-					log("error while JSON encoding the traces: %v", err)
-				}
-				fmt.Printf("%s%s%s\n", "BEGINTRACE", string(jsonLogs), "ENDTRACE")
-			}
-		})
-	}
-
-	for _, pattern := range []string{
-		"/api/v0.2/stats",
-		"/api/v1/check_run",
-		"/api/v1/series",
-	} {
-		// These endpoints are ignored by the recorder and silently return an empty success response.
-		http.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) { /* do nothing */ })
-	}
-
-	// This is actually a wildcard handler....
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		log("unexpected request: %s %s", r.Method, r.URL.String())
+	http.HandleFunc("/api/v1/check_run", func(w http.ResponseWriter, r *http.Request) {
 	})
 
 	err := http.ListenAndServe(":"+port, nil)
@@ -324,9 +306,4 @@ func decompress(payload []byte) ([]byte, error) {
 	}
 
 	return buffer.Bytes(), nil
-}
-
-// log records a message that is "private" to this extension and will not be reported back in the BEGINLOG...ENDLOG blocks.
-func log(format string, args ...any) {
-	fmt.Printf("[%s] %s\n", extensionName, fmt.Sprintf(format, args...))
 }

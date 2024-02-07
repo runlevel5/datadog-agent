@@ -155,6 +155,8 @@ func TestSketchSeriesMarshalSplitCompress(t *testing.T) {
 		sl.Append(Makeseries(i))
 	}
 
+	serializer1 := SketchSeriesList{SketchesSource: sl}
+	payload, _ := serializer1.Marshal()
 	sl.Reset()
 	serializer2 := SketchSeriesList{SketchesSource: sl}
 	payloads, err := serializer2.MarshalSplitCompress(marshaler.NewBufferContext())
@@ -166,6 +168,9 @@ func TestSketchSeriesMarshalSplitCompress(t *testing.T) {
 	r, _ := zlib.NewReader(reader)
 	decompressed, _ := io.ReadAll(r)
 	r.Close()
+
+	// Check that we encoded the protobuf correctly
+	assert.Equal(t, decompressed, payload)
 
 	pl := new(gogen.SketchPayload)
 	err = pl.Unmarshal(decompressed)

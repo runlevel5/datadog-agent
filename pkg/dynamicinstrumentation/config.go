@@ -7,7 +7,6 @@ package dynamicinstrumentation
 
 import (
 	"github.com/DataDog/datadog-agent/cmd/system-probe/config"
-	sysconfigtypes "github.com/DataDog/datadog-agent/cmd/system-probe/config/types"
 	"github.com/DataDog/datadog-agent/pkg/ebpf"
 )
 
@@ -17,8 +16,7 @@ type Config struct {
 	DynamicInstrumentationEnabled bool
 }
 
-//nolint:revive // TODO(DEBUG) Fix revive linter
-func NewConfig(sysprobeConfig *sysconfigtypes.Config) (*Config, error) {
+func NewConfig(sysprobeConfig *config.Config) (*Config, error) {
 	_, diEnabled := sysprobeConfig.EnabledModules[config.DynamicInstrumentationModule]
 	return &Config{
 		Config:                        *ebpf.NewConfig(),

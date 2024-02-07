@@ -14,11 +14,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/viper"
 	"github.com/spf13/afero"
 	"github.com/spf13/pflag"
-
-	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 // Source stores what edits a setting as a string
@@ -38,17 +37,11 @@ const (
 // sources list the known sources, following the order of hierarchy between them
 var sources = []Source{SourceDefault, SourceUnknown, SourceFile, SourceEnvVar, SourceAgentRuntime, SourceRC, SourceCLI}
 
-// ValueWithSource is a tuple for a source and a value, not necessarily the applied value in the main config
-type ValueWithSource struct {
-	Source Source
-	Value  interface{}
-}
-
 // String casts Source into a string
 func (s Source) String() string {
-	// Safeguard: if we don't know the Source, we assume SourceUnknown
+	// Safeguard: if we don't know the Source, we assume SourceDefault
 	if s == "" {
-		return string(SourceUnknown)
+		return string(SourceDefault)
 	}
 	return string(s)
 }
@@ -63,8 +56,6 @@ type safeConfig struct {
 	envPrefix      string
 	envKeyReplacer *strings.Replacer
 
-	notificationReceivers []NotificationReceiver
-
 	// Proxy settings
 	proxiesOnce sync.Once
 	proxies     *Proxy
@@ -72,14 +63,6 @@ type safeConfig struct {
 	// configEnvVars is the set of env vars that are consulted for
 	// configuration values.
 	configEnvVars map[string]struct{}
-}
-
-// OnUpdate adds a callback to the list receivers to be called each time a value is change in the configuration
-// by a call to the 'Set' method.
-func (c *safeConfig) OnUpdate(callback NotificationReceiver) {
-	c.Lock()
-	defer c.Unlock()
-	c.notificationReceivers = append(c.notificationReceivers, callback)
 }
 
 // Set wraps Viper for concurrent access
@@ -93,14 +76,10 @@ func (c *safeConfig) Set(key string, value interface{}, source Source) {
 	defer c.Unlock()
 	c.configSources[source].Set(key, value)
 	c.mergeViperInstances(key)
-
-	// notifying all receiver about the updated setting
-	for _, receiver := range c.notificationReceivers {
-		receiver(key)
-	}
 }
 
-// SetWithoutSource sets the given value using source Unknown
+// SetWithoutSource wraps Viper for concurrent access.
+// It's the default Viper Set() method.
 func (c *safeConfig) SetWithoutSource(key string, value interface{}) {
 	c.Set(key, value, SourceUnknown)
 }
@@ -141,9 +120,12 @@ func (c *safeConfig) SetKnown(key string) {
 	c.Viper.SetKnown(key)
 }
 
-// IsKnown returns whether a key is known
+// IsKnown adds a key to the set of known valid config keys
 func (c *safeConfig) IsKnown(key string) bool {
-	keys := c.GetKnownKeys()
+	c.Lock()
+	defer c.Unlock()
+
+	keys := c.Viper.GetKnownKeys()
 	_, ok := keys[key]
 	return ok
 }
@@ -151,8 +133,8 @@ func (c *safeConfig) IsKnown(key string) bool {
 // GetKnownKeys returns all the keys that meet at least one of these criteria:
 // 1) have a default, 2) have an environment variable binded or 3) have been SetKnown()
 func (c *safeConfig) GetKnownKeys() map[string]interface{} {
-	c.RLock()
-	defer c.RUnlock()
+	c.Lock()
+	defer c.Unlock()
 
 	// GetKnownKeys returns a fresh map, so the caller may do with it
 	// as they please without holding the lock.
@@ -207,7 +189,7 @@ func (c *safeConfig) IsSectionSet(section string) bool {
 		}
 	}
 
-	// If none of the keys are set, the section is still considered as set
+	// Is none of the keys are set, the section is still considered as set
 	// if it has been explicitly set in the config.
 	return c.IsSet(section)
 }
@@ -227,20 +209,6 @@ func (c *safeConfig) Get(key string) interface{} {
 		log.Warnf("failed to get configuration value for key %q: %s", key, err)
 	}
 	return val
-}
-
-// GetAllSources returns the value of a key for each source
-func (c *safeConfig) GetAllSources(key string) []ValueWithSource {
-	c.RLock()
-	defer c.RUnlock()
-	vals := make([]ValueWithSource, len(sources))
-	for i, source := range sources {
-		vals[i] = ValueWithSource{
-			Source: source,
-			Value:  c.configSources[source].Get(key),
-		}
-	}
-	return vals
 }
 
 // GetString wraps Viper for concurrent access
@@ -432,7 +400,6 @@ func (c *safeConfig) SetEnvPrefix(in string) {
 }
 
 // mergeWithEnvPrefix derives the environment variable that Viper will use for a given key.
-// mergeWithEnvPrefix must be called while holding the config log (read or write).
 func (c *safeConfig) mergeWithEnvPrefix(key string) string {
 	return strings.Join([]string{c.envPrefix, strings.ToUpper(key)}, "_")
 }
@@ -465,8 +432,8 @@ func (c *safeConfig) BindEnv(input ...string) {
 
 // SetEnvKeyReplacer wraps Viper for concurrent access
 func (c *safeConfig) SetEnvKeyReplacer(r *strings.Replacer) {
-	c.Lock()
-	defer c.Unlock()
+	c.RLock()
+	defer c.RUnlock()
 	c.configSources[SourceEnvVar].SetEnvKeyReplacer(r)
 	c.Viper.SetEnvKeyReplacer(r)
 	c.envKeyReplacer = r
@@ -474,34 +441,31 @@ func (c *safeConfig) SetEnvKeyReplacer(r *strings.Replacer) {
 
 // UnmarshalKey wraps Viper for concurrent access
 func (c *safeConfig) UnmarshalKey(key string, rawVal interface{}, opts ...viper.DecoderConfigOption) error {
-	c.RLock()
-	defer c.RUnlock()
+	c.Lock()
+	defer c.Unlock()
 	return c.Viper.UnmarshalKey(key, rawVal, opts...)
 }
 
 // Unmarshal wraps Viper for concurrent access
 func (c *safeConfig) Unmarshal(rawVal interface{}) error {
-	c.RLock()
-	defer c.RUnlock()
+	c.Lock()
+	defer c.Unlock()
 	return c.Viper.Unmarshal(rawVal)
 }
 
 // UnmarshalExact wraps Viper for concurrent access
 func (c *safeConfig) UnmarshalExact(rawVal interface{}) error {
-	c.RLock()
-	defer c.RUnlock()
+	c.Lock()
+	defer c.Unlock()
 	return c.Viper.UnmarshalExact(rawVal)
 }
 
 // ReadInConfig wraps Viper for concurrent access
 func (c *safeConfig) ReadInConfig() error {
 	c.Lock()
-	defer c.Unlock()
 	err := c.Viper.ReadInConfig()
-	if err != nil {
-		return err
-	}
-	return c.configSources[SourceFile].ReadInConfig()
+	c.Unlock()
+	return err
 }
 
 // ReadConfig wraps Viper for concurrent access
@@ -512,11 +476,8 @@ func (c *safeConfig) ReadConfig(in io.Reader) error {
 	if err != nil {
 		return err
 	}
-	err = c.Viper.ReadConfig(bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-	return c.configSources[SourceFile].ReadConfig(bytes.NewReader(b))
+	_ = c.configSources[SourceFile].ReadConfig(bytes.NewReader(b))
+	return c.Viper.ReadConfig(bytes.NewReader(b))
 }
 
 // MergeConfig wraps Viper for concurrent access
@@ -524,6 +485,13 @@ func (c *safeConfig) MergeConfig(in io.Reader) error {
 	c.Lock()
 	defer c.Unlock()
 	return c.Viper.MergeConfig(in)
+}
+
+// MergeConfigOverride wraps Viper for concurrent access
+func (c *safeConfig) MergeConfigOverride(in io.Reader) error {
+	c.Lock()
+	defer c.Unlock()
+	return c.Viper.MergeConfigOverride(in)
 }
 
 // MergeConfigMap merges the configuration from the map given with an existing config.
@@ -536,8 +504,8 @@ func (c *safeConfig) MergeConfigMap(cfg map[string]any) error {
 
 // AllSettings wraps Viper for concurrent access
 func (c *safeConfig) AllSettings() map[string]interface{} {
-	c.RLock()
-	defer c.RUnlock()
+	c.Lock()
+	defer c.Unlock()
 
 	// AllSettings returns a fresh map, so the caller may do with it
 	// as they please without holding the lock.
@@ -546,29 +514,68 @@ func (c *safeConfig) AllSettings() map[string]interface{} {
 
 // AllSettingsWithoutDefault wraps Viper for concurrent access
 func (c *safeConfig) AllSettingsWithoutDefault() map[string]interface{} {
-	c.RLock()
-	defer c.RUnlock()
+	c.Lock()
+	defer c.Unlock()
 
 	// AllSettingsWithoutDefault returns a fresh map, so the caller may do with it
 	// as they please without holding the lock.
 	return c.Viper.AllSettingsWithoutDefault()
 }
 
-// AllSourceSettingsWithoutDefault wraps Viper for concurrent access
-func (c *safeConfig) AllSourceSettingsWithoutDefault(source Source) map[string]interface{} {
-	c.RLock()
-	defer c.RUnlock()
+// AllFileSettingsWithoutDefault wraps Viper for concurrent access
+func (c *safeConfig) AllFileSettingsWithoutDefault() map[string]interface{} {
+	c.Lock()
+	defer c.Unlock()
 
-	// AllSourceSettingsWithoutDefault returns a fresh map, so the caller may do with it
+	// AllFileSettingsWithoutDefault returns a fresh map, so the caller may do with it
 	// as they please without holding the lock.
-	return c.configSources[source].AllSettingsWithoutDefault()
+	return c.configSources[SourceFile].AllSettingsWithoutDefault()
+}
+
+// AllEnvVarSettingsWithoutDefault wraps Viper for concurrent access
+func (c *safeConfig) AllEnvVarSettingsWithoutDefault() map[string]interface{} {
+	c.Lock()
+	defer c.Unlock()
+
+	// AllEnvVarSettingsWithoutDefault returns a fresh map, so the caller may do with it
+	// as they please without holding the lock.
+	return c.configSources[SourceEnvVar].AllSettingsWithoutDefault()
+}
+
+// AllAgentRuntimeSettingsWithoutDefault wraps Viper for concurrent access
+func (c *safeConfig) AllAgentRuntimeSettingsWithoutDefault() map[string]interface{} {
+	c.Lock()
+	defer c.Unlock()
+
+	// AllAgentRuntimeSettingsWithoutDefault returns a fresh map, so the caller may do with it
+	// as they please without holding the lock.
+	return c.configSources[SourceAgentRuntime].AllSettingsWithoutDefault()
+}
+
+// AllRemoteSettingsWithoutDefault wraps Viper for concurrent access
+func (c *safeConfig) AllRemoteSettingsWithoutDefault() map[string]interface{} {
+	c.Lock()
+	defer c.Unlock()
+
+	// AllRemoteSettingsWithoutDefault returns a fresh map, so the caller may do with it
+	// as they please without holding the lock.
+	return c.configSources[SourceRC].AllSettingsWithoutDefault()
+}
+
+// AllCliSettingsWithoutDefault wraps Viper for concurrent access
+func (c *safeConfig) AllCliSettingsWithoutDefault() map[string]interface{} {
+	c.Lock()
+	defer c.Unlock()
+
+	// AllCliSettingsWithoutDefault returns a fresh map, so the caller may do with it
+	// as they please without holding the lock.
+	return c.configSources[SourceCLI].AllSettingsWithoutDefault()
 }
 
 // AddConfigPath wraps Viper for concurrent access
 func (c *safeConfig) AddConfigPath(in string) {
 	c.Lock()
 	defer c.Unlock()
-	c.configSources[SourceFile].AddConfigPath(in)
 	c.Viper.AddConfigPath(in)
 }
 
@@ -584,7 +591,6 @@ func (c *safeConfig) SetConfigName(in string) {
 func (c *safeConfig) SetConfigFile(in string) {
 	c.Lock()
 	defer c.Unlock()
-	c.configSources[SourceFile].SetConfigFile(in)
 	c.Viper.SetConfigFile(in)
 }
 
@@ -598,8 +604,8 @@ func (c *safeConfig) SetConfigType(in string) {
 
 // ConfigFileUsed wraps Viper for concurrent access
 func (c *safeConfig) ConfigFileUsed() string {
-	c.RLock()
-	defer c.RUnlock()
+	c.Lock()
+	defer c.Unlock()
 	return c.Viper.ConfigFileUsed()
 }
 
@@ -621,8 +627,6 @@ func (c *safeConfig) BindPFlag(key string, flag *pflag.Flag) error {
 
 // GetEnvVars implements the Config interface
 func (c *safeConfig) GetEnvVars() []string {
-	c.RLock()
-	defer c.RUnlock()
 	vars := make([]string, 0, len(c.configEnvVars))
 	for v := range c.configEnvVars {
 		vars = append(vars, v)
@@ -665,7 +669,7 @@ func NewConfig(name string, envPrefix string, envKeyReplacer *strings.Replacer) 
 	return &config
 }
 
-// CopyConfig copies the given config to the receiver config. This should only be used in tests as replacing
+// CopyConfig copies the internal config to the current config. This should only be used in tests as replacing
 // the global config reference is unsafe.
 func (c *safeConfig) CopyConfig(cfg Config) {
 	c.Lock()

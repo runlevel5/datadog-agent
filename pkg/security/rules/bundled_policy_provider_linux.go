@@ -7,21 +7,15 @@
 package rules
 
 import (
-	"github.com/DataDog/datadog-agent/pkg/security/config"
 	"github.com/DataDog/datadog-agent/pkg/security/events"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
 )
 
-func newBundledPolicyRules(cfg *config.RuntimeSecurityConfig) []*rules.RuleDefinition {
-	if cfg.EBPFLessEnabled {
-		return []*rules.RuleDefinition{}
-	}
-	return []*rules.RuleDefinition{{
-		ID:         events.RefreshUserCacheRuleID,
-		Expression: `rename.file.destination.path in [ "/etc/passwd", "/etc/group" ]`,
-		Actions: []*rules.ActionDefinition{{
-			InternalCallback: &rules.InternalCallbackDefinition{},
-		}},
-		Silent: true,
-	}}
-}
+var bundledPolicyRules = []*rules.RuleDefinition{{
+	ID:         events.RefreshUserCacheRuleID,
+	Expression: `rename.file.destination.path in [ "/etc/passwd", "/etc/group" ]`,
+	Actions: []rules.ActionDefinition{{
+		InternalCallbackDefinition: &rules.InternalCallbackDefinition{},
+	}},
+	Silent: true,
+}}

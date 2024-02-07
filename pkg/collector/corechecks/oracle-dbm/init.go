@@ -10,9 +10,15 @@ package oracle
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
+
+type vDatabase struct {
+	Name string `db:"NAME"`
+	Cdb  string `db:"CDB"`
+}
 
 type vInstance struct {
 	HostName     sql.NullString `db:"HOST_NAME"`
@@ -132,9 +138,9 @@ func (c *Check) init() error {
 
 	tags = append(tags, fmt.Sprintf("hosting_type:%s", ht))
 	c.hostingType = ht
-	c.tagsWithoutDbRole = make([]string, len(tags))
-	copy(c.tagsWithoutDbRole, tags)
+	c.tags = make([]string, len(tags))
 	copy(c.tags, tags)
+	c.tagsString = strings.Join(tags, ",")
 
 	c.fqtEmitted = getFqtEmittedCache()
 	c.planEmitted = getPlanEmittedCache(c)

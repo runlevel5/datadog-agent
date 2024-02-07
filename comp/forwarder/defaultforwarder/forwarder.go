@@ -6,10 +6,9 @@
 package defaultforwarder
 
 import (
-	"go.uber.org/fx"
-
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
+	"go.uber.org/fx"
 )
 
 type dependencies struct {
@@ -23,7 +22,6 @@ func newForwarder(dep dependencies) Component {
 	return NewForwarder(dep.Config, dep.Log, dep.Params)
 }
 
-// NewForwarder returns a new forwarder component.
 func NewForwarder(config config.Component, log log.Component, params Params) Component {
 	if params.UseNoopForwarder {
 		return NoopForwarder{}

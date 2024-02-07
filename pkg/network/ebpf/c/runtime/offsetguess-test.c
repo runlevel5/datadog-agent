@@ -34,6 +34,7 @@ typedef enum {
     OFFSET_SK_BUFF_HEAD,
     OFFSET_CT_ORIGIN,
     OFFSET_CT_REPLY,
+    OFFSET_CT_STATUS,
     OFFSET_CT_NETNS,
     OFFSET_CT_INO,
 } offset_t;
@@ -64,7 +65,7 @@ int kprobe__tcp_getsockopt(struct pt_regs* ctx) {
     bpf_map_update_elem(&offsets, &o, &offset, BPF_ANY);
 
     o = OFFSET_SPORT;
-    offset = offsetof(struct sock, sk_num);
+    offset = offsetof(struct inet_sock, inet_sport);
     bpf_map_update_elem(&offsets, &o, &offset, BPF_ANY);
 
     o = OFFSET_DPORT;
@@ -155,6 +156,10 @@ int kprobe__tcp_getsockopt(struct pt_regs* ctx) {
     offset = offsetof(struct nf_conn, tuplehash);
     offset += IP_CT_DIR_REPLY * sizeof(struct nf_conntrack_tuple_hash);
     offset += offsetof(struct nf_conntrack_tuple_hash, tuple);
+    bpf_map_update_elem(&offsets, &o, &offset, BPF_ANY);
+
+    o = OFFSET_CT_STATUS;
+    offset = offsetof(struct nf_conn, status);
     bpf_map_update_elem(&offsets, &o, &offset, BPF_ANY);
 
     o = OFFSET_CT_NETNS;

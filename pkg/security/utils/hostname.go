@@ -12,10 +12,8 @@ import (
 
 	"github.com/avast/retry-go/v4"
 
-	"github.com/DataDog/datadog-agent/pkg/config"
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/DataDog/datadog-agent/pkg/util/grpc"
-	"github.com/DataDog/datadog-agent/pkg/util/hostname"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
@@ -39,12 +37,7 @@ func GetHostnameWithContext(ctx context.Context) (string, error) {
 		ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 		defer cancel()
 
-		ipcAddress, err := config.GetIPCAddress()
-		if err != nil {
-			return err
-		}
-
-		client, err := grpc.GetDDAgentClient(ctx, ipcAddress, config.GetIPCPort())
+		client, err := grpc.GetDDAgentClient(ctx)
 		if err != nil {
 			return err
 		}
@@ -60,19 +53,4 @@ func GetHostnameWithContext(ctx context.Context) (string, error) {
 		return nil
 	}, retry.LastErrorOnly(true), retry.Attempts(maxAttempts), retry.Context(ctx))
 	return hostname, err
-}
-
-// GetHostnameWithContextAndFallback attempts to acquire a hostname by connecting to the
-// core agent's gRPC endpoints extending the given context, or falls back to local resolution
-func GetHostnameWithContextAndFallback(ctx context.Context) (string, error) {
-	hostnameDetected, err := GetHostnameWithContext(ctx)
-	if err != nil {
-		log.Warnf("Could not resolve hostname from core-agent: %v", err)
-		hostnameDetected, err = hostname.Get(ctx)
-		if err != nil {
-			return "", err
-		}
-	}
-	log.Infof("Hostname is: %s", hostnameDetected)
-	return hostnameDetected, nil
 }

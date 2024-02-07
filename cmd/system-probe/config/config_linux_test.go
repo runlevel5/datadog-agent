@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -56,18 +55,4 @@ func TestDynamicInstrumentation(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, false, cfg.ModuleIsEnabled(DynamicInstrumentationModule))
 
-}
-
-func TestEventStreamEnabledForSupportedKernelsLinux(t *testing.T) {
-	config.ResetSystemProbeConfig(t)
-	t.Setenv("DD_SYSTEM_PROBE_EVENT_MONITORING_NETWORK_PROCESS_ENABLED", strconv.FormatBool(true))
-
-	cfg := config.SystemProbe
-	Adjust(cfg)
-
-	if ProcessEventDataStreamSupported() {
-		require.True(t, cfg.GetBool("event_monitoring_config.network_process.enabled"))
-	} else {
-		require.False(t, cfg.GetBool("event_monitoring_config.network_process.enabled"))
-	}
 }

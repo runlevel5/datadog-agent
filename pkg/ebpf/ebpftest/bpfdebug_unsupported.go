@@ -5,7 +5,6 @@
 
 //go:build !linux
 
-// Package ebpftest is utilities for tests against eBPF
 package ebpftest
 
 import "testing"

@@ -8,7 +8,6 @@ package serializerexporter
 import (
 	"context"
 
-	"github.com/DataDog/opentelemetry-mapping-go/pkg/otlp/attributes"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/resourcetotelemetry"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
@@ -42,15 +41,7 @@ func NewFactory(s serializer.MetricSerializer) exp.Factory {
 func (f *factory) createMetricExporter(ctx context.Context, params exp.CreateSettings, c component.Config) (exp.Metrics, error) {
 	cfg := c.(*exporterConfig)
 
-	// TODO: Ideally the attributes translator would be created once and reused
-	// across all signals. This would need unifying the logsagent and serializer
-	// exporters into a single exporter.
-	attributesTranslator, err := attributes.NewTranslator(params.TelemetrySettings)
-	if err != nil {
-		return nil, err
-	}
-
-	newExp, err := newExporter(params.TelemetrySettings, attributesTranslator, f.s, cfg)
+	newExp, err := newExporter(params.Logger, f.s, cfg)
 	if err != nil {
 		return nil, err
 	}

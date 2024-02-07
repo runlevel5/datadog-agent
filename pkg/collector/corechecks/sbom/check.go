@@ -11,16 +11,15 @@ import (
 	"errors"
 	"time"
 
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
 	core "github.com/DataDog/datadog-agent/pkg/collector/corechecks"
 	ddConfig "github.com/DataDog/datadog-agent/pkg/config"
-	"github.com/DataDog/datadog-agent/pkg/sbom"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 )
 
 const (
@@ -107,7 +106,7 @@ func (c *Config) Parse(data []byte) error {
 // Check reports SBOM
 type Check struct {
 	core.CheckBase
-	workloadmetaStore workloadmeta.Component
+	workloadmetaStore workloadmeta.Store
 	instance          *Config
 	processor         *processor
 	sender            sender.Sender
@@ -117,8 +116,7 @@ type Check struct {
 // CheckFactory registers the sbom check
 func CheckFactory() check.Check {
 	return &Check{
-		CheckBase: core.NewCheckBase(checkName),
-		// TODO)components): stop using global and rely instead on injected workloadmeta component.
+		CheckBase:         core.NewCheckBase(checkName),
 		workloadmetaStore: workloadmeta.GetGlobalStore(),
 		instance:          &Config{},
 		stopCh:            make(chan struct{}),
@@ -180,12 +178,8 @@ func (c *Check) Run() error {
 		workloadmeta.NewFilter(&filterParams),
 	)
 
-	// Trigger an initial scan on host. This channel is buffered to avoid blocking the scanner
-	// if the processor is not ready to receive the result yet. This channel should not be closed,
-	// it is sent as part of every scan request. When the main context terminates, both references will
-	// be dropped and the scanner will be garbage collected.
-	hostSbomChan := make(chan sbom.ScanResult, 1)
-	c.processor.triggerHostScan(hostSbomChan)
+	// Trigger an initial scan on host
+	c.processor.processHostRefresh()
 
 	c.sendUsageMetrics()
 
@@ -198,23 +192,18 @@ func (c *Check) Run() error {
 	metricTicker := time.NewTicker(metricPeriod)
 	defer metricTicker.Stop()
 
-	defer c.processor.stop()
 	for {
 		select {
-		case eventBundle, ok := <-imgEventsCh:
-			if !ok {
-				return nil
-			}
+		case eventBundle := <-imgEventsCh:
 			c.processor.processContainerImagesEvents(eventBundle)
 		case <-containerPeriodicRefreshTicker.C:
 			c.processor.processContainerImagesRefresh(c.workloadmetaStore.ListImages())
 		case <-hostPeriodicRefreshTicker.C:
-			c.processor.triggerHostScan(hostSbomChan)
-		case scanResult := <-hostSbomChan:
-			c.processor.processHostScanResult(scanResult)
+			c.processor.processHostRefresh()
 		case <-metricTicker.C:
 			c.sendUsageMetrics()
 		case <-c.stopCh:
+			c.processor.stop()
 			return nil
 		}
 	}

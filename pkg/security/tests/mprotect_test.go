@@ -28,7 +28,7 @@ func TestMProtectEvent(t *testing.T) {
 		},
 	}
 
-	test, err := newTestModule(t, nil, ruleDefs)
+	test, err := newTestModule(t, nil, ruleDefs, testOpts{})
 	if err != nil {
 		t.Fatal(err)
 	}

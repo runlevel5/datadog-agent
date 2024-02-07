@@ -8,17 +8,16 @@ package generic
 import (
 	"time"
 
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/tagger"
 	"github.com/DataDog/datadog-agent/pkg/tagger/collectors"
 	taggerUtils "github.com/DataDog/datadog-agent/pkg/tagger/utils"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics"
-	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics/provider"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/pointer"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 )
 
 const (
@@ -80,10 +79,7 @@ func (p *Processor) Run(sender sender.Sender, cacheValidity time.Duration) error
 		}
 		tags = p.metricsAdapter.AdaptTags(tags, container)
 
-		collector := p.metricsProvider.GetCollector(provider.NewRuntimeMetadata(
-			string(container.Runtime),
-			string(container.RuntimeFlavor),
-		))
+		collector := p.metricsProvider.GetCollector(string(container.Runtime))
 		if collector == nil {
 			log.Warnf("Collector not found for container: %v, metrics will ne missing", container)
 			continue

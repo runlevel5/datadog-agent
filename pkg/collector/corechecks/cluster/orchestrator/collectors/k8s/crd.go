@@ -41,7 +41,7 @@ func NewCRDCollector() *CRDCollector {
 	return &CRDCollector{
 		metadata: &collectors.CollectorMetadata{
 			IsDefaultVersion:          true,
-			IsStable:                  true,
+			IsStable:                  false,
 			IsManifestProducer:        true,
 			IsMetadataProducer:        false,
 			SupportsManifestBuffering: false,

@@ -12,11 +12,11 @@
     ]
   },
   "queryStringParameters": {
-    "sql": "105; DROP TABLE Users;"
+    "sql": "UNION SELECT password FROM users"
   },
   "multiValueQueryStringParameters": {
     "sql": [
-      "105; DROP TABLE Users;"
+      "UNION SELECT password FROM users"
     ]
   },
   "requestContext": {

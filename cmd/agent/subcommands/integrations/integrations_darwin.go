@@ -12,7 +12,7 @@ import (
 	"os"
 )
 
-func validateUser(_ bool) error {
+func validateUser(allowRoot bool) error {
 	if os.Geteuid() != 0 {
 		return fmt.Errorf("please run this tool with the root user")
 	}

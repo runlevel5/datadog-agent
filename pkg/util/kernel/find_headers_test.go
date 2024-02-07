@@ -20,7 +20,7 @@ func TestGetKernelHeaders(t *testing.T) {
 		t.Skip("set INTEGRATION environment variable to run")
 	}
 
-	opts := HeaderOptions{}
+	opts := KernelHeaderOptions{}
 	dirs := GetKernelHeaders(opts, nil)
 	assert.NotZero(t, len(dirs), "expected to find header directories")
 	t.Log(dirs)

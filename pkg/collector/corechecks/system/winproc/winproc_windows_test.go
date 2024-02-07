@@ -11,7 +11,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
-	pdhtest "github.com/DataDog/datadog-agent/pkg/util/pdhutil"
+	pdhtest "github.com/DataDog/datadog-agent/pkg/util/winutil/pdhutil"
 )
 
 func TestWinprocCheckWindows(t *testing.T) {

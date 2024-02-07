@@ -26,7 +26,6 @@ import (
 	"github.com/Masterminds/sprig/v3"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/fatih/structtag"
-	"golang.org/x/exp/slices"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"golang.org/x/tools/go/packages"
@@ -104,10 +103,6 @@ func origTypeToBasicType(kind string) string {
 	return kind
 }
 
-func isNetType(kind string) bool {
-	return kind == "net.IPNet"
-}
-
 func isBasicType(kind string) bool {
 	switch kind {
 	case "string", "bool", "int", "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "net.IPNet":
@@ -117,12 +112,8 @@ func isBasicType(kind string) bool {
 }
 
 func isBasicTypeForGettersOnly(kind string) bool {
-	if isBasicType(kind) {
-		return true
-	}
-
 	switch kind {
-	case "time.Time":
+	case "string", "bool", "int", "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "net.IPNet", "time.Time":
 		return true
 	}
 	return false
@@ -165,10 +156,13 @@ func handleBasic(module *common.Module, field seclField, name, alias, aliasPrefi
 		Struct:      containerStructName,
 		Alias:       alias,
 		AliasPrefix: aliasPrefix,
-		GettersOnly: field.gettersOnly,
 	}
 
-	module.Fields[alias] = newStructField
+	if field.gettersOnly {
+		module.GettersOnlyFields[alias] = newStructField
+	} else {
+		module.Fields[alias] = newStructField
+	}
 
 	if _, ok := module.EventTypes[event]; !ok {
 		module.EventTypes[event] = common.NewEventTypeMetada()
@@ -193,10 +187,13 @@ func handleBasic(module *common.Module, field seclField, name, alias, aliasPrefi
 			Struct:      "string",
 			Alias:       alias,
 			AliasPrefix: aliasPrefix,
-			GettersOnly: field.gettersOnly,
 		}
 
-		module.Fields[alias] = newStructField
+		if field.gettersOnly {
+			module.GettersOnlyFields[alias] = newStructField
+		} else {
+			module.Fields[alias] = newStructField
+		}
 	}
 }
 
@@ -291,10 +288,13 @@ func handleFieldWithHandler(module *common.Module, field seclField, aliasPrefix,
 		Check:            field.check,
 		Alias:            alias,
 		AliasPrefix:      aliasPrefix,
-		GettersOnly:      field.gettersOnly,
 	}
 
-	module.Fields[alias] = newStructField
+	if field.gettersOnly {
+		module.GettersOnlyFields[alias] = newStructField
+	} else {
+		module.Fields[alias] = newStructField
+	}
 
 	if field.lengthField {
 		var lengthField = *module.Fields[alias]
@@ -529,12 +529,6 @@ func handleSpecRecursive(module *common.Module, astFiles *AstFiles, spec interfa
 					continue
 				}
 
-				if isNetType((fieldType)) {
-					if !slices.Contains(module.Imports, "net") {
-						module.Imports = append(module.Imports, "net")
-					}
-				}
-
 				alias := seclField.name
 				if isBasicType(fieldType) {
 					handleBasic(module, seclField, fieldBasename, alias, aliasPrefix, prefix, fieldType, event, opOverrides, fieldCommentText, seclField.containerStructName, fieldIterator, isArray)
@@ -569,6 +563,7 @@ func handleSpecRecursive(module *common.Module, astFiles *AstFiles, spec interfa
 				}
 
 				if handler := seclField.handler; handler != "" {
+
 					handleFieldWithHandler(module, seclField, aliasPrefix, prefix, prefixedFieldName, fieldType, seclField.containerStructName, event, fieldCommentText, opOverrides, handler, isPointer, isArray, fieldIterator)
 
 					delete(dejavu, fieldBasename)
@@ -687,14 +682,15 @@ func parseFile(modelFile string, typesFile string, pkgName string) (*common.Modu
 	}
 
 	module := &common.Module{
-		Name:       moduleName,
-		SourcePkg:  pkgName,
-		TargetPkg:  pkgName,
-		BuildTags:  formatBuildTags(buildTags),
-		Fields:     make(map[string]*common.StructField),
-		AllFields:  make(map[string]*common.StructField),
-		Iterators:  make(map[string]*common.StructField),
-		EventTypes: make(map[string]*common.EventTypeMetadata),
+		Name:              moduleName,
+		SourcePkg:         pkgName,
+		TargetPkg:         pkgName,
+		BuildTags:         formatBuildTags(buildTags),
+		Fields:            make(map[string]*common.StructField),
+		GettersOnlyFields: make(map[string]*common.StructField),
+		AllFields:         make(map[string]*common.StructField),
+		Iterators:         make(map[string]*common.StructField),
+		EventTypes:        make(map[string]*common.EventTypeMetadata),
 	}
 
 	// If the target package is different from the model package
@@ -715,7 +711,7 @@ func formatBuildTags(buildTags string) []string {
 	var formattedBuildTags []string
 	for _, tag := range splittedBuildTags {
 		if tag != "" {
-			formattedBuildTags = append(formattedBuildTags, fmt.Sprintf("go:build %s", tag))
+			formattedBuildTags = append(formattedBuildTags, fmt.Sprintf("+build %s", tag))
 		}
 	}
 	return formattedBuildTags
@@ -740,7 +736,7 @@ func newField(allFields map[string]*common.StructField, field *common.StructFiel
 	return result
 }
 
-func generatePrefixNilChecks(allFields map[string]*common.StructField, returnType string, field *common.StructField) string {
+func generatePrefixNilChecks(allFields map[string]*common.StructField, field *common.StructField) string {
 	var fieldPath, result string
 	for _, node := range strings.Split(field.Name, ".") {
 		if fieldPath != "" {
@@ -751,7 +747,7 @@ func generatePrefixNilChecks(allFields map[string]*common.StructField, returnTyp
 
 		if field, ok := allFields[fieldPath]; ok {
 			if field.IsOrigTypePtr {
-				result += fmt.Sprintf("if ev.%s == nil { return %s }\n", field.Name, getDefaultValueOfType(returnType))
+				result += fmt.Sprintf("if ev.%s == nil { return zeroValue }\n", field.Name)
 			}
 		}
 	}
@@ -837,6 +833,25 @@ func needScrubbed(fieldName string) bool {
 		return true
 	}
 	return false
+}
+
+func needFiltered(fieldName string) bool {
+	loweredFieldName := strings.ToLower(fieldName)
+	if strings.Contains(loweredFieldName, "env") && !strings.Contains(loweredFieldName, "truncated") {
+		return true
+	}
+	return false
+}
+
+func combineFieldMaps(map1 map[string]*common.StructField, map2 map[string]*common.StructField) map[string]*common.StructField {
+	combined := make(map[string]*common.StructField)
+	for k, v := range map1 {
+		combined[k] = v
+	}
+	for key, value := range map2 {
+		combined[key] = value
+	}
+	return combined
 }
 
 func addSuffixToFuncPrototype(suffix string, prototype string) string {
@@ -962,6 +977,8 @@ var funcMap = map[string]interface{}{
 	"PascalCaseFieldName":      pascalCaseFieldName,
 	"GetDefaultValueOfType":    getDefaultValueOfType,
 	"NeedScrubbed":             needScrubbed,
+	"NeedFiltered":             needFiltered,
+	"CombineFieldMaps":         combineFieldMaps,
 	"AddSuffixToFuncPrototype": addSuffixToFuncPrototype,
 }
 
@@ -1059,7 +1076,7 @@ func removeEmptyLines(input *bytes.Buffer) string {
 
 func init() {
 	flag.BoolVar(&verbose, "verbose", false, "Be verbose")
-	flag.StringVar(&docOutput, "doc", "", "Generate documentation JSON")
+	flag.StringVar(&docOutput, "doc", "../../../../docs/cloud-workload-security/secl.json", "Generate documentation JSON")
 	flag.StringVar(&fieldHandlersOutput, "field-handlers", "field_handlers_unix.go", "Field handlers output file")
 	flag.StringVar(&modelFile, "input", os.Getenv("GOFILE"), "Go file to generate decoders from")
 	flag.StringVar(&typesFile, "types-file", os.Getenv("TYPESFILE"), "Go type file to use with the model file")

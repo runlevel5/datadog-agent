@@ -10,10 +10,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/collector/component/componenttest"
-	"go.opentelemetry.io/collector/exporter/exportertest"
 	"go.opentelemetry.io/collector/pdata/pmetric"
+	"go.uber.org/zap"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
@@ -192,17 +190,19 @@ func Test_ConsumeMetrics_Tags(t *testing.T) {
 				tt.setConfig(t)
 			}
 			rec := &metricRecorder{}
-			ctx := context.Background()
-			f := NewFactory(rec)
-			exp, err := f.CreateMetricsExporter(
-				ctx,
-				exportertest.NewNopCreateSettings(),
-				f.CreateDefaultConfig(),
+			exp, err := newExporter(
+				zap.NewNop(),
+				rec,
+				NewFactory(rec).CreateDefaultConfig().(*exporterConfig),
 			)
-			require.NoError(t, err)
-			require.NoError(t, exp.Start(ctx, componenttest.NewNopHost()))
-			require.NoError(t, exp.ConsumeMetrics(ctx, tt.genMetrics(t)))
-			require.NoError(t, exp.Shutdown(ctx))
+			if err != nil {
+				t.Errorf("newExporter() returns unexpected error: %v", err)
+				return
+			}
+			if err := exp.ConsumeMetrics(context.Background(), tt.genMetrics(t)); err != nil {
+				t.Errorf("ConsumeMetrics() returns unexpected error: %v", err)
+				return
+			}
 
 			if tt.wantSketchTags.Len() > 0 {
 				assert.Equal(t, tt.wantSketchTags, rec.sketchSeriesList[0].Tags)

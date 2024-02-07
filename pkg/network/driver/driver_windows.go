@@ -3,7 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//nolint:revive // TODO(WKIT) Fix revive linter
 package driver
 
 import (
@@ -13,7 +12,7 @@ import (
 
 	"go.uber.org/atomic"
 
-	sysconfigtypes "github.com/DataDog/datadog-agent/cmd/system-probe/config/types"
+	"github.com/DataDog/datadog-agent/cmd/system-probe/config"
 )
 
 // ErrDriverNotInitialized is returned when you attempt to use the driver without calling Init
@@ -27,7 +26,7 @@ type driver struct {
 }
 
 // Init configures the driver and will disable it if closed source is not allowed
-func Init(*sysconfigtypes.Config) error {
+func Init(*config.Config) error {
 	driverInit.Do(func() {
 		driverRef = &driver{
 			inuse: atomic.NewUint32(0),

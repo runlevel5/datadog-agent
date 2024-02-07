@@ -21,13 +21,13 @@
               {
                 "address": "server.request.query",
                 "highlight": [
-                  "1;Tnn"
+                  "UEnkn"
                 ],
                 "key_path": [
                   "sql",
                   "0"
                 ],
-                "value": "105; DROP TABLE Users;"
+                "value": "UNION SELECT password FROM users"
               }
             ]
           }
@@ -90,13 +90,13 @@
               {
                 "address": "server.request.query",
                 "highlight": [
-                  "1;Tnn"
+                  "UEnkn"
                 ],
                 "key_path": [
                   "sql",
                   "0"
                 ],
-                "value": "105; DROP TABLE Users;"
+                "value": "UNION SELECT password FROM users"
               }
             ]
           }

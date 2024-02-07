@@ -10,21 +10,17 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
-	awshost "github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments/aws/host"
-
+	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/utils/e2e"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agentparams"
-
 	"github.com/stretchr/testify/assert"
 )
 
 type agentConfigCheckSuite struct {
-	e2e.BaseSuite[environments.Host]
+	e2e.Suite[e2e.AgentEnv]
 }
 
 func TestAgentConfigCheckSuite(t *testing.T) {
-	e2e.Run(t, &agentConfigCheckSuite{}, e2e.WithProvisioner(awshost.ProvisionerNoFakeIntake()))
+	e2e.Run(t, &agentConfigCheckSuite{}, e2e.AgentStackDef())
 }
 
 type CheckConfigOutput struct {
@@ -165,7 +161,7 @@ func (v *agentConfigCheckSuite) TestDefaultInstalledChecks() {
 		},
 	}
 
-	output := v.Env().Agent.Client.ConfigCheck()
+	output := v.Env().Agent.ConfigCheck()
 
 	assert.NotContains(v.T(), output, "=== Configuration errors ===")
 
@@ -186,9 +182,9 @@ func (v *agentConfigCheckSuite) TestWithBadConfigCheck() {
 	- name: bad yaml formatting via tab
 `
 	integration := agentparams.WithIntegration("http_check.d", config)
-	v.UpdateEnv(awshost.ProvisionerNoFakeIntake(awshost.WithAgentOptions(integration)))
+	v.UpdateEnv(e2e.AgentStackDef(e2e.WithAgentParams(integration)))
 
-	output := v.Env().Agent.Client.ConfigCheck()
+	output := v.Env().Agent.ConfigCheck()
 
 	assert.Contains(v.T(), output, "http_check: yaml: line 2: found character that cannot start any token")
 }
@@ -199,9 +195,9 @@ func (v *agentConfigCheckSuite) TestWithAddedIntegrationsCheck() {
     url: http://some.url.example.com
 `
 	integration := agentparams.WithIntegration("http_check.d", config)
-	v.UpdateEnv(awshost.ProvisionerNoFakeIntake(awshost.WithAgentOptions(integration)))
+	v.UpdateEnv(e2e.AgentStackDef(e2e.WithAgentParams(integration)))
 
-	output := v.Env().Agent.Client.ConfigCheck()
+	output := v.Env().Agent.ConfigCheck()
 
 	result, err := MatchCheckToTemplate("http_check", output)
 	assert.NoError(v.T(), err)

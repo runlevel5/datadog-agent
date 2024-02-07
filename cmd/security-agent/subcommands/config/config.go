@@ -18,8 +18,6 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
-	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
-	"github.com/DataDog/datadog-agent/comp/core/secrets"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/settings"
@@ -58,9 +56,8 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 				fx.Supply(cliParams),
 				fx.Supply(core.BundleParams{
 					ConfigParams: config.NewSecurityAgentParams(globalParams.ConfigFilePaths),
-					SecretParams: secrets.NewEnabledParams(),
-					LogParams:    logimpl.ForOneShot(command.LoggerName, "off", true)}),
-				core.Bundle(),
+					LogParams:    log.ForOneShot(command.LoggerName, "off", true)}),
+				core.Bundle,
 			)
 		},
 	}
@@ -77,9 +74,8 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 					fx.Supply(cliParams),
 					fx.Supply(core.BundleParams{
 						ConfigParams: config.NewSecurityAgentParams(globalParams.ConfigFilePaths),
-						SecretParams: secrets.NewEnabledParams(),
-						LogParams:    logimpl.ForOneShot(command.LoggerName, "off", true)}),
-					core.Bundle(),
+						LogParams:    log.ForOneShot(command.LoggerName, "off", true)}),
+					core.Bundle,
 				)
 			},
 		},
@@ -97,9 +93,8 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 					fx.Supply(cliParams),
 					fx.Supply(core.BundleParams{
 						ConfigParams: config.NewSecurityAgentParams(globalParams.ConfigFilePaths),
-						SecretParams: secrets.NewEnabledParams(),
-						LogParams:    logimpl.ForOneShot(command.LoggerName, "off", true)}),
-					core.Bundle(),
+						LogParams:    log.ForOneShot(command.LoggerName, "off", true)}),
+					core.Bundle,
 				)
 			},
 		},
@@ -117,9 +112,8 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 					fx.Supply(cliParams),
 					fx.Supply(core.BundleParams{
 						ConfigParams: config.NewSecurityAgentParams(globalParams.ConfigFilePaths),
-						SecretParams: secrets.NewEnabledParams(),
-						LogParams:    logimpl.ForOneShot(command.LoggerName, "off", true)}),
-					core.Bundle(),
+						LogParams:    log.ForOneShot(command.LoggerName, "off", true)}),
+					core.Bundle,
 				)
 			},
 		},
@@ -139,7 +133,7 @@ func getSettingsClient(_ *cobra.Command, _ []string) (settings.Client, error) {
 	return settingshttp.NewClient(c, apiConfigURL, "security-agent"), nil
 }
 
-func showRuntimeConfiguration(_ log.Component, _ config.Component, _ secrets.Component, params *cliParams) error {
+func showRuntimeConfiguration(log log.Component, config config.Component, params *cliParams) error {
 	c, err := params.getClient(params.command, params.args)
 	if err != nil {
 		return err
@@ -155,7 +149,7 @@ func showRuntimeConfiguration(_ log.Component, _ config.Component, _ secrets.Com
 	return nil
 }
 
-func setConfigValue(_ log.Component, _ config.Component, _ secrets.Component, params *cliParams) error {
+func setConfigValue(log log.Component, config config.Component, params *cliParams) error {
 	if len(params.args) != 2 {
 		return fmt.Errorf("exactly two parameters are required: the setting name and its value")
 	}
@@ -179,7 +173,7 @@ func setConfigValue(_ log.Component, _ config.Component, _ secrets.Component, pa
 	return nil
 }
 
-func getConfigValue(_ log.Component, _ config.Component, _ secrets.Component, params *cliParams) error {
+func getConfigValue(log log.Component, config config.Component, params *cliParams) error {
 	if len(params.args) != 1 {
 		return fmt.Errorf("a single setting name must be specified")
 	}
@@ -199,7 +193,7 @@ func getConfigValue(_ log.Component, _ config.Component, _ secrets.Component, pa
 	return nil
 }
 
-func listRuntimeConfigurableValue(_ log.Component, _ config.Component, _ secrets.Component, params *cliParams) error {
+func listRuntimeConfigurableValue(log log.Component, config config.Component, params *cliParams) error {
 	c, err := params.getClient(params.command, params.args)
 	if err != nil {
 		return err

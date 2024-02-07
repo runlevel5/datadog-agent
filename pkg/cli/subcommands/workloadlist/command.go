@@ -15,12 +15,11 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
-	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -59,12 +58,12 @@ func MakeCommand(globalParamsGetter func() GlobalParams) *cobra.Command {
 			return fxutil.OneShot(workloadList,
 				fx.Supply(cliParams),
 				fx.Supply(core.BundleParams{
-					ConfigParams: config.NewAgentParams(
+					ConfigParams: config.NewAgentParamsWithoutSecrets(
 						globalParams.ConfFilePath,
 						config.WithConfigName(globalParams.ConfigName),
 					),
-					LogParams: logimpl.ForOneShot(globalParams.LoggerName, "off", true)}),
-				core.Bundle(),
+					LogParams: log.ForOneShot(globalParams.LoggerName, "off", true)}),
+				core.Bundle,
 			)
 		},
 	}
@@ -74,7 +73,7 @@ func MakeCommand(globalParamsGetter func() GlobalParams) *cobra.Command {
 	return workloadListCommand
 }
 
-func workloadList(_ log.Component, _ config.Component, cliParams *cliParams) error {
+func workloadList(log log.Component, config config.Component, cliParams *cliParams) error {
 	c := util.GetClient(false) // FIX: get certificates right then make this true
 
 	// Set session token

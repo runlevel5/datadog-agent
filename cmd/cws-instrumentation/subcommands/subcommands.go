@@ -12,7 +12,6 @@ import (
 	"github.com/DataDog/datadog-agent/cmd/cws-instrumentation/command"
 	"github.com/DataDog/datadog-agent/cmd/cws-instrumentation/subcommands/injectcmd"
 	"github.com/DataDog/datadog-agent/cmd/cws-instrumentation/subcommands/setupcmd"
-	"github.com/DataDog/datadog-agent/cmd/cws-instrumentation/subcommands/tracecmd"
 )
 
 // CWSInjectorSubcommands returns SubcommandFactories for the subcommands supported
@@ -21,6 +20,5 @@ func CWSInjectorSubcommands() []command.SubcommandFactory {
 	return []command.SubcommandFactory{
 		setupcmd.Command,
 		injectcmd.Command,
-		tracecmd.Command,
 	}
 }

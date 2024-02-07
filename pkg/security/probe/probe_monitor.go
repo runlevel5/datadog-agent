@@ -24,9 +24,9 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 )
 
-// EBPFMonitors regroups all the work we want to do to monitor the probes we pushed in the kernel
-type EBPFMonitors struct {
-	ebpfProbe *EBPFProbe
+// Monitor regroups all the work we want to do to monitor the probes we pushed in the kernel
+type Monitors struct {
+	probe *Probe
 
 	eventStreamMonitor *eventstream.Monitor
 	runtimeMonitor     *runtime.Monitor
@@ -36,61 +36,61 @@ type EBPFMonitors struct {
 	syscallsMonitor    *syscalls.Monitor
 }
 
-// NewEBPFMonitors returns a new instance of a ProbeMonitor
-func NewEBPFMonitors(p *EBPFProbe) *EBPFMonitors {
-	return &EBPFMonitors{
-		ebpfProbe: p,
+// NewMonitors returns a new instance of a ProbeMonitor
+func NewMonitors(p *Probe) *Monitors {
+	return &Monitors{
+		probe: p,
 	}
 }
 
 // Init initializes the monitor
-func (m *EBPFMonitors) Init() error {
+func (m *Monitors) Init() error {
 	var err error
-	p := m.ebpfProbe
+	p := m.probe
 
 	// instantiate a new event statistics monitor
-	m.eventStreamMonitor, err = eventstream.NewEventStreamMonitor(p.config.Probe, p.Erpc, p.Manager, p.statsdClient, p.onEventLost, p.UseRingBuffers())
+	m.eventStreamMonitor, err = eventstream.NewEventStreamMonitor(p.Config.Probe, p.Erpc, p.Manager, p.StatsdClient, p.onEventLost, p.UseRingBuffers())
 	if err != nil {
 		return fmt.Errorf("couldn't create the events statistics monitor: %w", err)
 	}
 
-	if p.config.Probe.RuntimeMonitor {
-		m.runtimeMonitor = runtime.NewRuntimeMonitor(p.statsdClient)
+	if p.Config.Probe.RuntimeMonitor {
+		m.runtimeMonitor = runtime.NewRuntimeMonitor(p.StatsdClient)
 	}
 
-	m.discarderMonitor, err = discarder.NewDiscarderMonitor(p.Manager, p.statsdClient)
+	m.discarderMonitor, err = discarder.NewDiscarderMonitor(p.Manager, p.StatsdClient)
 	if err != nil {
 		return fmt.Errorf("couldn't create the discarder monitor: %w", err)
 	}
-	m.approverMonitor, err = approver.NewApproverMonitor(p.Manager, p.statsdClient)
+	m.approverMonitor, err = approver.NewApproverMonitor(p.Manager, p.StatsdClient)
 	if err != nil {
 		return fmt.Errorf("couldn't create the approver monitor: %w", err)
 	}
 
-	if p.opts.SyscallsMonitorEnabled {
-		m.syscallsMonitor, err = syscalls.NewSyscallsMonitor(p.Manager, p.statsdClient)
+	if p.Opts.SyscallsMonitorEnabled {
+		m.syscallsMonitor, err = syscalls.NewSyscallsMonitor(p.Manager, p.StatsdClient)
 		if err != nil {
 			return fmt.Errorf("couldn't create the approver monitor: %w", err)
 		}
 	}
 
-	m.cgroupsMonitor = cgroups.NewCgroupsMonitor(p.statsdClient, p.Resolvers.CGroupResolver)
+	m.cgroupsMonitor = cgroups.NewCgroupsMonitor(p.StatsdClient, p.resolvers.CGroupResolver)
 
 	return nil
 }
 
 // GetEventStreamMonitor returns the perf buffer monitor
-func (m *EBPFMonitors) GetEventStreamMonitor() *eventstream.Monitor {
+func (m *Monitors) GetEventStreamMonitor() *eventstream.Monitor {
 	return m.eventStreamMonitor
 }
 
 // SendStats sends statistics about the probe to Datadog
-func (m *EBPFMonitors) SendStats() error {
+func (m *Monitors) SendStats() error {
 	// delay between two send in order to reduce the statsd pool presure
 	const delay = time.Second
 	time.Sleep(delay)
 
-	if resolvers := m.ebpfProbe.Resolvers; resolvers != nil {
+	if resolvers := m.probe.GetResolvers(); resolvers != nil {
 		if err := resolvers.ProcessResolver.SendStats(); err != nil {
 			return fmt.Errorf("failed to send process_resolver stats: %w", err)
 		}
@@ -122,7 +122,7 @@ func (m *EBPFMonitors) SendStats() error {
 	}
 	time.Sleep(delay)
 
-	if m.ebpfProbe.config.Probe.RuntimeMonitor {
+	if m.probe.Config.Probe.RuntimeMonitor {
 		if err := m.runtimeMonitor.SendStats(); err != nil {
 			return fmt.Errorf("failed to send runtime monitor stats: %w", err)
 		}
@@ -140,7 +140,7 @@ func (m *EBPFMonitors) SendStats() error {
 		return fmt.Errorf("failed to send evaluation set stats: %w", err)
 	}
 
-	if m.ebpfProbe.opts.SyscallsMonitorEnabled {
+	if m.probe.Opts.SyscallsMonitorEnabled {
 		if err := m.syscallsMonitor.SendStats(); err != nil {
 			return fmt.Errorf("failed to send evaluation set stats: %w", err)
 		}
@@ -150,8 +150,8 @@ func (m *EBPFMonitors) SendStats() error {
 }
 
 // ProcessEvent processes an event through the various monitors and controllers of the probe
-func (m *EBPFMonitors) ProcessEvent(event *model.Event) {
-	if !m.ebpfProbe.config.RuntimeSecurity.InternalMonitoringEnabled {
+func (m *Monitors) ProcessEvent(event *model.Event) {
+	if !m.probe.Config.RuntimeSecurity.InternalMonitoringEnabled {
 		return
 	}
 
@@ -167,22 +167,22 @@ func (m *EBPFMonitors) ProcessEvent(event *model.Event) {
 
 	var pathErr *path.ErrPathResolution
 	if errors.As(event.Error, &pathErr) {
-		m.ebpfProbe.probe.DispatchCustomEvent(
-			NewAbnormalEvent(events.AbnormalPathRuleID, events.AbnormalPathRuleDesc, event, pathErr.Err),
+		m.probe.DispatchCustomEvent(
+			NewAbnormalEvent(events.AbnormalPathRuleID, events.AbnormalPathRuleDesc, event, m.probe, pathErr.Err),
 		)
 	}
 
 	var processContextErr *model.ErrNoProcessContext
 	if errors.As(event.Error, &processContextErr) {
-		m.ebpfProbe.probe.DispatchCustomEvent(
-			NewAbnormalEvent(events.NoProcessContextErrorRuleID, events.NoProcessContextErrorRuleDesc, event, event.Error),
+		m.probe.DispatchCustomEvent(
+			NewAbnormalEvent(events.NoProcessContextErrorRuleID, events.NoProcessContextErrorRuleDesc, event, m.probe, event.Error),
 		)
 	}
 
 	var brokenLineageErr *model.ErrProcessBrokenLineage
 	if errors.As(event.Error, &brokenLineageErr) {
-		m.ebpfProbe.probe.DispatchCustomEvent(
-			NewAbnormalEvent(events.BrokenProcessLineageErrorRuleID, events.BrokenProcessLineageErrorRuleDesc, event, event.Error),
+		m.probe.DispatchCustomEvent(
+			NewAbnormalEvent(events.BrokenProcessLineageErrorRuleID, events.BrokenProcessLineageErrorRuleDesc, event, m.probe, event.Error),
 		)
 	}
 }

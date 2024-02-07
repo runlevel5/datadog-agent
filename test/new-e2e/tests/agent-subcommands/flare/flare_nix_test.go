@@ -11,10 +11,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
-	awshost "github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments/aws/host"
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/utils/e2e/client/agentclient"
+	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/utils/e2e"
+	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/utils/e2e/client"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agentparams"
+	"github.com/DataDog/test-infra-definitions/scenarios/aws/vm/ec2os"
+	"github.com/DataDog/test-infra-definitions/scenarios/aws/vm/ec2params"
 )
 
 //go:embed fixtures/datadog-agent.yaml
@@ -31,18 +32,20 @@ type linuxFlareSuite struct {
 }
 
 func TestLinuxFlareSuite(t *testing.T) {
-	e2e.Run(t, &linuxFlareSuite{}, e2e.WithProvisioner(awshost.Provisioner()))
+	t.Parallel()
+	e2e.Run(t, &linuxFlareSuite{}, e2e.FakeIntakeStackDef(e2e.WithVMParams(ec2params.WithOS(ec2os.UbuntuOS))))
 }
 
 func (v *linuxFlareSuite) TestFlareWithAllConfiguration() {
-	scenarioExpectedFiles := []string{
+
+	var scenarioExpectedFiles = []string{
 		"telemetry.log",       // if telemetry.enabled
 		"registry.json",       // if Logs Agent is running
 		"expvar/system-probe", // if system probe is enabled
 	}
 
 	systemProbeDummyFiles := []string{"/tmp/dummy_dir", "/tmp/dummy_system_probe_config_bpf_dir"}
-	v.Env().RemoteHost.MustExecute("sudo mkdir -p " + strings.Join(systemProbeDummyFiles, " "))
+	v.Env().VM.Execute("sudo mkdir -p " + strings.Join(systemProbeDummyFiles, " "))
 
 	confdPath := "/opt/datadog-agent/bin/agent/dist/conf.d/"
 	useSudo := true
@@ -58,9 +61,9 @@ func (v *linuxFlareSuite) TestFlareWithAllConfiguration() {
 
 	agentOptions := append(withFiles, agentparams.WithAgentConfig(string(agentConfiguration)))
 
-	v.UpdateEnv(awshost.Provisioner(awshost.WithAgentOptions(agentOptions...)))
+	v.UpdateEnv(e2e.FakeIntakeStackDef(e2e.WithAgentParams(agentOptions...)))
 
-	flare := requestAgentFlareAndFetchFromFakeIntake(v.T(), v.Env().Agent.Client, v.Env().FakeIntake.Client(), agentclient.WithArgs([]string{"--email", "e2e@test.com", "--send"}))
+	flare := requestAgentFlareAndFetchFromFakeIntake(v.T(), v.Env().Agent, v.Env().Fakeintake, client.WithArgs([]string{"--email", "e2e@test.com", "--send"}))
 
 	assertFilesExist(v.T(), flare, scenarioExpectedFiles)
 	assertFilesExist(v.T(), flare, allLogFiles)

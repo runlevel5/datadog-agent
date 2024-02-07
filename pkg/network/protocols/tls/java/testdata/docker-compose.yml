@@ -1,5 +1,4 @@
 version: '3'
-name: java
 services:
   java:
     image: ${IMAGE_VERSION}

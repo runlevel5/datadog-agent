@@ -6,7 +6,6 @@
 package listeners
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/common/types"
@@ -197,12 +196,12 @@ func TestGetPrometheusIncludeAnnotations(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockConfig := config.Mock(t)
 
-			val := mockConfig.GetString("prometheus_scrape.checks")
-			assert.Equal(t, val, "")
+			originalChecks := []*types.PrometheusCheck{}
+			err := mockConfig.UnmarshalKey("prometheus_scrape.checks", &originalChecks)
+			assert.NoError(t, err)
 
-			confBytes, _ := json.Marshal(tt.config)
-			mockConfig.SetWithoutSource("prometheus_scrape.checks", string(confBytes))
-			defer mockConfig.SetWithoutSource("prometheus_scrape.checks", "")
+			mockConfig.SetWithoutSource("prometheus_scrape.checks", tt.config)
+			defer mockConfig.SetWithoutSource("prometheus_scrape.checks", originalChecks)
 
 			assert.EqualValues(t, tt.want, getPrometheusIncludeAnnotations())
 		})

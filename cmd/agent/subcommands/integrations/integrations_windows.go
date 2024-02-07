@@ -8,7 +8,6 @@
 package integrations
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -27,10 +26,10 @@ func getRelChecksPath(cliParams *cliParams) (string, error) {
 	return filepath.Join(fmt.Sprintf("embedded%s", cliParams.pythonMajorVersion), "Lib", "site-packages", "datadog_checks"), nil
 }
 
-func validateUser(_ bool) error {
+func validateUser(allowRoot bool) error {
 	elevated, _ := winutil.IsProcessElevated()
 	if !elevated {
-		return errors.New("operation is not possible for unelevated process")
+		return fmt.Errorf("Operation is not possible for unelevated process.")
 	}
 	return nil
 }

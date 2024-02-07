@@ -3,7 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-// Package epforwarder contains the logic for forwarding events to the event platform
 package epforwarder
 
 import (
@@ -13,10 +12,12 @@ import (
 
 	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
 	aggsender "github.com/DataDog/datadog-agent/pkg/aggregator/sender"
+	coreConfig "github.com/DataDog/datadog-agent/pkg/config"
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/diagnose/diagnosis"
 	"github.com/DataDog/datadog-agent/pkg/logs/auditor"
 	"github.com/DataDog/datadog-agent/pkg/logs/client"
+	"github.com/DataDog/datadog-agent/pkg/logs/client/http"
 	logshttp "github.com/DataDog/datadog-agent/pkg/logs/client/http"
 	"github.com/DataDog/datadog-agent/pkg/logs/diagnostic"
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
@@ -42,19 +43,16 @@ const (
 	// EventTypeNetworkDevicesNetFlow is the event type for network devices NetFlow data
 	EventTypeNetworkDevicesNetFlow = "network-devices-netflow"
 
-	// EventTypeContainerLifecycle represents a container lifecycle event
 	EventTypeContainerLifecycle = "container-lifecycle"
-	// EventTypeContainerImages represents a container images event
-	EventTypeContainerImages = "container-images"
-	// EventTypeContainerSBOM represents a container SBOM event
-	EventTypeContainerSBOM = "container-sbom"
+	EventTypeContainerImages    = "container-images"
+	EventTypeContainerSBOM      = "container-sbom"
 )
 
 var passthroughPipelineDescs = []passthroughPipelineDesc{
 	{
 		eventType:              eventTypeDBMSamples,
 		category:               "DBM",
-		contentType:            logshttp.JSONContentType,
+		contentType:            http.JSONContentType,
 		endpointsConfigPrefix:  "database_monitoring.samples.",
 		hostnameEndpointPrefix: "dbm-metrics-intake.",
 		intakeTrackType:        "databasequery",
@@ -67,7 +65,7 @@ var passthroughPipelineDescs = []passthroughPipelineDesc{
 	{
 		eventType:              eventTypeDBMMetrics,
 		category:               "DBM",
-		contentType:            logshttp.JSONContentType,
+		contentType:            http.JSONContentType,
 		endpointsConfigPrefix:  "database_monitoring.metrics.",
 		hostnameEndpointPrefix: "dbm-metrics-intake.",
 		intakeTrackType:        "dbmmetrics",
@@ -79,7 +77,7 @@ var passthroughPipelineDescs = []passthroughPipelineDesc{
 	},
 	{
 		eventType:   eventTypeDBMMetadata,
-		contentType: logshttp.JSONContentType,
+		contentType: http.JSONContentType,
 		// set the endpoint config to "metrics" since metadata will hit the same endpoint
 		// as metrics, so there is no need to add an extra config endpoint.
 		// As a follow-on PR, we should clean this up to have a single config for each track type since
@@ -96,7 +94,7 @@ var passthroughPipelineDescs = []passthroughPipelineDesc{
 	{
 		eventType:              eventTypeDBMActivity,
 		category:               "DBM",
-		contentType:            logshttp.JSONContentType,
+		contentType:            http.JSONContentType,
 		endpointsConfigPrefix:  "database_monitoring.activity.",
 		hostnameEndpointPrefix: "dbm-metrics-intake.",
 		intakeTrackType:        "dbmactivity",
@@ -109,7 +107,7 @@ var passthroughPipelineDescs = []passthroughPipelineDesc{
 	{
 		eventType:                     EventTypeNetworkDevicesMetadata,
 		category:                      "NDM",
-		contentType:                   logshttp.JSONContentType,
+		contentType:                   http.JSONContentType,
 		endpointsConfigPrefix:         "network_devices.metadata.",
 		hostnameEndpointPrefix:        "ndm-intake.",
 		intakeTrackType:               "ndm",
@@ -121,7 +119,7 @@ var passthroughPipelineDescs = []passthroughPipelineDesc{
 	{
 		eventType:                     EventTypeSnmpTraps,
 		category:                      "NDM",
-		contentType:                   logshttp.JSONContentType,
+		contentType:                   http.JSONContentType,
 		endpointsConfigPrefix:         "network_devices.snmp_traps.forwarder.",
 		hostnameEndpointPrefix:        "snmp-traps-intake.",
 		intakeTrackType:               "ndmtraps",
@@ -133,7 +131,7 @@ var passthroughPipelineDescs = []passthroughPipelineDesc{
 	{
 		eventType:                     EventTypeNetworkDevicesNetFlow,
 		category:                      "NDM",
-		contentType:                   logshttp.JSONContentType,
+		contentType:                   http.JSONContentType,
 		endpointsConfigPrefix:         "network_devices.netflow.forwarder.",
 		hostnameEndpointPrefix:        "ndmflow-intake.",
 		intakeTrackType:               "ndmflow",
@@ -156,7 +154,7 @@ var passthroughPipelineDescs = []passthroughPipelineDesc{
 	{
 		eventType:                     EventTypeContainerLifecycle,
 		category:                      "Container",
-		contentType:                   logshttp.ProtobufContentType,
+		contentType:                   http.ProtobufContentType,
 		endpointsConfigPrefix:         "container_lifecycle.",
 		hostnameEndpointPrefix:        "contlcycle-intake.",
 		intakeTrackType:               "contlcycle",
@@ -168,7 +166,7 @@ var passthroughPipelineDescs = []passthroughPipelineDesc{
 	{
 		eventType:                     EventTypeContainerImages,
 		category:                      "Container",
-		contentType:                   logshttp.ProtobufContentType,
+		contentType:                   http.ProtobufContentType,
 		endpointsConfigPrefix:         "container_image.",
 		hostnameEndpointPrefix:        "contimage-intake.",
 		intakeTrackType:               "contimage",
@@ -180,7 +178,7 @@ var passthroughPipelineDescs = []passthroughPipelineDesc{
 	{
 		eventType:                     EventTypeContainerSBOM,
 		category:                      "SBOM",
-		contentType:                   logshttp.ProtobufContentType,
+		contentType:                   http.ProtobufContentType,
 		endpointsConfigPrefix:         "sbom.",
 		hostnameEndpointPrefix:        "sbom-intake.",
 		intakeTrackType:               "sbom",
@@ -232,12 +230,13 @@ func init() {
 }
 
 // Enumerate known epforwarder pipelines and endpoints to test each of them connectivity
-func diagnose(_ diagnosis.Config, _ aggsender.DiagnoseSenderManager) []diagnosis.Diagnosis {
+func diagnose(diagnoseCfg diagnosis.Config, _ aggsender.DiagnoseSenderManager) []diagnosis.Diagnosis { //nolint:revive // TODO fix revive unused-parameter
+
 	var diagnoses []diagnosis.Diagnosis
 
 	for _, desc := range passthroughPipelineDescs {
-		configKeys := config.NewLogsConfigKeys(desc.endpointsConfigPrefix, pkgconfig.Datadog)
-		endpoints, err := config.BuildHTTPEndpointsWithConfig(pkgconfig.Datadog, configKeys, desc.hostnameEndpointPrefix, desc.intakeTrackType, config.DefaultIntakeProtocol, config.DefaultIntakeOrigin)
+		configKeys := config.NewLogsConfigKeys(desc.endpointsConfigPrefix, coreConfig.Datadog)
+		endpoints, err := config.BuildHTTPEndpointsWithConfig(coreConfig.Datadog, configKeys, desc.hostnameEndpointPrefix, desc.intakeTrackType, config.DefaultIntakeProtocol, config.DefaultIntakeOrigin)
 		if err != nil {
 			diagnoses = append(diagnoses, diagnosis.Diagnosis{
 				Result:      diagnosis.DiagnosisFail,
@@ -361,8 +360,8 @@ type passthroughPipelineDesc struct {
 // newHTTPPassthroughPipeline creates a new HTTP-only event platform pipeline that sends messages directly to intake
 // without any of the processing that exists in regular logs pipelines.
 func newHTTPPassthroughPipeline(desc passthroughPipelineDesc, destinationsContext *client.DestinationsContext, pipelineID int) (p *passthroughPipeline, err error) {
-	configKeys := config.NewLogsConfigKeys(desc.endpointsConfigPrefix, pkgconfig.Datadog)
-	endpoints, err := config.BuildHTTPEndpointsWithConfig(pkgconfig.Datadog, configKeys, desc.hostnameEndpointPrefix, desc.intakeTrackType, config.DefaultIntakeProtocol, config.DefaultIntakeOrigin)
+	configKeys := config.NewLogsConfigKeys(desc.endpointsConfigPrefix, coreConfig.Datadog)
+	endpoints, err := config.BuildHTTPEndpointsWithConfig(coreConfig.Datadog, configKeys, desc.hostnameEndpointPrefix, desc.intakeTrackType, config.DefaultIntakeProtocol, config.DefaultIntakeOrigin)
 	if err != nil {
 		return nil, err
 	}
@@ -385,12 +384,12 @@ func newHTTPPassthroughPipeline(desc passthroughPipelineDesc, destinationsContex
 	reliable := []client.Destination{}
 	for i, endpoint := range endpoints.GetReliableEndpoints() {
 		telemetryName := fmt.Sprintf("%s_%d_reliable_%d", desc.eventType, pipelineID, i)
-		reliable = append(reliable, logshttp.NewDestination(endpoint, desc.contentType, destinationsContext, endpoints.BatchMaxConcurrentSend, true, telemetryName))
+		reliable = append(reliable, http.NewDestination(endpoint, desc.contentType, destinationsContext, endpoints.BatchMaxConcurrentSend, true, telemetryName))
 	}
 	additionals := []client.Destination{}
 	for i, endpoint := range endpoints.GetUnReliableEndpoints() {
 		telemetryName := fmt.Sprintf("%s_%d_unreliable_%d", desc.eventType, pipelineID, i)
-		additionals = append(additionals, logshttp.NewDestination(endpoint, desc.contentType, destinationsContext, endpoints.BatchMaxConcurrentSend, false, telemetryName))
+		additionals = append(additionals, http.NewDestination(endpoint, desc.contentType, destinationsContext, endpoints.BatchMaxConcurrentSend, false, telemetryName))
 	}
 	destinations := client.NewDestinations(reliable, additionals)
 	inputChan := make(chan *message.Message, endpoints.InputChanSize)
@@ -402,7 +401,7 @@ func newHTTPPassthroughPipeline(desc passthroughPipelineDesc, destinationsContex
 	}
 
 	var strategy sender.Strategy
-	if desc.contentType == logshttp.ProtobufContentType {
+	if desc.contentType == http.ProtobufContentType {
 		strategy = sender.NewStreamStrategy(inputChan, senderInput, encoder)
 	} else {
 		strategy = sender.NewBatchStrategy(inputChan,
@@ -484,7 +483,6 @@ func NewNoopEventPlatformForwarder() EventPlatformForwarder {
 	return f
 }
 
-// GetGlobalReceiver initializes and returns the global receiver for the epforwarder package
 func GetGlobalReceiver() *diagnostic.BufferedMessageReceiver {
 	if globalReceiver == nil {
 		globalReceiver = diagnostic.NewBufferedMessageReceiver(&epFormatter{})

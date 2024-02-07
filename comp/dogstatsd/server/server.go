@@ -19,7 +19,6 @@ import (
 
 	configComponent "github.com/DataDog/datadog-agent/comp/core/config"
 	logComponent "github.com/DataDog/datadog-agent/comp/core/log"
-	logComponentImpl "github.com/DataDog/datadog-agent/comp/core/log/logimpl"
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/listeners"
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/mapper"
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/packets"
@@ -180,7 +179,7 @@ func initTelemetry(cfg config.Reader, logger logComponent.Component) {
 		"dogstatsd",
 		"channel_latency",
 		[]string{"shard", "message_type"},
-		"Time in nanosecond to push metrics to the aggregator input buffer",
+		"Time in millisecond to push metrics to the aggregator input buffer",
 		buckets)
 
 	listeners.InitTelemetry(get("telemetry.dogstatsd.listeners_latency_buckets"))
@@ -188,10 +187,8 @@ func initTelemetry(cfg config.Reader, logger logComponent.Component) {
 }
 
 // TODO: (components) - remove once serverless is an FX app
-//
-//nolint:revive // TODO(AML) Fix revive linter
 func NewServerlessServer() Component {
-	return newServerCompat(config.Datadog, logComponentImpl.NewTemporaryLoggerWithoutInit(), replay.NewServerlessTrafficCapture(), serverdebugimpl.NewServerlessServerDebug(), true)
+	return newServerCompat(config.Datadog, logComponent.NewTemporaryLoggerWithoutInit(), replay.NewServerlessTrafficCapture(), serverdebugimpl.NewServerlessServerDebug(), true)
 }
 
 // TODO: (components) - merge with newServerCompat once NewServerlessServer is removed
@@ -478,7 +475,7 @@ func (s *server) handleMessages() {
 	}
 
 	for _, l := range s.listeners {
-		l.Listen()
+		go l.Listen()
 	}
 
 	workersCount, _ := aggregator.GetDogStatsDWorkerAndPipelineCount()

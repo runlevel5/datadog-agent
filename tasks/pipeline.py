@@ -5,7 +5,7 @@ import re
 import time
 import traceback
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict
 
 import yaml
@@ -45,25 +45,6 @@ from .utils import (
     nightly_entry_for,
     release_entry_for,
 )
-
-
-class GitlabReference(yaml.YAMLObject):
-    def __init__(self, refs):
-        self.refs = refs
-
-    def __repr__(self):
-        return f'{self.__class__.__name__}=(refs={self.refs}'
-
-
-def reference_constructor(loader, node):
-    return GitlabReference(loader.construct_sequence(node))
-
-
-def GitlabYamlLoader():
-    loader = yaml.SafeLoader
-    loader.add_constructor('!reference', reference_constructor)
-    return loader
-
 
 # Tasks to trigger pipelines
 
@@ -211,17 +192,9 @@ def auto_cancel_previous_pipelines(ctx):
         elif is_ancestor.exited == 1:
             print(f'{pipeline["sha"]} is not an ancestor of {git_sha}, not cancelling pipeline {pipeline["id"]}')
         elif is_ancestor.exited == 128:
-            min_time_before_cancel = 5
             print(
                 f'Could not determine if {pipeline["sha"]} is an ancestor of {git_sha}, probably because it has been deleted from the history because of force push'
             )
-            if datetime.strptime(pipeline["created_at"], "%Y-%m-%dT%H:%M:%S.%fZ") < datetime.now() - timedelta(
-                minutes=min_time_before_cancel
-            ):
-                print(
-                    f'Pipeline started earlier than {min_time_before_cancel} minutes ago, gracefully canceling pipeline {pipeline["id"]}'
-                )
-                gracefully_cancel_pipeline(gitlab, pipeline, force_cancel_stages=["package_build"])
         else:
             print(is_ancestor.stderr)
             raise Exit(1)
@@ -238,7 +211,6 @@ def run(
     deploy=False,
     all_builds=True,
     kitchen_tests=True,
-    e2e_tests=False,
     rc_k8s_deployments=False,
 ):
     """
@@ -247,7 +219,6 @@ def run(
     Use --deploy to make this pipeline a deploy pipeline, which will upload artifacts to the staging repositories.
     Use --no-all-builds to not run builds for all architectures (only a subset of jobs will run. No effect on pipelines on the default branch).
     Use --no-kitchen-tests to not run all kitchen tests on the pipeline.
-    Use --e2e-tests to run all e2e tests on the pipeline.
 
     By default, the nightly release.json entries (nightly and nightly-a7) are used.
     Use the --use-release-entries option to use the release-a6 and release-a7 release.json entries instead.
@@ -270,9 +241,6 @@ def run(
 
     Run a pipeline without kitchen tests on the current branch:
       inv pipeline.run --here --no-kitchen-tests
-
-    Run a pipeline with e2e tets on the current branch:
-      inv pipeline.run --here --e2e-tests
 
     Run a deploy pipeline on the 7.32.0 tag, uploading the artifacts to the stable branch of the staging repositories:
       inv pipeline.run --deploy --use-release-entries --major-versions "6,7" --git-ref "7.32.0" --repo-branch "stable"
@@ -344,7 +312,6 @@ def run(
             deploy=deploy,
             all_builds=all_builds,
             kitchen_tests=kitchen_tests,
-            e2e_tests=e2e_tests,
             rc_k8s_deployments=rc_k8s_deployments,
         )
     except FilteredOutException:
@@ -473,10 +440,7 @@ def trigger_child_pipeline(_, git_ref, project_name, variables="", follow=True):
     for v in variables.split(','):
         data['variables'][v] = os.environ[v]
 
-    print(
-        f"Creating child pipeline in repo {project_name}, on git ref {git_ref} with params: {data['variables']}",
-        flush=True,
-    )
+    print(f"Creating child pipeline in repo {project_name}, on git ref {git_ref} with params: {data['variables']}")
 
     res = gitlab.trigger_pipeline(data)
 
@@ -485,10 +449,10 @@ def trigger_child_pipeline(_, git_ref, project_name, variables="", follow=True):
 
     pipeline_id = res['id']
     pipeline_url = res['web_url']
-    print(f"Created a child pipeline with id={pipeline_id}, url={pipeline_url}", flush=True)
+    print(f"Created a child pipeline with id={pipeline_id}, url={pipeline_url}")
 
     if follow:
-        print("Waiting for child pipeline to finish...", flush=True)
+        print("Waiting for child pipeline to finish...")
 
         wait_for_pipeline(gitlab, pipeline_id)
 
@@ -499,13 +463,13 @@ def trigger_child_pipeline(_, git_ref, project_name, variables="", follow=True):
         if pipestatus != "success":
             raise Exit(f"Error: child pipeline status {pipestatus.title()}", code=1)
 
-        print("Child pipeline finished successfully", flush=True)
+        print("Child pipeline finished successfully")
 
 
 def parse(commit_str):
     lines = commit_str.split("\n")
     title = lines[0]
-    url = ""
+    url = "NO_URL"
     pr_id_match = re.search(r".*\(#(\d+)\)", title)
     if pr_id_match is not None:
         url = f"https://github.com/DataDog/datadog-agent/pull/{pr_id_match.group(1)}"
@@ -558,7 +522,7 @@ def changelog(ctx, new_commit_sha):
         title, author, author_email, files, url = parse(commit_str)
         if not is_system_probe(owners, files):
             continue
-        message_link = f"• <{url}|{title}>" if url else f"• {title}"
+        message_link = f"• <{url}|{title}>"
         if "dependabot" in author_email or "github-actions" in author_email:
             messages.append(f"{message_link}")
             continue
@@ -898,7 +862,7 @@ def update_gitlab_config(file_path, image_tag, test_version):
     """
     with open(file_path, "r") as gl:
         file_content = gl.readlines()
-    gitlab_ci = yaml.load("".join(file_content), Loader=GitlabYamlLoader())
+    gitlab_ci = yaml.safe_load("".join(file_content))
     # TEST_INFRA_DEFINITION_BUILDIMAGE label format differs from other buildimages
     suffixes = [
         name

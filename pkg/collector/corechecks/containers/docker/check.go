@@ -18,7 +18,6 @@ import (
 
 	dockerTypes "github.com/docker/docker/api/types"
 
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
@@ -34,6 +33,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/hostname"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 )
 
 const (
@@ -213,7 +213,6 @@ func (d *DockerCheck) runDockerCustom(sender sender.Sender, du docker.Client, ra
 			containerName = rawContainer.Names[0]
 		}
 		var annotations map[string]string
-		// TODO(components): stop using globals, rely instead on injected component
 		store := workloadmeta.GetGlobalStore()
 		if store != nil {
 			if pod, err := store.GetKubernetesPodForContainer(rawContainer.ID); err == nil {
@@ -322,7 +321,6 @@ func (d *DockerCheck) collectImageMetrics(sender sender.Sender, du docker.Client
 				continue
 			}
 
-			//nolint:staticcheck // TODO(CINT) Fix staticcheck linter
 			sender.Gauge("docker.image.virtual_size", float64(image.VirtualSize), "", imageTags)
 			sender.Gauge("docker.image.size", float64(image.Size), "", imageTags)
 		}

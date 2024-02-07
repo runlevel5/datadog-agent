@@ -4,19 +4,20 @@
 // Copyright 2022-present Datadog, Inc.
 // Code generated - DO NOT EDIT.
 
-{{range .BuildTags }}//{{.}}{{end}}
+{{range .BuildTags }}// {{.}}{{end}}
 
 package {{.Name}}
 
 import (
-    {{range .Imports }}
-        "{{.}}"
-    {{end}}
-    "reflect"
+    "net"
+	"reflect"
 
 	{{if ne $.SourcePkg $.TargetPkg}}"{{.SourcePkg}}"{{end}}
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
 )
+
+// Aliases used to avoid compilation error in case of unused imported package
+type NetIP = net.IP
 
 func (m *Model) GetIterator(field eval.Field) (eval.Iterator, error) {
 	switch field {
@@ -42,10 +43,6 @@ func (m *Model) GetEventTypes() []eval.EventType {
 func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Evaluator, error) {
 	switch field {
 	{{range $Name, $Field := .Fields}}
-	{{- if $Field.GettersOnly }}
-		{{continue}}
-	{{end}}
-
 	case "{{$Name}}":
 		return &{{$Field.GetEvaluatorType}}{
 			{{- if $Field.OpOverrides}}
@@ -198,10 +195,6 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 func (ev *Event) GetFields() []eval.Field {
 	return []eval.Field{
 		{{range $Name, $Field := .Fields}}
-			{{- if $Field.GettersOnly }}
-				{{continue}}
-			{{end}}
-
 			"{{$Name}}",
 		{{end}}
 	}
@@ -210,10 +203,6 @@ func (ev *Event) GetFields() []eval.Field {
 func (ev *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 	switch field {
 		{{range $Name, $Field := .Fields}}
-		{{- if $Field.GettersOnly }}
-			{{continue}}
-		{{end}}
-
 		case "{{$Name}}":
 		{{if $Field.Iterator}}
 			var values []{{$Field.ReturnType}}
@@ -324,10 +313,6 @@ func (ev *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 func (ev *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 	switch field {
 	{{range $Name, $Field := .Fields}}
-	{{- if $Field.GettersOnly }}
-		{{continue}}
-	{{end}}
-
 	case "{{$Name}}":
 		return "{{$Field.Event}}", nil
 	{{end}}
@@ -339,9 +324,6 @@ func (ev *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 func (ev *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 	switch field {
 		{{range $Name, $Field := .Fields}}
-		{{- if $Field.GettersOnly }}
-			{{continue}}
-		{{end}}
 
 		case "{{$Name}}":
 		{{if eq $Field.ReturnType "string"}}
@@ -362,10 +344,6 @@ func (ev *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 func (ev *Event) SetFieldValue(field eval.Field, value interface{}) error {
 	switch field {
 		{{range $Name, $Field := .Fields}}
-		{{- if $Field.GettersOnly }}
-			{{continue}}
-		{{end}}
-
 		{{$FieldName := $Field.Name | printf "ev.%s"}}
 		case "{{$Name}}":
 			{{- $Field | NewField $.AllFields}}

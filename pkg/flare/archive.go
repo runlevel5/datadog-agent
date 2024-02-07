@@ -3,7 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-// Package flare contains the logic to create a flare archive.
 package flare
 
 import (
@@ -22,7 +21,6 @@ import (
 	"time"
 
 	flaretypes "github.com/DataDog/datadog-agent/comp/core/flare/types"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/comp/metadata/inventoryagent"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/api/security"
@@ -30,12 +28,13 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/diagnose"
 	"github.com/DataDog/datadog-agent/pkg/diagnose/diagnosis"
+	"github.com/DataDog/datadog-agent/pkg/metadata/inventories"
+	"github.com/DataDog/datadog-agent/pkg/secrets"
 	"github.com/DataDog/datadog-agent/pkg/status"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
-	processagentStatus "github.com/DataDog/datadog-agent/pkg/status/processagent"
-	systemprobeStatus "github.com/DataDog/datadog-agent/pkg/status/systemprobe"
 	"github.com/DataDog/datadog-agent/pkg/util/installinfo"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 
 	"gopkg.in/yaml.v2"
 )
@@ -90,7 +89,9 @@ func CompleteFlare(fb flaretypes.FlareBuilder, senderManager sender.DiagnoseSend
 	fb.AddFileFromFunc("runtime_config_dump.yaml", func() ([]byte, error) { return yaml.Marshal(config.Datadog.AllSettings()) })
 	fb.AddFileFromFunc("system_probe_runtime_config_dump.yaml", func() ([]byte, error) { return yaml.Marshal(config.SystemProbe.AllSettings()) })
 	fb.AddFileFromFunc("diagnose.log", getDiagnoses(fb.IsLocal(), senderManager))
+	fb.AddFileFromFunc("secrets.log", getSecrets)
 	fb.AddFileFromFunc("envvars.log", getEnvVars)
+	fb.AddFileFromFunc("metadata_inventories.json", inventories.GetLastPayload)
 	fb.AddFileFromFunc("health.yaml", getHealth)
 	fb.AddFileFromFunc("go-routine-dump.log", func() ([]byte, error) { return getHTTPCallContent(pprofURL) })
 	fb.AddFileFromFunc("docker_inspect.log", getDockerSelfInspect)
@@ -183,7 +184,7 @@ func getExpVar(fb flaretypes.FlareBuilder) error {
 }
 
 func getSystemProbeStats() ([]byte, error) {
-	sysProbeStats := systemprobeStatus.GetStatus(config.SystemProbe.GetString("system_probe_config.sysprobe_socket"))
+	sysProbeStats := status.GetSystemProbeStats(config.SystemProbe.GetString("system_probe_config.sysprobe_socket"))
 	sysProbeBuf, err := yaml.Marshal(sysProbeStats)
 	if err != nil {
 		return nil, err
@@ -201,7 +202,7 @@ func getProcessAgentFullConfig() ([]byte, error) {
 
 	procStatusURL := fmt.Sprintf("http://%s/config/all", addressPort)
 
-	cfgB := processagentStatus.GetRuntimeConfig(procStatusURL)
+	cfgB := status.GetProcessAgentRuntimeConfig(procStatusURL)
 	return cfgB, nil
 }
 
@@ -236,6 +237,15 @@ func getConfigFiles(fb flaretypes.FlareBuilder, confSearchPaths map[string]strin
 		// use best effort to include security-agent.yaml to the flare
 		fb.CopyFileTo(filepath.Join(confDir, "security-agent.yaml"), filepath.Join("etc", "security-agent.yaml"))
 	}
+}
+
+func getSecrets() ([]byte, error) {
+	fct := func(writer io.Writer) error {
+		secrets.GetDebugInfo(writer)
+		return nil
+	}
+
+	return functionOutputToBytes(fct), nil
 }
 
 func getProcessChecks(fb flaretypes.FlareBuilder, getAddressPort func() (url string, err error)) {

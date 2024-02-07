@@ -20,7 +20,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
-func getMockedKubeClient(objects ...runtime.Object) dynamic.Interface {
+func getMockedKubeClient(t *testing.T, objects ...runtime.Object) dynamic.Interface {
 	addKnownTypes := func(scheme *runtime.Scheme) error {
 		scheme.AddKnownTypes(schema.GroupVersion{Group: "mygroup.com", Version: "v1"},
 			&MyObj{},
@@ -34,7 +34,7 @@ func getMockedKubeClient(objects ...runtime.Object) dynamic.Interface {
 }
 
 func TestKubernetesCluster(t *testing.T) {
-	kubeClient := getMockedKubeClient(
+	kubeClient := getMockedKubeClient(t,
 		&corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				UID:  "my-cluster",

@@ -30,7 +30,7 @@ func TestGetAvailableHelpers(t *testing.T) {
 	}
 
 	cfg := ebpf.NewConfig()
-	opts := kernel.HeaderOptions{
+	opts := kernel.KernelHeaderOptions{
 		DownloadEnabled: cfg.EnableKernelHeaderDownload,
 		Dirs:            cfg.KernelHeadersDirs,
 		DownloadDir:     cfg.KernelHeadersDownloadDir,

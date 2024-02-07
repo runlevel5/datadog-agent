@@ -16,17 +16,16 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fatih/color"
-	"go.etcd.io/bbolt"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/protobuf/types/known/emptypb"
-
 	flaretypes "github.com/DataDog/datadog-agent/comp/core/flare/types"
 	"github.com/DataDog/datadog-agent/pkg/api/security"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/DataDog/datadog-agent/pkg/util"
 	agentgrpc "github.com/DataDog/datadog-agent/pkg/util/grpc"
+	"github.com/fatih/color"
+	"go.etcd.io/bbolt"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func exportRemoteConfig(fb flaretypes.FlareBuilder) error {
@@ -40,19 +39,14 @@ func exportRemoteConfig(fb flaretypes.FlareBuilder) error {
 	if err != nil {
 		return fmt.Errorf("Couldn't get auth token: %v", err)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, close := context.WithCancel(context.Background())
+	defer close()
 	md := metadata.MD{
 		"authorization": []string{fmt.Sprintf("Bearer %s", token)},
 	}
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
-	ipcAddress, err := config.GetIPCAddress()
-	if err != nil {
-		return err
-	}
-
-	cli, err := agentgrpc.GetDDAgentSecureClient(ctx, ipcAddress, config.GetIPCPort())
+	cli, err := agentgrpc.GetDDAgentSecureClient(ctx)
 	if err != nil {
 		return err
 	}

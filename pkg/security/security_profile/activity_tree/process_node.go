@@ -43,7 +43,7 @@ type ProcessNode struct {
 }
 
 // NewProcessNode returns a new ProcessNode instance
-func NewProcessNode(entry *model.ProcessCacheEntry, generationType NodeGenerationType, resolvers *resolvers.EBPFResolvers) *ProcessNode {
+func NewProcessNode(entry *model.ProcessCacheEntry, generationType NodeGenerationType, resolvers *resolvers.Resolvers) *ProcessNode {
 	// call the callback to resolve additional fields before copying them
 	if resolvers != nil {
 		resolvers.HashResolver.ComputeHashes(model.ExecEventType, &entry.ProcessContext.Process, &entry.ProcessContext.FileEvent)
@@ -135,7 +135,7 @@ func (pn *ProcessNode) debug(w io.Writer, prefix string) {
 }
 
 // scrubAndReleaseArgsEnvs scrubs the process args and envs, and then releases them
-func (pn *ProcessNode) scrubAndReleaseArgsEnvs(resolver *sprocess.EBPFResolver) {
+func (pn *ProcessNode) scrubAndReleaseArgsEnvs(resolver *sprocess.Resolver) {
 	if pn.Process.ArgsEntry != nil {
 		resolver.GetProcessArgvScrubbed(&pn.Process)
 		sprocess.GetProcessArgv0(&pn.Process)
@@ -203,7 +203,7 @@ newSyscallLoop:
 
 // InsertFileEvent inserts the provided file event in the current node. This function returns true if a new entry was
 // added, false if the event was dropped.
-func (pn *ProcessNode) InsertFileEvent(fileEvent *model.FileEvent, event *model.Event, generationType NodeGenerationType, stats *Stats, dryRun bool, reducer *PathsReducer, resolvers *resolvers.EBPFResolvers) bool {
+func (pn *ProcessNode) InsertFileEvent(fileEvent *model.FileEvent, event *model.Event, generationType NodeGenerationType, stats *Stats, dryRun bool, reducer *PathsReducer, resolvers *resolvers.Resolvers) bool {
 	var filePath string
 	if generationType != Snapshot {
 		filePath = event.FieldHandlers.ResolveFilePath(event, fileEvent)

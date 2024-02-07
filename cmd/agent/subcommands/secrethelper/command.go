@@ -3,6 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
+//go:build secrets
+
 // Package secrethelper implements 'agent secret-helper'
 package secrethelper
 
@@ -14,6 +16,6 @@ import (
 )
 
 // Commands returns a slice of subcommands for the 'agent' command.
-func Commands(_ *command.GlobalParams) []*cobra.Command {
+func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 	return secrethelper.Commands()
 }

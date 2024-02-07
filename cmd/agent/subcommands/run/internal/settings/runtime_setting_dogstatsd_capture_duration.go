@@ -3,7 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2020 Datadog, Inc.
 
-// Package settings contains the runtime settings for the agent
 package settings
 
 import (
@@ -19,7 +18,6 @@ type DsdCaptureDurationRuntimeSetting struct {
 	value string
 }
 
-// NewDsdCaptureDurationRuntimeSetting returns a new DsdCaptureDurationRuntimeSetting
 func NewDsdCaptureDurationRuntimeSetting(value string) *DsdCaptureDurationRuntimeSetting {
 	return &DsdCaptureDurationRuntimeSetting{
 		value: value,

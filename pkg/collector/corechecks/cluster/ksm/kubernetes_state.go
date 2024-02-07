@@ -22,8 +22,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/ksm/customresources"
 	"github.com/DataDog/datadog-agent/pkg/config"
-
-	//nolint:revive // TODO(CINT) Fix revive linter
 	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
 	configUtils "github.com/DataDog/datadog-agent/pkg/config/utils"
 	kubestatemetrics "github.com/DataDog/datadog-agent/pkg/kubestatemetrics/builder"
@@ -250,7 +248,7 @@ func (k *KSMCheck) Configure(senderManager sender.SenderManager, integrationConf
 	}
 
 	// Discover resources that are currently available
-	resources, err := discoverResources(c.Cl.Discovery())
+	resources, err := discoverResources(c.DiscoveryCl)
 	if err != nil {
 		return err
 	}
@@ -296,9 +294,9 @@ func (k *KSMCheck) Configure(senderManager sender.SenderManager, integrationConf
 
 	builder.WithFamilyGeneratorFilter(allowDenyList)
 
-	builder.WithKubeClient(c.InformerCl)
+	builder.WithKubeClient(c.Cl)
 
-	builder.WithVPAClient(c.VPAInformerClient)
+	builder.WithVPAClient(c.VPAClient)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	k.cancel = cancel
@@ -419,6 +417,11 @@ func (k *KSMCheck) discoverCustomResources(c *apiserver.APIClient, collectors []
 }
 
 func manageResourcesReplacement(c *apiserver.APIClient, factories []customresource.RegistryFactory, resources []*v1.APIResourceList) []customresource.RegistryFactory {
+	if c.DiscoveryCl == nil {
+		log.Warn("Kubernetes discovery client has not been properly initialized")
+		return factories
+	}
+
 	// backwards/forwards compatibility resource factories are only
 	// registered if they're needed, otherwise they'd overwrite the default
 	// ones that ship with ksm
@@ -702,12 +705,6 @@ func (k *KSMCheck) mergeLabelJoins(extra map[string]*JoinsConfigWithoutLabelsMap
 func (k *KSMCheck) mergeAnnotationsAsTags(extra map[string]map[string]string) {
 	if k.instance.AnnotationsAsTags == nil {
 		k.instance.AnnotationsAsTags = make(map[string]map[string]string)
-	}
-	// In the case of a misconfiguration issue, the value could be explicitly set to nil
-	for resource, mapping := range k.instance.AnnotationsAsTags {
-		if mapping == nil {
-			delete(k.instance.AnnotationsAsTags, resource)
-		}
 	}
 	for resource, mapping := range extra {
 		_, found := k.instance.AnnotationsAsTags[resource]

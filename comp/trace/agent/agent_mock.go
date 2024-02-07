@@ -31,7 +31,6 @@ func newMock(deps dependencies, t testing.TB) Component { //nolint:revive // TOD
 		),
 		cancel:             cancel,
 		config:             deps.Config,
-		statsd:             deps.Statsd,
 		params:             deps.Params,
 		shutdowner:         deps.Shutdowner,
 		telemetryCollector: telemetryCollector,

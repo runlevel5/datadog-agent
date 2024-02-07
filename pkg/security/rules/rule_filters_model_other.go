@@ -9,7 +9,6 @@
 package rules
 
 import (
-	"os"
 	"runtime"
 
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
@@ -17,30 +16,24 @@ import (
 
 // RuleFilterEvent represents a rule filtering event
 type RuleFilterEvent struct {
-	origin string
 }
 
 // RuleFilterModel represents a rule fitlering model
 type RuleFilterModel struct {
-	origin string
 }
 
 // NewRuleFilterModel returns a new rule filtering model
-func NewRuleFilterModel(origin string) (*RuleFilterModel, error) {
-	return &RuleFilterModel{
-		origin: origin,
-	}, nil
+func NewRuleFilterModel() (*RuleFilterModel, error) {
+	return &RuleFilterModel{}, nil
 }
 
 // NewEvent returns a new rule filtering event
 func (m *RuleFilterModel) NewEvent() eval.Event {
-	return &RuleFilterEvent{
-		origin: m.origin,
-	}
+	return &RuleFilterEvent{}
 }
 
 // GetEvaluator returns a new evaluator for a rule filtering field
-func (m *RuleFilterModel) GetEvaluator(field eval.Field, _ eval.RegisterID) (eval.Evaluator, error) {
+func (m *RuleFilterModel) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Evaluator, error) { //nolint:revive // TODO fix revive unused-parameter
 	switch field {
 	case "kernel.version.major", "kernel.version.minor", "kernel.version.patch",
 		"kernel.version.abi", "kernel.version.flavor":
@@ -66,16 +59,6 @@ func (m *RuleFilterModel) GetEvaluator(field eval.Field, _ eval.RegisterID) (eva
 			Value: false,
 			Field: field,
 		}, nil
-
-	case "envs":
-		return &eval.StringArrayEvaluator{
-			Values: os.Environ(),
-		}, nil
-	case "origin":
-		return &eval.StringEvaluator{
-			Value: m.origin,
-			Field: field,
-		}, nil
 	}
 
 	return nil, &eval.ErrFieldNotFound{Field: field}
@@ -96,11 +79,6 @@ func (e *RuleFilterEvent) GetFieldValue(field eval.Field) (interface{}, error) {
 	case "os.is_amazon_linux", "os.is_cos", "os.is_debian", "os.is_oracle", "os.is_rhel", "os.is_rhel7",
 		"os.is_rhel8", "os.is_sles", "os.is_sles12", "os.is_sles15":
 		return false, nil
-
-	case "envs":
-		return os.Environ(), nil
-	case "origin":
-		return e.origin, nil
 	}
 
 	return nil, &eval.ErrFieldNotFound{Field: field}

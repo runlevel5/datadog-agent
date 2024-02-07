@@ -20,7 +20,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-// ConstantFetcher is the generated asset for constant_fetcher.c
 var ConstantFetcher = newGeneratedAsset("constant_fetcher.c")
 
 // generatedAsset represents an asset whose contents will be dynamically generated at runtime
@@ -50,7 +49,7 @@ func (a *generatedAsset) Compile(config *ebpf.Config, inputCode string, addition
 		}
 	}()
 
-	opts := kernel.HeaderOptions{
+	opts := kernel.KernelHeaderOptions{
 		DownloadEnabled: config.EnableKernelHeaderDownload,
 		Dirs:            config.KernelHeadersDirs,
 		DownloadDir:     config.KernelHeadersDownloadDir,

@@ -29,7 +29,7 @@ func (p *Pool) Put(pce *model.ProcessCacheEntry) {
 }
 
 // NewProcessCacheEntryPool returns a new Pool
-func NewProcessCacheEntryPool(onRelease func()) *Pool {
+func NewProcessCacheEntryPool(p *Resolver) *Pool {
 	pcep := Pool{pool: &sync.Pool{}}
 
 	pcep.pool.New = func() interface{} {
@@ -38,7 +38,7 @@ func NewProcessCacheEntryPool(onRelease func()) *Pool {
 				pce.Ancestor.Release()
 			}
 
-			onRelease()
+			p.cacheSize.Dec()
 
 			pcep.Put(pce)
 		})

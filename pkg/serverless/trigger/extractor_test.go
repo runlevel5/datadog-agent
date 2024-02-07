@@ -11,9 +11,8 @@ import (
 	"encoding/base64"
 	"testing"
 
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/DataDog/datadog-agent/pkg/serverless/trigger/events"
 )
 
 func TestGetAWSPartitionByRegion(t *testing.T) {
@@ -239,7 +238,6 @@ func TestExtractFunctionURLEventARN(t *testing.T) {
 			Path:       "path",
 			HTTPMethod: "http-method",
 		},
-		Resource: "/{route}",
 	}
 
 	httpTags := GetTagsFromAPIGatewayEvent(event)
@@ -249,7 +247,6 @@ func TestExtractFunctionURLEventARN(t *testing.T) {
 		"http.url_details.path": "path",
 		"http.method":           "http-method",
 		"http.referer":          "referer",
-		"http.route":            "/{route}",
 	}, httpTags)
 }
 
@@ -264,7 +261,6 @@ func TestGetTagsFromAPIGatewayEvent(t *testing.T) {
 			Path:       "path",
 			HTTPMethod: "http-method",
 		},
-		Resource: "/{route}",
 	}
 
 	httpTags := GetTagsFromAPIGatewayEvent(event)
@@ -274,7 +270,6 @@ func TestGetTagsFromAPIGatewayEvent(t *testing.T) {
 		"http.url_details.path": "path",
 		"http.method":           "http-method",
 		"http.referer":          "referer",
-		"http.route":            "/{route}",
 	}, httpTags)
 }
 
@@ -290,7 +285,6 @@ func TestGetTagsFromAPIGatewayV2HTTPRequestNoReferer(t *testing.T) {
 				Method: "http-method",
 			},
 		},
-		RouteKey: "/{route}",
 	}
 
 	httpTags := GetTagsFromAPIGatewayV2HTTPRequest(event)
@@ -299,7 +293,6 @@ func TestGetTagsFromAPIGatewayV2HTTPRequestNoReferer(t *testing.T) {
 		"http.url":              "domain-name",
 		"http.url_details.path": "path",
 		"http.method":           "http-method",
-		"http.route":            "/{route}",
 	}, httpTags)
 }
 
@@ -322,7 +315,6 @@ func TestGetTagsFromAPIGatewayCustomAuthorizerRequestTypeEvent(t *testing.T) {
 		RequestContext: events.APIGatewayCustomAuthorizerRequestTypeRequestContext{
 			Path: "/path/to/resource",
 		},
-		Resource: "/{route}",
 	}
 
 	httpTags := GetTagsFromAPIGatewayCustomAuthorizerRequestTypeEvent(event)
@@ -330,7 +322,6 @@ func TestGetTagsFromAPIGatewayCustomAuthorizerRequestTypeEvent(t *testing.T) {
 	assert.Equal(t, map[string]string{
 		"http.method":           "GET",
 		"http.url_details.path": "/path/to/resource",
-		"http.route":            "/{route}",
 	}, httpTags)
 }
 

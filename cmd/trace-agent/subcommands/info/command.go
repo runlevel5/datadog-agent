@@ -3,7 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//nolint:revive // TODO(APM) Fix revive linter
 package info
 
 import (
@@ -15,8 +14,6 @@ import (
 
 	"github.com/DataDog/datadog-agent/cmd/trace-agent/subcommands"
 	coreconfig "github.com/DataDog/datadog-agent/comp/core/config"
-	"github.com/DataDog/datadog-agent/comp/core/secrets"
-	"github.com/DataDog/datadog-agent/comp/core/secrets/secretsimpl"
 	"github.com/DataDog/datadog-agent/comp/trace/config"
 	"github.com/DataDog/datadog-agent/pkg/trace/info"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
@@ -38,14 +35,12 @@ func MakeCommand(globalParamsGetter func() *subcommands.GlobalParams) *cobra.Com
 
 func runTraceAgentInfoFct(params *subcommands.GlobalParams, fct interface{}) error {
 	return fxutil.OneShot(fct,
-		config.Module(),
-		fx.Supply(coreconfig.NewAgentParams(params.ConfPath)),
-		fx.Supply(secrets.NewEnabledParams()),
-		coreconfig.Module(),
-		secretsimpl.Module(),
+		config.Module,
+		fx.Supply(coreconfig.NewAgentParamsWithSecrets(params.ConfPath)),
+		coreconfig.Module,
 		// TODO: (component)
-		// fx.Supply(logimpl.ForOneShot(params.LoggerName, "off", true)),
-		// log.Module(),
+		// fx.Supply(log.ForOneShot(params.LoggerName, "off", true)),
+		// log.Module,
 	)
 }
 

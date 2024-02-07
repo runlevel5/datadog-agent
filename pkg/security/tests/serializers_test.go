@@ -38,7 +38,7 @@ func fetchRealisticEventSerializerInner(tb testing.TB) *serializers.EventSeriali
 		Expression: `open.file.path == "{{.Root}}/test-open" && open.flags & O_CREAT != 0`,
 	}
 
-	test, err := newTestModule(tb, nil, []*rules.RuleDefinition{rule})
+	test, err := newTestModule(tb, nil, []*rules.RuleDefinition{rule}, testOpts{})
 	if err != nil {
 		tb.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func fetchRealisticEventSerializerInner(tb testing.TB) *serializers.EventSeriali
 		assert.Equal(tb, "open", event.GetType(), "wrong event type")
 	})
 
-	return serializers.NewEventSerializer(workingEvent)
+	return serializers.NewEventSerializer(workingEvent, test.probe.GetResolvers())
 }
 
 func BenchmarkSerializersEasyJson(b *testing.B) {

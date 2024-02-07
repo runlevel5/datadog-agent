@@ -26,8 +26,6 @@ import (
 )
 
 // DuplicateConnectionErr is an error that explains the connection was closed because another client tried to connect
-//
-//nolint:revive // TODO(PROC) Fix revive linter
 var DuplicateConnectionErr = errors.New("the stream was closed because another client called StreamEntities")
 
 // GRPCServer implements a gRPC server to expose Process Entities collected with a WorkloadMetaExtractor
@@ -107,7 +105,6 @@ func (l *GRPCServer) Start() error {
 	return nil
 }
 
-//nolint:revive // TODO(PROC) Fix revive linter
 func (l *GRPCServer) Addr() net.Addr {
 	return l.addr
 }
@@ -228,7 +225,7 @@ func processEntityToEventSet(proc *ProcessEntity) *pbgo.ProcessEventSet {
 
 	return &pbgo.ProcessEventSet{
 		Pid:          proc.Pid,
-		ContainerID:  proc.ContainerId,
+		ContainerId:  proc.ContainerId,
 		Nspid:        proc.NsPid,
 		CreationTime: proc.CreationTime,
 		Language:     language,

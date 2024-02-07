@@ -3,6 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
+//go:build windows
+
 // Package process holds process related files
 package process
 
@@ -22,7 +24,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/config"
 	"github.com/DataDog/datadog-agent/pkg/security/metrics"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
-	"github.com/DataDog/datadog-agent/pkg/security/utils"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
@@ -43,8 +44,14 @@ type Resolver struct {
 	processCacheEntryPool *Pool
 }
 
+// ResolverOpts options of resolver
+type ResolverOpts struct {
+	envsWithValue map[string]bool
+}
+
 // NewResolver returns a new process resolver
-func NewResolver(_ *config.Config, statsdClient statsd.ClientInterface, scrubber *procutil.DataScrubber, opts ResolverOpts) (*Resolver, error) {
+func NewResolver(config *config.Config, statsdClient statsd.ClientInterface, scrubber *procutil.DataScrubber, //nolint:revive // TODO fix revive unused-parameter
+	opts ResolverOpts) (*Resolver, error) {
 
 	p := &Resolver{
 		processes:    make(map[Pid]*model.ProcessCacheEntry),
@@ -54,9 +61,14 @@ func NewResolver(_ *config.Config, statsdClient statsd.ClientInterface, scrubber
 		statsdClient: statsdClient,
 	}
 
-	p.processCacheEntryPool = NewProcessCacheEntryPool(func() { p.cacheSize.Dec() })
+	p.processCacheEntryPool = NewProcessCacheEntryPool(p)
 
 	return p, nil
+}
+
+// NewResolverOpts returns a new set of process resolver options
+func NewResolverOpts() ResolverOpts {
+	return ResolverOpts{}
 }
 
 func (p *Resolver) insertEntry(entry *model.ProcessCacheEntry) {
@@ -101,8 +113,8 @@ func (p *Resolver) AddNewEntry(pid uint32, ppid uint32, file string, commandLine
 	e.PIDContext.Pid = pid
 	e.PPid = ppid
 
-	e.Process.CmdLine = utils.NormalizePath(commandLine)
-	e.Process.FileEvent.PathnameStr = utils.NormalizePath(file)
+	e.Process.CmdLine = commandLine
+	e.Process.FileEvent.PathnameStr = file
 	e.Process.FileEvent.BasenameStr = filepath.Base(e.Process.FileEvent.PathnameStr)
 	e.ExecTime = time.Now()
 
@@ -122,7 +134,7 @@ func (p *Resolver) GetEntry(pid Pid) *model.ProcessCacheEntry {
 }
 
 // Resolve returns the cache entry for the given pid
-func (p *Resolver) Resolve(pid uint32) *model.ProcessCacheEntry {
+func (p *Resolver) Resolve(pid uint32) *model.ProcessCacheEntry { //nolint:revive // TODO fix revive unused-parameter
 	return p.GetEntry(pid)
 }
 
@@ -150,21 +162,18 @@ func (p *Resolver) GetEnvp(pr *model.Process) []string {
 // GetProcessCmdLineScrubbed returns the scrubbed cmdline
 func (p *Resolver) GetProcessCmdLineScrubbed(pr *model.Process) string {
 	if pr.ScrubbedCmdLineResolved {
-		return pr.CmdLineScrubbed
+		return pr.CmdLine
 	}
-
-	pr.CmdLineScrubbed = pr.CmdLine
 
 	if p.scrubber != nil && len(pr.CmdLine) > 0 {
 		// replace with the scrubbed version
 		scrubbed, _ := p.scrubber.ScrubCommand([]string{pr.CmdLine})
 		if len(scrubbed) > 0 {
-			pr.CmdLineScrubbed = strings.Join(scrubbed, " ")
+			pr.CmdLine = strings.Join(scrubbed, " ")
 		}
 	}
-	pr.ScrubbedCmdLineResolved = true
 
-	return pr.CmdLineScrubbed
+	return pr.CmdLine
 }
 
 // getCacheSize returns the cache size of the process resolver
@@ -206,8 +215,8 @@ func (p *Resolver) Snapshot() {
 		e.PIDContext.Pid = Pid(pid)
 		e.PPid = Pid(proc.Ppid)
 
-		e.Process.CmdLine = utils.NormalizePath(strings.Join(proc.GetCmdline(), " "))
-		e.Process.FileEvent.PathnameStr = utils.NormalizePath(proc.Exe)
+		e.Process.CmdLine = strings.Join(proc.GetCmdline(), " ")
+		e.Process.FileEvent.PathnameStr = proc.Exe
 		e.Process.FileEvent.BasenameStr = filepath.Base(e.Process.FileEvent.PathnameStr)
 		e.ExecTime = time.Unix(0, proc.Stats.CreateTime*int64(time.Millisecond))
 

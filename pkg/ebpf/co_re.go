@@ -17,17 +17,11 @@ import (
 	bpflib "github.com/cilium/ebpf"
 
 	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode"
-	"github.com/DataDog/datadog-agent/pkg/telemetry"
-	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 )
 
 type coreAssetLoader struct {
 	coreDir   string
 	btfLoader *orderedBTFLoader
-	telemetry struct {
-		success telemetry.Counter
-		error   telemetry.Counter
-	}
 }
 
 // LoadCOREAsset attempts to find kernel BTF, reads the CO-RE object file, and then calls the callback function with the
@@ -42,13 +36,13 @@ func LoadCOREAsset(filename string, startFn func(bytecode.AssetReader, manager.O
 }
 
 func (c *coreAssetLoader) loadCOREAsset(filename string, startFn func(bytecode.AssetReader, manager.Options) error) error {
-	var result COREResult
+	var telemetry COREResult
 	base := strings.TrimSuffix(filename, path.Ext(filename))
 	defer func() {
-		c.reportTelemetry(base, result)
+		storeCORETelemetryForAsset(base, telemetry)
 	}()
 
-	btfData, result, err := c.btfLoader.Get()
+	btfData, telemetry, err := c.btfLoader.Get()
 	if err != nil {
 		return fmt.Errorf("BTF load: %w", err)
 	}
@@ -58,7 +52,7 @@ func (c *coreAssetLoader) loadCOREAsset(filename string, startFn func(bytecode.A
 
 	buf, err := bytecode.GetReader(c.coreDir, filename)
 	if err != nil {
-		result = assetReadError
+		telemetry = assetReadError
 		return fmt.Errorf("error reading %s: %s", filename, err)
 	}
 	defer buf.Close()
@@ -67,7 +61,6 @@ func (c *coreAssetLoader) loadCOREAsset(filename string, startFn func(bytecode.A
 		VerifierOptions: bpflib.CollectionOptions{
 			Programs: bpflib.ProgramOptions{
 				KernelTypes: btfData,
-				LogSize:     10 * 1024 * 1024,
 			},
 		},
 	}
@@ -76,66 +69,10 @@ func (c *coreAssetLoader) loadCOREAsset(filename string, startFn func(bytecode.A
 	if err != nil {
 		var ve *bpflib.VerifierError
 		if errors.As(err, &ve) {
-			result = verifierError
+			telemetry = verifierError
 		} else {
-			result = loaderError
+			telemetry = loaderError
 		}
 	}
 	return err
-}
-
-func (c *coreAssetLoader) reportTelemetry(assetName string, result COREResult) {
-	storeCORETelemetryForAsset(assetName, result)
-
-	var err error
-	platform, err := getBTFPlatform()
-	if err != nil {
-		return
-	}
-	platformVersion, err := kernel.PlatformVersion()
-	if err != nil {
-		return
-	}
-	kernelVersion, err := kernel.Release()
-	if err != nil {
-		return
-	}
-	arch, err := kernel.Machine()
-	if err != nil {
-		return
-	}
-
-	// capacity should match number of tags
-	tags := make([]string, 0, 6)
-	tags = append(tags, platform, platformVersion, kernelVersion, arch, assetName)
-	if BTFResult(result) < btfNotFound {
-		switch BTFResult(result) {
-		case successCustomBTF:
-			tags = append(tags, "custom")
-		case successEmbeddedBTF:
-			tags = append(tags, "embedded")
-		case successDefaultBTF:
-			tags = append(tags, "default")
-		default:
-			return
-		}
-		c.telemetry.success.Inc(tags...)
-		return
-	}
-
-	if BTFResult(result) == btfNotFound {
-		tags = append(tags, "btf_not_found")
-	} else {
-		switch result {
-		case assetReadError:
-			tags = append(tags, "asset_read")
-		case verifierError:
-			tags = append(tags, "verifier")
-		case loaderError:
-			tags = append(tags, "loader")
-		default:
-			return
-		}
-	}
-	c.telemetry.error.Inc(tags...)
 }

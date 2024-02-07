@@ -415,6 +415,7 @@ func TestShouldIgnore(t *testing.T) {
 				promInclAnnot:     getPrometheusIncludeAnnotations(),
 				targetAllServices: tt.targetAll,
 			}
+
 			assert.Equal(t, tt.want, l.shouldIgnore(tt.ksvc))
 		})
 	}

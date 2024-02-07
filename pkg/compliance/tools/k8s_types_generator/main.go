@@ -42,27 +42,23 @@ var (
 
 	// https://kubernetes.io/releases/
 	k8sVersions = []string{
-		"v1.28.4",
 		"v1.27.3",
 		"v1.26.6",
 		"v1.25.11",
 		"v1.24.15",
+		"v1.23.17",
 	}
 
 	// https://github.com/kubernetes/kubernetes/blob/c3e7eca7fd38454200819b60e58144d5727f1bbc/cluster/images/etcd/Makefile#L18
 	// "v3.0.17", "v3.1.20" removed because they do not have ARM64 tarballs
 	etcdVersions = []string{
-		"v3.5.10",
-		"v3.4.28",
+		"v3.5.7",
+		"v3.4.18",
 		"v3.3.17",
 		"v3.2.32",
 	}
 
 	knownFlags = []string{
-		// Make sure "--config" parsing is first as it implements the precedence rules
-		// between configuration and CLI args
-		"--config",
-
 		"--address",
 		"--admission-control-config-file",
 		"--allow-privileged",
@@ -82,6 +78,7 @@ var (
 		"--client-cert-auth",
 		"--cluster-signing-cert-file",
 		"--cluster-signing-key-file",
+		"--config",
 		"--data-dir",
 		"--disable-admission-plugins",
 		"--enable-admission-plugins",
@@ -134,44 +131,10 @@ var (
 		"--terminated-pod-gc-threshold",
 		"--tls-cert-file",
 		"--tls-cipher-suites",
-		"--tls-min-version",
 		"--tls-private-key-file",
 		"--token-auth-file",
 		"--trusted-ca-file",
 		"--use-service-account-credentials",
-	}
-
-	// reference: https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/#kubelet-config-k8s-io-v1beta1-KubeletAuthentication
-	cliConfAssoc = map[string]string{
-		"kubelet.address":                           "address",
-		"kubelet.anonymous-auth":                    "authentication.anonymous.enabled",
-		"kubelet.authorization-mode":                "authorization.mode",
-		"kubelet.client-ca-file":                    "authorization.x509.clientCAFile",
-		"kubelet.event-burst":                       "eventBurst",
-		"kubelet.event-qps":                         "eventRecordQPS",
-		"kubelet.feature-gates":                     "featureGates",
-		"kubelet.make-iptables-util-chains":         "makeIPTablesUtilChains",
-		"kubelet.max-pods":                          "maxPods",
-		"kubelet.pod-max-pids":                      "podPidsLimit",
-		"kubelet.protect-kernel-defaults":           "protectKernelDefaults",
-		"kubelet.read-only-port":                    "readOnlyPort",
-		"kubelet.rotate-certificates":               "rotateCertificates",
-		"kubelet.rotate-server-certificates":        "featureGates.RotateKubeletServerCertificate",
-		"kubelet.streaming-connection-idle-timeout": "streamingConnectionIdleTimeout",
-		"kubelet.tls-cert-file":                     "tlsCertFile",
-		"kubelet.tls-cipher-suites":                 "tlsCipherSuites",
-		"kubelet.tls-min-version":                   "tlsMinVersion",
-		"kubelet.tls-private-key-file":              "tlsPrivateKeyFile",
-
-		"kube-scheduler.bind-address":                       "",
-		"kube-scheduler.profiling":                          "enableProfiling",
-		"kube-scheduler.contention-profiling":               "enableContentionProfiling",
-		"kube-scheduler.requestheader-extra-headers-prefix": "",
-		"kube-scheduler.requestheader-group-headers":        "",
-		"kube-scheduler.requestheader-username-headers":     "",
-		"kube-scheduler.secure-port":                        "",
-
-		"kube-proxy.bind-address": "",
 	}
 )
 
@@ -181,7 +144,7 @@ const preamble = `// Unless explicitly stated otherwise all files in this reposi
 // Copyright 2016-present Datadog, Inc.
 
 // !!!
-// This is a generated file: regenerate with go run ./pkg/compliance/tools/k8s_types_generator/main.go
+// This is a generated file: regenerate with go run ./pkg/compliance/tools/k8s_types_generator.go
 // !!!
 //revive:disable
 package k8sconfig
@@ -237,6 +200,7 @@ func main() {
 		}
 		mergedKomp := unionKomponents(komponents...)
 		allKomponents = append(allKomponents, mergedKomp)
+		fmt.Println(printKomponentCode(mergedKomp))
 	}
 
 	{
@@ -247,20 +211,9 @@ func main() {
 		}
 		mergedKomp := unionKomponents(komponents...)
 		allKomponents = append(allKomponents, mergedKomp)
+		fmt.Println(printKomponentCode(mergedKomp))
 	}
 
-	checkForKnownFlags(allKomponents, knownFlags)
-	for _, komp := range allKomponents {
-		sort.Slice(komp.confs, func(i, j int) bool {
-			ii := slices.Index(knownFlags, "--"+komp.confs[i].flagName)
-			jj := slices.Index(knownFlags, "--"+komp.confs[j].flagName)
-			return ii < jj
-		})
-		fmt.Println(printKomponentCode(komp))
-	}
-}
-
-func checkForKnownFlags(allKomponents []*komponent, knownFlags []string) {
 	var knownFlagsClone []string
 	knownFlagsClone = append(knownFlagsClone, knownFlags...)
 	for _, komponent := range allKomponents {
@@ -401,16 +354,8 @@ func unionKomponents(ks ...*komponent) *komponent {
 				confs = append(confs, newConf)
 				conf = newConf
 			} else {
-				if isKnownFlag(conf.flagName) && conf.flagType != newConf.flagType {
-					fmt.Fprintf(os.Stderr, "%s %s != %s\n", conf.flagName, conf.flagType, newConf.flagType)
+				if conf.flagType != newConf.flagType {
 					panic("TODO: different types across versions")
-				}
-				if isKnownFlag(conf.flagName) && conf.flagDefault != newConf.flagDefault {
-					// special case for these flags for which the value itself is not important
-					if conf.flagName != "event-burst" && conf.flagName != "event-qps" {
-						fmt.Fprintf(os.Stderr, "%s %s != %s\n", conf.flagName, conf.flagDefault, newConf.flagDefault)
-						panic("TODO: different defaults across versions")
-					}
 				}
 			}
 			conf.versions = append(conf.versions, k.version)
@@ -430,7 +375,7 @@ func printKomponentCode(komp *komponent) string {
 	printAssignment := func(c *conf, v string) string {
 		switch c.goType {
 		case "string", "ip":
-			return fmt.Sprintf("v := %s\nres.%s = &v", v, toGoField(c.flagName))
+			return fmt.Sprintf("res.%s = %s", toGoField(c.flagName), v)
 		case "bool":
 			return fmt.Sprintf("res.%s = l.parseBool(%s)", toGoField(c.flagName), v)
 		case "float64":
@@ -475,12 +420,8 @@ func printKomponentCode(komp *komponent) string {
 		if !isKnownFlag(c.flagName) {
 			continue
 		}
-		goType := c.goType
-		if !strings.HasPrefix(goType, "*") && !strings.HasPrefix(goType, "[]") {
-			goType = "*" + goType
-		}
-		s += fmt.Sprintf(" %s %s `json:\"%s,omitempty\"` // versions: %s\n",
-			toGoField(c.flagName), goType, toGoJSONTag(c.flagName), strings.Join(c.versions, ", "))
+		s += fmt.Sprintf(" %s %s `json:\"%s\"` // versions: %s\n",
+			toGoField(c.flagName), c.goType, toGoJSONTag(c.flagName), strings.Join(c.versions, ", "))
 	}
 	s += " SkippedFlags map[string]string `json:\"skippedFlags,omitempty\"`\n"
 	s += "}\n"
@@ -493,26 +434,9 @@ func printKomponentCode(komp *komponent) string {
 		}
 		s += fmt.Sprintf("if v, ok := flags[\"--%s\"]; ok {\n", c.flagName)
 		s += fmt.Sprintf("delete(flags, \"--%s\")\n", c.flagName)
-		s += printAssignment(c, "v") + "\n"
+		s += printAssignment(c, "v")
 		if c.flagDefault != "" {
-			// kube-apiserver and etcd components do not have any configuration file.
-			if komp.name != "kube-apiserver" && komp.name != "etcd" && komp.name != "kube-controller-manager" {
-				configCursor, ok := cliConfAssoc[komp.name+"."+c.flagName]
-				// Some components can be configured with both cli-args and a
-				// configuration file. We need to make sure the default value
-				// of a cli-args is filled only if the associated
-				// configuration in the config file is not setup.
-				if !ok {
-					panic(fmt.Errorf("missing %s configuration associated path to flag %q (default = %q)", komp.name, c.flagName, c.flagDefault))
-				}
-				if configCursor != "" {
-					s += fmt.Sprintf("\n} else if !l.configFileMetaHasField(res.Config, %q) {\n", configCursor)
-				} else {
-					s += "\n} else {\n"
-				}
-			} else {
-				s += "\n} else {\n"
-			}
+			s += "\n} else {\n"
 			s += printAssignment(c, fmt.Sprintf("%q", c.flagDefault))
 		}
 		s += "}\n"
@@ -739,7 +663,7 @@ func scanDefaultValue(str string, op, cl rune) string {
 
 func parseTypeBool(str string) string {
 	if str == "" {
-		return ""
+		str = "false"
 	}
 	b, err := strconv.ParseBool(str)
 	if err != nil {
@@ -748,7 +672,7 @@ func parseTypeBool(str string) string {
 	if b {
 		return "true"
 	}
-	return "false"
+	return ""
 }
 
 func parseTypeCIDRs(str string) string {
@@ -766,7 +690,7 @@ func parseTypeCIDRs(str string) string {
 
 func parseTypeDuration(str string) string {
 	if str == "" {
-		return ""
+		str = "0"
 	}
 	_, err := time.ParseDuration(str)
 	if err != nil {
@@ -777,7 +701,7 @@ func parseTypeDuration(str string) string {
 
 func parseTypeFloat(str string) string {
 	if str == "" {
-		return ""
+		str = "0.0"
 	}
 	_, err := strconv.ParseFloat(str, 64)
 	if err != nil {
@@ -788,7 +712,7 @@ func parseTypeFloat(str string) string {
 
 func parseTypeNumber(str string) string {
 	if str == "" {
-		return ""
+		str = "0"
 	}
 	_, err := strconv.Atoi(str)
 	if err != nil {

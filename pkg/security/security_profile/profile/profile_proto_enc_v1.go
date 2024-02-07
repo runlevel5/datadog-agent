@@ -4,6 +4,7 @@
 // Copyright 2016-present Datadog, Inc.
 
 //go:build linux
+// +build linux
 
 // Package profile holds profile related files
 package profile
@@ -22,6 +23,7 @@ func SecurityProfileToProto(input *SecurityProfile) *proto.SecurityProfile {
 	}
 
 	output := proto.SecurityProfile{
+		Status:   uint32(input.Status),
 		Version:  input.Version,
 		Metadata: mtdt.ToProto(&input.Metadata),
 		Syscalls: input.Syscalls,

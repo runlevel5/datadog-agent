@@ -17,13 +17,14 @@ import (
 
 	tmock "github.com/stretchr/testify/mock"
 
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/kubelet/common"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/kubelet"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/kubelet/mock"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
+	workloadmetatesting "github.com/DataDog/datadog-agent/pkg/workloadmeta/testing"
 )
 
 var (
@@ -126,19 +127,21 @@ func CreateKubeletMock(response EndpointResponse, endpoint string) (*mock.Kubele
 }
 
 // StorePopulatedFromFile populates a workloadmeta.Store based on pod data from a given file.
-func StorePopulatedFromFile(store workloadmeta.Mock, filename string, podUtils *common.PodUtils) error {
+func StorePopulatedFromFile(filename string, podUtils *common.PodUtils) (*workloadmetatesting.Store, error) {
+	store := workloadmetatesting.NewStore()
+
 	if filename == "" {
-		return nil
+		return store, nil
 	}
 
 	podList, err := os.ReadFile(filename)
 	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("unable to load pod list, Err: %v", err))
+		return store, fmt.Errorf(fmt.Sprintf("unable to load pod list, Err: %v", err))
 	}
 	var pods *kubelet.PodList
 	err = json.Unmarshal(podList, &pods)
 	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("unable to load pod list, Err: %v", err))
+		return store, fmt.Errorf(fmt.Sprintf("unable to load pod list, Err: %v", err))
 	}
 
 	for _, pod := range pods.Items {
@@ -202,7 +205,7 @@ func StorePopulatedFromFile(store workloadmeta.Mock, filename string, podUtils *
 		})
 		podUtils.PopulateForPod(pod)
 	}
-	return err
+	return store, err
 }
 
 // AssertMetricCallsMatch is a helper function which allows us to assert that, for a given test and a given set of expected

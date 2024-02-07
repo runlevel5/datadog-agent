@@ -13,12 +13,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics/provider"
 	kutil "github.com/DataDog/datadog-agent/pkg/util/kubernetes/kubelet"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/pointer"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 
 	"k8s.io/kubelet/pkg/apis/stats/v1alpha1"
 )
@@ -46,7 +46,7 @@ func init() {
 
 type kubeletCollector struct {
 	kubeletClient kutil.KubeUtilInterface
-	metadataStore workloadmeta.Component
+	metadataStore workloadmeta.Store
 	statsCache    provider.Cache
 	refreshLock   sync.Mutex
 }
@@ -66,7 +66,6 @@ func newKubeletCollector(*provider.Cache) (provider.CollectorMetadata, error) {
 	collector := &kubeletCollector{
 		kubeletClient: client,
 		statsCache:    *provider.NewCache(kubeletCacheGCInterval),
-		// TODO(components): stop using globals, rely on injected workloadmeta component.
 		metadataStore: workloadmeta.GetGlobalStore(),
 	}
 
@@ -78,10 +77,9 @@ func newKubeletCollector(*provider.Cache) (provider.CollectorMetadata, error) {
 	return provider.CollectorMetadata{
 		ID: collectorID,
 		Collectors: provider.CollectorCatalog{
-			provider.NewRuntimeMetadata(string(provider.RuntimeNameContainerd), ""):                                 collectors,
-			provider.NewRuntimeMetadata(string(provider.RuntimeNameContainerd), string(provider.RuntimeFlavorKata)): collectors,
-			provider.NewRuntimeMetadata(string(provider.RuntimeNameCRIO), ""):                                       collectors,
-			provider.NewRuntimeMetadata(string(provider.RuntimeNameDocker), ""):                                     collectors,
+			provider.RuntimeNameContainerd: collectors,
+			provider.RuntimeNameCRIO:       collectors,
+			provider.RuntimeNameDocker:     collectors,
 		},
 	}, nil
 }

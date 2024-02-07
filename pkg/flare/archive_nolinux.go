@@ -11,28 +11,28 @@ import (
 	flaretypes "github.com/DataDog/datadog-agent/comp/core/flare/types"
 )
 
-func addSystemProbePlatformSpecificEntries(_ flaretypes.FlareBuilder) {}
+func addSystemProbePlatformSpecificEntries(fb flaretypes.FlareBuilder) {} //nolint:revive // TODO fix revive unused-parameter
 
-func getLinuxKernelSymbols(_ flaretypes.FlareBuilder) error {
+func getLinuxKernelSymbols(fb flaretypes.FlareBuilder) error { //nolint:revive // TODO fix revive unused-parameter
 	return nil
 }
 
-func getLinuxKprobeEvents(_ flaretypes.FlareBuilder) error {
+func getLinuxKprobeEvents(fb flaretypes.FlareBuilder) error { //nolint:revive // TODO fix revive unused-parameter
 	return nil
 }
 
-func getLinuxDmesg(_ flaretypes.FlareBuilder) error {
+func getLinuxDmesg(fb flaretypes.FlareBuilder) error { //nolint:revive // TODO fix revive unused-parameter
 	return nil
 }
 
-func getLinuxPid1MountInfo(_ flaretypes.FlareBuilder) error {
+func getLinuxPid1MountInfo(fb flaretypes.FlareBuilder) error { //nolint:revive // TODO fix revive unused-parameter
 	return nil
 }
 
-func getLinuxTracingAvailableEvents(_ flaretypes.FlareBuilder) error {
+func getLinuxTracingAvailableEvents(fb flaretypes.FlareBuilder) error { //nolint:revive // TODO fix revive unused-parameter
 	return nil
 }
 
-func getLinuxTracingAvailableFilterFunctions(_ flaretypes.FlareBuilder) error {
+func getLinuxTracingAvailableFilterFunctions(fb flaretypes.FlareBuilder) error { //nolint:revive // TODO fix revive unused-parameter
 	return nil
 }

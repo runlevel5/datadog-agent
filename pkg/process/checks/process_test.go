@@ -6,7 +6,6 @@
 package checks
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 	"testing"
@@ -17,10 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/fx"
 
-	"github.com/DataDog/datadog-agent/comp/core"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/process/procutil"
 	"github.com/DataDog/datadog-agent/pkg/process/procutil/mocks"
@@ -30,8 +26,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	metricsmock "github.com/DataDog/datadog-agent/pkg/util/containers/metrics/mock"
 	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics/provider"
-	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/subscriptions"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 )
 
 func processCheckWithMockProbe(t *testing.T) (*ProcessCheck, *mocks.Probe) {
@@ -67,17 +63,11 @@ func mockContainerProvider(t *testing.T) proccontainers.ContainerProvider {
 	// Metrics provider
 	metricsCollector := metricsmock.NewCollector("foo")
 	metricsProvider := metricsmock.NewMetricsProvider()
-	metricsProvider.RegisterConcreteCollector(provider.NewRuntimeMetadata(string(provider.RuntimeNameContainerd), ""), metricsCollector)
-	metricsProvider.RegisterConcreteCollector(provider.NewRuntimeMetadata(string(provider.RuntimeNameGarden), ""), metricsCollector)
+	metricsProvider.RegisterConcreteCollector(provider.RuntimeNameContainerd, metricsCollector)
+	metricsProvider.RegisterConcreteCollector(provider.RuntimeNameGarden, metricsCollector)
 
 	// Workload meta + tagger
-	metadataProvider := fxutil.Test[workloadmeta.Mock](t, fx.Options(
-		core.MockBundle(),
-		fx.Supply(context.Background()),
-		fx.Supply(workloadmeta.NewParams()),
-		workloadmeta.MockModule(),
-	))
-
+	metadataProvider := workloadmeta.NewMockStore()
 	fakeTagger := local.NewFakeTagger()
 	tagger.SetDefaultTagger(fakeTagger)
 	defer tagger.SetDefaultTagger(nil)

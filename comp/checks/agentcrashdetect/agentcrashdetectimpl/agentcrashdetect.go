@@ -13,23 +13,26 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"go.uber.org/fx"
-	"golang.org/x/sys/windows/registry"
-	yaml "gopkg.in/yaml.v2"
+
+	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
+
+	"github.com/DataDog/datadog-agent/pkg/collector/check"
+	core "github.com/DataDog/datadog-agent/pkg/collector/corechecks"
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/wincrashdetect/probe"
 
 	"github.com/DataDog/datadog-agent/comp/checks/agentcrashdetect"
 	compsysconfig "github.com/DataDog/datadog-agent/comp/core/sysprobeconfig"
 	comptraceconfig "github.com/DataDog/datadog-agent/comp/trace/config"
-	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
-	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
-	"github.com/DataDog/datadog-agent/pkg/collector/check"
-	core "github.com/DataDog/datadog-agent/pkg/collector/corechecks"
-	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/wincrashdetect/probe"
+
 	"github.com/DataDog/datadog-agent/pkg/internaltelemetry"
 	traceconfig "github.com/DataDog/datadog-agent/pkg/trace/config"
-	"github.com/DataDog/datadog-agent/pkg/util/crashreport"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/crashreport"
+	"golang.org/x/sys/windows/registry"
+	yaml "gopkg.in/yaml.v2"
 )
 
 const (
@@ -57,10 +60,9 @@ var (
 )
 
 // Module defines the fx options for this component.
-func Module() fxutil.Module {
-	return fxutil.Component(
-		fx.Provide(newAgentCrashComponent))
-}
+var Module = fxutil.Component(
+	fx.Provide(newAgentCrashComponent),
+)
 
 // WinCrashConfig is the configuration options for this check
 // it is exported so that the yaml parser can read it.

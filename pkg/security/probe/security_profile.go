@@ -4,6 +4,7 @@
 // Copyright 2016-present Datadog, Inc.
 
 //go:build linux
+// +build linux
 
 // Package probe holds probe related files
 package probe
@@ -29,28 +30,28 @@ type SecurityProfileManagers struct {
 }
 
 // NewSecurityProfileManagers returns a new manager object
-func NewSecurityProfileManagers(p *EBPFProbe) (*SecurityProfileManagers, error) {
+func NewSecurityProfileManagers(probe *Probe) (*SecurityProfileManagers, error) {
 	managers := SecurityProfileManagers{
-		config: p.config,
+		config: probe.Config,
 	}
 
-	if p.probe.IsActivityDumpEnabled() {
-		activityDumpManager, err := dump.NewActivityDumpManager(p.config, p.statsdClient, p.NewEvent, p.Resolvers, p.kernelVersion, p.Manager)
+	if probe.IsActivityDumpEnabled() {
+		activityDumpManager, err := dump.NewActivityDumpManager(probe.Config, probe.StatsdClient, func() *model.Event { return NewEvent(probe.fieldHandlers) }, probe.resolvers, probe.kernelVersion, probe.Manager)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't create the activity dump manager: %w", err)
 		}
 		managers.activityDumpManager = activityDumpManager
 	}
 
-	if p.probe.IsSecurityProfileEnabled() {
-		securityProfileManager, err := profile.NewSecurityProfileManager(p.config, p.statsdClient, p.Resolvers, p.Manager)
+	if probe.IsSecurityProfileEnabled() {
+		securityProfileManager, err := profile.NewSecurityProfileManager(probe.Config, probe.StatsdClient, probe.resolvers, probe.Manager)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't create the security profile manager: %w", err)
 		}
 		managers.securityProfileManager = securityProfileManager
 	}
 
-	if p.probe.IsActivityDumpEnabled() && p.probe.IsSecurityProfileEnabled() {
+	if probe.IsActivityDumpEnabled() && probe.IsSecurityProfileEnabled() {
 		managers.activityDumpManager.SetSecurityProfileManager(managers.securityProfileManager)
 		managers.securityProfileManager.SetActivityDumpManager(managers.activityDumpManager)
 	}

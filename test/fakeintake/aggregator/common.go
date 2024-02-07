@@ -11,13 +11,11 @@ import (
 	"compress/zlib"
 	"io"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/DataDog/datadog-agent/test/fakeintake/api"
 )
 
-//nolint:revive // TODO(APL) Fix revive linter
 type PayloadItem interface {
 	name() string
 	GetTags() []string
@@ -26,12 +24,9 @@ type PayloadItem interface {
 
 type parseFunc[P PayloadItem] func(payload api.Payload) (items []P, err error)
 
-//nolint:revive // TODO(APL) Fix revive linter
 type Aggregator[P PayloadItem] struct {
 	payloadsByName map[string][]P
 	parse          parseFunc[P]
-
-	mutex sync.RWMutex
 }
 
 const (
@@ -46,40 +41,42 @@ func newAggregator[P PayloadItem](parse parseFunc[P]) Aggregator[P] {
 	return Aggregator[P]{
 		payloadsByName: map[string][]P{},
 		parse:          parse,
-		mutex:          sync.RWMutex{},
 	}
 }
 
 // UnmarshallPayloads aggregate the payloads
 func (agg *Aggregator[P]) UnmarshallPayloads(payloads []api.Payload) error {
-	// build new map
-	payloadsByName := map[string][]P{}
+	// reset map
+	agg.Reset()
+	// build map
 	for _, p := range payloads {
 		payloads, err := agg.parse(p)
 		if err != nil {
 			return err
 		}
-
 		for _, item := range payloads {
-			if _, found := payloadsByName[item.name()]; !found {
-				payloadsByName[item.name()] = []P{}
+			if _, found := agg.payloadsByName[item.name()]; !found {
+				agg.payloadsByName[item.name()] = []P{}
 			}
-			payloadsByName[item.name()] = append(payloadsByName[item.name()], item)
+			agg.payloadsByName[item.name()] = append(agg.payloadsByName[item.name()], item)
 		}
 	}
-	agg.replace(payloadsByName)
 
 	return nil
 }
 
 // ContainsPayloadName return true if name match one of the payloads
 func (agg *Aggregator[P]) ContainsPayloadName(name string) bool {
-	return len(agg.GetPayloadsByName(name)) != 0
+	_, found := agg.payloadsByName[name]
+	return found
 }
 
 // ContainsPayloadNameAndTags return true if the payload name exist and on of the payloads contains all the tags
 func (agg *Aggregator[P]) ContainsPayloadNameAndTags(name string, tags []string) bool {
-	payloads := agg.GetPayloadsByName(name)
+	payloads, found := agg.payloadsByName[name]
+	if !found {
+		return false
+	}
 
 	for _, payloadItem := range payloads {
 		if AreTagsSubsetOfOtherTags(tags, payloadItem.GetTags()) {
@@ -92,18 +89,11 @@ func (agg *Aggregator[P]) ContainsPayloadNameAndTags(name string, tags []string)
 
 // GetNames return the names of the payloads
 func (agg *Aggregator[P]) GetNames() []string {
-	names := agg.getNamesUnsorted()
-	sort.Strings(names)
-	return names
-}
-
-func (agg *Aggregator[P]) getNamesUnsorted() []string {
-	agg.mutex.RLock()
-	defer agg.mutex.RUnlock()
-	names := make([]string, 0, len(agg.payloadsByName))
+	names := []string{}
 	for name := range agg.payloadsByName {
 		names = append(names, name)
 	}
+	sort.Strings(names)
 	return names
 }
 
@@ -134,30 +124,12 @@ func getReadCloserForEncoding(payload []byte, encoding string) (rc io.ReadCloser
 
 // GetPayloadsByName return the payloads for the resource name
 func (agg *Aggregator[P]) GetPayloadsByName(name string) []P {
-	agg.mutex.RLock()
-	defer agg.mutex.RUnlock()
-	payloads := agg.payloadsByName[name]
-	return payloads
+	return agg.payloadsByName[name]
 }
 
 // Reset the aggregation
 func (agg *Aggregator[P]) Reset() {
-	agg.mutex.Lock()
-	defer agg.mutex.Unlock()
-	agg.unsafeReset()
-}
-
-func (agg *Aggregator[P]) unsafeReset() {
 	agg.payloadsByName = map[string][]P{}
-}
-
-func (agg *Aggregator[P]) replace(payloadsByName map[string][]P) {
-	agg.mutex.Lock()
-	defer agg.mutex.Unlock()
-	agg.unsafeReset()
-	for name, payloads := range payloadsByName {
-		agg.payloadsByName[name] = payloads
-	}
 }
 
 // FilterByTags return the payloads that match all the tags

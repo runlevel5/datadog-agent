@@ -13,7 +13,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/jmxfetch"
-	jmxStatus "github.com/DataDog/datadog-agent/pkg/status/jmx"
+	"github.com/DataDog/datadog-agent/pkg/status"
 )
 
 type runner struct {
@@ -31,8 +31,8 @@ func (r *runner) startRunner() error {
 	lifecycleMgmt := true
 	err := r.jmxfetch.Start(lifecycleMgmt)
 	if err != nil {
-		s := jmxStatus.StartupError{LastError: err.Error(), Timestamp: time.Now().Unix()}
-		jmxStatus.SetStartupError(s)
+		s := status.JMXStartupError{LastError: err.Error(), Timestamp: time.Now().Unix()}
+		status.SetJMXStartupError(s)
 		return err
 	}
 	r.started = true

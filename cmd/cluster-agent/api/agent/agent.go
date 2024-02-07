@@ -17,27 +17,27 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/DataDog/datadog-agent/cmd/agent/api/response"
 	"github.com/DataDog/datadog-agent/cmd/agent/common"
 	"github.com/DataDog/datadog-agent/cmd/agent/common/path"
 	"github.com/DataDog/datadog-agent/cmd/agent/common/signals"
-	"github.com/DataDog/datadog-agent/comp/api/api/apiimpl/response"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	settingshttp "github.com/DataDog/datadog-agent/pkg/config/settings/http"
 	"github.com/DataDog/datadog-agent/pkg/flare"
-	clusteragentStatus "github.com/DataDog/datadog-agent/pkg/status/clusteragent"
+	"github.com/DataDog/datadog-agent/pkg/status"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 	"github.com/DataDog/datadog-agent/pkg/tagger"
 	"github.com/DataDog/datadog-agent/pkg/tagger/collectors"
 	"github.com/DataDog/datadog-agent/pkg/util/hostname"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/version"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 )
 
 // SetupHandlers adds the specific handlers for cluster agent endpoints
-func SetupHandlers(r *mux.Router, wmeta workloadmeta.Component, senderManager sender.DiagnoseSenderManager) {
+func SetupHandlers(r *mux.Router, senderManager sender.DiagnoseSenderManager) {
 	r.HandleFunc("/version", getVersion).Methods("GET")
 	r.HandleFunc("/hostname", getHostname).Methods("GET")
 	r.HandleFunc("/flare", func(w http.ResponseWriter, r *http.Request) { makeFlare(w, r, senderManager) }).Methods("POST")
@@ -50,15 +50,13 @@ func SetupHandlers(r *mux.Router, wmeta workloadmeta.Component, senderManager se
 	r.HandleFunc("/config/{setting}", settingshttp.Server.GetValue).Methods("GET")
 	r.HandleFunc("/config/{setting}", settingshttp.Server.SetValue).Methods("POST")
 	r.HandleFunc("/tagger-list", getTaggerList).Methods("GET")
-	r.HandleFunc("/workload-list", func(w http.ResponseWriter, r *http.Request) {
-		getWorkloadList(w, r, wmeta)
-	}).Methods("GET")
+	r.HandleFunc("/workload-list", getWorkloadList).Methods("GET")
 }
 
 func getStatus(w http.ResponseWriter, r *http.Request) {
 	log.Info("Got a request for the status. Making status.")
 	verbose := r.URL.Query().Get("verbose") == "true"
-	s, err := clusteragentStatus.GetStatus(verbose)
+	s, err := status.GetDCAStatus(verbose)
 	w.Header().Set("Content-Type", "application/json")
 	if err != nil {
 		log.Errorf("Error getting status. Error: %v, Status: %v", err, s)
@@ -74,7 +72,6 @@ func getStatus(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonStats)
 }
 
-//nolint:revive // TODO(CINT) Fix revive linter
 func getHealth(w http.ResponseWriter, r *http.Request) {
 	h := health.GetReady()
 
@@ -92,7 +89,6 @@ func getHealth(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonHealth)
 }
 
-//nolint:revive // TODO(CINT) Fix revive linter
 func stopAgent(w http.ResponseWriter, r *http.Request) {
 	signals.Stopper <- true
 	w.Header().Set("Content-Type", "application/json")
@@ -100,7 +96,6 @@ func stopAgent(w http.ResponseWriter, r *http.Request) {
 	w.Write(j)
 }
 
-//nolint:revive // TODO(CINT) Fix revive linter
 func getVersion(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	av, err := version.Agent()
@@ -167,7 +162,6 @@ func makeFlare(w http.ResponseWriter, r *http.Request, senderManager sender.Diag
 	w.Write([]byte(filePath))
 }
 
-//nolint:revive // TODO(CINT) Fix revive linter
 func getConfigCheck(w http.ResponseWriter, r *http.Request) {
 	var response response.ConfigCheckResponse
 
@@ -196,7 +190,6 @@ func getConfigCheck(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonConfig)
 }
 
-//nolint:revive // TODO(CINT) Fix revive linter
 func getTaggerList(w http.ResponseWriter, r *http.Request) {
 	response := tagger.List(collectors.HighCardinality)
 
@@ -208,7 +201,7 @@ func getTaggerList(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonTags)
 }
 
-func getWorkloadList(w http.ResponseWriter, r *http.Request, wmeta workloadmeta.Component) {
+func getWorkloadList(w http.ResponseWriter, r *http.Request) {
 	verbose := false
 	params := r.URL.Query()
 	if v, ok := params["verbose"]; ok {
@@ -217,7 +210,7 @@ func getWorkloadList(w http.ResponseWriter, r *http.Request, wmeta workloadmeta.
 		}
 	}
 
-	response := wmeta.Dump(verbose)
+	response := workloadmeta.GetGlobalStore().Dump(verbose)
 	jsonDump, err := json.Marshal(response)
 	if err != nil {
 		setJSONError(w, log.Errorf("Unable to marshal workload list response: %v", err), 500)

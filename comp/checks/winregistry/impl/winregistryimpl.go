@@ -10,7 +10,6 @@ package winregistryimpl
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/DataDog/datadog-agent/comp/checks/winregistry"
@@ -18,18 +17,15 @@ import (
 	"github.com/DataDog/datadog-agent/comp/logs/agent"
 	logsConfig "github.com/DataDog/datadog-agent/comp/logs/agent/config"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
+	"github.com/DataDog/datadog-agent/pkg/logs/message"
+	"github.com/DataDog/datadog-agent/pkg/logs/sources"
+	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
+	"github.com/DataDog/datadog-agent/pkg/util/optional"
+
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
 	core "github.com/DataDog/datadog-agent/pkg/collector/corechecks"
-	"github.com/DataDog/datadog-agent/pkg/logs/message"
-	"github.com/DataDog/datadog-agent/pkg/logs/sources"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
-	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
-	agentLog "github.com/DataDog/datadog-agent/pkg/util/log"
-	"github.com/DataDog/datadog-agent/pkg/util/optional"
-	yy "github.com/ghodss/yaml"
-	"github.com/swaggest/jsonschema-go"
-	"github.com/xeipuuv/gojsonschema"
 	"go.uber.org/fx"
 	"golang.org/x/sys/windows/registry"
 	"gopkg.in/yaml.v2"
@@ -44,10 +40,9 @@ const (
 )
 
 // Module defines the fx options for this component.
-func Module() fxutil.Module {
-	return fxutil.Component(
-		fx.Provide(newWindowsRegistryComponent))
-}
+var Module = fxutil.Component(
+	fx.Provide(newWindowsRegistryComponent),
+)
 
 type dependencies struct {
 	fx.In
@@ -62,20 +57,20 @@ type dependencies struct {
 }
 
 type registryValueCfg struct {
-	Name         string                   `json:"name" yaml:"name" required:"true"` // The metric name of the registry value
-	DefaultValue optional.Option[float64] `json:"default_value" yaml:"default_value"`
-	Mappings     []map[string]float64     `json:"mapping" yaml:"mapping"`
+	Name         string                   `yaml:"name"` // The metric name of the registry value
+	DefaultValue optional.Option[float64] `yaml:"default_value"`
+	Mappings     []map[string]float64     `yaml:"mapping"`
 }
 
 type registryKeyCfg struct {
-	Name           string                      `json:"name" yaml:"name" required:"true"`                                                     // The metric name of the registry key
-	RegistryValues map[string]registryValueCfg `json:"registry_values" yaml:"registry_values" minItems:"1" nullable:"false" required:"true"` // The map key is the registry value name
+	Name           string                      `yaml:"name"`            // The metric name of the registry key
+	RegistryValues map[string]registryValueCfg `yaml:"registry_values"` // The map key is the registry value name
 }
 
 // checkCfg is the config that is specific to each check instance
 type checkCfg struct {
-	RegistryKeys map[string]registryKeyCfg `json:"registry_keys" yaml:"registry_keys" nullable:"false" required:"true"`
-	SendOnStart  optional.Option[bool]     `json:"send_on_start" yaml:"send_on_start"`
+	RegistryKeys map[string]registryKeyCfg `yaml:"registry_keys"`
+	SendOnStart  optional.Option[bool]     `yaml:"send_on_start"`
 }
 
 // checkInitCfg is the config that is common to all check instances
@@ -108,24 +103,6 @@ type WindowsRegistryCheck struct {
 	integrationLogsDelegate *integrationLogsRegistryDelegate
 }
 
-func createOptionMapping[T any](reflector *jsonschema.Reflector, sourceType jsonschema.SimpleType) {
-	option := jsonschema.Schema{}
-	option.AddType(sourceType)
-	reflector.AddTypeMapping(optional.Option[T]{}, option)
-}
-
-func createSchema() ([]byte, error) {
-	reflector := jsonschema.Reflector{}
-	createOptionMapping[bool](&reflector, jsonschema.Boolean)
-	createOptionMapping[float64](&reflector, jsonschema.Number)
-	schema, err := reflector.Reflect(checkCfg{})
-	if err != nil {
-		return nil, err
-	}
-
-	return json.MarshalIndent(schema, "", " ")
-}
-
 // Configure configures the check
 func (c *WindowsRegistryCheck) Configure(senderManager sender.SenderManager, integrationConfigDigest uint64, data integration.Data, initConfig integration.Data, source string) error {
 	c.senderManager = senderManager
@@ -135,39 +112,13 @@ func (c *WindowsRegistryCheck) Configure(senderManager sender.SenderManager, int
 		return err
 	}
 
-	schemaString, err := createSchema()
-	if err != nil {
-		agentLog.Errorf("failed to create validation schema: %s", err)
-		return err
-	}
-	schemaLoader := gojsonschema.NewBytesLoader(schemaString)
-	rawDocument, err := yy.YAMLToJSON(data)
-	if err != nil {
-		agentLog.Errorf("failed to load the config to JSON: %s", err)
-		return err
-	}
-	documentLoader := gojsonschema.NewBytesLoader(rawDocument)
-	result, _ := gojsonschema.Validate(schemaLoader, documentLoader)
-	if !result.Valid() {
-		for _, err := range result.Errors() {
-			if err.Value() != nil {
-				agentLog.Errorf("configuration error: %s", err)
-			} else {
-				agentLog.Errorf("configuration error: %s (%v)", err, err.Value())
-			}
-		}
-		return fmt.Errorf("configuration validation failed")
-	}
-
 	var initCfg checkInitCfg
 	if err := yaml.Unmarshal(initConfig, &initCfg); err != nil {
-		agentLog.Errorf("cannot unmarshal shared configuration: %s", err)
 		return err
 	}
 
 	var conf checkCfg
 	if err := yaml.Unmarshal(data, &conf); err != nil {
-		agentLog.Errorf("cannot unmarshal configuration: %s", err)
 		return err
 	}
 
@@ -192,9 +143,7 @@ func (c *WindowsRegistryCheck) Configure(senderManager sender.SenderManager, int
 	for regKey, regKeyConfig := range conf.RegistryKeys {
 		splitKeypath := strings.SplitN(regKey, "\\", 2)
 		if len(splitKeypath) != 2 {
-			err = fmt.Errorf("the key %s is too short to be a valid key", regKey)
-			agentLog.Errorf("configuration error: %s", err)
-			return err
+			return fmt.Errorf("the key %s is too short to be a valid key", regKey)
 		}
 
 		if len(regKeyConfig.Name) == 0 {
@@ -219,16 +168,13 @@ func (c *WindowsRegistryCheck) Configure(senderManager sender.SenderManager, int
 				registryValues:  regValues,
 			})
 		} else {
-			err = fmt.Errorf("unknown hive %s", splitKeypath[0])
-			agentLog.Errorf("configuration error: %s", err)
-			return err
+			return fmt.Errorf("unknown hive %s", splitKeypath[0])
 		}
 	}
 
 	c.sender, err = c.GetSender()
 	if err != nil {
-		agentLog.Errorf("failed to retrieve a sender for check %s: %s", string(c.ID()), err)
-		return err
+		return fmt.Errorf("failed to retrieve a sender for check %s: %s", string(c.ID()), err)
 	}
 	c.sender.FinalizeCheckServiceTag()
 

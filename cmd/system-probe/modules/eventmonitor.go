@@ -9,7 +9,7 @@ package modules
 
 import (
 	"github.com/DataDog/datadog-agent/cmd/system-probe/api/module"
-	sysconfigtypes "github.com/DataDog/datadog-agent/cmd/system-probe/config/types"
+	"github.com/DataDog/datadog-agent/cmd/system-probe/config"
 	"github.com/DataDog/datadog-agent/pkg/eventmonitor"
 	emconfig "github.com/DataDog/datadog-agent/pkg/eventmonitor/config"
 	"github.com/DataDog/datadog-agent/pkg/network/events"
@@ -19,59 +19,62 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-var eventMonitorModuleConfigNamespaces = []string{"event_monitoring_config", "runtime_security_config"}
+// EventMonitor - Event monitor Factory
+var EventMonitor = module.Factory{
+	Name:             config.EventMonitorModule,
+	ConfigNamespaces: []string{"event_monitoring_config", "runtime_security_config"},
+	Fn: func(sysProbeConfig *config.Config) (module.Module, error) {
+		emconfig := emconfig.NewConfig(sysProbeConfig)
 
-func createEventMonitorModule(sysProbeConfig *sysconfigtypes.Config) (module.Module, error) {
-	emconfig := emconfig.NewConfig(sysProbeConfig)
-
-	secconfig, err := secconfig.NewConfig()
-	if err != nil {
-		log.Errorf("invalid probe configuration: %v", err)
-		return nil, module.ErrNotEnabled
-	}
-
-	opts := eventmonitor.Opts{}
-	secmoduleOpts := secmodule.Opts{}
-
-	// adapt options
-	if secconfig.RuntimeSecurity.IsRuntimeEnabled() {
-		secmodule.UpdateEventMonitorOpts(&opts, secconfig)
-	} else {
-		secmodule.DisableRuntimeSecurity(secconfig)
-	}
-
-	evm, err := eventmonitor.NewEventMonitor(emconfig, secconfig, opts)
-	if err != nil {
-		log.Errorf("error initializing event monitoring module: %v", err)
-		return nil, module.ErrNotEnabled
-	}
-
-	if secconfig.RuntimeSecurity.IsRuntimeEnabled() {
-		cws, err := secmodule.NewCWSConsumer(evm, secconfig.RuntimeSecurity, secmoduleOpts)
+		secconfig, err := secconfig.NewConfig()
 		if err != nil {
-			return nil, err
+			log.Errorf("invalid probe configuration: %v", err)
+			return nil, module.ErrNotEnabled
 		}
-		evm.RegisterEventConsumer(cws)
-		log.Info("event monitoring cws consumer initialized")
-	}
 
-	if emconfig.NetworkConsumerEnabled {
-		network, err := events.NewNetworkConsumer(evm)
+		opts := eventmonitor.Opts{}
+		secmoduleOpts := secmodule.Opts{}
+
+		// adapt options
+		if secconfig.RuntimeSecurity.IsRuntimeEnabled() {
+			secmodule.UpdateEventMonitorOpts(&opts, secconfig)
+		} else {
+			secmodule.DisableRuntimeSecurity(secconfig)
+		}
+
+		evm, err := eventmonitor.NewEventMonitor(emconfig, secconfig, opts)
 		if err != nil {
-			return nil, err
+			log.Errorf("error initializing event monitoring module: %v", err)
+			return nil, module.ErrNotEnabled
 		}
-		evm.RegisterEventConsumer(network)
-		log.Info("event monitoring network consumer initialized")
-	}
 
-	if emconfig.ProcessConsumerEnabled {
-		process, err := procconsumer.NewProcessConsumer(evm)
-		if err != nil {
-			return nil, err
+		if secconfig.RuntimeSecurity.IsRuntimeEnabled() {
+			cws, err := secmodule.NewCWSConsumer(evm, secconfig.RuntimeSecurity, secmoduleOpts)
+			if err != nil {
+				return nil, err
+			}
+			evm.RegisterEventConsumer(cws)
+			log.Info("event monitoring cws consumer initialized")
 		}
-		evm.RegisterEventConsumer(process)
-		log.Info("event monitoring process-agent consumer initialized")
-	}
 
-	return evm, err
+		if emconfig.NetworkConsumerEnabled {
+			network, err := events.NewNetworkConsumer(evm)
+			if err != nil {
+				return nil, err
+			}
+			evm.RegisterEventConsumer(network)
+			log.Info("event monitoring network consumer initialized")
+		}
+
+		if emconfig.ProcessConsumerEnabled {
+			process, err := procconsumer.NewProcessConsumer(evm)
+			if err != nil {
+				return nil, err
+			}
+			evm.RegisterEventConsumer(process)
+			log.Info("event monitoring process-agent consumer initialized")
+		}
+
+		return evm, err
+	},
 }

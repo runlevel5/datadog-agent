@@ -9,7 +9,6 @@
 
 //go:build windows
 
-//nolint:revive // TODO(WINA) Fix revive linter
 package cpu
 
 import (
@@ -22,7 +21,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
 	core "github.com/DataDog/datadog-agent/pkg/collector/corechecks"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
-	"github.com/DataDog/datadog-agent/pkg/util/pdhutil"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/pdhutil"
 )
 
 const cpuCheckName = "cpu"

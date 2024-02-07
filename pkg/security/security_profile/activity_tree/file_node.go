@@ -41,7 +41,7 @@ type OpenNode struct {
 }
 
 // NewFileNode returns a new FileActivityNode instance
-func NewFileNode(fileEvent *model.FileEvent, event *model.Event, name string, generationType NodeGenerationType, reducedFilePath string, resolvers *resolvers.EBPFResolvers) *FileNode {
+func NewFileNode(fileEvent *model.FileEvent, event *model.Event, name string, generationType NodeGenerationType, reducedFilePath string, resolvers *resolvers.Resolvers) *FileNode {
 	// call resolver. Safeguard: the process context might be empty if from a snapshot.
 	if resolvers != nil && fileEvent != nil && event.ProcessContext != nil {
 		resolvers.HashResolver.ComputeHashesFromEvent(event, fileEvent)
@@ -87,7 +87,7 @@ func (fn *FileNode) enrichFromEvent(event *model.Event) {
 		return
 	}
 	if fn.FirstSeen.IsZero() {
-		fn.FirstSeen = event.ResolveEventTime()
+		fn.FirstSeen = event.FieldHandlers.ResolveEventTime(event)
 	}
 
 	fn.MatchedRules = model.AppendMatchedRule(fn.MatchedRules, event.Rules)
@@ -126,7 +126,7 @@ func (fn *FileNode) debug(w io.Writer, prefix string) {
 
 // InsertFileEvent inserts an event in a FileNode. This function returns true if a new entry was added, false if
 // the event was dropped.
-func (fn *FileNode) InsertFileEvent(fileEvent *model.FileEvent, event *model.Event, remainingPath string, generationType NodeGenerationType, stats *Stats, dryRun bool, reducedPath string, resolvers *resolvers.EBPFResolvers) bool {
+func (fn *FileNode) InsertFileEvent(fileEvent *model.FileEvent, event *model.Event, remainingPath string, generationType NodeGenerationType, stats *Stats, dryRun bool, reducedPath string, resolvers *resolvers.Resolvers) bool {
 	currentFn := fn
 	currentPath := remainingPath
 	newEntry := false
@@ -155,15 +155,16 @@ func (fn *FileNode) InsertFileEvent(fileEvent *model.FileEvent, event *model.Eve
 				stats.FileNodes++
 			}
 			break
-		}
+		} else {
+			newChild := NewFileNode(nil, nil, parent, generationType, "", resolvers)
+			if !dryRun {
+				currentFn.Children[parent] = newChild
+			}
 
-		newChild := NewFileNode(nil, nil, parent, generationType, "", resolvers)
-		if !dryRun {
-			currentFn.Children[parent] = newChild
+			currentFn = newChild
+			currentPath = currentPath[nextParentIndex:]
+			continue
 		}
-
-		currentFn = newChild
-		currentPath = currentPath[nextParentIndex:]
 	}
 	return newEntry
 }

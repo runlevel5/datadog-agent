@@ -6,7 +6,7 @@ import traceback
 from typing import Union
 
 
-def normalize_metrics(stage, aws_account_id):
+def normalize_metrics(stage):
     def clear_dogsketches(log):
         log["dogsketches"] = []
 
@@ -28,7 +28,6 @@ def normalize_metrics(stage, aws_account_id):
         replace(r'(serverless.lambda-extension.integration-test.count)[0-9\.]+', r'\1'),
         replace(r'(architecture:)(x86_64|arm64)', r'\1XXX'),
         replace(stage, 'XXXXXX'),
-        replace(aws_account_id, '############'),
         exclude(r'[ ]$'),
         foreach(clear_dogsketches),
         foreach(sort_tags),
@@ -36,7 +35,7 @@ def normalize_metrics(stage, aws_account_id):
     ]
 
 
-def normalize_logs(stage, aws_account_id):
+def normalize_logs(stage):
     rmvs = (
         "DATADOG TRACER CONFIGURATION",
         # TODO: these messages may be an indication of a real problem and
@@ -68,7 +67,6 @@ def normalize_logs(stage, aws_account_id):
         replace(r'([a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12})', r'XXX'),
         replace(r'"REPORT RequestId:.*?"', '"REPORT"'),
         replace(stage, 'XXXXXX'),
-        replace(aws_account_id, '############'),
         replace(r'(architecture:)(x86_64|arm64)', r'\1XXX'),
         rm_item(rm_extra_items_key),
         foreach(sort_tags),
@@ -76,7 +74,7 @@ def normalize_logs(stage, aws_account_id):
     ]
 
 
-def normalize_traces(stage, aws_account_id):
+def normalize_traces(stage):
     def trace_sort_key(log):
         name = log['chunks'][0]['spans'][0]['name']
         cold_start = log['chunks'][0]['spans'][0]['meta'].get('cold_start')
@@ -115,15 +113,10 @@ def normalize_traces(stage, aws_account_id):
         replace(r'("faas.instance":")[a-zA-Z0-9-/]+\[\$LATEST\][a-zA-Z0-9]+"', r'\1null"'),
         replace(r'("_dd.tracer_hostname":)"\d{1,3}(?:.\d{1,3}){3}"+', r'\1"<redacted>"'),
         replace(stage, 'XXXXXX'),
-        replace(aws_account_id, '############'),
         exclude(r'[ ]$'),
         foreach(sort__dd_tags_container),
         sort_by(trace_sort_key),
     ]
-
-
-def normalize_proxy():
-    return [find(r'Using proxy .*? for URL .*?\'.*?\'')]
 
 
 def normalize_appsec(stage):
@@ -195,18 +188,6 @@ def require(pattern):
     return _require
 
 
-def find(pattern):
-    comp = re.compile(pattern, flags=re.DOTALL)
-
-    def _find(log):
-        matches = comp.findall(log)
-        if not matches:
-            return ''
-        return '\n'.join(set(matches))
-
-    return _find
-
-
 def foreach(fn):
     """
     Execute fn with each element of the list in order
@@ -272,23 +253,21 @@ def rm_item(key):
 ###################
 
 
-def normalize(log, typ, stage, aws_account_id):
-    for normalizer in get_normalizers(typ, stage, aws_account_id):
+def normalize(log, typ, stage):
+    for normalizer in get_normalizers(typ, stage):
         log = normalizer(log)
     return format_json(log)
 
 
-def get_normalizers(typ, stage, aws_account_id):
+def get_normalizers(typ, stage):
     if typ == 'metrics':
-        return normalize_metrics(stage, aws_account_id)
+        return normalize_metrics(stage)
     elif typ == 'logs':
-        return normalize_logs(stage, aws_account_id)
+        return normalize_logs(stage)
     elif typ == 'traces':
-        return normalize_traces(stage, aws_account_id)
+        return normalize_traces(stage)
     elif typ == 'appsec':
         return normalize_appsec(stage)
-    elif typ == 'proxy':
-        return normalize_proxy()
     else:
         raise ValueError(f'invalid type "{typ}"')
 
@@ -302,7 +281,6 @@ def format_json(log):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--accountid', required=True)
     parser.add_argument('--type', required=True)
     parser.add_argument('--logs', required=True)
     parser.add_argument('--stage', required=True)
@@ -317,7 +295,7 @@ if __name__ == '__main__':
             with open(args.logs[5:], 'r') as f:
                 args.logs = f.read()
 
-        print(normalize(args.logs, args.type, args.stage, args.accountid))
+        print(normalize(args.logs, args.type, args.stage))
     except Exception as e:
         err: dict[str, Union[str, list[str]]] = {
             "error": "normalization raised exception",

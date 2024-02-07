@@ -6,7 +6,6 @@
 package aggregator
 
 import (
-	"io"
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator/internal/tags"
@@ -37,16 +36,9 @@ type timeSamplerWorker struct {
 	flushChan chan flushTrigger
 	// use this chan to stop the timeSamplerWorker
 	stopChan chan struct{}
-	// channel to trigger interactive dump of the context resolver
-	dumpChan chan dumpTrigger
 
 	// tagsStore shard used to store tag slices for this worker
 	tagsStore *tags.Store
-}
-
-type dumpTrigger struct {
-	dest io.Writer
-	done chan error
 }
 
 func newTimeSamplerWorker(sampler *TimeSampler, flushInterval time.Duration, bufferSize int,
@@ -63,7 +55,6 @@ func newTimeSamplerWorker(sampler *TimeSampler, flushInterval time.Duration, buf
 		samplesChan: make(chan []metrics.MetricSample, bufferSize),
 		stopChan:    make(chan struct{}),
 		flushChan:   make(chan flushTrigger),
-		dumpChan:    make(chan dumpTrigger),
 
 		tagsStore: tagsStore,
 	}
@@ -94,8 +85,6 @@ func (w *timeSamplerWorker) run() {
 		case trigger := <-w.flushChan:
 			w.triggerFlush(trigger)
 			w.tagsStore.Shrink()
-		case trigger := <-w.dumpChan:
-			trigger.done <- w.sampler.dumpContexts(trigger.dest)
 		}
 	}
 }
@@ -107,10 +96,4 @@ func (w *timeSamplerWorker) stop() {
 func (w *timeSamplerWorker) triggerFlush(trigger flushTrigger) {
 	w.sampler.flush(float64(trigger.time.Unix()), trigger.seriesSink, trigger.sketchesSink)
 	trigger.blockChan <- struct{}{}
-}
-
-func (w *timeSamplerWorker) dumpContexts(dest io.Writer) error {
-	done := make(chan error)
-	w.dumpChan <- dumpTrigger{dest: dest, done: done}
-	return <-done
 }

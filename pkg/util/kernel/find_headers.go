@@ -78,8 +78,7 @@ type headerProvider struct {
 	kernelHeaders []string
 }
 
-// HeaderOptions are options for the kernel header download process
-type HeaderOptions struct {
+type KernelHeaderOptions struct {
 	DownloadEnabled bool
 	Dirs            []string
 	DownloadDir     string
@@ -89,7 +88,7 @@ type HeaderOptions struct {
 	ZypperReposDir string
 }
 
-func initProvider(opts HeaderOptions) {
+func initProvider(opts KernelHeaderOptions) {
 	HeaderProvider = &headerProvider{
 		downloadEnabled:   opts.DownloadEnabled,
 		headerDirs:        opts.Dirs,
@@ -114,7 +113,7 @@ func initProvider(opts HeaderOptions) {
 // Any subsequent calls to GetKernelHeaders will return the result of the first call. This is because
 // kernel header downloading can be a resource intensive process, so we don't want to retry it an unlimited
 // number of times.
-func GetKernelHeaders(opts HeaderOptions, client statsd.ClientInterface) []string {
+func GetKernelHeaders(opts KernelHeaderOptions, client statsd.ClientInterface) []string {
 	providerMu.Lock()
 	defer providerMu.Unlock()
 

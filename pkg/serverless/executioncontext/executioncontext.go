@@ -3,21 +3,18 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//nolint:revive // TODO(SERV) Fix revive linter
 package executioncontext
 
 import (
+	"encoding/json"
 	"os"
 	"strings"
 	"sync"
 	"time"
-
-	json "github.com/json-iterator/go"
 )
 
 const persistedStateFilePath = "/tmp/dd-lambda-extension-cache.json"
 
-//nolint:revive // TODO(SERV) Fix revive linter
 type ColdStartTags struct {
 	IsColdStart     bool
 	IsProactiveInit bool
@@ -76,8 +73,6 @@ func (ec *ExecutionContext) GetCurrentState() State {
 }
 
 // Returns whether or not the given request ID is a cold start or is a proactive init
-//
-//nolint:revive // TODO(SERV) Fix revive linter
 func (ec *ExecutionContext) GetColdStartTagsForRequestID(requestID string) ColdStartTags {
 	ec.m.Lock()
 	defer ec.m.Unlock()
@@ -135,8 +130,6 @@ func (ec *ExecutionContext) SetArnFromExtensionResponse(arn string) {
 }
 
 // SetInitTime sets the agent initialization time
-//
-//nolint:revive // TODO(SERV) Fix revive linter
 func (ec *ExecutionContext) SetInitializationTime(time time.Time) {
 	ec.m.Lock()
 	defer ec.m.Unlock()
@@ -160,8 +153,6 @@ func (ec *ExecutionContext) UpdateEndTime(time time.Time) {
 
 // UpdateOutOfMemoryRequestID updates the execution context with the request ID if an
 // out of memory is detected either in the function or platform.report logs
-//
-//nolint:revive // TODO(SERV) Fix revive linter
 func (ec *ExecutionContext) UpdateOutOfMemoryRequestID(requestId string) {
 	ec.m.Lock()
 	defer ec.m.Unlock()

@@ -11,6 +11,10 @@ import (
 	"go.uber.org/fx"
 )
 
+// oneShotTestOverride allows TestOneShotSubcommand to override the OneShot
+// function.  It is always nil in production.
+var oneShotTestOverride func(interface{}, []fx.Option) error
+
 // OneShot runs the given function in an fx.App using the supplied options.
 // The function's arguments are supplied by Fx and can be any provided type.
 // The function must return `error` or nothing.
@@ -19,8 +23,8 @@ import (
 // immediately shuts down.  This is typically used for command-line tools like
 // `agent status`.
 func OneShot(oneShotFunc interface{}, opts ...fx.Option) error {
-	if fxAppTestOverride != nil {
-		return fxAppTestOverride(oneShotFunc, opts)
+	if oneShotTestOverride != nil {
+		return oneShotTestOverride(oneShotFunc, opts)
 	}
 
 	// Use a delayed Fx invocation to capture arguments for oneShotFunc during

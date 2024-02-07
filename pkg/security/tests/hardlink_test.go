@@ -29,7 +29,7 @@ func runHardlinkTests(t *testing.T, opts testOpts) {
 		},
 	}
 
-	test, err := newTestModule(t, nil, ruleDefs, withStaticOpts(opts))
+	test, err := newTestModule(t, nil, ruleDefs, opts)
 	if err != nil {
 		t.Fatal(err)
 	}

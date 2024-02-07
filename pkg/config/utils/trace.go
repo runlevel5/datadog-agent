@@ -8,12 +8,12 @@ package utils
 import (
 	"strings"
 
-	pkgconfigmodel "github.com/DataDog/datadog-agent/pkg/config/model"
+	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 // GetTraceAgentDefaultEnv returns the default env for the trace agent
-func GetTraceAgentDefaultEnv(c pkgconfigmodel.Reader) string {
+func GetTraceAgentDefaultEnv(c config.Reader) string {
 	defaultEnv := ""
 	if c.IsSet("apm_config.env") {
 		defaultEnv = c.GetString("apm_config.env")

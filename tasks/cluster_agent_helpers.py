@@ -4,6 +4,7 @@ Common utilities for building Cluster Agent variants
 
 import os
 import shutil
+from distutils.dir_util import copy_tree
 
 from .build_tags import filter_incompatible_tags, get_build_tags
 from .utils import REPO_PATH, bin_name, get_build_flags, get_version
@@ -82,7 +83,7 @@ def refresh_assets_common(_, bin_path, additional_dist_folders, development):
         if os.path.exists(dist_folder):
             shutil.rmtree(dist_folder)
         if development:
-            shutil.copytree("./dev/dist/", dist_folder, dirs_exist_ok=True)
+            copy_tree("./dev/dist/", dist_folder)
 
 
 def clean_common(ctx, rmdir):

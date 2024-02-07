@@ -18,35 +18,11 @@ import (
 
 	manager "github.com/DataDog/ebpf-manager"
 
+	"github.com/DataDog/datadog-agent/pkg/security/config"
 	"github.com/DataDog/datadog-agent/pkg/security/probe/managerhelper"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
-	"github.com/DataDog/datadog-agent/pkg/security/secl/model/usersession"
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
 )
-
-// UserSessionKey describes the key to a user session
-type UserSessionKey struct {
-	ID      uint64
-	Cursor  byte
-	Padding [7]byte
-}
-
-// UserSessionData stores user session context data retrieved from the kernel
-type UserSessionData struct {
-	SessionType usersession.Type
-	RawData     string
-}
-
-// UnmarshalBinary unmarshalls a binary representation of itself
-func (e *UserSessionData) UnmarshalBinary(data []byte) error {
-	if len(data) < 256 {
-		return model.ErrNotEnoughSpace
-	}
-
-	e.SessionType = usersession.Type(data[0])
-	e.RawData += model.NullTerminatedString(data[1:])
-	return nil
-}
 
 // Resolver is used to resolve the user sessions context
 type Resolver struct {
@@ -57,8 +33,8 @@ type Resolver struct {
 }
 
 // NewResolver returns a new instance of Resolver
-func NewResolver(cacheSize int) (*Resolver, error) {
-	lru, err := simplelru.NewLRU[uint64, *model.UserSessionContext](cacheSize, nil)
+func NewResolver(config *config.Config) (*Resolver, error) {
+	lru, err := simplelru.NewLRU[uint64, *model.UserSessionContext](config.RuntimeSecurity.UserSessionsCacheSize, nil)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't create User Session resolver cache: %w", err)
 	}
@@ -96,36 +72,34 @@ func (r *Resolver) ResolveUserSession(id uint64) *model.UserSessionContext {
 	}
 
 	// lookup the session in kernel space
-	key := UserSessionKey{
+	key := model.UserSessionKey{
 		ID:     id,
 		Cursor: 1,
 	}
+	ctx := model.UserSessionContext{
+		ID: id,
+	}
 
-	value := UserSessionData{}
-	err := r.userSessionsMap.Lookup(&key, &value)
+	err := r.userSessionsMap.Lookup(&key, &ctx)
 	for err == nil {
 		key.Cursor++
-		err = r.userSessionsMap.Lookup(&key, &value)
+		err = r.userSessionsMap.Lookup(&key, &ctx)
 	}
 	if key.Cursor == 1 && err != nil {
 		// the session doesn't exist, leave now
 		return nil
 	}
-
-	ctx := &model.UserSessionContext{
-		ID:          id,
-		SessionType: value.SessionType,
-	}
 	// parse the content of the user session context
-	err = json.Unmarshal([]byte(value.RawData), ctx)
+	err = json.Unmarshal([]byte(ctx.RawData), &ctx)
 	if err != nil {
 		seclog.Debugf("failed to parse user session data: %v", err)
 		return nil
 	}
 
 	ctx.Resolved = true
+	ctx.RawData = ""
 
 	// cache resolved context
-	r.userSessions.Add(id, ctx)
-	return ctx
+	r.userSessions.Add(id, &ctx)
+	return &ctx
 }

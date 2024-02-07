@@ -243,10 +243,6 @@ func (a *agent) AddScheduler(scheduler schedulers.Scheduler) {
 	a.schedulers.AddScheduler(scheduler)
 }
 
-func (a *agent) GetSources() *sources.LogSources {
-	return a.sources
-}
-
 func (a *agent) GetMessageReceiver() *diagnostic.BufferedMessageReceiver {
 	return a.diagnosticMessageReceiver
 }

@@ -11,8 +11,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
+	"time"
 
 	"go.uber.org/fx"
 
@@ -20,12 +22,11 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
-	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig"
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig/sysprobeconfigimpl"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
-	"github.com/DataDog/datadog-agent/pkg/status/render"
+	"github.com/DataDog/datadog-agent/pkg/status"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/scrubber"
 
@@ -66,10 +67,10 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 			return fxutil.OneShot(statusCmd,
 				fx.Supply(cliParams),
 				fx.Supply(core.BundleParams{
-					ConfigParams:         config.NewAgentParams(globalParams.ConfFilePath),
+					ConfigParams:         config.NewAgentParamsWithoutSecrets(globalParams.ConfFilePath),
 					SysprobeConfigParams: sysprobeconfigimpl.NewParams(sysprobeconfigimpl.WithSysProbeConfFilePath(globalParams.SysProbeConfFilePath)),
-					LogParams:            logimpl.ForOneShot(command.LoggerName, "off", true)}),
-				core.Bundle(),
+					LogParams:            log.ForOneShot(command.LoggerName, "off", true)}),
+				core.Bundle,
 			)
 		},
 	}
@@ -94,7 +95,7 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 			return fxutil.OneShot(componentStatusCmd,
 				fx.Supply(cliParams),
 				fx.Supply(command.GetDefaultCoreBundleParams(cliParams.GlobalParams)),
-				core.Bundle(),
+				core.Bundle,
 			)
 		},
 	}
@@ -130,7 +131,7 @@ func redactError(unscrubbedError error) error {
 	return scrubbedError
 }
 
-func statusCmd(_ log.Component, config config.Component, _ sysprobeconfig.Component, cliParams *cliParams) error {
+func statusCmd(log log.Component, config config.Component, sysprobeconfig sysprobeconfig.Component, cliParams *cliParams) error {
 	return redactError(requestStatus(config, cliParams))
 }
 
@@ -161,6 +162,14 @@ func requestStatus(config config.Component, cliParams *cliParams) error {
 	if err != nil {
 		return err
 	}
+	// attach trace-agent status, if obtainable
+	temp := make(map[string]interface{})
+	if err := json.Unmarshal(r, &temp); err == nil {
+		temp["apmStats"] = getAPMStatus(config)
+		if newr, err := json.Marshal(temp); err == nil {
+			r = newr
+		}
+	}
 
 	// The rendering is done in the client so that the agent has less work to do
 	if cliParams.prettyPrintJSON {
@@ -170,7 +179,7 @@ func requestStatus(config config.Component, cliParams *cliParams) error {
 	} else if cliParams.jsonStatus {
 		s = string(r)
 	} else {
-		formattedStatus, err := render.FormatStatus(r)
+		formattedStatus, err := status.FormatStatus(r)
 		if err != nil {
 			return err
 		}
@@ -186,7 +195,31 @@ func requestStatus(config config.Component, cliParams *cliParams) error {
 	return nil
 }
 
-func componentStatusCmd(_ log.Component, config config.Component, cliParams *cliParams) error {
+// getAPMStatus returns a set of key/value pairs summarizing the status of the trace-agent.
+// If the status can not be obtained for any reason, the returned map will contain an "error"
+// key with an explanation.
+func getAPMStatus(config config.Component) map[string]interface{} {
+	port := config.GetInt("apm_config.debug.port")
+	url := fmt.Sprintf("http://localhost:%d/debug/vars", port)
+	resp, err := (&http.Client{Timeout: 2 * time.Second}).Get(url)
+	if err != nil {
+		return map[string]interface{}{
+			"port":  port,
+			"error": err.Error(),
+		}
+	}
+	defer resp.Body.Close()
+	status := make(map[string]interface{})
+	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+		return map[string]interface{}{
+			"port":  port,
+			"error": err.Error(),
+		}
+	}
+	return status
+}
+
+func componentStatusCmd(log log.Component, config config.Component, cliParams *cliParams) error {
 	if len(cliParams.args) != 1 {
 		return fmt.Errorf("a component name must be specified")
 	}

@@ -2,29 +2,28 @@
 # syntax=docker/dockerfile:1
 
 ## Build
-FROM golang:1.21.5-alpine3.18 AS build
-
-# need gcc to build with CGO_ENABLED=1
-# need musl-dev to get stdlib.h
-RUN apk add musl-dev gcc
+FROM golang:1.19-buster AS build
 
 WORKDIR /app
 
-COPY go.mod go.sum ./
+COPY go.mod ./
+COPY go.sum ./
 RUN go mod download
 
-COPY . .
+COPY server/*.go ./server/
+COPY server/serverstore/*.go ./server/serverstore/
+COPY api/*.go ./api/
+COPY app/*.go ./app/
+COPY aggregator/*.go ./aggregator/
 
-# need to explicitely run with CGO enabled
-ENV CGO_ENABLED=1
-RUN go build -o /fakeintake cmd/server/main.go
+RUN go build -o /build app/main.go
 
 ## Deploy
-FROM alpine:3.18
+FROM ubuntu:22.04
 
-RUN apk add curl
+WORKDIR /
 
-COPY --from=build /fakeintake /fakeintake
+COPY --from=build /build /fakeintake
 
 EXPOSE 80
 

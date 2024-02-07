@@ -70,7 +70,7 @@ func newDomainForwarder(
 	}
 }
 
-func (f *domainForwarder) retryTransactions(_ time.Time) {
+func (f *domainForwarder) retryTransactions(retryBefore time.Time) {
 	// In case it takes more that flushInterval to sort and retry
 	// transactions we skip a retry.
 	if !f.isRetrying.CompareAndSwap(false, true) {
@@ -216,6 +216,7 @@ func (f *domainForwarder) Start() error {
 		go f.scheduleConnectionResets()
 	}
 
+	f.pointCountTelemetry.Start()
 	f.internalState = Started
 	return nil
 }
@@ -230,6 +231,8 @@ func (f *domainForwarder) Stop(purgeHighPrio bool) {
 		f.log.Warnf("the forwarder is already stopped")
 		return
 	}
+
+	f.pointCountTelemetry.Stop()
 
 	if f.connectionResetInterval != 0 {
 		f.stopConnectionReset <- true

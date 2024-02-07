@@ -9,10 +9,10 @@ package log
 
 // DebugServerless logs at the debug level only in a serverless context
 // no-op in a non serverless context
-func DebugServerless(_ ...interface{}) {
+func DebugServerless(v ...interface{}) {
 }
 
 // DebugfServerless logs with format at the debug level only in a serverless context
 // no-op in a non serverless context
-func DebugfServerless(_ string, _ ...interface{}) {
+func DebugfServerless(format string, params ...interface{}) {
 }

@@ -8,16 +8,13 @@
 package listeners
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/fx"
 
-	"github.com/DataDog/datadog-agent/comp/core"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
-	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
+	workloadmetatesting "github.com/DataDog/datadog-agent/pkg/workloadmeta/testing"
 )
 
 type wlmListenerSvc struct {
@@ -28,26 +25,22 @@ type wlmListenerSvc struct {
 type testWorkloadmetaListener struct {
 	t        *testing.T
 	filters  *containerFilters
-	store    workloadmeta.Component
+	store    *workloadmetatesting.Store
 	services map[string]wlmListenerSvc
 }
 
-//nolint:revive // TODO(CINT) Fix revive linter
 func (l *testWorkloadmetaListener) Listen(newSvc chan<- Service, delSvc chan<- Service) {
 	panic("not implemented")
 }
 
-//nolint:revive // TODO(CINT) Fix revive linter
 func (l *testWorkloadmetaListener) Stop() {
 	panic("not implemented")
 }
 
-//nolint:revive // TODO(CINT) Fix revive linter
-func (l *testWorkloadmetaListener) Store() workloadmeta.Component {
+func (l *testWorkloadmetaListener) Store() workloadmeta.Store {
 	return l.store
 }
 
-//nolint:revive // TODO(CINT) Fix revive linter
 func (l *testWorkloadmetaListener) AddService(svcID string, svc Service, parentSvcID string) {
 	l.services[svcID] = wlmListenerSvc{
 		service: svc,
@@ -55,7 +48,6 @@ func (l *testWorkloadmetaListener) AddService(svcID string, svc Service, parentS
 	}
 }
 
-//nolint:revive // TODO(CINT) Fix revive linter
 func (l *testWorkloadmetaListener) IsExcluded(ft containers.FilterType, annotations map[string]string, name string, image string, ns string) bool {
 	return l.filters.IsExcluded(ft, annotations, name, image, ns)
 }
@@ -84,17 +76,10 @@ func newTestWorkloadmetaListener(t *testing.T) *testWorkloadmetaListener {
 		t.Fatalf("cannot initialize container filters: %s", err)
 	}
 
-	w := fxutil.Test[workloadmeta.Mock](t, fx.Options(
-		core.MockBundle(),
-		fx.Supply(context.Background()),
-		fx.Supply(workloadmeta.NewParams()),
-		workloadmeta.MockModule(),
-	))
-
 	return &testWorkloadmetaListener{
 		t:        t,
 		filters:  filters,
-		store:    w,
+		store:    workloadmetatesting.NewStore(),
 		services: make(map[string]wlmListenerSvc),
 	}
 }

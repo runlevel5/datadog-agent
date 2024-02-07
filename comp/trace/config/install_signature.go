@@ -71,7 +71,7 @@ func readInstallSignatureFromDisk(path string, s *config.InstallSignatureConfig)
 }
 
 func generateNewInstallSignature(s *config.InstallSignatureConfig) (err error) {
-	installID, err := uuid.NewRandom()
+	installID, err := uuid.NewDCEGroup()
 	if err != nil {
 		return err
 	}

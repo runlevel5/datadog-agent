@@ -18,7 +18,6 @@ type cgroupV2 struct {
 	controllers  map[string]struct{}
 	fr           fileReader
 	pidMapper    pidMapper
-	inode        uint64
 }
 
 func newCgroupV2(identifier, cgroupRoot, relativePath string, controllers map[string]struct{}, pidMapper pidMapper) *cgroupV2 {
@@ -29,16 +28,11 @@ func newCgroupV2(identifier, cgroupRoot, relativePath string, controllers map[st
 		controllers:  controllers,
 		pidMapper:    pidMapper,
 		fr:           defaultFileReader,
-		inode:        inodeForPath(filepath.Join(cgroupRoot, relativePath)),
 	}
 }
 
 func (c *cgroupV2) Identifier() string {
 	return c.identifier
-}
-
-func (c *cgroupV2) Inode() uint64 {
-	return c.inode
 }
 
 func (c *cgroupV2) GetParent() (Cgroup, error) {

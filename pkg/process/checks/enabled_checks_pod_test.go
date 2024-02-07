@@ -24,7 +24,6 @@ func TestPodCheck(t *testing.T) {
 
 		cfg := config.Mock(t)
 		cfg.SetWithoutSource("orchestrator_explorer.enabled", true)
-		cfg.SetWithoutSource("orchestrator_explorer.run_on_node_agent", false)
 		cfg.SetWithoutSource("cluster_name", "test")
 
 		enabledChecks := getEnabledChecks(t, cfg, config.MockSystemProbe(t))

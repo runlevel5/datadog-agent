@@ -11,22 +11,15 @@ import (
 	"go.uber.org/fx"
 
 	sysconfig "github.com/DataDog/datadog-agent/cmd/system-probe/config"
-	sysconfigtypes "github.com/DataDog/datadog-agent/cmd/system-probe/config/types"
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
-	"github.com/DataDog/datadog-agent/pkg/util/optional"
 )
 
 // Module defines the fx options for this component.
-func Module() fxutil.Module {
-	return fxutil.Component(
-		fx.Provide(newConfig),
-		fx.Provide(func(syscfg sysprobeconfig.Component) optional.Option[sysprobeconfig.Component] {
-			return optional.NewOption[sysprobeconfig.Component](syscfg)
-		}),
-	)
-}
+var Module = fxutil.Component(
+	fx.Provide(newConfig),
+)
 
 // cfg implements the Component.
 type cfg struct {
@@ -34,17 +27,10 @@ type cfg struct {
 	// and uses globals in that package.
 	config.Config
 
-	syscfg *sysconfigtypes.Config
+	syscfg *sysconfig.Config
 
 	// warnings are the warnings generated during setup
 	warnings *config.Warnings
-}
-
-// sysprobeconfigDependencies is an interface that mimics the fx-oriented dependencies struct (This is copied from the main agent configuration.)
-// The goal of this interface is to be able to call setupConfig with either 'dependencies' or 'mockDependencies'.
-// TODO: (components) investigate whether this interface is worth keeping, otherwise delete it and just use dependencies
-type sysprobeconfigDependencies interface {
-	getParams() *Params
 }
 
 type dependencies struct {
@@ -53,12 +39,8 @@ type dependencies struct {
 	Params Params
 }
 
-func (d dependencies) getParams() *Params {
-	return &d.Params
-}
-
-func setupConfig(deps sysprobeconfigDependencies) (*sysconfigtypes.Config, error) {
-	return sysconfig.New(deps.getParams().sysProbeConfFilePath)
+func setupConfig(deps dependencies) (*sysconfig.Config, error) {
+	return sysconfig.New(deps.Params.sysProbeConfFilePath)
 }
 
 func newConfig(deps dependencies) (sysprobeconfig.Component, error) {
@@ -78,6 +60,6 @@ func (c *cfg) Object() config.Reader {
 	return c
 }
 
-func (c *cfg) SysProbeObject() *sysconfigtypes.Config {
+func (c *cfg) SysProbeObject() *sysconfig.Config {
 	return c.syscfg
 }

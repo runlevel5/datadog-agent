@@ -3,8 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build test
-
 package system
 
 import (
@@ -34,8 +32,6 @@ func (f *fakeCPUCount) info(context.Context, bool) (int, error) {
 }
 
 func TestHostCPUCount(t *testing.T) {
-	defer hostCPUCount.Store(defaultCPUCountUnitTest)
-
 	f := newFakeCPUCount(10000, nil)
 	assert.Equal(t, f.count, HostCPUCount())
 

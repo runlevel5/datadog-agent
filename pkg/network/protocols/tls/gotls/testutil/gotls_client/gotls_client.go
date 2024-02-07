@@ -3,12 +3,10 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-// Package main is a simple client for the gotls_server.
 package main
 
 import (
 	"crypto/tls"
-	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -18,33 +16,24 @@ import (
 )
 
 func main() {
-	useHTTP2 := flag.Bool("http2", false, "enable HTTP2")
-	flag.Parse()
-
-	args := flag.Args()
-	if len(args) < 2 {
-		log.Fatalf("usage: %s <server_addr> <number_of_requests> [optional -http2]", os.Args[0])
+	if len(os.Args) < 3 {
+		log.Fatalf("usage: %s <server_addr> <number_of_requests>", os.Args[0])
 	}
 
-	serverAddr := args[0]
-	reqCount, err := strconv.Atoi(args[1])
+	serverAddr := os.Args[1]
+	reqCount, err := strconv.Atoi(os.Args[2])
 	if err != nil || reqCount < 0 {
-		log.Fatalf("invalid value %q for number of requests", args[1])
-	}
-
-	transport := &http.Transport{
-		ForceAttemptHTTP2: *useHTTP2,
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
-	}
-
-	if !*useHTTP2 {
-		transport.TLSNextProto = make(map[string]func(string, *tls.Conn) http.RoundTripper)
+		log.Fatalf("invalid value %q for number of request", os.Args[2])
 	}
 
 	client := http.Client{
-		Transport: transport,
+		Transport: &http.Transport{
+			ForceAttemptHTTP2: false,
+			TLSNextProto:      make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
 	}
 
 	defer client.CloseIdleConnections()

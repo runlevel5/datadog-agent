@@ -14,7 +14,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	stdLog "log"
 	"net/http"
 	"time"
 
@@ -25,7 +24,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/apiserver/common"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/certificate"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
-	"github.com/cihub/seelog"
 
 	admiv1 "k8s.io/api/admission/v1"
 	admiv1beta1 "k8s.io/api/admission/v1beta1"
@@ -88,11 +86,9 @@ func (s *Server) Run(mainCtx context.Context, client kubernetes.Interface) error
 		tlsMinVersion = tls.VersionTLS10
 	}
 
-	logWriter, _ := config.NewTLSHandshakeErrorWriter(4, seelog.WarnLvl)
 	server := &http.Server{
-		Addr:     fmt.Sprintf(":%d", config.Datadog.GetInt("admission_controller.port")),
-		Handler:  s.mux,
-		ErrorLog: stdLog.New(logWriter, "Error from the admission controller http API server: ", 0),
+		Addr:    fmt.Sprintf(":%d", config.Datadog.GetInt("admission_controller.port")),
+		Handler: s.mux,
 		TLSConfig: &tls.Config{
 			GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 				secretNs := common.GetResourcesNamespace()

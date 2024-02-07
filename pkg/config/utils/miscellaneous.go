@@ -9,11 +9,11 @@ package utils
 import (
 	"path/filepath"
 
-	pkgconfigmodel "github.com/DataDog/datadog-agent/pkg/config/model"
+	"github.com/DataDog/datadog-agent/pkg/config"
 )
 
 // ConfFileDirectory returns the absolute path to the folder containing the config
 // file used to populate the registry
-func ConfFileDirectory(c pkgconfigmodel.Reader) string {
+func ConfFileDirectory(c config.Reader) string {
 	return filepath.Dir(c.ConfigFileUsed())
 }

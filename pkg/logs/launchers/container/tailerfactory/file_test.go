@@ -8,26 +8,22 @@
 package tailerfactory
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"go.uber.org/fx"
 
-	compConfig "github.com/DataDog/datadog-agent/comp/core/config"
-	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
-	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
 	coreConfig "github.com/DataDog/datadog-agent/pkg/config"
+
+	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
 	"github.com/DataDog/datadog-agent/pkg/logs/internal/util/containersorpods"
 	"github.com/DataDog/datadog-agent/pkg/logs/pipeline"
 	"github.com/DataDog/datadog-agent/pkg/logs/sources"
 	dockerutilPkg "github.com/DataDog/datadog-agent/pkg/util/docker"
-	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/pointer"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 )
 
 var platformDockerLogsBasePath string
@@ -194,16 +190,10 @@ func TestMakeK8sSource(t *testing.T) {
 	require.NoError(t, os.WriteFile(filename, []byte("{}"), 0o666))
 	wildcard := filepath.Join(dir, "*.log")
 
-	store := fxutil.Test[workloadmeta.Mock](t, fx.Options(
-		logimpl.MockModule(),
-		compConfig.MockModule(),
-		fx.Supply(context.Background()),
-		fx.Supply(workloadmeta.NewParams()),
-		workloadmeta.MockModuleV2(),
-	))
+	store := workloadmeta.NewMockStore()
 	pod, container := makeTestPod()
-	store.Set(pod)
-	store.Set(container)
+	store.SetEntity(pod)
+	store.SetEntity(container)
 
 	tf := &factory{
 		pipelineProvider:  pipeline.NewMockProvider(),
@@ -251,18 +241,10 @@ func TestMakeK8sSource_pod_not_found(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o777))
 	require.NoError(t, os.WriteFile(p, []byte("{}"), 0o666))
 
-	workloadmetaStore := fxutil.Test[workloadmeta.Mock](t, fx.Options(
-		logimpl.MockModule(),
-		compConfig.MockModule(),
-		fx.Supply(context.Background()),
-		fx.Supply(workloadmeta.NewParams()),
-		workloadmeta.MockModuleV2(),
-	))
-
 	tf := &factory{
 		pipelineProvider:  pipeline.NewMockProvider(),
 		cop:               containersorpods.NewDecidedChooser(containersorpods.LogPods),
-		workloadmetaStore: workloadmetaStore,
+		workloadmetaStore: workloadmeta.NewMockStore(),
 	}
 	source := sources.NewLogSource("test", &config.LogsConfig{
 		Type:       "docker",

@@ -8,7 +8,7 @@
             "mode": "test",
             "program": "${file}",
             "preLaunchTask": "aws-vault-wrap",
-            "envFile": "${workspaceFolder}/.vscode/aws-vault-wrap.env"
+            "envFile": "{workspaceFolder}/aws-vault-wrap.env"
         }
     ]
 }

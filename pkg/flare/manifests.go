@@ -31,7 +31,6 @@ var (
 	magicGzip = []byte{0x1f, 0x8b, 0x08}
 )
 
-//nolint:revive
 const (
 	HELM_CHART_RELEASE_NAME       = "CHART_RELEASE_NAME"
 	HELM_CHART_RELEASE_NAMESPACE  = "DD_KUBE_RESOURCES_NAMESPACE"
@@ -47,11 +46,11 @@ type chartUserValues struct {
 
 // convertToYAMLBytes is a helper function to turn an object returned from `k8s.io/api/core/v1` into a readable YAML manifest
 func convertToYAMLBytes(input any) ([]byte, error) {
-	objJSON, err := json.Marshal(input)
+	objJson, err := json.Marshal(input)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to Marshal the object manifest: %w", err)
 	}
-	return yaml.JSONToYAML(objJSON)
+	return yaml.JSONToYAML(objJson)
 }
 
 // Retrieve a DaemonSet YAML from the API server for a given name and namespace, and returns the associated YAML manifest into a a byte array.

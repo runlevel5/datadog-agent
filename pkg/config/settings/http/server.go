@@ -13,7 +13,7 @@ import (
 	"github.com/gorilla/mux"
 	"gopkg.in/yaml.v2"
 
-	"github.com/DataDog/datadog-agent/pkg/config"
+	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/model"
 	"github.com/DataDog/datadog-agent/pkg/config/settings"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -25,24 +25,23 @@ var Server = struct {
 	GetFullDatadogConfig     func(...string) http.HandlerFunc
 	GetFullSystemProbeConfig func(...string) http.HandlerFunc
 	GetValue                 http.HandlerFunc
-	GetValueWithSources      http.HandlerFunc
 	SetValue                 http.HandlerFunc
 	ListConfigurable         http.HandlerFunc
 }{
-	GetFullDatadogConfig:     getGlobalFullConfig(config.Datadog),
-	GetFullSystemProbeConfig: getGlobalFullConfig(config.SystemProbe),
+	GetFullDatadogConfig:     getGlobalFullConfig(ddconfig.Datadog),
+	GetFullSystemProbeConfig: getGlobalFullConfig(ddconfig.SystemProbe),
 	GetValue:                 getConfigValue,
 	SetValue:                 setConfigValue,
 	ListConfigurable:         listConfigurableSettings,
 }
 
-func getGlobalFullConfig(cfg config.Config) func(...string) http.HandlerFunc {
+func getGlobalFullConfig(cfg ddconfig.Config) func(...string) http.HandlerFunc {
 	return func(namespaces ...string) http.HandlerFunc {
 		return getFullConfig(cfg, namespaces...)
 	}
 }
 
-func getFullConfig(cfg config.Config, namespaces ...string) http.HandlerFunc {
+func getFullConfig(cfg ddconfig.Config, namespaces ...string) http.HandlerFunc {
 	requiresUniqueNs := len(namespaces) == 1 && namespaces[0] != ""
 	requiresAllNamespaces := len(namespaces) == 0
 
@@ -130,13 +129,7 @@ func getConfigValue(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-
-	resp := map[string]interface{}{"value": val}
-	if r.URL.Query().Get("sources") == "true" {
-		resp["sources_value"] = config.Datadog.GetAllSources(setting)
-	}
-
-	body, err := json.Marshal(resp)
+	body, err := json.Marshal(map[string]interface{}{"value": val})
 	if err != nil {
 		log.Errorf("Unable to marshal runtime setting value response: %s", err)
 		body, _ := json.Marshal(map[string]string{"error": err.Error()})

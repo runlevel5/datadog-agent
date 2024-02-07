@@ -15,7 +15,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-//nolint:revive // TODO(APM) Fix revive linter
 type RunParams struct {
 	*subcommands.GlobalParams
 
@@ -38,12 +37,12 @@ func setOSSpecificParamFlags(cmd *cobra.Command, cliParams *RunParams) {
 		"runs the trace-agent in debug mode.")
 }
 
-func runTraceAgentCommand(cliParams *RunParams, defaultConfPath string) error {
+func runTraceAgent(cliParams *RunParams, defaultConfPath string) error {
 	if !cliParams.Foreground {
 		if servicemain.RunningAsWindowsService() {
 			servicemain.Run(&service{cliParams: cliParams, defaultConfPath: defaultConfPath})
 			return nil
 		}
 	}
-	return runTraceAgentProcess(context.Background(), cliParams, defaultConfPath)
+	return runFx(context.Background(), cliParams, defaultConfPath)
 }

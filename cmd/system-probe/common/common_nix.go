@@ -8,6 +8,5 @@
 package common
 
 const (
-	// DefaultLogFile is the default path to the system-probe log file
 	DefaultLogFile = "/var/log/datadog/system-probe.log"
 )

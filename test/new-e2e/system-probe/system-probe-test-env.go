@@ -4,17 +4,18 @@
 // Copyright 2016-present Datadog, Inc.
 
 //go:build !windows
+// +build !windows
 
-// Package systemprobe sets up the remote testing environment for system-probe using the Kernel Matrix Testing framework
-package systemprobe
+package systemProbe
 
 import (
 	"context"
-	_ "embed" // embed files used in this scenario
+	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -30,26 +31,26 @@ import (
 )
 
 const (
-	agentQAPrimaryAZ   = "subnet-03061a1647c63c3c3"
-	agentQASecondaryAZ = "subnet-0f1ca3e929eb3fb8b"
-	agentQABackupAZ    = "subnet-071213aedb0e1ae54"
+	AgentQAPrimaryAZ   = "subnet-03061a1647c63c3c3"
+	AgentQASecondaryAZ = "subnet-0f1ca3e929eb3fb8b"
+	AgentQABackupAZ    = "subnet-071213aedb0e1ae54"
 
-	sandboxPrimaryAz   = "subnet-b89e00e2"
-	sandboxSecondaryAz = "subnet-8ee8b1c6"
-	sandboxBackupAz    = "subnet-3f5db45b"
+	SandboxPrimaryAz   = "subnet-b89e00e2"
+	SandboxSecondaryAz = "subnet-8ee8b1c6"
+	SandboxBackupAz    = "subnet-3f5db45b"
 
-	datadogAgentQAEnv = "aws/agent-qa"
-	sandboxEnv        = "aws/sandbox"
-	ec2TagsEnvVar     = "RESOURCE_TAGS"
+	DatadogAgentQAEnv = "aws/agent-qa"
+	SandboxEnv        = "aws/sandbox"
+
+	Aria2cMissingStatusError = "error: wait: remote command exited without exit status or exit signal: running \" aria2c"
 )
 
 var availabilityZones = map[string][]string{
-	datadogAgentQAEnv: {agentQAPrimaryAZ, agentQASecondaryAZ, agentQABackupAZ},
-	sandboxEnv:        {sandboxPrimaryAz, sandboxSecondaryAz, sandboxBackupAz},
+	DatadogAgentQAEnv: {AgentQAPrimaryAZ, AgentQASecondaryAZ, AgentQABackupAZ},
+	SandboxEnv:        {SandboxPrimaryAz, SandboxSecondaryAz, SandboxBackupAz},
 }
 
-// EnvOpts are the options for the system-probe scenario
-type EnvOpts struct {
+type SystemProbeEnvOpts struct {
 	X86AmiID              string
 	ArmAmiID              string
 	SSHKeyPath            string
@@ -61,12 +62,8 @@ type EnvOpts struct {
 	DependenciesDirectory string
 	VMConfigPath          string
 	Local                 bool
-	RunAgent              bool
-	APIKey                string
-	AgentVersion          string
 }
 
-// TestEnv represents options for a particular test environment
 type TestEnv struct {
 	context context.Context
 	name    string
@@ -77,13 +74,14 @@ type TestEnv struct {
 }
 
 var (
-	customAMIWorkingDir = filepath.Join("/", "home", "kernel-version-testing")
+	MicroVMsDependenciesPath = filepath.Join("/", "opt", "kernel-version-testing", "dependencies-%s.tar.gz")
+	CustomAMIWorkingDir      = filepath.Join("/", "home", "kernel-version-testing")
 
-	ciProjectDir = getEnv("CI_PROJECT_DIR", "/tmp")
-	sshKeyX86    = getEnv("LibvirtSSHKeyX86", "/tmp/libvirt_rsa-x86_64")
-	sshKeyArm    = getEnv("LibvirtSSHKeyARM", "/tmp/libvirt_rsa-arm64")
+	CI_PROJECT_DIR = GetEnv("CI_PROJECT_DIR", "/tmp")
+	sshKeyX86      = GetEnv("LibvirtSSHKeyX86", "/tmp/libvirt_rsa-x86_64")
+	sshKeyArm      = GetEnv("LibvirtSSHKeyARM", "/tmp/libvirt_rsa-arm64")
 
-	stackOutputs = filepath.Join(ciProjectDir, "stack.output")
+	stackOutputs = filepath.Join(CI_PROJECT_DIR, "stack.outputs")
 )
 
 func outputsToFile(output auto.OutputMap) error {
@@ -94,18 +92,14 @@ func outputsToFile(output auto.OutputMap) error {
 	defer f.Close()
 
 	for key, value := range output {
-		switch v := value.Value.(type) {
-		case string:
-			if _, err := f.WriteString(fmt.Sprintf("%s %s\n", key, v)); err != nil {
-				return fmt.Errorf("write string: %s", err)
-			}
-		default:
+		if _, err := f.WriteString(fmt.Sprintf("%s %s\n", key, value.Value.(string))); err != nil {
+			return fmt.Errorf("write string: %s", err)
 		}
 	}
 	return f.Sync()
 }
 
-func getEnv(key, fallback string) string {
+func GetEnv(key, fallback string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
 	}
@@ -142,8 +136,7 @@ func getAvailabilityZone(env string, azIndx int) string {
 	return ""
 }
 
-// NewTestEnv creates a new test environment
-func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *EnvOpts) (*TestEnv, error) {
+func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *SystemProbeEnvOpts) (*TestEnv, error) {
 	var err error
 	var sudoPassword string
 
@@ -163,11 +156,6 @@ func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *EnvOpts) (*
 		sudoPassword = ""
 	}
 
-	apiKey := getEnv("DD_API_KEY", "")
-	if opts.RunAgent && apiKey == "" {
-		return nil, fmt.Errorf("No API Key for datadog-agent provided")
-	}
-
 	config := runner.ConfigMap{
 		runner.InfraEnvironmentVariables: auto.ConfigValue{Value: opts.InfraEnv},
 		runner.AWSKeyPairName:            auto.ConfigValue{Value: opts.SSHKeyName},
@@ -182,12 +170,10 @@ func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *EnvOpts) (*
 		"microvm:microVMConfigFile":              auto.ConfigValue{Value: opts.VMConfigPath},
 		"microvm:libvirtSSHKeyFileX86":           auto.ConfigValue{Value: sshKeyX86},
 		"microvm:libvirtSSHKeyFileArm":           auto.ConfigValue{Value: sshKeyArm},
-		"microvm:provision":                      auto.ConfigValue{Value: strconv.FormatBool(opts.Provision)},
+		"microvm:provision":                      auto.ConfigValue{Value: fmt.Sprintf("%v", opts.Provision)},
 		"microvm:x86AmiID":                       auto.ConfigValue{Value: opts.X86AmiID},
 		"microvm:arm64AmiID":                     auto.ConfigValue{Value: opts.ArmAmiID},
-		"microvm:workingDir":                     auto.ConfigValue{Value: customAMIWorkingDir},
-		"ddagent:deploy":                         auto.ConfigValue{Value: strconv.FormatBool(opts.RunAgent)},
-		"ddagent:apiKey":                         auto.ConfigValue{Value: apiKey, Secret: true},
+		"microvm:workingDir":                     auto.ConfigValue{Value: CustomAMIWorkingDir},
 	}
 	// We cannot add defaultPrivateKeyPath if the key is in ssh-agent, otherwise passphrase is needed
 	if opts.SSHKeyPath != "" {
@@ -199,15 +185,6 @@ func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *EnvOpts) (*
 	if opts.ShutdownPeriod != 0 {
 		config["microvm:shutdownPeriod"] = auto.ConfigValue{Value: strconv.Itoa(opts.ShutdownPeriod)}
 		config["ddinfra:aws/defaultShutdownBehavior"] = auto.ConfigValue{Value: "terminate"}
-	}
-
-	// If no agent version is provided the framework will automatically install the latest agent
-	if opts.AgentVersion != "" {
-		config["ddagent:version"] = auto.ConfigValue{Value: opts.AgentVersion}
-	}
-
-	if envVars := getEnv(ec2TagsEnvVar, ""); envVars != "" {
-		config["ddinfra:extraResourcesTags"] = auto.ConfigValue{Value: envVars}
 	}
 
 	var upResult auto.UpResult
@@ -227,15 +204,31 @@ func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *EnvOpts) (*
 				return fmt.Errorf("setup micro-vms in remote instance: %w", err)
 			}
 			return nil
-		}, opts.FailOnMissing, nil)
+		}, opts.FailOnMissing)
 		if err != nil {
-			return handleScenarioFailure(err, func(possibleError handledError) {
-				// handle the following errors by trying in a different availability zone
-				if possibleError.errorType == insufficientCapacityError ||
-					possibleError.errorType == ec2StateChangeTimeoutError {
-					currentAZ++
-				}
-			})
+			// Retry if we failed to dial libvirt.
+			// Libvirt daemon on the server occasionally crashes with the following error
+			// "End of file while reading data: Input/output error"
+			// The root cause of this is unknown. The problem usually fixes itself upon retry.
+			if strings.Contains(err.Error(), "failed to dial libvirt") {
+				fmt.Println("[Error] Failed to dial libvirt. Retrying stack.")
+				return retry.RetryableError(err)
+
+				// Retry if we have capacity issues in our current AZ.
+				// We switch to a different AZ and attempt to launch the instance again.
+			} else if strings.Contains(err.Error(), "InsufficientInstanceCapacity") {
+				fmt.Printf("[Error] Insufficient instance capacity in %s. Retrying stack with %s as the AZ.", getAvailabilityZone(opts.InfraEnv, currentAZ), getAvailabilityZone(opts.InfraEnv, currentAZ+1))
+				currentAZ += 1
+				return retry.RetryableError(err)
+
+				// Retry when ssh thinks aria2c exited without status. This may happen
+				// due to network connectivity issues if ssh keepalive mecahnism fails.
+			} else if strings.Contains(err.Error(), Aria2cMissingStatusError) {
+				fmt.Println("[Error] Missing exit status from Aria2c. Retrying stack")
+				return retry.RetryableError(err)
+			} else {
+				return err
+			}
 		}
 
 		return nil
@@ -253,12 +246,10 @@ func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *EnvOpts) (*
 	return systemProbeTestEnv, nil
 }
 
-// Destroy deletes the stack with the provided name
 func Destroy(name string) error {
-	return infra.GetStackManager().DeleteStack(context.Background(), name, nil)
+	return infra.GetStackManager().DeleteStack(context.Background(), name)
 }
 
-// RemoveStack removes the stack configuration with the provided name
 func (env *TestEnv) RemoveStack() error {
 	return infra.GetStackManager().ForceRemoveStackConfiguration(env.context, env.name)
 }

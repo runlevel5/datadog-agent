@@ -40,8 +40,3 @@ func ValidateSocketAddress(sockAddress string) error {
 	}
 	return nil
 }
-
-// ProcessEventDataStreamSupported returns true if process event data stream is supported
-func ProcessEventDataStreamSupported() bool {
-	return false
-}

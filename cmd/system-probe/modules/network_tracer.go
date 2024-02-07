@@ -21,11 +21,11 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/DataDog/datadog-agent/cmd/system-probe/api/module"
-	sysconfigtypes "github.com/DataDog/datadog-agent/cmd/system-probe/config/types"
+	"github.com/DataDog/datadog-agent/cmd/system-probe/config"
 	"github.com/DataDog/datadog-agent/cmd/system-probe/utils"
 	"github.com/DataDog/datadog-agent/pkg/network"
 	networkconfig "github.com/DataDog/datadog-agent/pkg/network/config"
-	"github.com/DataDog/datadog-agent/pkg/network/encoding/marshal"
+	"github.com/DataDog/datadog-agent/pkg/network/encoding"
 	httpdebugging "github.com/DataDog/datadog-agent/pkg/network/protocols/http/debugging"
 	kafkadebugging "github.com/DataDog/datadog-agent/pkg/network/protocols/kafka/debugging"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/telemetry"
@@ -41,34 +41,37 @@ var ErrSysprobeUnsupported = errors.New("system-probe unsupported")
 const inactivityLogDuration = 10 * time.Minute
 const inactivityRestartDuration = 20 * time.Minute
 
-var networkTracerModuleConfigNamespaces = []string{"network_config", "service_monitoring_config", "data_streams_config"}
+// NetworkTracer is a factory for NPM's tracer
+var NetworkTracer = module.Factory{
+	Name:             config.NetworkTracerModule,
+	ConfigNamespaces: []string{"network_config", "service_monitoring_config", "data_streams_config"},
+	Fn: func(cfg *config.Config) (module.Module, error) {
+		ncfg := networkconfig.New()
 
-func createNetworkTracerModule(cfg *sysconfigtypes.Config) (module.Module, error) {
-	ncfg := networkconfig.New()
+		// Checking whether the current OS + kernel version is supported by the tracer
+		if supported, err := tracer.IsTracerSupportedByOS(ncfg.ExcludedBPFLinuxVersions); !supported {
+			return nil, fmt.Errorf("%w: %s", ErrSysprobeUnsupported, err)
+		}
 
-	// Checking whether the current OS + kernel version is supported by the tracer
-	if supported, err := tracer.IsTracerSupportedByOS(ncfg.ExcludedBPFLinuxVersions); !supported {
-		return nil, fmt.Errorf("%w: %s", ErrSysprobeUnsupported, err)
-	}
+		if ncfg.NPMEnabled {
+			log.Info("enabling network performance monitoring (NPM)")
+		}
+		if ncfg.ServiceMonitoringEnabled {
+			log.Info("enabling universal service monitoring (USM)")
+		}
+		if ncfg.DataStreamsEnabled {
+			log.Info("enabling data streams monitoring (DSM)")
+		}
 
-	if ncfg.NPMEnabled {
-		log.Info("enabling network performance monitoring (NPM)")
-	}
-	if ncfg.ServiceMonitoringEnabled {
-		log.Info("enabling universal service monitoring (USM)")
-	}
-	if ncfg.DataStreamsEnabled {
-		log.Info("enabling data streams monitoring (DSM)")
-	}
+		t, err := tracer.NewTracer(ncfg)
 
-	t, err := tracer.NewTracer(ncfg)
+		done := make(chan struct{})
+		if err == nil {
+			startTelemetryReporter(cfg, done)
+		}
 
-	done := make(chan struct{})
-	if err == nil {
-		startTelemetryReporter(cfg, done)
-	}
-
-	return &networkTracer{tracer: t, done: done}, err
+		return &networkTracer{tracer: t, done: done}, err
+	},
 }
 
 var _ module.Module = &networkTracer{}
@@ -103,7 +106,7 @@ func (nt *networkTracer) Register(httpMux *module.Router) error {
 			return
 		}
 		contentType := req.Header.Get("Accept")
-		marshaler := marshal.GetMarshaler(contentType)
+		marshaler := encoding.GetMarshaler(contentType)
 		writeConnections(w, marshaler, cs)
 
 		if nt.restartTimer != nil {
@@ -134,7 +137,7 @@ func (nt *networkTracer) Register(httpMux *module.Router) error {
 		}
 
 		contentType := req.Header.Get("Accept")
-		marshaler := marshal.GetMarshaler(contentType)
+		marshaler := encoding.GetMarshaler(contentType)
 		writeConnections(w, marshaler, cs)
 	})
 
@@ -193,12 +196,14 @@ func (nt *networkTracer) Register(httpMux *module.Router) error {
 			maps = strings.Split(listMaps, ",")
 		}
 
-		err := nt.tracer.DebugEBPFMaps(w, maps...)
+		ebpfMaps, err := nt.tracer.DebugEBPFMaps(maps...)
 		if err != nil {
 			log.Errorf("unable to retrieve eBPF maps: %s", err)
 			w.WriteHeader(500)
 			return
 		}
+
+		utils.WriteAsJSON(w, ebpfMaps)
 	})
 
 	httpMux.HandleFunc("/debug/conntrack/cached", func(w http.ResponseWriter, req *http.Request) {
@@ -288,12 +293,12 @@ func getClientID(req *http.Request) string {
 	return clientID
 }
 
-func writeConnections(w http.ResponseWriter, marshaler marshal.Marshaler, cs *network.Connections) {
+func writeConnections(w http.ResponseWriter, marshaler encoding.Marshaler, cs *network.Connections) {
 	defer network.Reclaim(cs)
 
 	w.Header().Set("Content-type", marshaler.ContentType())
 
-	connectionsModeler := marshal.NewConnectionsModeler(cs)
+	connectionsModeler := encoding.NewConnectionsModeler(cs)
 	defer connectionsModeler.Close()
 
 	err := marshaler.Marshal(cs, w, connectionsModeler)
@@ -306,7 +311,7 @@ func writeConnections(w http.ResponseWriter, marshaler marshal.Marshaler, cs *ne
 	log.Tracef("/connections: %d connections", len(cs.Conns))
 }
 
-func startTelemetryReporter(_ *sysconfigtypes.Config, done <-chan struct{}) {
+func startTelemetryReporter(cfg *config.Config, done <-chan struct{}) {
 	telemetry.SetStatsdClient(statsd.Client)
 	ticker := time.NewTicker(30 * time.Second)
 	go func() {

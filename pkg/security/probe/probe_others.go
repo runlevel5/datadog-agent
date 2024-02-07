@@ -12,6 +12,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/security/config"
 	"github.com/DataDog/datadog-agent/pkg/security/probe/kfilters"
+	"github.com/DataDog/datadog-agent/pkg/security/resolvers"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
@@ -86,6 +87,11 @@ func (p *Probe) StatsPollingInterval() time.Duration {
 	return p.Config.Probe.StatsPollingInterval
 }
 
+// GetResolvers returns the resolvers of Probe
+func (p *Probe) GetResolvers() *resolvers.Resolvers {
+	return nil
+}
+
 // FlushDiscarders invalidates all the discarders
 func (p *Probe) FlushDiscarders() error {
 	return nil
@@ -97,4 +103,5 @@ func (p *Probe) RefreshUserCache(_ string) error {
 }
 
 // HandleActions executes the actions of a triggered rule
-func (p *Probe) HandleActions(_ *rules.Rule, _ eval.Event) {}
+func (p *Probe) HandleActions(_ *rules.Rule, _ eval.Event) {
+}

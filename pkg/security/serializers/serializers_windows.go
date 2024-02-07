@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 
 	"github.com/DataDog/datadog-agent/pkg/security/events"
+	"github.com/DataDog/datadog-agent/pkg/security/resolvers"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/utils"
@@ -54,14 +55,14 @@ type EventSerializer struct {
 	*BaseEventSerializer
 }
 
-func newFileSerializer(fe *model.FileEvent, e *model.Event, _ ...uint64) *FileSerializer {
+func newFileSerializer(fe *model.FileEvent, e *model.Event, forceInode ...uint64) *FileSerializer { //nolint:revive // TODO fix revive unused-parameter
 	return &FileSerializer{
 		Path: e.FieldHandlers.ResolveFilePath(e, fe),
 		Name: e.FieldHandlers.ResolveFileBasename(e, fe),
 	}
 }
 
-func newProcessSerializer(ps *model.Process, e *model.Event) *ProcessSerializer {
+func newProcessSerializer(ps *model.Process, e *model.Event, resolvers *resolvers.Resolvers) *ProcessSerializer { //nolint:revive // TODO fix revive unused-parameter
 	psSerializer := &ProcessSerializer{
 		ExecTime: getTimeIfNotZero(ps.ExecTime),
 		ExitTime: getTimeIfNotZero(ps.ExitTime),
@@ -69,7 +70,7 @@ func newProcessSerializer(ps *model.Process, e *model.Event) *ProcessSerializer 
 		Pid:        ps.Pid,
 		PPid:       getUint32Pointer(&ps.PPid),
 		Executable: newFileSerializer(&ps.FileEvent, e),
-		CmdLine:    e.FieldHandlers.ResolveProcessCmdLineScrubbed(e, ps),
+		CmdLine:    resolvers.ProcessResolver.GetProcessCmdLineScrubbed(ps),
 	}
 
 	if len(ps.ContainerID) != 0 {
@@ -80,13 +81,13 @@ func newProcessSerializer(ps *model.Process, e *model.Event) *ProcessSerializer 
 	return psSerializer
 }
 
-func newProcessContextSerializer(pc *model.ProcessContext, e *model.Event) *ProcessContextSerializer {
+func newProcessContextSerializer(pc *model.ProcessContext, e *model.Event, resolvers *resolvers.Resolvers) *ProcessContextSerializer {
 	if pc == nil || pc.Pid == 0 || e == nil {
 		return nil
 	}
 
 	ps := ProcessContextSerializer{
-		ProcessSerializer: newProcessSerializer(&pc.Process, e),
+		ProcessSerializer: newProcessSerializer(&pc.Process, e, resolvers),
 	}
 
 	ctx := eval.NewContext(e)
@@ -99,7 +100,7 @@ func newProcessContextSerializer(pc *model.ProcessContext, e *model.Event) *Proc
 	for ptr != nil {
 		pce := (*model.ProcessCacheEntry)(ptr)
 
-		s := newProcessSerializer(&pce.Process, e)
+		s := newProcessSerializer(&pce.Process, e, resolvers)
 		ps.Ancestors = append(ps.Ancestors, s)
 
 		if first {
@@ -113,7 +114,7 @@ func newProcessContextSerializer(pc *model.ProcessContext, e *model.Event) *Proc
 	return &ps
 }
 
-func serializeOutcome(_ int64) string {
+func serializeOutcome(retval int64) string { //nolint:revive // TODO fix revive unused-parameter
 	return "unknown"
 }
 
@@ -123,8 +124,8 @@ func (e *EventSerializer) ToJSON() ([]byte, error) {
 }
 
 // MarshalEvent marshal the event
-func MarshalEvent(event *model.Event) ([]byte, error) {
-	s := NewEventSerializer(event)
+func MarshalEvent(event *model.Event, probe *resolvers.Resolvers) ([]byte, error) {
+	s := NewEventSerializer(event, probe)
 	return json.Marshal(s)
 }
 
@@ -134,8 +135,8 @@ func MarshalCustomEvent(event *events.CustomEvent) ([]byte, error) {
 }
 
 // NewEventSerializer creates a new event serializer based on the event type
-func NewEventSerializer(event *model.Event) *EventSerializer {
+func NewEventSerializer(event *model.Event, resolvers *resolvers.Resolvers) *EventSerializer {
 	return &EventSerializer{
-		BaseEventSerializer: NewBaseEventSerializer(event),
+		BaseEventSerializer: NewBaseEventSerializer(event, resolvers),
 	}
 }

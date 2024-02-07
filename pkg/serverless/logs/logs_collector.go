@@ -31,7 +31,6 @@ type Tags struct {
 	Tags []string
 }
 
-//nolint:revive // TODO(SERV) Fix revive linter
 type LambdaInitMetric struct {
 	InitDurationTelemetry float64
 	InitStartTime         time.Time
@@ -51,11 +50,10 @@ type LambdaLogsCollector struct {
 	enhancedMetricsEnabled bool
 	invocationStartTime    time.Time
 	invocationEndTime      time.Time
-	//nolint:revive // TODO(SERV) Fix revive linter
-	process_once         *sync.Once
-	executionContext     *executioncontext.ExecutionContext
-	lambdaInitMetricChan chan<- *LambdaInitMetric
-	orphanLogsChan       chan []LambdaLogAPIMessage
+	process_once           *sync.Once
+	executionContext       *executioncontext.ExecutionContext
+	lambdaInitMetricChan   chan<- *LambdaInitMetric
+	orphanLogsChan         chan []LambdaLogAPIMessage
 
 	arn string
 
@@ -63,7 +61,6 @@ type LambdaLogsCollector struct {
 	handleRuntimeDone func()
 }
 
-//nolint:revive // TODO(SERV) Fix revive linter
 func NewLambdaLogCollector(out chan<- *logConfig.ChannelMessage, demux aggregator.Demultiplexer, extraTags *Tags, logsEnabled bool, enhancedMetricsEnabled bool, executionContext *executioncontext.ExecutionContext, handleRuntimeDone func(), lambdaInitMetricChan chan<- *LambdaInitMetric) *LambdaLogsCollector {
 
 	return &LambdaLogsCollector{
@@ -251,10 +248,6 @@ func (lc *LambdaLogsCollector) processMessage(
 		lc.executionContext.UpdateStartTime(lc.invocationStartTime)
 	}
 
-	if message.logType == logTypePlatformReport {
-		message.stringRecord = createStringRecordForReportLog(lc.invocationStartTime, lc.invocationEndTime, message)
-	}
-
 	if lc.enhancedMetricsEnabled {
 		proactiveInit := false
 		coldStart := false
@@ -265,7 +258,6 @@ func (lc *LambdaLogsCollector) processMessage(
 			coldStart = coldStartTags.IsColdStart
 		}
 		tags := tags.AddColdStartTag(lc.extraTags.Tags, coldStart, proactiveInit)
-		//nolint:revive // TODO(SERV) Fix revive linter
 		outOfMemoryRequestId := ""
 
 		if message.logType == logTypeFunction {
@@ -296,6 +288,7 @@ func (lc *LambdaLogsCollector) processMessage(
 				outOfMemoryRequestId = message.objectRecord.requestID
 			}
 			serverlessMetrics.GenerateEnhancedMetricsFromReportLog(args)
+			message.stringRecord = createStringRecordForReportLog(lc.invocationStartTime, lc.invocationEndTime, message)
 		}
 		if message.logType == logTypePlatformRuntimeDone {
 			serverlessMetrics.GenerateEnhancedMetricsFromRuntimeDoneLog(

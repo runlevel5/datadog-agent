@@ -9,7 +9,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/metrics"
 )
 
-func metricSourceToOriginCategory(ms metrics.MetricSource) int32 {
+func MetricSourceToOriginCategory(ms metrics.MetricSource) int32 {
 	// These constants map to specific fields in the 'OriginCategory' enum in origin.proto
 	switch ms {
 	case metrics.MetricSourceUnknown:
@@ -32,8 +32,6 @@ func metricSourceToOriginCategory(ms metrics.MetricSource) int32 {
 		metrics.MetricSourceSonarqube,
 		metrics.MetricSourceTomcat,
 		metrics.MetricSourceWeblogic,
-		// Core Checks
-		metrics.MetricSourceInternal,
 		metrics.MetricSourceContainer,
 		metrics.MetricSourceContainerd,
 		metrics.MetricSourceCri,
@@ -67,7 +65,7 @@ func metricSourceToOriginCategory(ms metrics.MetricSource) int32 {
 	}
 }
 
-func metricSourceToOriginService(ms metrics.MetricSource) int32 {
+func MetricSourceToOriginService(ms metrics.MetricSource) int32 {
 	// These constants map to specific fields in the 'OriginService' enum in origin.proto
 	switch ms {
 	case metrics.MetricSourceDogstatsd:
@@ -160,8 +158,6 @@ func metricSourceToOriginService(ms metrics.MetricSource) int32 {
 		return 202
 	case metrics.MetricSourceLoad:
 		return 203
-	case metrics.MetricSourceInternal:
-		return 212
 	default:
 		return 0
 	}

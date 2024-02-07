@@ -3,7 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//nolint:revive // TODO(PROC) Fix revive linter
 package main
 
 import (
@@ -22,13 +21,9 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	logComponent "github.com/DataDog/datadog-agent/comp/core/log"
-	"github.com/DataDog/datadog-agent/comp/core/secrets"
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig"
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig/sysprobeconfigimpl"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta/collectors"
-	compstatsd "github.com/DataDog/datadog-agent/comp/dogstatsd/statsd"
-	hostMetadataUtils "github.com/DataDog/datadog-agent/comp/metadata/host/hostimpl/utils"
+	hostMetadataUtils "github.com/DataDog/datadog-agent/comp/metadata/host/utils"
 	"github.com/DataDog/datadog-agent/comp/process"
 	"github.com/DataDog/datadog-agent/comp/process/apiserver"
 	"github.com/DataDog/datadog-agent/comp/process/expvars"
@@ -50,6 +45,10 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/version"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
+
+	// register all workloadmeta collectors
+	_ "github.com/DataDog/datadog-agent/pkg/workloadmeta/collectors"
 )
 
 const (
@@ -108,10 +107,9 @@ func runApp(ctx context.Context, globalParams *command.GlobalParams) error {
 
 		Logger logComponent.Component
 
-		Checks       []types.CheckComponent `group:"check"`
-		Syscfg       sysprobeconfig.Component
-		Config       config.Component
-		WorkloadMeta workloadmeta.Component
+		Checks []types.CheckComponent `group:"check"`
+		Syscfg sysprobeconfig.Component
+		Config config.Component
 	}
 	app := fx.New(
 		fx.Supply(
@@ -119,8 +117,7 @@ func runApp(ctx context.Context, globalParams *command.GlobalParams) error {
 				SysprobeConfigParams: sysprobeconfigimpl.NewParams(
 					sysprobeconfigimpl.WithSysProbeConfFilePath(globalParams.SysProbeConfFilePath),
 				),
-				ConfigParams: config.NewAgentParams(globalParams.ConfFilePath),
-				SecretParams: secrets.NewEnabledParams(),
+				ConfigParams: config.NewAgentParamsWithSecrets(globalParams.ConfFilePath),
 				LogParams:    command.DaemonLogParams,
 			},
 		),
@@ -128,30 +125,13 @@ func runApp(ctx context.Context, globalParams *command.GlobalParams) error {
 		fx.Populate(&appInitDeps),
 
 		// Provide core components
-		core.Bundle(),
+		core.Bundle,
 
 		// Provide process agent bundle so fx knows where to find components
-		process.Bundle(),
+		process.Bundle,
 
 		// Provide remote config client module
-		rcclient.Module(),
-
-		// Provide statsd client module
-		compstatsd.Module(),
-
-		// Provide the corresponding workloadmeta Params to configure the catalog
-		collectors.GetCatalog(),
-		fx.Provide(func(c config.Component) workloadmeta.Params {
-			var catalog workloadmeta.AgentType
-
-			if c.GetBool("process_config.remote_workloadmeta") {
-				catalog = workloadmeta.Remote
-			} else {
-				catalog = workloadmeta.ProcessAgent
-			}
-
-			return workloadmeta.Params{AgentType: catalog}
-		}),
+		rcclient.Module,
 
 		// Allows for debug logging of fx components if the `TRACE_FX` environment variable is set
 		fxutil.FxLoggingOption(),
@@ -239,18 +219,16 @@ type miscDeps struct {
 	fx.In
 	Lc fx.Lifecycle
 
-	Config       config.Component
-	Statsd       compstatsd.Component
-	Syscfg       sysprobeconfig.Component
-	HostInfo     hostinfo.Component
-	WorkloadMeta workloadmeta.Component
+	Config   config.Component
+	Syscfg   sysprobeconfig.Component
+	HostInfo hostinfo.Component
 }
 
 // initMisc initializes modules that cannot, or have not yet been componetized.
 // Todo: (Components) WorkloadMeta, remoteTagger, statsd
 // Todo: move metadata/workloadmeta/collector to workloadmeta
 func initMisc(deps miscDeps) error {
-	if err := statsd.Configure(ddconfig.GetBindHost(), deps.Config.GetInt("dogstatsd_port"), deps.Statsd.CreateForHostPort); err != nil {
+	if err := statsd.Configure(ddconfig.GetBindHost(), deps.Config.GetInt("dogstatsd_port"), false); err != nil {
 		log.Criticalf("Error configuring statsd: %s", err)
 		return err
 	}
@@ -258,6 +236,15 @@ func initMisc(deps miscDeps) error {
 	if err := ddutil.SetupCoreDump(deps.Config); err != nil {
 		log.Warnf("Can't setup core dumps: %v, core dumps might not be available after a crash", err)
 	}
+
+	// Setup workloadmeta
+	var workloadmetaCollectors workloadmeta.CollectorCatalog
+	if deps.Config.GetBool("process_config.remote_workloadmeta") {
+		workloadmetaCollectors = workloadmeta.RemoteCatalog
+	} else {
+		workloadmetaCollectors = workloadmeta.NodeAgentCatalog
+	}
+	store := workloadmeta.CreateGlobalStore(workloadmetaCollectors)
 
 	// Setup remote tagger
 	var t tagger.Tagger
@@ -269,18 +256,17 @@ func initMisc(deps miscDeps) error {
 			t = remote.NewTagger(options)
 		}
 	} else {
-		t = local.NewTagger(deps.WorkloadMeta)
+		t = local.NewTagger(store)
 	}
 	tagger.SetDefaultTagger(t)
 
 	processCollectionServer := collector.NewProcessCollector(deps.Config, deps.Syscfg)
 
-	// TODO(components): still unclear how the initialization of workoadmeta
-	//                   store and tagger should be performed.
 	// appCtx is a context that cancels when the OnStop hook is called
 	appCtx, stopApp := context.WithCancel(context.Background())
 	deps.Lc.Append(fx.Hook{
 		OnStart: func(startCtx context.Context) error {
+			store.Start(appCtx)
 
 			err := tagger.Init(startCtx)
 			if err != nil {
@@ -294,7 +280,7 @@ func initMisc(deps miscDeps) error {
 			}
 
 			if collector.Enabled(deps.Config) {
-				err := processCollectionServer.Start(appCtx, deps.WorkloadMeta)
+				err := processCollectionServer.Start(appCtx, store)
 				if err != nil {
 					return err
 				}

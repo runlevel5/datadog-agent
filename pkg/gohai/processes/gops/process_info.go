@@ -37,25 +37,27 @@ func GetProcesses() ([]*ProcessInfo, error) {
 
 	virtMemStat, err := mem.VirtualMemory()
 	if err != nil {
-		return nil, fmt.Errorf("error fetching system memory stats: %w", err)
+		err = fmt.Errorf("error fetching system memory stats: %w", err)
+		return nil, err
 	}
 	totalMem := float64(virtMemStat.Total)
 
 	pids, err := process.Pids()
 	if err != nil {
-		return nil, fmt.Errorf("error fetching PIDs: %w", err)
+		err = fmt.Errorf("error fetching PIDs: %w", err)
+		return nil, err
 	}
 
 	for _, pid := range pids {
 		p, err := process.NewProcess(pid)
 		if err != nil {
 			// an error can occur here only if the process has disappeared,
-			log.Debugf("Process with pid %d disappeared while scanning: %s", pid, err)
+			log.Debugf("Process with pid %d disappeared while scanning: %w", pid, err)
 			continue
 		}
 		processInfo, err := newProcessInfo(p, totalMem)
 		if err != nil {
-			log.Debugf("Error fetching info for pid %d: %s", pid, err)
+			log.Debugf("Error fetching info for pid %d: %w", pid, err)
 			continue
 		}
 

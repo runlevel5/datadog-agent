@@ -6,39 +6,35 @@
 package client
 
 import (
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/components"
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/utils/e2e/client/agentclient"
+	"github.com/DataDog/test-infra-definitions/components/os"
 )
 
-const (
-	agentReadyTimeout = 1 * time.Minute
-)
-
-// NewHostAgentClient creates an Agent client for host install
-func NewHostAgentClient(t *testing.T, host *components.RemoteHost, waitForAgentReady bool) (agentclient.Agent, error) {
-	commandRunner := newAgentCommandRunner(t, newAgentHostExecutor(host))
-
-	if waitForAgentReady {
-		if err := commandRunner.waitForReadyTimeout(agentReadyTimeout); err != nil {
-			return nil, err
-		}
-	}
-
-	return commandRunner, nil
+// AgentClient is a type that provides methods to run remote commands on a test-infra-definition Agent.
+type AgentClient struct {
+	*agentCommandRunner
 }
 
-// NewDockerAgentClient creates an Agent client for a Docker install
-func NewDockerAgentClient(t *testing.T, docker *Docker, agentContainerName string, waitForAgentReady bool) (agentclient.Agent, error) {
-	commandRunner := newAgentCommandRunner(t, newAgentDockerExecutor(docker, agentContainerName))
+// NewAgentClient creates a new instance of AgentClient
+func NewAgentClient(t *testing.T, vm VM, os os.OS, shouldWaitForReady bool) (*AgentClient, error) {
+	agent := &AgentClient{
+		agentCommandRunner: newAgentCommandRunner(t, func(arguments []string) (string, error) {
+			parameters := ""
+			if len(arguments) > 0 {
+				parameters = `"` + strings.Join(arguments, `" "`) + `"`
+			}
+			cmd := os.GetRunAgentCmd(parameters)
+			return vm.ExecuteWithError(cmd)
+		}),
+	}
 
-	if waitForAgentReady {
-		if err := commandRunner.waitForReadyTimeout(agentReadyTimeout); err != nil {
+	if shouldWaitForReady {
+		if err := agent.waitForReadyTimeout(1 * time.Minute); err != nil {
 			return nil, err
 		}
 	}
-
-	return commandRunner, nil
+	return agent, nil
 }

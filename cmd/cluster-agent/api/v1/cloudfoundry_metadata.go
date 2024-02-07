@@ -13,7 +13,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/api"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/cloudproviders/cloudfoundry"
@@ -31,7 +30,7 @@ func installCloudFoundryMetadataEndpoints(r *mux.Router) {
 	}
 }
 
-func installKubernetesMetadataEndpoints(r *mux.Router, w workloadmeta.Component) {}
+func installKubernetesMetadataEndpoints(r *mux.Router) {}
 
 // getCFAppsMetadataForNode is only used when the node agent hits the DCA for the list of cloudfoundry applications tags
 // It return a list of tags for each application that can be directly used in the tagger

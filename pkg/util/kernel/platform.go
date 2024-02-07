@@ -8,7 +8,7 @@
 package kernel
 
 import (
-	gopsutilhost "github.com/DataDog/gopsutil/host"
+	gopsutilhost "github.com/shirou/gopsutil/v3/host"
 
 	"github.com/DataDog/datadog-agent/pkg/util/funcs"
 )
@@ -31,9 +31,7 @@ var PlatformVersion = funcs.Memoize(func() (string, error) {
 	return pi.version, err
 })
 
-var platformInformation = funcs.Memoize(getPlatformInformation)
-
-func getPlatformInformation() (platformInfo, error) {
+var platformInformation = funcs.Memoize(func() (platformInfo, error) {
 	platform, family, version, err := gopsutilhost.PlatformInformation()
 	return platformInfo{platform, family, version}, err
-}
+})

@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
@@ -26,10 +27,10 @@ type CustomRoundTripper struct {
 
 // NewCustomRoundTripper creates a new CustomRoundTripper with the apiserver timeout value already populated from the
 // agent config, wrapping an existing http.RoundTripper.
-func NewCustomRoundTripper(rt http.RoundTripper, timeout time.Duration) *CustomRoundTripper {
+func NewCustomRoundTripper(rt http.RoundTripper) *CustomRoundTripper {
 	return &CustomRoundTripper{
 		rt:      rt,
-		timeout: int64(timeout.Seconds()),
+		timeout: config.Datadog.GetInt64("kubernetes_apiserver_client_timeout"),
 	}
 }
 

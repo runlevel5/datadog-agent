@@ -11,24 +11,15 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/fx"
 
-	"github.com/DataDog/datadog-agent/comp/core/config"
-	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta/collectors"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
-	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
+	"github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
+	workloadmetatesting "github.com/DataDog/datadog-agent/pkg/workloadmeta/testing"
 )
 
 func TestProcessEvents(t *testing.T) {
-	store := fxutil.Test[workloadmeta.Mock](t, fx.Options(
-		config.MockModule(),
-		logimpl.MockModule(),
-		collectors.GetCatalog(),
-		fx.Supply(workloadmeta.NewParams()),
-		workloadmeta.MockModuleV2(),
-	))
+	store := workloadmetatesting.NewStore()
 
 	cp := &ContainerConfigProvider{
 		workloadmetaStore: store,
@@ -406,19 +397,10 @@ func TestGenerateConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			config.Datadog.SetWithoutSource("logs_config.container_collect_all", tt.containerCollectAll)
+			defer config.Datadog.SetWithoutSource("logs_config.container_collect_all", false)
 
-			overrides := map[string]interface{}{
-				"logs_config.container_collect_all": tt.containerCollectAll,
-			}
-
-			store := fxutil.Test[workloadmeta.Mock](t, fx.Options(
-				config.MockModule(),
-				logimpl.MockModule(),
-				fx.Replace(config.MockParams{Overrides: overrides}),
-				collectors.GetCatalog(),
-				fx.Supply(workloadmeta.NewParams()),
-				workloadmeta.MockModuleV2(),
-			))
+			store := workloadmetatesting.NewStore()
 
 			if pod, ok := tt.entity.(*workloadmeta.KubernetesPod); ok {
 				for _, c := range pod.GetAllContainers() {

@@ -10,10 +10,8 @@ package clusterchecks
 import (
 	"testing"
 
-	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/require"
 )
 
 func TestCommand(t *testing.T) {
@@ -42,20 +40,4 @@ func TestRebalance(t *testing.T) {
 		[]string{"clusterchecks", "rebalance"},
 		rebalance,
 		func() {})
-}
-
-func TestIsolate(t *testing.T) {
-	commands := []*cobra.Command{
-		MakeCommand(func() GlobalParams {
-			return GlobalParams{}
-		}),
-	}
-
-	fxutil.TestOneShotSubcommand(t,
-		commands,
-		[]string{"clusterchecks", "isolate", "--checkID", "checkID"},
-		isolate,
-		func(cliParams *cliParams, coreParams core.BundleParams) {
-			require.Equal(t, "checkID", cliParams.checkID)
-		})
 }

@@ -3,7 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//nolint:revive // TODO(AML) Fix revive linter
 package serializer
 
 import (
@@ -17,7 +16,6 @@ import (
 
 	forwarder "github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder/transaction"
-	orchestratorForwarder "github.com/DataDog/datadog-agent/comp/forwarder/orchestrator"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
 	"github.com/DataDog/datadog-agent/pkg/metrics/event"
@@ -110,7 +108,7 @@ type MetricSerializer interface {
 type Serializer struct {
 	clock                 clock.Clock
 	Forwarder             forwarder.Forwarder
-	orchestratorForwarder orchestratorForwarder.Component
+	orchestratorForwarder forwarder.Forwarder
 
 	seriesJSONPayloadBuilder *stream.JSONPayloadBuilder
 
@@ -132,7 +130,7 @@ type Serializer struct {
 }
 
 // NewSerializer returns a new Serializer initialized
-func NewSerializer(forwarder forwarder.Forwarder, orchestratorForwarder orchestratorForwarder.Component) *Serializer {
+func NewSerializer(forwarder, orchestratorForwarder forwarder.Forwarder) *Serializer {
 	s := &Serializer{
 		clock:                         clock.New(),
 		Forwarder:                     forwarder,
@@ -368,7 +366,6 @@ func (s *Serializer) SendSketch(sketches metrics.SketchesSource) error {
 
 		return s.Forwarder.SubmitSketchSeries(payloads, protobufExtraHeadersWithCompression)
 	} else {
-		//nolint:revive // TODO(AML) Fix revive linter
 		compress := true
 		splitSketches, extraHeaders, err := s.serializePayloadProto(sketchesSerializer, compress)
 		if err != nil {
@@ -441,9 +438,7 @@ func (s *Serializer) SendProcessesMetadata(data interface{}) error {
 
 // SendOrchestratorMetadata serializes & send orchestrator metadata payloads
 func (s *Serializer) SendOrchestratorMetadata(msgs []types.ProcessMessageBody, hostName, clusterID string, payloadType int) error {
-	orchestratorForwarder, found := s.orchestratorForwarder.Get()
-
-	if !found {
+	if s.orchestratorForwarder == nil {
 		return errors.New("orchestrator forwarder is not setup")
 	}
 	for _, m := range msgs {
@@ -452,14 +447,13 @@ func (s *Serializer) SendOrchestratorMetadata(msgs []types.ProcessMessageBody, h
 			return log.Errorf("Unable to encode message: %s", err)
 		}
 
-		responses, err := orchestratorForwarder.SubmitOrchestratorChecks(payloads, extraHeaders, payloadType)
+		responses, err := s.orchestratorForwarder.SubmitOrchestratorChecks(payloads, extraHeaders, payloadType)
 		if err != nil {
 			return log.Errorf("Unable to submit payload: %s", err)
 		}
 
 		// Consume the responses so that writers to the channel do not become blocked
 		// we don't need the bodies here though
-		//nolint:revive // TODO(AML) Fix revive linter
 		for range responses {
 
 		}
@@ -469,8 +463,7 @@ func (s *Serializer) SendOrchestratorMetadata(msgs []types.ProcessMessageBody, h
 
 // SendOrchestratorManifests serializes & send orchestrator manifest payloads
 func (s *Serializer) SendOrchestratorManifests(msgs []types.ProcessMessageBody, hostName, clusterID string) error {
-	orchestratorForwarder, found := s.orchestratorForwarder.Get()
-	if !found {
+	if s.orchestratorForwarder == nil {
 		return errors.New("orchestrator forwarder is not setup")
 	}
 	for _, m := range msgs {
@@ -480,14 +473,13 @@ func (s *Serializer) SendOrchestratorManifests(msgs []types.ProcessMessageBody, 
 			continue
 		}
 
-		responses, err := orchestratorForwarder.SubmitOrchestratorManifests(payloads, extraHeaders)
+		responses, err := s.orchestratorForwarder.SubmitOrchestratorManifests(payloads, extraHeaders)
 		if err != nil {
 			return log.Errorf("Unable to submit payload: %s", err)
 		}
 
 		// Consume the responses so that writers to the channel do not become blocked
 		// we don't need the bodies here though
-		//nolint:revive // TODO(AML) Fix revive linter
 		for range responses {
 
 		}

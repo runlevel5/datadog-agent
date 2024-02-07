@@ -8,20 +8,19 @@
 package tracer
 
 import (
-	sysconfigtypes "github.com/DataDog/datadog-agent/cmd/system-probe/config/types"
+	syscfg "github.com/DataDog/datadog-agent/cmd/system-probe/config"
 	"github.com/DataDog/datadog-agent/pkg/network/config"
 	"github.com/DataDog/datadog-agent/pkg/network/driver"
 )
 
 func platformInit() {
-	_ = driver.Init(&sysconfigtypes.Config{})
+	_ = driver.Init(&syscfg.Config{})
 }
 
 func httpSupported() bool {
 	return false
 }
 
-//nolint:revive // TODO(WKIT) Fix revive linter
 func classificationSupported(config *config.Config) bool {
 	return true
 }

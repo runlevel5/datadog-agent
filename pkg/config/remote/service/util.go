@@ -8,12 +8,10 @@ package service
 import (
 	"encoding/base32"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"go.etcd.io/bbolt"
 
@@ -23,19 +21,17 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/proto/msgpgo"
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/version"
 )
 
 const metaBucket = "meta"
 const metaFile = "meta.json"
-const databaseLockTimeout = time.Second
 
-// AgentMetadata is data stored in bolt DB to determine whether or not
-// the agent has changed and the RC cache should be cleared
 type AgentMetadata struct {
 	Version string `json:"version"`
 }
 
-func recreate(path string, agentVersion string) (*bbolt.DB, error) {
+func recreate(path string) (*bbolt.DB, error) {
 	log.Infof("Clear remote configuration database")
 	_, err := os.Stat(path)
 	if err != nil && !os.IsNotExist(err) {
@@ -51,26 +47,21 @@ func recreate(path string, agentVersion string) (*bbolt.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create rc db dir: (%s): %v", path, err)
 	}
-	db, err := bbolt.Open(path, 0600, &bbolt.Options{
-		Timeout: databaseLockTimeout,
-	})
+	db, err := bbolt.Open(path, 0600, &bbolt.Options{})
 	if err != nil {
-		if errors.Is(err, bbolt.ErrTimeout) {
-			return nil, fmt.Errorf("rc db is locked. Please check if another instance of the agent is running and using the same `run_path` parameter")
-		}
 		return nil, err
 	}
-	return db, addMetadata(db, agentVersion)
+	return db, addMetadata(db)
 }
 
-func addMetadata(db *bbolt.DB, agentVersion string) error {
+func addMetadata(db *bbolt.DB) error {
 	return db.Update(func(tx *bbolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(metaBucket))
 		if err != nil {
 			return err
 		}
 		metaData, err := json.Marshal(AgentMetadata{
-			Version: agentVersion,
+			Version: version.AgentVersion,
 		})
 		if err != nil {
 			return err
@@ -79,15 +70,10 @@ func addMetadata(db *bbolt.DB, agentVersion string) error {
 	})
 }
 
-func openCacheDB(path string, agentVersion string) (*bbolt.DB, error) {
-	db, err := bbolt.Open(path, 0600, &bbolt.Options{
-		Timeout: databaseLockTimeout,
-	})
+func openCacheDB(path string) (*bbolt.DB, error) {
+	db, err := bbolt.Open(path, 0600, &bbolt.Options{})
 	if err != nil {
-		if errors.Is(err, bbolt.ErrTimeout) {
-			return nil, fmt.Errorf("rc db is locked. Please check if another instance of the agent is running and using the same `run_path` parameter")
-		}
-		return recreate(path, agentVersion)
+		return recreate(path)
 	}
 
 	metadata := new(AgentMetadata)
@@ -111,13 +97,13 @@ func openCacheDB(path string, agentVersion string) (*bbolt.DB, error) {
 	})
 	if err != nil {
 		_ = db.Close()
-		return recreate(path, agentVersion)
+		return recreate(path)
 	}
 
-	if metadata.Version != agentVersion {
+	if metadata.Version != version.AgentVersion {
 		log.Infof("Different agent version detected")
 		_ = db.Close()
-		return recreate(path, agentVersion)
+		return recreate(path)
 	}
 
 	return db, nil
@@ -132,7 +118,7 @@ type remoteConfigAuthKeys struct {
 
 func (k *remoteConfigAuthKeys) apiAuth() api.Auth {
 	auth := api.Auth{
-		APIKey: k.apiKey,
+		ApiKey: k.apiKey,
 	}
 	if k.rcKeySet {
 		auth.UseAppKey = true
@@ -168,7 +154,7 @@ func getRemoteConfigAuthKeys(apiKey string, rcKey string) (remoteConfigAuthKeys,
 	}, nil
 }
 
-func buildLatestConfigsRequest(hostname string, agentVersion string, traceAgentEnv string, orgUUID string, state uptane.TUFVersions, activeClients []*pbgo.Client, products map[data.Product]struct{}, newProducts map[data.Product]struct{}, lastUpdateErr error, clientState []byte) *pbgo.LatestConfigsRequest {
+func buildLatestConfigsRequest(hostname string, traceAgentEnv string, orgUUID string, state uptane.TUFVersions, activeClients []*pbgo.Client, products map[data.Product]struct{}, newProducts map[data.Product]struct{}, lastUpdateErr error, clientState []byte) *pbgo.LatestConfigsRequest {
 	productsList := make([]data.Product, len(products))
 	i := 0
 	for k := range products {
@@ -188,7 +174,7 @@ func buildLatestConfigsRequest(hostname string, agentVersion string, traceAgentE
 	}
 	return &pbgo.LatestConfigsRequest{
 		Hostname:                     hostname,
-		AgentVersion:                 agentVersion,
+		AgentVersion:                 version.AgentVersion,
 		Products:                     data.ProductListToString(productsList),
 		NewProducts:                  data.ProductListToString(newProductsList),
 		CurrentConfigSnapshotVersion: state.ConfigSnapshot,

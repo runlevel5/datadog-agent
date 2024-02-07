@@ -3,7 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//nolint:revive // TODO(AML) Fix revive linter
 package tag
 
 import (
@@ -11,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
-	hostMetadataUtils "github.com/DataDog/datadog-agent/comp/metadata/host/hostimpl/utils"
+	hostMetadataUtils "github.com/DataDog/datadog-agent/comp/metadata/host/utils"
 	coreConfig "github.com/DataDog/datadog-agent/pkg/config"
 
 	"github.com/benbjohnson/clock"

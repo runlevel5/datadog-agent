@@ -5,6 +5,8 @@
 
 package cloudservice
 
+import "github.com/DataDog/datadog-agent/pkg/trace/config"
+
 // CloudService implements getting tags from each Cloud Provider.
 type CloudService interface {
 	// GetTags returns a map of tags for a given cloud service. These tags are then attached to
@@ -25,7 +27,6 @@ type CloudService interface {
 	Init() error
 }
 
-//nolint:revive // TODO(SERV) Fix revive linter
 type LocalService struct{}
 
 // GetTags is a default implementation that returns a local empty tag set
@@ -48,7 +49,6 @@ func (l *LocalService) Init() error {
 	return nil
 }
 
-//nolint:revive // TODO(SERV) Fix revive linter
 func GetCloudServiceType() CloudService {
 	if isCloudRunService() {
 		return &CloudRun{}
@@ -58,7 +58,7 @@ func GetCloudServiceType() CloudService {
 		return NewContainerApp()
 	}
 
-	if isAppService() {
+	if config.InAzureAppServices() {
 		return &AppService{}
 	}
 

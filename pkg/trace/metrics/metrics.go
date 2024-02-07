@@ -36,16 +36,13 @@ func findAddr(conf *config.AgentConfig) (string, error) {
 	return "", errors.New("dogstatsd_port is set to 0 and no alternative is available")
 }
 
-type statsdFactory func(addr string, options ...statsd.Option) (statsd.ClientInterface, error)
-
 // Configure creates a statsd client for the given agent's configuration, using the specified global tags.
-func Configure(conf *config.AgentConfig, tags []string, factory statsdFactory) error {
+func Configure(conf *config.AgentConfig, tags []string) error {
 	addr, err := findAddr(conf)
 	if err != nil {
 		return err
 	}
-
-	client, err := factory(addr, statsd.WithTags(tags))
+	client, err := statsd.New(addr, statsd.WithTags(tags))
 	if err != nil {
 		return err
 	}

@@ -17,14 +17,12 @@ import (
 	"github.com/containerd/typeurl/v2"
 	"google.golang.org/protobuf/types/known/anypb"
 
-	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/containerd"
-
-	//nolint:revive // TODO(CINT) Fix revive linter
 	cutil "github.com/DataDog/datadog-agent/pkg/util/containerd"
 	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics/provider"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 )
 
 const (
@@ -46,7 +44,7 @@ func init() {
 
 type containerdCollector struct {
 	client            cutil.ContainerdItf
-	workloadmetaStore workloadmeta.Component
+	workloadmetaStore workloadmeta.Store
 	pidCache          *provider.Cache
 }
 
@@ -63,8 +61,7 @@ func newContainerdCollector(cache *provider.Cache) (provider.CollectorMetadata, 
 	}
 
 	collector := &containerdCollector{
-		client: client,
-		// TODO(components): remove use of glbal, rely on injected component instead
+		client:            client,
 		workloadmetaStore: workloadmeta.GetGlobalStore(),
 		pidCache:          provider.NewCache(pidCacheGCInterval),
 	}
@@ -76,15 +73,10 @@ func newContainerdCollector(cache *provider.Cache) (provider.CollectorMetadata, 
 		ContainerIDForPID: provider.MakeRef[provider.ContainerIDForPIDRetriever](collector, collectorPriority),
 	}
 
-	kataCollectors := &provider.Collectors{
-		Stats: provider.MakeRef[provider.ContainerStatsGetter](collector, collectorPriority),
-	}
-
 	return provider.CollectorMetadata{
 		ID: collectorID,
 		Collectors: provider.CollectorCatalog{
-			provider.NewRuntimeMetadata(string(provider.RuntimeNameContainerd), ""):                                 provider.MakeCached(collectorID, cache, collectors),
-			provider.NewRuntimeMetadata(string(provider.RuntimeNameContainerd), string(provider.RuntimeFlavorKata)): provider.MakeCached(collectorID, cache, kataCollectors),
+			provider.RuntimeNameContainerd: provider.MakeCached(collectorID, cache, collectors),
 		},
 	}, nil
 }
