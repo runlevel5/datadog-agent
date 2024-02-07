@@ -15,7 +15,7 @@ import (
 	"code.cloudfoundry.org/garden"
 
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
-	hostMetadataUtils "github.com/DataDog/datadog-agent/comp/metadata/host/hostimpl/utils"
+	"github.com/DataDog/datadog-agent/comp/metadata/host/hostimpl/hosttags"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/tagger/utils"
 	"github.com/DataDog/datadog-agent/pkg/util/cloudproviders/cloudfoundry"
@@ -108,7 +108,7 @@ func (c *ContainerTagger) processEvent(ctx context.Context, evt workloadmeta.Eve
 		log.Debugf("Processing Event (id %s): %+v", eventID, storeContainer)
 
 		// extract tags
-		hostTags := hostMetadataUtils.GetHostTags(ctx, true, config.Datadog)
+		hostTags := hosttags.Get(ctx, true, config.Datadog)
 		tags := storeContainer.CollectorTags
 		tags = append(tags, hostTags.System...)
 		tags = append(tags, hostTags.GoogleCloudPlatform...)

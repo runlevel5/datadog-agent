@@ -23,6 +23,8 @@ import (
 const (
 	// GlobalEntityID defines the entity ID that holds global tags
 	GlobalEntityID = "internal://global-entity-id"
+	// HostEntityID defines the entity ID that holds host tags
+	HostEntityID = "internal://host-entity-id"
 
 	podAnnotationPrefix              = "ad.datadoghq.com/"
 	podContainerTagsAnnotationFormat = podAnnotationPrefix + "%s.tags"

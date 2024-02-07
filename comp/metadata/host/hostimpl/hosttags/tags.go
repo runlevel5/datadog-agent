@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package utils
+package hosttags
 
 import (
 	"context"
@@ -98,7 +98,7 @@ func appendAndSplitTags(target []string, tags []string, splits map[string]string
 // - First one controlled by `cached` boolean, used for performances (cache all tags)
 // - Second one per provider, to avoid missing host tags for 30 minutes when a component fails (for instance, Cluster Agent).
 // This second layer is always on.
-func GetHostTags(ctx context.Context, cached bool, conf config.Reader) *Tags {
+func Get(ctx context.Context, cached bool, conf config.Reader) *Tags {
 	if cached {
 		if x, found := cache.Cache.Get(tagsCacheKey); found {
 			tags := x.(*Tags)
