@@ -15,6 +15,7 @@ import (
 	"hash/fnv"
 	"io"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -574,6 +575,9 @@ type entryCountBuffers struct {
 
 	// Number of entries we keep track of for detecting restarts in single-item iteration
 	iterationRestartDetectionEntries int
+
+	// lock to make this structure thread-safe
+	lock sync.Mutex
 }
 
 // growBufferWithLimit creates or grows the given buffer with a configured limit.
@@ -619,6 +623,8 @@ func (e *entryCountBuffers) ensureSizeCursor(referenceMap *ebpf.Map) {
 
 // resetBuffers resets the buffers to nil, so that they can be garbage collected
 func (e *entryCountBuffers) resetBuffers() {
+	e.lock.Lock()
+	defer e.lock.Unlock()
 	e.keys = nil
 	e.firstBatchKeys.reset()
 	e.values = nil
@@ -873,6 +879,9 @@ func hashMapNumberOfEntries(mp *ebpf.Map, buffers *entryCountBuffers, maxRestart
 	if isPerCPU(mp.Type()) {
 		return -1
 	}
+
+	buffers.lock.Lock()
+	defer buffers.lock.Unlock()
 
 	var numElements int64
 	var err error
