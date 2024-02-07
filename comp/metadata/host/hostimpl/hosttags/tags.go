@@ -4,7 +4,6 @@
 // Copyright 2016-present Datadog, Inc.
 
 // Package hosttags contains the logic to collect host tags from various sources.
-
 package hosttags
 
 import (
@@ -95,7 +94,7 @@ func appendAndSplitTags(target []string, tags []string, splits map[string]string
 	return target
 }
 
-// GetHostTags get the host tags, optionally looking in the cache
+// Get get the host tags, optionally looking in the cache
 // There are two levels of caching:
 // - First one controlled by `cached` boolean, used for performances (cache all tags)
 // - Second one per provider, to avoid missing host tags for 30 minutes when a component fails (for instance, Cluster Agent).
