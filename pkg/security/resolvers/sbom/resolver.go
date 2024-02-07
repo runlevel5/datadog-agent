@@ -12,7 +12,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/DataDog/datadog-agent/pkg/sbom/collectors"
 	"os"
 	"strings"
 	"sync"
@@ -27,6 +26,7 @@ import (
 
 	coreconfig "github.com/DataDog/datadog-agent/pkg/config"
 	configUtils "github.com/DataDog/datadog-agent/pkg/config/utils"
+	sbompkg "github.com/DataDog/datadog-agent/pkg/sbom"
 	"github.com/DataDog/datadog-agent/pkg/sbom/collectors/host"
 	sbomscanner "github.com/DataDog/datadog-agent/pkg/sbom/scanner"
 	"github.com/DataDog/datadog-agent/pkg/security/config"
@@ -216,20 +216,14 @@ func (r *Resolver) generateSBOM(root string, sbom *SBOM) error {
 	seclog.Infof("Generating SBOM for %s", root)
 	r.sbomGenerations.Inc()
 
-	scanRequest := host.ScanRequest{Path: root}
-	ch := collectors.GetHostScanner().Channel()
-	if ch == nil {
-		return fmt.Errorf("couldn't retrieve global host scanner result channel")
-	}
-	if err := r.sbomScanner.Scan(scanRequest); err != nil {
+	scanRequest := &host.ScanRequest{Path: root}
+	ch := make(chan sbompkg.ScanResult, 1)
+	if err := r.sbomScanner.Scan(scanRequest, sbompkg.ScanOptions{Analyzers: []string{trivy.OSAnalyzers}, Fast: true}, ch); err != nil {
 		r.failedSBOMGenerations.Inc()
 		return fmt.Errorf("failed to trigger SBOM generation for %s: %w", root, err)
 	}
 
-	result, more := <-ch
-	if !more {
-		return fmt.Errorf("failed to generate SBOM for %s: result channel is closed", root)
-	}
+	result := <-ch
 
 	if result.Error != nil {
 		// TODO: add a retry mechanism for retryable errors

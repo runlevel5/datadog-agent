@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	agentErrors "github.com/DataDog/datadog-agent/pkg/errors"
+	"github.com/DataDog/datadog-agent/pkg/sbom"
 	"github.com/DataDog/datadog-agent/pkg/sbom/scanner"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 	cutil "github.com/DataDog/datadog-agent/pkg/util/containerd"
@@ -103,6 +104,7 @@ type collector struct {
 
 	// SBOM Scanning
 	sbomScanner *scanner.Scanner //nolint: unused
+	scanOptions sbom.ScanOptions //nolint: unused
 }
 
 // NewCollector returns a new containerd collector provider and an error

@@ -21,12 +21,6 @@ const (
 	ContainerImageScanType ScanType = "container-image"
 	// HostScanType defines the host scan type
 	HostScanType ScanType = "host"
-	// ContainerdCollector is the name of the containerd collector
-	ContainerdCollector = "containerd"
-	// DockerCollector is the name of the docker collector
-	DockerCollector = "docker"
-	// HostCollector is the name of the host collector
-	HostCollector = "host"
 )
 
 // Collector interface
@@ -38,13 +32,7 @@ type Collector interface {
 	// Init initializes the collector
 	Init(config.Config) error
 	// Scan performs a scan
-	Scan(context.Context, sbom.ScanRequest) sbom.ScanResult
-	// Channel returns the channel to send scan results
-	Channel() chan sbom.ScanResult
-	// Options returns the collector options
-	Options() sbom.ScanOptions
-	// Shutdown shuts down the collector
-	Shutdown()
+	Scan(context.Context, sbom.ScanRequest, sbom.ScanOptions) sbom.ScanResult
 }
 
 // Collectors values
@@ -57,16 +45,4 @@ func RegisterCollector(name string, collector Collector) {
 
 func init() {
 	Collectors = make(map[string]Collector)
-}
-
-func GetDockerScanner() Collector {
-	return Collectors[DockerCollector]
-}
-
-func GetContainerdScanner() Collector {
-	return Collectors[ContainerdCollector]
-}
-
-func GetHostScanner() Collector {
-	return Collectors[HostCollector]
 }
