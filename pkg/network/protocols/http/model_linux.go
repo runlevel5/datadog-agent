@@ -8,6 +8,7 @@
 package http
 
 import (
+	"bytes"
 	"encoding/hex"
 	"strconv"
 	"strings"
@@ -22,7 +23,29 @@ import (
 // Example:
 // For a request fragment "GET /foo?var=bar HTTP/1.1", this method will return "/foo"
 func (e *EbpfEvent) Path(buffer []byte) ([]byte, bool) {
-	return computePath(buffer, e.Http.Request_fragment[:])
+	bLen := bytes.IndexByte(e.Http.Request_fragment[:], 0)
+	if bLen == -1 {
+		bLen = len(e.Http.Request_fragment)
+	}
+	// trim null byte + after
+	b := e.Http.Request_fragment[:bLen]
+	// find first space after request method
+	i := bytes.IndexByte(b, ' ')
+	i++
+	// ensure we found a space, it isn't at the end, and the next chars are '/' or '*'
+	if i == 0 || i == len(b) || (b[i] != '/' && b[i] != '*') {
+		return nil, false
+	}
+	// trim to start of path
+	b = b[i:]
+	// capture until we find the slice end, a space, or a question mark (we ignore the query parameters)
+	var j int
+	for j = 0; j < len(b) && b[j] != ' ' && b[j] != '?'; j++ {
+	}
+	n := copy(buffer, b[:j])
+	// indicate if we knowingly captured the entire path
+	fullPath := n < len(b)
+	return buffer[:n], fullPath
 }
 
 // RequestLatency returns the latency of the request in nanoseconds
@@ -115,4 +138,8 @@ func requestFragment(fragment []byte) [BufferSize]byte {
 	var b [BufferSize]byte
 	copy(b[:], fragment)
 	return b
+}
+
+func isEncrypted(tx Transaction) bool {
+	return (tx.StaticTags() & (GnuTLS | OpenSSL | TLS | Java | Go)) > 0
 }

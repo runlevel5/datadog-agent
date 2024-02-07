@@ -20,22 +20,19 @@ import (
 func TestEventPayloadParsing(t *testing.T) {
 	testDir := "./testData"
 	testCases := map[string]eventParseFunc{
-		"api-gateway-authorizer-request.json": isAPIGatewayLambdaAuthorizerRequestParametersEvent,
-		"api-gateway-authorizer-token.json":   isAPIGatewayLambdaAuthorizerTokenEvent,
-		"api-gateway-v1.json":                 isAPIGatewayEvent,
-		"api-gateway-v2.json":                 isAPIGatewayV2Event,
-		"api-gateway-kong.json":               isKongAPIGatewayEvent,
-		"application-load-balancer.json":      isALBEvent,
-		"cloudwatch-events.json":              isCloudwatchEvent,
-		"cloudwatch-logs.json":                isCloudwatchLogsEvent,
-		"cloudfront.json":                     isCloudFrontRequestEvent,
-		"dynamodb.json":                       isDynamoDBStreamEvent,
-		"eventbridge-custom.json":             isEventBridgeEvent,
-		"kinesis.json":                        isKinesisStreamEvent,
-		"s3.json":                             isS3Event,
-		"sns.json":                            isSNSEvent,
-		"sqs.json":                            isSQSEvent,
-		"lambdaurl.json":                      isLambdaFunctionURLEvent,
+		"api-gateway-v1.json":            isAPIGatewayEvent,
+		"api-gateway-v2.json":            isAPIGatewayV2Event,
+		"application-load-balancer.json": isALBEvent,
+		"cloudwatch-events.json":         isCloudwatchEvent,
+		"cloudwatch-logs.json":           isCloudwatchLogsEvent,
+		"cloudfront.json":                isCloudFrontRequestEvent,
+		"dynamodb.json":                  isDynamoDBStreamEvent,
+		"eventbridge-custom.json":        isEventBridgeEvent,
+		"kinesis.json":                   isKinesisStreamEvent,
+		"s3.json":                        isS3Event,
+		"sns.json":                       isSNSEvent,
+		"sqs.json":                       isSQSEvent,
+		"lambdaurl.json":                 isLambdaFunctionURLEvent,
 	}
 	for testFile, testFunc := range testCases {
 		file, err := os.Open(fmt.Sprintf("%v/%v", testDir, testFile))
@@ -55,21 +52,19 @@ func TestEventPayloadParsing(t *testing.T) {
 func TestEventPayloadParsingWrong(t *testing.T) {
 	testDir := "./testData"
 	testCases := map[string]eventParseFunc{
-		"api-gateway-authorizer-request.json": isAPIGatewayLambdaAuthorizerRequestParametersEvent,
-		"api-gateway-authorizer-token.json":   isAPIGatewayLambdaAuthorizerTokenEvent,
-		"api-gateway-v1.json":                 isAPIGatewayEvent,
-		"api-gateway-v2.json":                 isAPIGatewayV2Event,
-		"application-load-balancer.json":      isALBEvent,
-		"cloudwatch-events.json":              isCloudwatchEvent,
-		"cloudwatch-logs.json":                isCloudwatchLogsEvent,
-		"cloudfront.json":                     isCloudFrontRequestEvent,
-		"dynamodb.json":                       isDynamoDBStreamEvent,
-		"eventbridge-custom.json":             isEventBridgeEvent,
-		"kinesis.json":                        isKinesisStreamEvent,
-		"s3.json":                             isS3Event,
-		"sns.json":                            isSNSEvent,
-		"sqs.json":                            isSQSEvent,
-		"lambdaurl.json":                      isLambdaFunctionURLEvent,
+		"api-gateway-v1.json":            isAPIGatewayEvent,
+		"api-gateway-v2.json":            isAPIGatewayV2Event,
+		"application-load-balancer.json": isALBEvent,
+		"cloudwatch-events.json":         isCloudwatchEvent,
+		"cloudwatch-logs.json":           isCloudwatchLogsEvent,
+		"cloudfront.json":                isCloudFrontRequestEvent,
+		"dynamodb.json":                  isDynamoDBStreamEvent,
+		"eventbridge-custom.json":        isEventBridgeEvent,
+		"kinesis.json":                   isKinesisStreamEvent,
+		"s3.json":                        isS3Event,
+		"sns.json":                       isSNSEvent,
+		"sqs.json":                       isSQSEvent,
+		"lambdaurl.json":                 isLambdaFunctionURLEvent,
 	}
 	for correctTestFile, testFunc := range testCases {
 		wrongTestFiles, err := os.ReadDir(testDir)
@@ -98,22 +93,19 @@ func TestEventPayloadParsingWrong(t *testing.T) {
 func TestGetEventType(t *testing.T) {
 	testDir := "./testData"
 	testCases := map[string]AWSEventType{
-		"api-gateway-authorizer-request.json": APIGatewayLambdaAuthorizerRequestParametersEvent,
-		"api-gateway-authorizer-token.json":   APIGatewayLambdaAuthorizerTokenEvent,
-		"api-gateway-v1.json":                 APIGatewayEvent,
-		"api-gateway-v2.json":                 APIGatewayV2Event,
-		"api-gateway-kong.json":               APIGatewayEvent,
-		"application-load-balancer.json":      ALBEvent,
-		"cloudwatch-events.json":              CloudWatchEvent,
-		"cloudwatch-logs.json":                CloudWatchLogsEvent,
-		"cloudfront.json":                     CloudFrontRequestEvent,
-		"dynamodb.json":                       DynamoDBStreamEvent,
-		"eventbridge-custom.json":             EventBridgeEvent,
-		"kinesis.json":                        KinesisStreamEvent,
-		"s3.json":                             S3Event,
-		"sns.json":                            SNSEvent,
-		"sqs.json":                            SQSEvent,
-		"lambdaurl.json":                      LambdaFunctionURLEvent,
+		"api-gateway-v1.json":            APIGatewayEvent,
+		"api-gateway-v2.json":            APIGatewayV2Event,
+		"application-load-balancer.json": ALBEvent,
+		"cloudwatch-events.json":         CloudWatchEvent,
+		"cloudwatch-logs.json":           CloudWatchLogsEvent,
+		"cloudfront.json":                CloudFrontRequestEvent,
+		"dynamodb.json":                  DynamoDBStreamEvent,
+		"eventbridge-custom.json":        EventBridgeEvent,
+		"kinesis.json":                   KinesisStreamEvent,
+		"s3.json":                        S3Event,
+		"sns.json":                       SNSEvent,
+		"sqs.json":                       SQSEvent,
+		"lambdaurl.json":                 LambdaFunctionURLEvent,
 	}
 
 	for testFile, expectedEventType := range testCases {

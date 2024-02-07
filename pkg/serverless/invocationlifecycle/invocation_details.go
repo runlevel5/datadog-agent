@@ -6,7 +6,6 @@
 package invocationlifecycle
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/serverless/trace/inferredspan"
@@ -17,9 +16,18 @@ import (
 type InvocationStartDetails struct {
 	StartTime             time.Time
 	InvokeEventRawPayload []byte
-	InvokeEventHeaders    http.Header
+	InvokeEventHeaders    LambdaInvokeEventHeaders
 	InvokedFunctionARN    string
 	InferredSpan          inferredspan.InferredSpan
+}
+
+// LambdaInvokeEventHeaders stores the headers with information needed for trace propagation
+// from a direct lambda invocation.
+// This structure is passed to the onInvokeStart method of the invocationProcessor interface
+type LambdaInvokeEventHeaders struct {
+	TraceID          string
+	ParentID         string
+	SamplingPriority string
 }
 
 // InvocationEndDetails stores information about the end of an invocation.
@@ -32,7 +40,4 @@ type InvocationEndDetails struct {
 	ColdStart          bool
 	ProactiveInit      bool
 	Runtime            string
-	ErrorMsg           string
-	ErrorType          string
-	ErrorStack         string
 }

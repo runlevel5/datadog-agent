@@ -10,7 +10,6 @@ import (
 	"math"
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator/ckey"
-	pkgconfigmodel "github.com/DataDog/datadog-agent/pkg/config/model"
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -43,7 +42,7 @@ func (a *AddSampleTelemetry) Inc(isStateful bool) {
 }
 
 // AddSample add a sample to the current ContextMetrics and initialize a new metrics if needed.
-func (m ContextMetrics) AddSample(contextKey ckey.ContextKey, sample *MetricSample, timestamp float64, interval int64, t *AddSampleTelemetry, config pkgconfigmodel.Config) error {
+func (m ContextMetrics) AddSample(contextKey ckey.ContextKey, sample *MetricSample, timestamp float64, interval int64, t *AddSampleTelemetry) error {
 	if math.IsInf(sample.Value, 0) || math.IsNaN(sample.Value) {
 		return fmt.Errorf("sample with value '%v'", sample.Value)
 	}
@@ -58,9 +57,9 @@ func (m ContextMetrics) AddSample(contextKey ckey.ContextKey, sample *MetricSamp
 		case MonotonicCountType:
 			m[contextKey] = &MonotonicCount{}
 		case HistogramType:
-			m[contextKey] = NewHistogram(interval, config) // default histogram configuration (no call to `configure`) for now
+			m[contextKey] = NewHistogram(interval) // default histogram configuration (no call to `configure`) for now
 		case HistorateType:
-			m[contextKey] = NewHistorate(interval, config) // internal histogram has the configuration for now
+			m[contextKey] = NewHistorate(interval) // internal histogram has the configuration for now
 		case SetType:
 			m[contextKey] = NewSet()
 		case CounterType:
@@ -101,8 +100,7 @@ func flushToSeries(
 	metric Metric,
 	bucketTimestamp float64,
 	series []*Serie,
-	errors map[ckey.ContextKey]error,
-) []*Serie {
+	errors map[ckey.ContextKey]error) []*Serie {
 	metricSeries, err := metric.flush(bucketTimestamp)
 
 	if err == nil {
@@ -140,8 +138,7 @@ func flushToSeries(
 func aggregateContextMetricsByContextKey(
 	contextMetricsCollection []ContextMetrics,
 	callback func(ckey.ContextKey, Metric, int),
-	contextKeyChanged func(),
-) {
+	contextKeyChanged func()) {
 	for i := 0; i < len(contextMetricsCollection); i++ {
 		for contextKey, metrics := range contextMetricsCollection[i] {
 			callback(contextKey, metrics, i)

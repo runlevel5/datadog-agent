@@ -3,43 +3,33 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2020-present Datadog, Inc.
 
-// Package traps implements a server that listens for SNMP traps and forwards
-// useful information to the DD backend.
 package traps
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/DataDog/datadog-agent/comp/core/config"
-	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
-	trapsconfig "github.com/DataDog/datadog-agent/pkg/snmp/traps/config"
-	"github.com/DataDog/datadog-agent/pkg/snmp/traps/formatter"
-	"github.com/DataDog/datadog-agent/pkg/snmp/traps/forwarder"
-	"github.com/DataDog/datadog-agent/pkg/snmp/traps/listener"
-	oidresolver "github.com/DataDog/datadog-agent/pkg/snmp/traps/oid_resolver"
-	"github.com/DataDog/datadog-agent/pkg/snmp/traps/packet"
-	"github.com/DataDog/datadog-agent/pkg/snmp/traps/status"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 // TrapServer manages an SNMP trap listener.
 type TrapServer struct {
 	Addr     string
-	config   *trapsconfig.TrapsConfig
-	listener *listener.TrapListener
-	sender   *forwarder.TrapForwarder
-	logger   log.Component
+	config   Config
+	listener *TrapListener
+	sender   *TrapForwarder
 }
 
 var (
 	serverInstance *TrapServer
+	startError     error
 )
 
 // StartServer starts the global trap server.
-func StartServer(agentHostname string, demux aggregator.Demultiplexer, conf config.Component, logger log.Component) error {
-	config, err := trapsconfig.ReadConfig(agentHostname, conf)
+func StartServer(agentHostname string, demux aggregator.Demultiplexer) error {
+	config, err := ReadConfig(agentHostname)
 	if err != nil {
 		return err
 	}
@@ -47,17 +37,17 @@ func StartServer(agentHostname string, demux aggregator.Demultiplexer, conf conf
 	if err != nil {
 		return err
 	}
-	oidResolver, err := oidresolver.NewMultiFilesOIDResolver(conf.GetString("confd_path"), logger)
+	oidResolver, err := NewMultiFilesOIDResolver()
 	if err != nil {
 		return err
 	}
-	formatter, err := formatter.NewJSONFormatter(oidResolver, sender, logger)
+	formatter, err := NewJSONFormatter(oidResolver, sender)
 	if err != nil {
 		return err
 	}
-	status := status.New()
-	server, err := NewTrapServer(config, formatter, sender, logger, status)
+	server, err := NewTrapServer(*config, formatter, sender)
 	serverInstance = server
+	startError = err
 	return err
 }
 
@@ -66,6 +56,7 @@ func StopServer() {
 	if serverInstance != nil {
 		serverInstance.Stop()
 		serverInstance = nil
+		startError = nil
 	}
 }
 
@@ -75,15 +66,15 @@ func IsRunning() bool {
 }
 
 // NewTrapServer configures and returns a running SNMP traps server.
-func NewTrapServer(config *trapsconfig.TrapsConfig, formatter formatter.Formatter, aggregator sender.Sender, logger log.Component, status status.Manager) (*TrapServer, error) {
-	packets := make(packet.PacketsChannel, config.GetPacketChannelSize())
+func NewTrapServer(config Config, formatter Formatter, aggregator sender.Sender) (*TrapServer, error) {
+	packets := make(PacketsChannel, packetsChanSize)
 
-	listener, err := startSNMPTrapListener(config, aggregator, packets, logger, status)
+	listener, err := startSNMPTrapListener(config, aggregator, packets)
 	if err != nil {
 		return nil, err
 	}
 
-	trapForwarder, err := startSNMPTrapForwarder(formatter, aggregator, packets, logger)
+	trapForwarder, err := startSNMPTrapForwarder(formatter, aggregator, packets)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start trapForwarder: %w. Will not listen for SNMP traps", err)
 	}
@@ -91,22 +82,21 @@ func NewTrapServer(config *trapsconfig.TrapsConfig, formatter formatter.Formatte
 		listener: listener,
 		config:   config,
 		sender:   trapForwarder,
-		logger:   logger,
 	}
 
 	return server, nil
 }
 
-func startSNMPTrapForwarder(formatter formatter.Formatter, aggregator sender.Sender, packets packet.PacketsChannel, logger log.Component) (*forwarder.TrapForwarder, error) {
-	trapForwarder, err := forwarder.NewTrapForwarder(formatter, aggregator, packets, logger)
+func startSNMPTrapForwarder(formatter Formatter, aggregator sender.Sender, packets PacketsChannel) (*TrapForwarder, error) {
+	trapForwarder, err := NewTrapForwarder(formatter, aggregator, packets)
 	if err != nil {
 		return nil, err
 	}
 	trapForwarder.Start()
 	return trapForwarder, nil
 }
-func startSNMPTrapListener(c *trapsconfig.TrapsConfig, aggregator sender.Sender, packets packet.PacketsChannel, logger log.Component, status status.Manager) (*listener.TrapListener, error) {
-	trapListener, err := listener.NewTrapListener(c, aggregator, packets, logger, status)
+func startSNMPTrapListener(c Config, aggregator sender.Sender, packets PacketsChannel) (*TrapListener, error) {
+	trapListener, err := NewTrapListener(c, aggregator, packets)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +112,7 @@ func (s *TrapServer) Stop() {
 	stopped := make(chan interface{})
 
 	go func() {
-		s.logger.Infof("Stop listening on %s", s.config.Addr())
+		log.Infof("Stop listening on %s", s.config.Addr())
 		s.listener.Stop()
 		s.sender.Stop()
 		close(stopped)
@@ -131,16 +121,6 @@ func (s *TrapServer) Stop() {
 	select {
 	case <-stopped:
 	case <-time.After(time.Duration(s.config.StopTimeout) * time.Second):
-		s.logger.Errorf("Stopping server. Timeout after %d seconds", s.config.StopTimeout)
+		log.Errorf("Stopping server. Timeout after %d seconds", s.config.StopTimeout)
 	}
-}
-
-// IsEnabled returns whether SNMP trap collection is enabled in the Agent configuration.
-func IsEnabled(conf config.Component) bool {
-	return conf.GetBool("network_devices.snmp_traps.enabled")
-}
-
-// GetStatus returns key-value data for use in status reporting of the traps server.
-func GetStatus() map[string]interface{} {
-	return status.GetStatus()
 }

@@ -2,13 +2,16 @@
 
 set -eo xtrace
 
-RETRY_COUNT=$1
-ARCH=$2
-RUNNER_CMD="$(shift 2; echo "$*")"
+GOVERSION=$1
+RETRY_COUNT=$2
+ARCH=$3
+RUNNER_CMD="$(shift 3; echo "$*")"
 
 KITCHEN_DOCKERS=/kitchen-docker
 
 # Add provisioning steps here !
+## Set go version correctly
+eval $(gimme "$GOVERSION")
 ## Start docker
 systemctl start docker
 ## Load docker images

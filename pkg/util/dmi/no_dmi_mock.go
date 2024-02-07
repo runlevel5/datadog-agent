@@ -11,7 +11,6 @@ import (
 	"testing"
 )
 
-// SetupMock configures DMI variables with provided values
 func SetupMock(t *testing.T, testHypervisorUUID, testProductUUID, testBoardAssetTag, testBoardVendor string) {
 	t.Cleanup(func() {
 		boardAssetTag = ""

@@ -7,20 +7,19 @@
 package resolvers
 
 import (
-	"github.com/DataDog/datadog-go/v5/statsd"
-
 	"github.com/DataDog/datadog-agent/pkg/process/procutil"
 	"github.com/DataDog/datadog-agent/pkg/security/config"
+	"github.com/DataDog/datadog-agent/pkg/security/resolvers/hash"
 	"github.com/DataDog/datadog-agent/pkg/security/resolvers/process"
 	"github.com/DataDog/datadog-agent/pkg/security/resolvers/tags"
-	"github.com/DataDog/datadog-agent/pkg/security/resolvers/usersessions"
+	"github.com/DataDog/datadog-go/v5/statsd"
 )
 
 // Resolvers holds the list of the event attribute resolvers
 type Resolvers struct {
 	ProcessResolver *process.Resolver
 	TagsResolver    tags.Resolver
-	UserSessions    *usersessions.Resolver
+	HashResolver    *hash.Resolver
 }
 
 // NewResolvers creates a new instance of Resolvers
@@ -32,7 +31,7 @@ func NewResolvers(config *config.Config, statsdClient statsd.ClientInterface, sc
 
 	tagsResolver := tags.NewResolver(config.Probe)
 
-	userSessionsResolver, err := usersessions.NewResolver(config.RuntimeSecurity)
+	hashResolver, err := hash.NewResolver(config.RuntimeSecurity, statsdClient)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +39,7 @@ func NewResolvers(config *config.Config, statsdClient statsd.ClientInterface, sc
 	resolvers := &Resolvers{
 		ProcessResolver: processResolver,
 		TagsResolver:    tagsResolver,
-		UserSessions:    userSessionsResolver,
+		HashResolver:    hashResolver,
 	}
 	return resolvers, nil
 }

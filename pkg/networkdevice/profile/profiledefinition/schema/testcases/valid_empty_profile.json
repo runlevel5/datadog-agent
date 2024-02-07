@@ -1,6 +1,5 @@
 {
   "profile_definition": {
-    "name": "some-profile",
-    "version": 10
+    "name": "some-profile"
   }
 }

@@ -7,8 +7,8 @@ namespace Datadog.CustomActions.RollbackData
 {
     class FilePermissionRollbackData : IRollbackAction
     {
-        [JsonProperty("FilePath")] private string _filePath;
-        [JsonProperty("SDDL")] private string _sddl;
+        [JsonProperty("FilePath")] private string FilePath;
+        [JsonProperty("SDDL")] private string SDDL;
 
         [JsonConstructor]
         public FilePermissionRollbackData()
@@ -18,8 +18,8 @@ namespace Datadog.CustomActions.RollbackData
         public FilePermissionRollbackData(string filePath, IFileSystemServices fileSystemServices)
         {
             var fileSystemSecurity = fileSystemServices.GetAccessControl(filePath, AccessControlSections.All);
-            _sddl = fileSystemSecurity.GetSecurityDescriptorSddlForm(AccessControlSections.All);
-            _filePath = filePath;
+            SDDL = fileSystemSecurity.GetSecurityDescriptorSddlForm(AccessControlSections.All);
+            FilePath = filePath;
         }
 
         /// <summary>
@@ -34,25 +34,25 @@ namespace Datadog.CustomActions.RollbackData
         /// is called with SeRestorePrivilege enabled. The error is NOT returned by the .NET API, so there's no way to tell that this occurred
         /// until looking at the DACL of the child.
         /// </remarks>
-        public void Restore(ISession session, IFileSystemServices fileSystemServices, IServiceController _)
+        public void Restore(ISession session, IFileSystemServices fileSystemServices)
         {
-            var fileSystemSecurity = fileSystemServices.GetAccessControl(_filePath);
+            FileSystemSecurity fileSystemSecurity = fileSystemServices.GetAccessControl(FilePath);
             session.Log(
-                $"{_filePath} current ACLs: {fileSystemSecurity.GetSecurityDescriptorSddlForm(AccessControlSections.All)}");
-            fileSystemSecurity.SetSecurityDescriptorSddlForm(_sddl);
-            session.Log($"{_filePath} rollback SDDL {_sddl}");
+                $"{FilePath} current ACLs: {fileSystemSecurity.GetSecurityDescriptorSddlForm(AccessControlSections.All)}");
+            fileSystemSecurity.SetSecurityDescriptorSddlForm(SDDL);
+            session.Log($"{FilePath} rollback SDDL {SDDL}");
             try
             {
-                fileSystemServices.SetAccessControl(_filePath, fileSystemSecurity);
+                fileSystemServices.SetAccessControl(FilePath, fileSystemSecurity);
             }
             catch (Exception e)
             {
                 session.Log($"Error writing ACL: {e}");
             }
 
-            fileSystemSecurity = fileSystemServices.GetAccessControl(_filePath);
+            fileSystemSecurity = fileSystemServices.GetAccessControl(FilePath);
             session.Log(
-                $"{_filePath} new ACLs: {fileSystemSecurity.GetSecurityDescriptorSddlForm(AccessControlSections.All)}");
+                $"{FilePath} new ACLs: {fileSystemSecurity.GetSecurityDescriptorSddlForm(AccessControlSections.All)}");
         }
     }
 }

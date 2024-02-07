@@ -31,7 +31,12 @@ relative_path "#{name}-#{version}"
 build do
   env = with_standard_compiler_flags(with_embedded_path)
 
-  configure env: env
+  configure_command = [
+    "./configure",
+    "--prefix=#{install_dir}/embedded",
+  ]
+
+  command configure_command.join(" "), env: env
 
   make "-j #{workers}", env: env
   make "-j #{workers} install", env: env

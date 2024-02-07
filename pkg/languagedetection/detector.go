@@ -92,7 +92,7 @@ var (
 )
 
 // DetectLanguage uses a combination of commandline parsing and binary analysis to detect a process' language
-func DetectLanguage(procs []languagemodels.Process, sysprobeConfig config.Reader) []*languagemodels.Language {
+func DetectLanguage(procs []languagemodels.Process, sysprobeConfig config.ConfigReader) []*languagemodels.Language {
 	detectLanguageStart := time.Now()
 	defer func() {
 		detectLanguageRuntimeMs.Observe(float64(time.Since(detectLanguageStart).Milliseconds()))
@@ -161,7 +161,7 @@ func DetectLanguage(procs []languagemodels.Process, sysprobeConfig config.Reader
 	return langs
 }
 
-func privilegedLanguageDetectionEnabled(sysProbeConfig config.Reader) bool {
+func privilegedLanguageDetectionEnabled(sysProbeConfig config.ConfigReader) bool {
 	if sysProbeConfig == nil {
 		return false
 	}

@@ -9,12 +9,12 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
-	"strings"
 	"testing"
 
-	pkgconfigmodel "github.com/DataDog/datadog-agent/pkg/config/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/DataDog/datadog-agent/pkg/config"
 )
 
 func TestEmptyProxy(t *testing.T) {
@@ -23,9 +23,8 @@ func TestEmptyProxy(t *testing.T) {
 	r, err := http.NewRequest("GET", "https://test.com", nil)
 	require.Nil(t, err)
 
-	proxies := &pkgconfigmodel.Proxy{}
-	c := pkgconfigmodel.NewConfig("test", "DD", strings.NewReplacer(".", "_"))
-	proxyFunc := GetProxyTransportFunc(proxies, c)
+	proxies := &config.Proxy{}
+	proxyFunc := GetProxyTransportFunc(proxies)
 
 	proxyURL, err := proxyFunc(r)
 	assert.Nil(t, err)
@@ -38,11 +37,10 @@ func TestHTTPProxy(t *testing.T) {
 	rHTTP, _ := http.NewRequest("GET", "http://test.com/api/v1?arg=21", nil)
 	rHTTPS, _ := http.NewRequest("GET", "https://test.com/api/v1?arg=21", nil)
 
-	proxies := &pkgconfigmodel.Proxy{
+	proxies := &config.Proxy{
 		HTTP: "https://user:pass@proxy.com:3128",
 	}
-	c := pkgconfigmodel.NewConfig("test", "DD", strings.NewReplacer(".", "_"))
-	proxyFunc := GetProxyTransportFunc(proxies, c)
+	proxyFunc := GetProxyTransportFunc(proxies)
 
 	proxyURL, err := proxyFunc(rHTTP)
 	assert.Nil(t, err)
@@ -61,14 +59,12 @@ func TestNoProxy(t *testing.T) {
 	r3, _ := http.NewRequest("GET", "https://test_https.com/api/v1?arg=21", nil)
 	r4, _ := http.NewRequest("GET", "http://sub.test_no_proxy.com/api/v1?arg=21", nil)
 
-	proxies := &pkgconfigmodel.Proxy{
+	proxies := &config.Proxy{
 		HTTP:    "https://user:pass@proxy.com:3128",
 		HTTPS:   "https://user:pass@proxy_https.com:3128",
 		NoProxy: []string{"test_no_proxy.com", "test.org"},
 	}
-	c := pkgconfigmodel.NewConfig("test", "DD", strings.NewReplacer(".", "_"))
-
-	proxyFunc := GetProxyTransportFunc(proxies, c)
+	proxyFunc := GetProxyTransportFunc(proxies)
 
 	proxyURL, err := proxyFunc(r1)
 	assert.Nil(t, err)
@@ -98,16 +94,15 @@ func TestNoProxyNonexactMatch(t *testing.T) {
 	r5, _ := http.NewRequest("GET", "http://no_proxy2.com/api/v1?arg=21", nil)
 	r6, _ := http.NewRequest("GET", "http://sub.no_proxy2.com/api/v1?arg=21", nil)
 
-	c := pkgconfigmodel.NewConfig("test", "DD", strings.NewReplacer(".", "_"))
-	c.SetWithoutSource("no_proxy_nonexact_match", true)
+	config.Datadog.Set("no_proxy_nonexact_match", true)
 
 	// Testing some nonexact matching cases as documented here: https://github.com/golang/net/blob/master/http/httpproxy/proxy.go#L38
-	proxies := &pkgconfigmodel.Proxy{
+	proxies := &config.Proxy{
 		HTTP:    "https://user:pass@proxy.com:3128",
 		HTTPS:   "https://user:pass@proxy_https.com:3128",
 		NoProxy: []string{"test_no_proxy.com", "test.org", ".no_proxy2.com"},
 	}
-	proxyFunc := GetProxyTransportFunc(proxies, c)
+	proxyFunc := GetProxyTransportFunc(proxies)
 
 	proxyURL, err := proxyFunc(r1)
 	assert.Nil(t, err)
@@ -132,6 +127,8 @@ func TestNoProxyNonexactMatch(t *testing.T) {
 	proxyURL, err = proxyFunc(r6)
 	assert.Nil(t, err)
 	assert.Nil(t, proxyURL)
+
+	config.Datadog.Set("no_proxy_nonexact_match", false)
 }
 
 func TestErrorParse(t *testing.T) {
@@ -139,11 +136,10 @@ func TestErrorParse(t *testing.T) {
 
 	r1, _ := http.NewRequest("GET", "http://test_no_proxy.com/api/v1?arg=21", nil)
 
-	proxies := &pkgconfigmodel.Proxy{
+	proxies := &config.Proxy{
 		HTTP: "21://test.com",
 	}
-	c := pkgconfigmodel.NewConfig("test", "DD", strings.NewReplacer(".", "_"))
-	proxyFunc := GetProxyTransportFunc(proxies, c)
+	proxyFunc := GetProxyTransportFunc(proxies)
 
 	proxyURL, err := proxyFunc(r1)
 	assert.NotNil(t, err)
@@ -155,11 +151,10 @@ func TestBadScheme(t *testing.T) {
 
 	r1, _ := http.NewRequest("GET", "ftp://test.com", nil)
 
-	proxies := &pkgconfigmodel.Proxy{
+	proxies := &config.Proxy{
 		HTTP: "http://test.com",
 	}
-	c := pkgconfigmodel.NewConfig("test", "DD", strings.NewReplacer(".", "_"))
-	proxyFunc := GetProxyTransportFunc(proxies, c)
+	proxyFunc := GetProxyTransportFunc(proxies)
 
 	proxyURL, err := proxyFunc(r1)
 	assert.Nil(t, err)
@@ -167,19 +162,20 @@ func TestBadScheme(t *testing.T) {
 }
 
 func TestCreateHTTPTransport(t *testing.T) {
-	c := pkgconfigmodel.NewConfig("test", "DD", strings.NewReplacer(".", "_"))
+	setupTest(t)
 
-	c.SetWithoutSource("skip_ssl_validation", false)
-	transport := CreateHTTPTransport(c)
+	mockConfig := config.Mock(t)
+	mockConfig.Set("skip_ssl_validation", false)
+	transport := CreateHTTPTransport()
 	assert.False(t, transport.TLSClientConfig.InsecureSkipVerify)
 	assert.Equal(t, transport.TLSClientConfig.MinVersion, uint16(tls.VersionTLS12))
 
-	c.SetWithoutSource("skip_ssl_validation", true)
-	transport = CreateHTTPTransport(c)
+	mockConfig.Set("skip_ssl_validation", true)
+	transport = CreateHTTPTransport()
 	assert.True(t, transport.TLSClientConfig.InsecureSkipVerify)
 	assert.Equal(t, transport.TLSClientConfig.MinVersion, uint16(tls.VersionTLS12))
 
-	transport = CreateHTTPTransport(c)
+	transport = CreateHTTPTransport()
 	assert.True(t, transport.TLSClientConfig.InsecureSkipVerify)
 	assert.Equal(t, transport.TLSClientConfig.MinVersion, uint16(tls.VersionTLS12))
 }
@@ -189,13 +185,12 @@ func TestNoProxyWarningMap(t *testing.T) {
 
 	r1, _ := http.NewRequest("GET", "http://api.test_http.com/api/v1?arg=21", nil)
 
-	proxies := &pkgconfigmodel.Proxy{
+	proxies := &config.Proxy{
 		HTTP:    "https://user:pass@proxy.com:3128",
 		HTTPS:   "https://user:pass@proxy_https.com:3128",
 		NoProxy: []string{"test_http.com"},
 	}
-	c := pkgconfigmodel.NewConfig("test", "DD", strings.NewReplacer(".", "_"))
-	proxyFunc := GetProxyTransportFunc(proxies, c)
+	proxyFunc := GetProxyTransportFunc(proxies)
 
 	proxyURL, err := proxyFunc(r1)
 	assert.Nil(t, err)
@@ -232,9 +227,9 @@ func TestMinTLSVersionFromConfig(t *testing.T) {
 		t.Run(
 			fmt.Sprintf("min_tls_version=%s", test.minTLSVersion),
 			func(t *testing.T) {
-				cfg := pkgconfigmodel.NewConfig("test", "DD", strings.NewReplacer(".", "_"))
+				cfg := config.Mock(t)
 				if test.minTLSVersion != "" {
-					cfg.SetWithoutSource("min_tls_version", test.minTLSVersion)
+					cfg.Set("min_tls_version", test.minTLSVersion)
 				}
 				got := minTLSVersionFromConfig(cfg)
 				require.Equal(t, test.expect, got)

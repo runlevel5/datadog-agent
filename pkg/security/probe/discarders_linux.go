@@ -83,8 +83,9 @@ var InvalidDiscarders = map[eval.Field][]string{
 
 // bumpDiscardersRevision sends an eRPC request to bump the discarders revisionr
 func bumpDiscardersRevision(e *erpc.ERPC) error {
-	req := erpc.NewERPCRequest(erpc.BumpDiscardersRevision)
-	return e.Request(req)
+	var req erpc.Request
+	req.OP = erpc.BumpDiscardersRevision
+	return e.Request(&req)
 }
 
 func marshalDiscardHeader(req *erpc.Request, eventType model.EventType, timeout uint64) int {
@@ -538,7 +539,7 @@ type DiscardersDump struct {
 	Stats  map[string]discarder.Stats `yaml:"stats"`
 }
 
-func dumpPidDiscarders(resolver *dentry.Resolver, pidMap *ebpf.Map) ([]PidDiscarderDump, error) { //nolint:revive // TODO fix revive unused-parameter
+func dumpPidDiscarders(resolver *dentry.Resolver, pidMap *ebpf.Map) ([]PidDiscarderDump, error) {
 	var dumps []PidDiscarderDump
 
 	info, err := pidMap.Info()

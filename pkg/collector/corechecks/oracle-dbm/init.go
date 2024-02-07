@@ -26,8 +26,6 @@ type vInstance struct {
 	VersionFull  string         `db:"VERSION_FULL"`
 }
 
-const minMultitenantVersion = "12"
-
 func (c *Check) init() error {
 	tags := make([]string, len(c.configTags))
 	copy(tags, c.configTags)
@@ -36,8 +34,21 @@ func (c *Check) init() error {
 		return fmt.Errorf("database connection not initialized")
 	}
 
+	var d vDatabase
+	err := getWrapper(c, &d, "SELECT /* DD */ lower(name) name, cdb FROM v$database")
+	if err != nil {
+		return fmt.Errorf("%s failed to query v$database: %w", c.logPrompt, err)
+	}
+	c.cdbName = d.Name
+	tags = append(tags, fmt.Sprintf("cdb:%s", c.cdbName))
+	isMultitenant := true
+	if d.Cdb == "NO" {
+		isMultitenant = false
+	}
+	c.multitenant = isMultitenant
+
 	var i vInstance
-	err := getWrapper(c, &i, "SELECT /* DD */ host_name, instance_name, version version_full FROM v$instance")
+	err = getWrapper(c, &i, "SELECT /* DD */ host_name, instance_name, version version_full FROM v$instance")
 	if err != nil {
 		return fmt.Errorf("%s failed to query v$instance: %w", c.logPrompt, err)
 	}
@@ -51,56 +62,36 @@ func (c *Check) init() error {
 
 	if c.config.ReportedHostname != "" {
 		c.dbHostname = c.config.ReportedHostname
-	} else if i.HostName.Valid {
-		c.dbHostname = i.HostName.String
+	} else {
+		if i.HostName.Valid {
+			c.dbHostname = i.HostName.String
+		} else {
+			// host_name is null on Oracle Autonomous Database
+			c.dbHostname = i.InstanceName
+		}
 	}
 	if i.HostName.Valid {
 		tags = append(tags, fmt.Sprintf("real_hostname:%s", i.HostName.String))
 	}
-	if c.dbHostname != "" {
-		tags = append(tags, fmt.Sprintf("host:%s", c.dbHostname), fmt.Sprintf("db_server:%s", c.dbHostname))
-	}
-	tags = append(tags, fmt.Sprintf("oracle_version:%s", c.dbVersion))
-
-	var d vDatabase
-	if isDbVersionGreaterOrEqualThan(c, minMultitenantVersion) {
-		err = getWrapper(c, &d, "SELECT /* DD */ lower(name) name, cdb FROM v$database")
-	} else {
-		err = getWrapper(c, &d, "SELECT /* DD */ lower(name) name FROM v$database")
-		d.Cdb = "NO"
-	}
-	if err != nil {
-		return fmt.Errorf("%s failed to query v$database: %w", c.logPrompt, err)
-	}
-	c.cdbName = d.Name
-	tags = append(tags, fmt.Sprintf("cdb:%s", c.cdbName))
-	tags = append(tags, fmt.Sprintf("dd.internal.resource:database_instance:%s", c.dbHostname))
-	isMultitenant := true
-	if d.Cdb == "NO" {
-		isMultitenant = false
-	}
-	c.multitenant = isMultitenant
+	tags = append(tags, fmt.Sprintf("host:%s", c.dbHostname), fmt.Sprintf("oracle_version:%s", c.dbVersion))
 
 	c.logPrompt = fmt.Sprintf("%s@%s> ", c.cdbName, c.dbHostname)
 
 	// Check if PDB
-	if isDbVersionGreaterOrEqualThan(c, minMultitenantVersion) {
-		var connectionType string
-		err = getWrapper(c, &connectionType, "select decode(sys_context('USERENV','CON_ID'),1,'CDB','PDB') TYPE from DUAL")
-		if err != nil {
-			return fmt.Errorf("failed to query connection type: %w", err)
-		}
-		if connectionType == "PDB" {
-			c.connectedToPdb = true
-		}
-	} else {
+	var connectionType string
+	err = getWrapper(c, &connectionType, "select decode(sys_context('USERENV','CON_ID'),1,'CDB','PDB') TYPE from DUAL")
+	if err != nil {
+		return fmt.Errorf("failed to query connection type: %w", err)
+	}
+	if connectionType == "PDB" {
 		c.connectedToPdb = true
 	}
 
 	// determine hosting type
 	ht := selfManaged
 
-	if isDbVersionGreaterOrEqualThan(c, "19") {
+	if isMultitenant {
+		// is RDS?
 		if ht == selfManaged {
 			// Is RDS?
 			if c.filePath == "" {
@@ -116,7 +107,7 @@ func (c *Check) init() error {
 		}
 
 		// is OCI?
-		if ht == selfManaged && isMultitenant {
+		if ht == selfManaged {
 			var cloudRows int
 			if c.connectedToPdb {
 				err = getWrapper(c, &cloudRows, "select 1 from v$pdbs where cloud_identity like '%oraclecloud%' and rownum = 1")

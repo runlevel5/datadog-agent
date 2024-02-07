@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build linux_bpf
+//go:build linux
 
 package java
 
@@ -28,34 +28,35 @@ func testInject(t *testing.T, prefix string) {
 		}
 		t.Log(o)
 	}()
+	time.Sleep(time.Second) // give a chance to spawn java
 
-	var pids []int
-	var err error
-	require.Eventually(t, func() bool {
-		pids, err = javatestutil.FindProcessByCommandLine("java", "JustWait")
-		return len(pids) == 1
-	}, time.Second*5, time.Millisecond*100)
+	pids, err := javatestutil.FindProcessByCommandLine("java", "JustWait")
 	require.NoError(t, err)
+	require.Lenf(t, pids, 1, "expected to find 1 match, but found %v instead", len(pids))
 
-	t.Cleanup(func() {
-		process, err := os.FindProcess(pids[0])
-		if err != nil {
-			return
-		}
-		_ = process.Signal(syscall.SIGKILL)
-		_, _ = process.Wait()
-	})
+	defer func() {
+		process, _ := os.FindProcess(pids[0])
+		process.Signal(syscall.SIGKILL)
+		time.Sleep(200 * time.Millisecond) // give a chance to the process to give his report/output
+	}()
 
 	tfile, err := os.CreateTemp("", "TestAgentLoaded.agentmain.*")
 	require.NoError(t, err)
-	require.NoError(t, tfile.Close())
-	require.NoError(t, os.Remove(tfile.Name()))
+	tfile.Close()
+	os.Remove(tfile.Name())
+	defer os.Remove(tfile.Name())
+
 	// equivalent to jattach <pid> load instrument false testdata/TestAgentLoaded.jar=<tempfile>
-	require.NoError(t, InjectAgent(pids[0], "testdata/TestAgentLoaded.jar", "testfile="+tfile.Name()))
-	require.Eventually(t, func() bool {
-		_, err = os.Stat(tfile.Name())
-		return err == nil
-	}, time.Second*15, time.Millisecond*100)
+	err = InjectAgent(pids[0], "testdata/TestAgentLoaded.jar", "testfile="+tfile.Name())
+	require.NoError(t, err)
+
+	time.Sleep((MINIMUM_JAVA_AGE_TO_ATTACH_MS + 200) * time.Millisecond) // wait java process to be old enough to be injected
+
+	// check if agent was loaded
+	_, err = os.Stat(tfile.Name())
+	require.NoError(t, err)
+
+	t.Log("=== Test Success ===")
 }
 
 // We test injection on a java hotspot running
@@ -64,28 +65,37 @@ func testInject(t *testing.T, prefix string) {
 //	o in the container, _simulated_ by running java in his own PID namespace
 func TestInject(t *testing.T) {
 	currKernelVersion, err := kernel.HostVersion()
-	require.NoError(t, err)
-	if currKernelVersion < kernel.VersionCode(4, 14, 0) {
-		t.Skip("Java TLS injection tests can run only on USM supported machines.")
+	if err != nil {
+		t.Skip("Can't detect kernel version on this platform")
+	}
+	pre410Kernel := currKernelVersion < kernel.VersionCode(4, 1, 0)
+	if pre410Kernel {
+		t.Skip("Kernel < 4.1.0 are not supported as /proc/pid/status doesn't report NSpid")
 	}
 
 	javaVersion, err := testutil.RunCommand("java -version")
-	require.NoErrorf(t, err, "java is not installed")
-	t.Logf("java version %v", javaVersion)
+	if err != nil {
+		t.Fatal("java is not installed", javaVersion, err)
+	}
+	t.Log(javaVersion)
 
 	t.Run("host", func(t *testing.T) {
 		testInject(t, "")
 	})
+	if t.Failed() {
+		t.Fatal("host failed")
+	}
 
-	t.Run("PID namespace", func(t *testing.T) {
+	t.Run("PIDnamespace", func(t *testing.T) {
 		p := "unshare -p --fork "
 		_, err = testutil.RunCommand(p + "id")
 		if err != nil {
 			t.Skipf("unshare not supported on this platform %s", err)
 		}
 
-		// running the target process in a new PID namespace
-		// and testing if the test/platform give enough permission to do that
+		// running the tagert process in a new PID namespace
+		// and testing if the test/plaform give enough permission to do that
 		testInject(t, p)
 	})
+
 }

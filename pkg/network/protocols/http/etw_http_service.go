@@ -313,9 +313,6 @@ func completeReqRespTracking(eventInfo *etw.DDEtwEventInfo, httpConnLink *HttpCo
 
 	// Time
 	httpConnLink.http.Txn.ResponseLastSeen = winutil.FileTimeToUnixNano(uint64(eventInfo.Event.TimeStamp))
-	if httpConnLink.http.Txn.ResponseLastSeen == httpConnLink.http.Txn.RequestStarted {
-		httpConnLink.http.Txn.ResponseLastSeen++
-	}
 
 	// Clean it up related containers
 	cleanupActivityIdViaConnOpen(connOpen, eventInfo.Event.ActivityId)

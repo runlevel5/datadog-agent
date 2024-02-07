@@ -20,14 +20,13 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/orchestrator/processors/k8s"
 	"github.com/DataDog/datadog-agent/pkg/orchestrator"
 	"github.com/DataDog/datadog-agent/pkg/orchestrator/config"
-	pkgorchestratormodel "github.com/DataDog/datadog-agent/pkg/orchestrator/model"
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 var (
 	bufferExpVars           = expvar.NewMap("orchestrator-manifest-buffer")
-	bufferedManifest        = map[pkgorchestratormodel.NodeType]*expvar.Int{}
+	bufferedManifest        = map[orchestrator.NodeType]*expvar.Int{}
 	manifestFlushed         = &expvar.Int{}
 	bufferFlushedTotal      = &expvar.Int{}
 	tlmBufferedManifest     = telemetry.NewCounter("orchestrator", "manifest_buffered", []string{"orchestrator", "resource"}, "Number of manifest buffered")
@@ -169,7 +168,7 @@ func setManifestStats(manifests []interface{}) {
 	tlmManifestFlushedTotal.Inc()
 	// Number of manifests flushed per resource in total
 	for _, m := range manifests {
-		nodeType := pkgorchestratormodel.NodeType(m.(*model.Manifest).Type)
+		nodeType := orchestrator.NodeType(m.(*model.Manifest).Type)
 		if _, ok := bufferedManifest[nodeType]; !ok {
 			bufferedManifest[nodeType] = &expvar.Int{}
 			bufferExpVars.Set(nodeType.String(), bufferedManifest[nodeType])

@@ -77,7 +77,7 @@ func (h *MultiLineHandler) process(message *message.Message) {
 		}
 	}
 
-	if h.newContentRe.Match(message.GetContent()) {
+	if h.newContentRe.Match(message.Content) {
 		h.countInfo.Add(1)
 		// the current line is part of a new message,
 		// send the buffer
@@ -107,7 +107,7 @@ func (h *MultiLineHandler) process(message *message.Message) {
 		h.buffer.Write(truncatedFlag)
 	}
 
-	h.buffer.Write(message.GetContent())
+	h.buffer.Write(message.Content)
 
 	if h.buffer.Len() >= h.lineLimit {
 		// the multiline message is too long, it needs to be cut off and send,

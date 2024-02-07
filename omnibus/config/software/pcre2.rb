@@ -30,12 +30,12 @@ relative_path "pcre2-#{version}"
 build do
   env = with_standard_compiler_flags(with_embedded_path)
 
-  configure_options = [
-    "--disable-static",
-    "--enable-shared",
+  configure_command = [
+    "./configure",
+    "--prefix=#{install_dir}/embedded",
   ]
 
-  configure(*configure_options, env: env)
+  command configure_command.join(" "), env: env
 
   make "-j #{workers}", env: env
   make "-j #{workers} install", env: env

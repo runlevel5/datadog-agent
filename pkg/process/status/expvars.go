@@ -239,8 +239,7 @@ func publishDropCheckPayloads() interface{} {
 	return infoDropCheckPayloads
 }
 
-// InitExpvars initializes expvars
-func InitExpvars(config ddconfig.Reader, telemetry telemetry.Component, hostname string, processModuleEnabled, languageDetectionEnabled bool, eps []apicfg.Endpoint) {
+func InitExpvars(config ddconfig.ConfigReader, telemetry telemetry.Component, hostname string, processModuleEnabled, languageDetectionEnabled bool, eps []apicfg.Endpoint) {
 	infoOnce.Do(func() {
 		expvar.NewString("host").Set(hostname)
 		expvar.NewInt("pid").Set(int64(os.Getpid()))

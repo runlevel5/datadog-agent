@@ -13,7 +13,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
 	"github.com/DataDog/datadog-agent/pkg/logs/internal/status"
-	"github.com/DataDog/datadog-agent/pkg/util/statstracker"
+	"github.com/DataDog/datadog-agent/pkg/util"
 )
 
 // SourceType used for log line parsing logic.
@@ -46,7 +46,7 @@ type LogSource struct {
 	ParentSource *LogSource
 	// LatencyStats tracks internal stats on the time spent by messages from this source in a processing pipeline, i.e.
 	// the duration between when a message is decoded by the tailer/listener/decoder and when the message is handled by a sender
-	LatencyStats     *statstracker.Tracker
+	LatencyStats     *util.StatsTracker
 	BytesRead        *status.CountInfo
 	hiddenFromStatus bool
 }
@@ -62,7 +62,7 @@ func NewLogSource(name string, cfg *config.LogsConfig) *LogSource {
 		Messages:         config.NewMessages(),
 		BytesRead:        status.NewCountInfo("Bytes Read"),
 		info:             status.NewInfoRegistry(),
-		LatencyStats:     statstracker.NewTracker(time.Hour*24, time.Hour),
+		LatencyStats:     util.NewStatsTracker(time.Hour*24, time.Hour),
 		hiddenFromStatus: false,
 	}
 	source.RegisterInfo(source.BytesRead)

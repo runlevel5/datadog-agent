@@ -163,19 +163,17 @@ func (c *Check) Run() error {
 	log.Infof("Starting long-running check %q", c.ID())
 	defer log.Infof("Shutting down long-running check %q", c.ID())
 
-	filterParams := workloadmeta.FilterParams{
-		Kinds: []workloadmeta.Kind{
-			workloadmeta.KindContainerImageMetadata,
-			workloadmeta.KindContainer,
-		},
-		Source:    workloadmeta.SourceAll,
-		EventType: workloadmeta.EventTypeAll,
-	}
-
 	imgEventsCh := c.workloadmetaStore.Subscribe(
 		checkName,
 		workloadmeta.NormalPriority,
-		workloadmeta.NewFilter(&filterParams),
+		workloadmeta.NewFilter(
+			[]workloadmeta.Kind{
+				workloadmeta.KindContainerImageMetadata,
+				workloadmeta.KindContainer,
+			},
+			workloadmeta.SourceAll,
+			workloadmeta.EventTypeAll,
+		),
 	)
 
 	// Trigger an initial scan on host

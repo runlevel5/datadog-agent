@@ -69,7 +69,7 @@ func (fs *containerFS) Open(filename string) (fs.File, error) {
 type hostFS struct{}
 
 // Open implements the fs.FS interface for hosts
-func (fs *hostFS) Open(name string) (fs.File, error) { //nolint:revive // TODO fix revive unused-parameter
+func (fs *hostFS) Open(name string) (fs.File, error) {
 	passwdPath := "/etc/passwd"
 	if hostRoot := os.Getenv("HOST_ROOT"); hostRoot != "" {
 		passwdPath = filepath.Join(hostRoot, passwdPath)

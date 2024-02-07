@@ -56,7 +56,7 @@ func extractTraceContext(event events.SQSMessage) *convertedTraceContext {
 
 	if rawTrace == nil {
 		if ddMessageAttribute, ok := event.MessageAttributes[datadogHeader]; ok {
-			rawTrace = extractTraceContextFromDatadogHeader(ddMessageAttribute)
+			rawTrace = extractTraceContextFromPureSqsEvent(ddMessageAttribute)
 		} else {
 			rawTrace = extractTraceContextFromSNSSQSEvent(event)
 		}
@@ -73,7 +73,7 @@ func extractTraceContextFromSNSSQSEvent(firstRecord events.SQSMessage) *rawTrace
 		return nil
 	}
 
-	ddCustomPayloadValue, ok := messageBody.MessageAttributes[datadogHeader]
+	ddCustomPayloadValue, ok := messageBody.MessageAttributes["_datadog"]
 	if !ok {
 		log.Debug("No Datadog trace context found")
 		return nil
@@ -99,7 +99,7 @@ func extractTraceContextFromSNSSQSEvent(firstRecord events.SQSMessage) *rawTrace
 	return &traceData
 }
 
-func extractTraceContextFromDatadogHeader(ddPayloadValue events.SQSMessageAttribute) *rawTraceContext {
+func extractTraceContextFromPureSqsEvent(ddPayloadValue events.SQSMessageAttribute) *rawTraceContext {
 	var traceData rawTraceContext
 	if ddPayloadValue.DataType == "String" {
 		err := json.Unmarshal([]byte(*ddPayloadValue.StringValue), &traceData)
@@ -107,20 +107,12 @@ func extractTraceContextFromDatadogHeader(ddPayloadValue events.SQSMessageAttrib
 			log.Debug("Error unmarshaling payload value: ", err)
 			return nil
 		}
-		return &traceData
-	}
-	// SNS => SQS => Lambda with SQS's subscription to SNS has enabled RAW MESSAGE DELIVERY option
-	if ddPayloadValue.DataType == "Binary" {
-		err := json.Unmarshal(ddPayloadValue.BinaryValue, &traceData) // No need to decode base64 because already decoded
-		if err != nil {
-			log.Debug("Error unmarshaling the decoded binary: ", err)
-			return nil
-		}
-		return &traceData
+	} else {
+		log.Debug("Unsupported DataType in _datadog payload")
+		return nil
 	}
 
-	log.Debug("Unsupported DataType in _datadog payload")
-	return nil
+	return &traceData
 }
 
 func extractTraceContextfromAWSTraceHeader(value string) *rawTraceContext {

@@ -35,8 +35,7 @@ build do
   env = with_standard_compiler_flags(with_embedded_path)
   env["CFLAGS"] << " -fPIC"
 
-  # With `--enable-fat`, CPU feature detection is done at runtime, improving compatibility
-  configure "--disable-static --enable-fat", env: env
+  configure "--disable-static", env: env
 
   make "-j #{workers}", env: env
   make "install", env: env

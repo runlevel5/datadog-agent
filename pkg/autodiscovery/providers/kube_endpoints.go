@@ -21,7 +21,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/common/utils"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/providers/names"
-	"github.com/DataDog/datadog-agent/pkg/autodiscovery/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/apiserver"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -45,7 +44,6 @@ type kubeEndpointsConfigProvider struct {
 	endpointsLister    listersv1.EndpointsLister
 	upToDate           bool
 	monitoredEndpoints map[string]bool
-	configErrors       map[string]ErrorMsgSet
 }
 
 // configInfo contains an endpoint check config template with its name and namespace
@@ -73,7 +71,6 @@ func NewKubeEndpointsConfigProvider(*config.ConfigurationProviders) (ConfigProvi
 	p := &kubeEndpointsConfigProvider{
 		serviceLister:      servicesInformer.Lister(),
 		monitoredEndpoints: make(map[string]bool),
-		configErrors:       make(map[string]ErrorMsgSet),
 	}
 
 	if _, err := servicesInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -114,7 +111,7 @@ func (k *kubeEndpointsConfigProvider) Collect(ctx context.Context) ([]integratio
 	k.setUpToDate(true)
 
 	var generatedConfigs []integration.Config
-	parsedConfigsInfo := k.parseServiceAnnotationsForEndpoints(services)
+	parsedConfigsInfo := parseServiceAnnotationsForEndpoints(services)
 	for _, config := range parsedConfigsInfo {
 		kep, err := k.endpointsLister.Endpoints(config.namespace).Get(config.name)
 		if err != nil {
@@ -221,10 +218,8 @@ func (k *kubeEndpointsConfigProvider) setUpToDate(v bool) {
 	k.upToDate = v
 }
 
-func (k *kubeEndpointsConfigProvider) parseServiceAnnotationsForEndpoints(services []*v1.Service) []configInfo {
+func parseServiceAnnotationsForEndpoints(services []*v1.Service) []configInfo {
 	var configsInfo []configInfo
-
-	setEndpointIDs := map[string]struct{}{}
 
 	for _, svc := range services {
 		if svc == nil || svc.ObjectMeta.UID == "" {
@@ -233,22 +228,10 @@ func (k *kubeEndpointsConfigProvider) parseServiceAnnotationsForEndpoints(servic
 		}
 
 		endpointsID := apiserver.EntityForEndpoints(svc.Namespace, svc.Name, "")
-		setEndpointIDs[endpointsID] = struct{}{}
 
 		endptConf, errors := utils.ExtractTemplatesFromPodAnnotations(endpointsID, svc.Annotations, kubeEndpointID)
 		for _, err := range errors {
 			log.Errorf("Cannot parse endpoint template for service %s/%s: %s", svc.Namespace, svc.Name, err)
-		}
-
-		if len(errors) > 0 {
-			errMsgSet := make(ErrorMsgSet)
-			for _, err := range errors {
-				log.Errorf("Cannot parse endpoint template for service %s/%s: %s", svc.Namespace, svc.Name, err)
-				errMsgSet[err.Error()] = struct{}{}
-			}
-			k.configErrors[endpointsID] = errMsgSet
-		} else {
-			delete(k.configErrors, endpointsID)
 		}
 
 		ignoreADTags := ignoreADTagsFromAnnotations(svc.GetAnnotations(), kubeEndpointAnnotationPrefix)
@@ -269,10 +252,6 @@ func (k *kubeEndpointsConfigProvider) parseServiceAnnotationsForEndpoints(servic
 			})
 		}
 	}
-
-	k.cleanErrorsOfDeletedEndpoints(setEndpointIDs)
-
-	telemetry.Errors.Set(float64(len(k.configErrors)), names.KubeEndpoints)
 
 	return configsInfo
 }
@@ -331,24 +310,11 @@ func generateConfigs(tpl integration.Config, resolveMode endpointResolveMode, ke
 	return generatedConfigs
 }
 
-func (k *kubeEndpointsConfigProvider) cleanErrorsOfDeletedEndpoints(setCurrentEndpointIDs map[string]struct{}) {
-	setEndpointIDsWithErrors := map[string]struct{}{}
-	for endpointID := range k.configErrors {
-		setEndpointIDsWithErrors[endpointID] = struct{}{}
-	}
-
-	for endpointID := range setEndpointIDsWithErrors {
-		if _, exists := setCurrentEndpointIDs[endpointID]; !exists {
-			delete(k.configErrors, endpointID)
-		}
-	}
-}
-
 func init() {
 	RegisterProvider(names.KubeEndpointsRegisterName, NewKubeEndpointsConfigProvider)
 }
 
-// GetConfigErrors returns a map of configuration errors for each Kubernetes endpoint
+// GetConfigErrors is not implemented for the kubeEndpointsConfigProvider
 func (k *kubeEndpointsConfigProvider) GetConfigErrors() map[string]ErrorMsgSet {
-	return k.configErrors
+	return make(map[string]ErrorMsgSet)
 }

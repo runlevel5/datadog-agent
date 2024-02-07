@@ -10,10 +10,9 @@
 package listeners
 
 import (
-	"encoding/binary"
-	"golang.org/x/net/nettest"
 	"net"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -24,47 +23,31 @@ import (
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/packets"
 )
 
-type udsListenerFactory func(packetOut chan packets.Packets, manager *packets.PoolManager, cfg config.Component) (StatsdListener, error)
-
-func socketPathConfKey(transport string) string {
-	if transport == "unix" {
-		return "dogstatsd_stream_socket"
-	}
-	return "dogstatsd_socket"
-}
-
-func testSocketPath(t *testing.T) string {
-	// https://github.com/golang/go/issues/62614
-	path, err := nettest.LocalPath()
-	assert.NoError(t, err)
-	return path
-}
-
 func newPacketPoolManagerUDS(cfg config.Component) *packets.PoolManager {
 	packetPoolUDS := packets.NewPool(cfg.GetInt("dogstatsd_buffer_size"))
 	return packets.NewPoolManager(packetPoolUDS)
 }
 
-func testFileExistsNewUDSListener(t *testing.T, socketPath string, cfg map[string]interface{}, listenerFactory udsListenerFactory) {
+func testFileExistsNewUDSListener(t *testing.T, socketPath string, cfg map[string]interface{}) {
 	_, err := os.Create(socketPath)
 	assert.Nil(t, err)
 	defer os.Remove(socketPath)
 	config := fulfillDepsWithConfig(t, cfg)
-	_, err = listenerFactory(nil, newPacketPoolManagerUDS(config), config)
+	_, err = NewUDSListener(nil, newPacketPoolManagerUDS(config), config, nil)
 	assert.Error(t, err)
 }
 
-func testSocketExistsNewUSDListener(t *testing.T, socketPath string, cfg map[string]interface{}, listenerFactory udsListenerFactory) {
+func testSocketExistsNewUSDListener(t *testing.T, socketPath string, cfg map[string]interface{}) {
 	address, err := net.ResolveUnixAddr("unix", socketPath)
 	assert.Nil(t, err)
 	_, err = net.ListenUnix("unix", address)
 	assert.Nil(t, err)
-	testWorkingNewUDSListener(t, socketPath, cfg, listenerFactory)
+	testWorkingNewUDSListener(t, socketPath, cfg)
 }
 
-func testWorkingNewUDSListener(t *testing.T, socketPath string, cfg map[string]interface{}, listenerFactory udsListenerFactory) {
+func testWorkingNewUDSListener(t *testing.T, socketPath string, cfg map[string]interface{}) {
 	config := fulfillDepsWithConfig(t, cfg)
-	s, err := listenerFactory(nil, newPacketPoolManagerUDS(config), config)
+	s, err := NewUDSListener(nil, newPacketPoolManagerUDS(config), config, nil)
 	defer s.Stop()
 
 	assert.Nil(t, err)
@@ -74,94 +57,78 @@ func testWorkingNewUDSListener(t *testing.T, socketPath string, cfg map[string]i
 	assert.Equal(t, "Srwx-w--w-", fi.Mode().String())
 }
 
-func testNewUDSListener(t *testing.T, listenerFactory udsListenerFactory, transport string) {
-	socketPath := testSocketPath(t)
-
+func TestNewUDSListener(t *testing.T) {
+	dir := t.TempDir()
+	socketPath := filepath.Join(dir, "dsd.socket")
 	mockConfig := map[string]interface{}{}
-	mockConfig[socketPathConfKey(transport)] = socketPath
+	mockConfig["dogstatsd_socket"] = socketPath
 
 	t.Run("fail_file_exists", func(tt *testing.T) {
-		testFileExistsNewUDSListener(tt, socketPath, mockConfig, listenerFactory)
+		testFileExistsNewUDSListener(tt, socketPath, mockConfig)
 	})
 	t.Run("socket_exists", func(tt *testing.T) {
-		testSocketExistsNewUSDListener(tt, socketPath, mockConfig, listenerFactory)
+		testSocketExistsNewUSDListener(tt, socketPath, mockConfig)
 	})
 	t.Run("working", func(tt *testing.T) {
-		testWorkingNewUDSListener(tt, socketPath, mockConfig, listenerFactory)
+		testWorkingNewUDSListener(tt, socketPath, mockConfig)
 	})
 }
 
-func testStartStopUDSListener(t *testing.T, listenerFactory udsListenerFactory, transport string) {
-	socketPath := testSocketPath(t)
+func TestStartStopUDSListener(t *testing.T) {
+	dir := t.TempDir()
+	socketPath := filepath.Join(dir, "dsd.socket")
 
 	mockConfig := map[string]interface{}{}
-	mockConfig[socketPathConfKey(transport)] = socketPath
+	mockConfig["dogstatsd_socket"] = socketPath
 	mockConfig["dogstatsd_origin_detection"] = false
 
 	config := fulfillDepsWithConfig(t, mockConfig)
-	s, err := listenerFactory(nil, newPacketPoolManagerUDS(config), config)
+	s, err := NewUDSListener(nil, newPacketPoolManagerUDS(config), config, nil)
 	assert.Nil(t, err)
 	assert.NotNil(t, s)
 
 	go s.Listen()
-	conn, err := net.Dial(transport, socketPath)
+	conn, err := net.Dial("unixgram", socketPath)
 	assert.Nil(t, err)
 	conn.Close()
 
 	s.Stop()
-	_, err = net.Dial(transport, socketPath)
+	_, err = net.Dial("unixgram", socketPath)
 	assert.NotNil(t, err)
 }
 
-func testUDSReceive(t *testing.T, listenerFactory udsListenerFactory, transport string) {
-	socketPath := testSocketPath(t)
+func TestUDSReceive(t *testing.T) {
+	dir := t.TempDir()
+	socketPath := filepath.Join(dir, "dsd.socket")
 
 	mockConfig := map[string]interface{}{}
-	mockConfig[socketPathConfKey(transport)] = socketPath
+	mockConfig["dogstatsd_socket"] = socketPath
 	mockConfig["dogstatsd_origin_detection"] = false
 
-	var contents0 = []byte("daemon:666|g|#sometag1:somevalue1,sometag2:somevalue2")
-	var contents1 = []byte("daemon:999|g|#sometag1:somevalue1")
+	var contents = []byte("daemon:666|g|#sometag1:somevalue1,sometag2:somevalue2")
 
 	packetsChannel := make(chan packets.Packets)
 
 	config := fulfillDepsWithConfig(t, mockConfig)
-	s, err := listenerFactory(packetsChannel, newPacketPoolManagerUDS(config), config)
+	s, err := NewUDSListener(packetsChannel, newPacketPoolManagerUDS(config), config, nil)
 	assert.Nil(t, err)
 	assert.NotNil(t, s)
 
 	go s.Listen()
 	defer s.Stop()
-	conn, err := net.Dial(transport, socketPath)
+	conn, err := net.Dial("unixgram", socketPath)
 	assert.Nil(t, err)
 	defer conn.Close()
-
-	if transport == "unix" {
-		binary.Write(conn, binary.LittleEndian, int32(len(contents0)))
-	}
-	conn.Write(contents0)
-
-	if transport == "unix" {
-		binary.Write(conn, binary.LittleEndian, int32(len(contents1)))
-	}
-	conn.Write(contents1)
+	conn.Write(contents)
 
 	select {
 	case pkts := <-packetsChannel:
-		assert.Equal(t, 2, len(pkts))
-
 		packet := pkts[0]
 		assert.NotNil(t, packet)
-		assert.Equal(t, packet.Contents, contents0)
+		assert.Equal(t, 1, len(pkts))
+		assert.Equal(t, packet.Contents, contents)
 		assert.Equal(t, packet.Origin, "")
 		assert.Equal(t, packet.Source, packets.UDS)
-
-		packet = pkts[1]
-		assert.NotNil(t, packet)
-		assert.Equal(t, packet.Contents, contents1)
-		assert.Equal(t, packet.Origin, "")
-		assert.Equal(t, packet.Source, packets.UDS)
-
 	case <-time.After(2 * time.Second):
 		assert.FailNow(t, "Timeout on receive channel")
 	}

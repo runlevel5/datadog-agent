@@ -312,14 +312,13 @@ func (t *Tailer) forwardMessages() {
 		t.done <- struct{}{}
 	}()
 	for output := range t.decoder.OutputChan {
-		if len(output.GetContent()) > 0 {
+		if len(output.Content) > 0 {
 			origin := message.NewOrigin(t.Source)
 			origin.Offset = output.ParsingExtra.Timestamp
 			t.setLastSince(output.ParsingExtra.Timestamp)
 			origin.Identifier = t.Identifier()
 			origin.SetTags(t.tagProvider.GetTags())
-			// XXX(remy): is it OK recreating a message here?
-			t.outputChan <- message.NewMessage(output.GetContent(), origin, output.Status, output.IngestionTimestamp)
+			t.outputChan <- message.NewMessage(output.Content, origin, output.Status, output.IngestionTimestamp)
 		}
 	}
 }

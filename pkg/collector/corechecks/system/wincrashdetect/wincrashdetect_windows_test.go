@@ -39,7 +39,7 @@ func createSystemProbeListener() (l net.Listener, close func()) {
 	}
 }
 
-func testSetup(t *testing.T) { //nolint:revive // TODO fix revive unused-parameter
+func testSetup(t *testing.T) {
 	// change the hive to hku for the test
 	hive = registry.CURRENT_USER
 	baseKey = `SOFTWARE\Datadog\unit_test\windows_crash_reporting`
@@ -70,7 +70,7 @@ func TestWinCrashReporting(t *testing.T) {
 	defer server.Close()
 
 	sock := fmt.Sprintf("localhost:%d", listener.Addr().(*net.TCPAddr).Port)
-	config.SystemProbe.SetWithoutSource("system_probe_config.sysprobe_socket", sock)
+	config.SystemProbe.Set("system_probe_config.sysprobe_socket", sock)
 
 	/*
 	 * the underlying system probe connector is a singleton.  Therefore, we can't set up different
@@ -187,5 +187,41 @@ func TestWinCrashReporting(t *testing.T) {
 		mock.AssertNumberOfCalls(t, "Rate", 0)
 		mock.AssertNumberOfCalls(t, "Event", 2)
 		mock.AssertNumberOfCalls(t, "Commit", 2)
+	})
+	t.Run("test that a crash is properly reported with no offender", func(t *testing.T) {
+		testSetup(t)
+		defer testCleanup()
+		p = &probe.WinCrashStatus{
+			Success:    true,
+			FileName:   `c:\windows\memory.dmp`,
+			Type:       probe.DumpTypeAutomatic,
+			DateString: `Fri Jun 30 15:33:05.086 2023 (UTC - 7:00)`,
+			BugCheck:   "0x00000007",
+		}
+		check := crashDetectFactory()
+		crashCheck := check.(*WinCrashDetect)
+		mock := mocksender.NewMockSender(crashCheck.ID())
+		err := crashCheck.Configure(mock.GetSenderManager(), 0, nil, nil, "")
+		assert.NoError(t, err)
+
+		expected := event.Event{
+			Priority:       event.EventPriorityNormal,
+			SourceTypeName: crashDetectCheckName,
+			EventType:      crashDetectCheckName,
+			AlertType:      event.EventAlertTypeError,
+			Title:          formatTitle(p),
+			Text:           formatText(p),
+		}
+		// set up to return from the event call when we get it
+		mock.On("Event", expected).Return().Times(1)
+		mock.On("Commit").Return().Times(1)
+		// the first time we run, we should get the bug check notification
+
+		err = crashCheck.Run()
+		assert.Nil(t, err)
+		mock.AssertNumberOfCalls(t, "Gauge", 0)
+		mock.AssertNumberOfCalls(t, "Rate", 0)
+		mock.AssertNumberOfCalls(t, "Event", 1)
+		mock.AssertNumberOfCalls(t, "Commit", 1)
 	})
 }

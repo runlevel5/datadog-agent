@@ -28,7 +28,7 @@ dependency "libgpg-error"
 dependency "libgcrypt"
 dependency "popt"
 dependency "zstd"
-dependency "libsqlite3"
+dependency "sqlite"
 dependency "libdb"
 dependency "lua"
 
@@ -44,6 +44,8 @@ relative_path "rpm-#{version}"
 build do
   env = with_standard_compiler_flags(with_embedded_path)
 
+  env["CC"] = "/usr/bin/gcc"
+  env["CXX"] = "/usr/bin/g++"
   env["CFLAGS"] << " -fPIC"
 
   patch source: "0001-Include-fcntl.patch", env: env # fix build
@@ -54,7 +56,7 @@ build do
   patch source: "0418-Move-variable-to-nearest-available-scope.patch", env: env
 
   update_config_guess
-
+  
   env["SQLITE_CFLAGS"] ="-I#{install_dir}/embedded/include"
   env["SQLITE_LIBS"] ="-L#{install_dir}/embedded/lib -lsqlite3"
   env["LUA_CFLAGS"] ="-I#{install_dir}/embedded/include"

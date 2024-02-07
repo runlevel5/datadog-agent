@@ -216,25 +216,15 @@ func (d *dispatcher) updateRunnersStats() {
 			continue
 		}
 		node.Lock()
-		for idStr, checkStats := range stats {
-			id := checkid.ID(idStr)
-
+		for id, checkStats := range stats {
 			// Stats contain info about all the running checks on a node
 			// Node checks must be filtered from Cluster Checks
 			// so they can be included in calculating node Agent busyness and excluded from rebalancing decisions.
-			if _, found := d.store.idToDigest[id]; found {
+			if _, found := d.store.idToDigest[checkid.ID(id)]; found {
 				// Cluster check detected (exists in the Cluster Agent checks store)
 				log.Tracef("Check %s running on node %s is a cluster check", id, node.name)
 				checkStats.IsClusterCheck = true
-				stats[idStr] = checkStats
-			}
-
-			checkName := checkid.IDToCheckName(id)
-			if _, found := d.excludedChecksFromDispatching[checkName]; found {
-				// TODO: We are abusing the IsClusterCheck field to mark checks that should be excluded from rebalancing decisions.
-				// It behaves the same way as we want to count them in rebalance decisions but we don't want to move them.
-				checkStats.IsClusterCheck = false
-				stats[idStr] = checkStats
+				stats[id] = checkStats
 			}
 		}
 		node.clcRunnerStats = stats

@@ -10,36 +10,28 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
-	"github.com/DataDog/datadog-agent/pkg/snmp/traps/config"
-	"github.com/DataDog/datadog-agent/pkg/snmp/traps/formatter"
-	"github.com/DataDog/datadog-agent/pkg/snmp/traps/status"
-	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
-
-	ndmtestutils "github.com/DataDog/datadog-agent/pkg/networkdevice/testutils"
 )
+
+var freePort = getFreePort()
 
 func TestStartFailure(t *testing.T) {
 	/*
 		Start two servers with the same config to trigger an "address already in use" error.
 	*/
-	logger := fxutil.Test[log.Component](t, log.MockModule)
 
-	freePort, err := ndmtestutils.GetFreePort()
-	require.NoError(t, err)
-	config := &config.TrapsConfig{Port: freePort, CommunityStrings: []string{"public"}}
+	config := Config{Port: freePort, CommunityStrings: []string{"public"}}
+	Configure(t, config)
 
 	mockSender := mocksender.NewMockSender("snmp-traps-listener")
 	mockSender.SetupAcceptAll()
-	status := status.NewMock()
 
-	sucessServer, err := NewTrapServer(config, &formatter.DummyFormatter{}, mockSender, logger, status)
+	sucessServer, err := NewTrapServer(config, &DummyFormatter{}, mockSender)
 	require.NoError(t, err)
 	require.NotNil(t, sucessServer)
 	defer sucessServer.Stop()
 
-	failedServer, err := NewTrapServer(config, &formatter.DummyFormatter{}, mockSender, logger, status)
+	failedServer, err := NewTrapServer(config, &DummyFormatter{}, mockSender)
 	require.Nil(t, failedServer)
 	require.Error(t, err)
 }

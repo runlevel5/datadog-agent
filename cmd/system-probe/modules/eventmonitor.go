@@ -28,7 +28,7 @@ var EventMonitor = module.Factory{
 
 		secconfig, err := secconfig.NewConfig()
 		if err != nil {
-			log.Errorf("invalid probe configuration: %v", err)
+			log.Infof("invalid probe configuration: %v", err)
 			return nil, module.ErrNotEnabled
 		}
 
@@ -44,7 +44,7 @@ var EventMonitor = module.Factory{
 
 		evm, err := eventmonitor.NewEventMonitor(emconfig, secconfig, opts)
 		if err != nil {
-			log.Errorf("error initializing event monitoring module: %v", err)
+			log.Infof("error initializing event monitoring module: %v", err)
 			return nil, module.ErrNotEnabled
 		}
 

@@ -8,10 +8,13 @@ package remoteconfig
 import (
 	"testing"
 
-	"github.com/DataDog/datadog-agent/comp/core"
-	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/fx"
 )
 
 func TestBundleDependencies(t *testing.T) {
-	fxutil.TestBundle(t, Bundle, core.MockBundle)
+	require.NoError(t, fx.ValidateApp(
+		// instantiate all of the remote-config components, since this is not done
+		// automatically.
+		Bundle))
 }

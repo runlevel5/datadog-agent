@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/DataDog/appsec-internal-go/appsec"
-	"github.com/DataDog/datadog-agent/pkg/serverless/appsec/config"
 	"github.com/DataDog/datadog-agent/pkg/serverless/appsec/httpsec"
 	"github.com/DataDog/datadog-agent/pkg/serverless/proxy"
 	waf "github.com/DataDog/go-libddwaf"
@@ -41,7 +40,7 @@ func New() (*httpsec.ProxyLifecycleProcessor, error) {
 }
 
 type AppSec struct {
-	cfg *config.Config
+	cfg *Config
 	// WAF handle instance of the appsec event rules.
 	handle *waf.Handle
 	// Events rate limiter to limit the max amount of appsec events we can send
@@ -55,16 +54,11 @@ type AppSec struct {
 // appsec instance is nil, along with a nil error (nil, nil return values).
 func newAppSec() (*AppSec, error) {
 	// Check if appsec is enabled
-	if enabled, _, err := config.IsEnabled(); err != nil {
+	if enabled, _, err := isEnabled(); err != nil {
 		return nil, err
 	} else if !enabled {
 		log.Debug("appsec: security monitoring is not enabled: DD_SERVERLESS_APPSEC_ENABLED is not set to true")
 		return nil, nil
-	}
-
-	// Check if appsec is used as a standalone product (i.e with APM tracing)
-	if config.IsStandalone() {
-		log.Info("appsec: starting in standalone mode. APM tracing will be disabled for this service")
 	}
 
 	// Check if AppSec can actually run properly
@@ -72,7 +66,7 @@ func newAppSec() (*AppSec, error) {
 		return nil, err
 	}
 
-	cfg, err := config.NewConfig()
+	cfg, err := newConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -81,12 +75,12 @@ func newAppSec() (*AppSec, error) {
 	if err := json.Unmarshal([]byte(appsec.StaticRecommendedRules), &rules); err != nil {
 		return nil, err
 	}
-	handle, err := waf.NewHandle(rules, cfg.Obfuscator.KeyRegex, cfg.Obfuscator.ValueRegex)
+	handle, err := waf.NewHandle(rules, cfg.obfuscator.KeyRegex, cfg.obfuscator.ValueRegex)
 	if err != nil {
 		return nil, err
 	}
 
-	eventsRateLimiter := NewTokenTicker(int64(cfg.TraceRateLimit), int64(cfg.TraceRateLimit))
+	eventsRateLimiter := NewTokenTicker(int64(cfg.traceRateLimit), int64(cfg.traceRateLimit))
 	eventsRateLimiter.Start()
 
 	return &AppSec{
@@ -112,7 +106,7 @@ func (a *AppSec) Monitor(addresses map[string]interface{}) (events []byte) {
 		return nil
 	}
 	defer ctx.Close()
-	timeout := a.cfg.WafTimeout
+	timeout := a.cfg.wafTimeout
 	events, _, err := ctx.Run(addresses, timeout)
 	if err != nil {
 		if err == waf.ErrTimeout {
@@ -127,7 +121,7 @@ func (a *AppSec) Monitor(addresses map[string]interface{}) (events []byte) {
 		log.Debugf("appsec: security events found in %s: %s", time.Duration(dt), string(events))
 	}
 	if !a.eventsRateLimiter.Allow() {
-		log.Debugf("appsec: security events discarded: the rate limit of %d events/s is reached", a.cfg.TraceRateLimit)
+		log.Debugf("appsec: security events discarded: the rate limit of %d events/s is reached", a.cfg.traceRateLimit)
 		return nil
 	}
 	return events

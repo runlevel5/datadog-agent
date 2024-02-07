@@ -20,41 +20,37 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-// NewInput returns a new decoder input.
-// A decoder input is an unstructured message of raw bytes as the content.
-// Some of the tailers using this are the file tailers and socket tailers
-// as these logs don't have any structure, they're just raw bytes log.
-// See message.Message / message.MessageContent comment for more information.
+// NewInput returns a new input.
 func NewInput(content []byte) *message.Message {
-	return message.NewMessage(content, nil, "", time.Now().UnixNano())
+	return &message.Message{
+		Content:            content,
+		IngestionTimestamp: time.Now().UnixNano(),
+	}
 }
 
-// NewMessage returns a new encoded message.
+// NewMessage returns a new output.
 func NewMessage(content []byte, status string, rawDataLen int, readTimestamp string) *message.Message {
-	msg := message.Message{
-		MessageContent: message.MessageContent{
-			State: message.StateEncoded,
-		},
+	return &message.Message{
+		Content:            content,
 		Status:             status,
 		RawDataLen:         rawDataLen,
 		IngestionTimestamp: time.Now().UnixNano(),
+
 		ParsingExtra: message.ParsingExtra{
 			Timestamp: readTimestamp,
 		},
 	}
-	msg.SetContent(content)
-	return &msg
 }
 
 // Decoder translates a sequence of byte buffers (such as from a file or a
 // network socket) into log messages.
 //
-// Decoder is structured as an actor receiving messages on `InputChan` and
-// writing its output in `OutputChan`
+// Decoder is structured as an actor with InputChan of type *decoder.Input and
+// OutputChan of type *decoder.Message.
 //
 // The Decoder's run() takes data from InputChan, uses a Framer to break it into frames.
-// The Framer passes that data to a LineParser, which uses a Parser to parse it and
-// to pass it to the LineHander.
+// The LineBreaker passes that data to a LineParser, which uses a Parser to convert it to
+// parsers.Message, converts that to decoder.Message, and passes that to the LineHandler.
 //
 // The LineHandler processes the messages it as necessary (as single lines,
 // multiple lines, or auto-detecting the two), and sends the result to the
@@ -219,13 +215,13 @@ func (d *Decoder) run() {
 	}()
 	for {
 		select {
-		case msg, isOpen := <-d.InputChan:
+		case data, isOpen := <-d.InputChan:
 			if !isOpen {
 				// InputChan has been closed, no more lines are expected
 				return
 			}
 
-			d.framer.Process(msg)
+			d.framer.Process(data)
 
 		case <-d.lineParser.flushChan():
 			log.Debug("Flushing line parser because the flush timeout has been reached.")

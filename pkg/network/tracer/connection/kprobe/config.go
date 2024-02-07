@@ -29,7 +29,6 @@ func enabledProbes(c *config.Config, runtimeTracer, coreTracer bool) (map[probes
 	kv470 := kernel.VersionCode(4, 7, 0)
 	kv5180 := kernel.VersionCode(5, 18, 0)
 	kv5190 := kernel.VersionCode(5, 19, 0)
-	kv650 := kernel.VersionCode(6, 5, 0)
 	kv, err := kernel.HostVersion()
 	if err != nil {
 		return nil, err
@@ -46,10 +45,8 @@ func enabledProbes(c *config.Config, runtimeTracer, coreTracer bool) (map[probes
 		}
 		enableProbe(enabled, selectVersionBasedProbe(runtimeTracer, kv, probes.TCPSendMsg, probes.TCPSendMsgPre410, kv410))
 		enableProbe(enabled, probes.TCPSendMsgReturn)
-		if kv < kv650 {
-			enableProbe(enabled, probes.TCPSendPage)
-			enableProbe(enabled, probes.TCPSendPageReturn)
-		}
+		enableProbe(enabled, probes.TCPSendPage)
+		enableProbe(enabled, probes.TCPSendPageReturn)
 		// 5.19: remove noblock parameter in *_recvmsg https://github.com/torvalds/linux/commit/ec095263a965720e1ca39db1d9c5cd47846c789b
 		enableProbe(enabled, selectVersionBasedProbe(runtimeTracer, kv, selectVersionBasedProbe(runtimeTracer, kv, probes.TCPRecvMsg, probes.TCPRecvMsgPre5190, kv5190), probes.TCPRecvMsgPre410, kv410))
 		enableProbe(enabled, probes.TCPRecvMsgReturn)
@@ -82,10 +79,8 @@ func enabledProbes(c *config.Config, runtimeTracer, coreTracer bool) (map[probes
 		enableProbe(enabled, probes.IPMakeSkbReturn)
 		enableProbe(enabled, probes.InetBind)
 		enableProbe(enabled, probes.InetBindRet)
-		if kv < kv650 {
-			enableProbe(enabled, probes.UDPSendPage)
-			enableProbe(enabled, probes.UDPSendPageReturn)
-		}
+		enableProbe(enabled, probes.UDPSendPage)
+		enableProbe(enabled, probes.UDPSendPageReturn)
 		if kv >= kv5190 || runtimeTracer {
 			enableProbe(enabled, probes.UDPRecvMsg)
 		} else if kv >= kv470 {
@@ -115,10 +110,8 @@ func enabledProbes(c *config.Config, runtimeTracer, coreTracer bool) (map[probes
 		enableProbe(enabled, probes.IP6MakeSkbReturn)
 		enableProbe(enabled, probes.Inet6Bind)
 		enableProbe(enabled, probes.Inet6BindRet)
-		if kv < kv650 {
-			enableProbe(enabled, probes.UDPSendPage)
-			enableProbe(enabled, probes.UDPSendPageReturn)
-		}
+		enableProbe(enabled, probes.UDPSendPage)
+		enableProbe(enabled, probes.UDPSendPageReturn)
 		if kv >= kv5190 || runtimeTracer {
 			enableProbe(enabled, probes.UDPv6RecvMsg)
 		} else if kv >= kv470 {

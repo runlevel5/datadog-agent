@@ -13,7 +13,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
 	"github.com/DataDog/datadog-agent/pkg/serializer"
-	"github.com/DataDog/datadog-agent/pkg/tagger"
 	"github.com/DataDog/datadog-agent/pkg/tagset"
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -78,8 +77,7 @@ func init() {
 }
 
 func newNoAggregationStreamWorker(maxMetricsPerPayload int, metricSamplePool *metrics.MetricSamplePool,
-	serializer serializer.MetricSerializer, flushConfig FlushAndSerializeInParallel,
-) *noAggregationStreamWorker {
+	serializer serializer.MetricSerializer, flushConfig FlushAndSerializeInParallel) *noAggregationStreamWorker {
 	return &noAggregationStreamWorker{
 		serializer:           serializer,
 		flushConfig:          flushConfig,
@@ -104,7 +102,6 @@ func (w *noAggregationStreamWorker) addSamples(samples metrics.MetricSampleBatch
 	if len(samples) == 0 {
 		return
 	}
-	// FIXME: instrument
 	w.samplesChan <- samples
 }
 
@@ -195,7 +192,7 @@ func (w *noAggregationStreamWorker) run() {
 							}
 
 							// enrich metric sample tags
-							sample.GetTags(w.taggerBuffer, w.metricBuffer, tagger.EnrichTags)
+							sample.GetTags(w.taggerBuffer, w.metricBuffer)
 							w.metricBuffer.AppendHashlessAccumulator(w.taggerBuffer)
 
 							// if the value is a rate, we have to account for the 10s interval

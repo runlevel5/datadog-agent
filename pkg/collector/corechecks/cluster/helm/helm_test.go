@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,8 +27,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/metrics/servicecheck"
 )
 
-var testTimeout = 30 * time.Second
-var testTicker = 100 * time.Millisecond
+var testTimeout = 10 * time.Second
+var testTicker = 5 * time.Millisecond
 
 func TestRun(t *testing.T) {
 	releases := []release{
@@ -128,7 +128,7 @@ func TestRun(t *testing.T) {
 	var secretsForReleases []*v1.Secret
 	for _, rel := range releases {
 		secret, err := secretForRelease(&rel, time.Now())
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		secretsForReleases = append(secretsForReleases, secret)
 	}
 
@@ -136,7 +136,7 @@ func TestRun(t *testing.T) {
 	var configmapsForReleases []*v1.ConfigMap
 	for _, rel := range releases {
 		configMap, err := configMapForRelease(&rel)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		configmapsForReleases = append(configmapsForReleases, configMap)
 	}
 
@@ -278,18 +278,16 @@ func TestRun(t *testing.T) {
 			// are not necessarily emitted in the first run. It depends on
 			// whether the check had time to process the events.
 
-			err := check.CommonConfigure(mockedSender.GetSenderManager(), 0, nil, nil, "")
-			require.NoError(t, err)
+			check.CommonConfigure(mockedSender.GetSenderManager(), 0, nil, nil, "")
+			err := check.Run()
+			assert.NoError(t, err)
 
-			err = check.Run()
-			require.NoError(t, err)
-
-			require.Eventually(t, func() bool { // Wait until the events are processed
+			assert.Eventually(t, func() bool { // Wait until the events are processed
 				return len(check.store.getAll(k8sSecrets))+len(check.store.getAll(k8sConfigmaps)) == len(test.expectedTags)
 			}, testTimeout, testTicker)
 
 			err = check.Run()
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
 			for _, tags := range test.expectedTags {
 				mockedSender.AssertMetric(t, "Gauge", "helm.release", 1, "", tags)
@@ -322,9 +320,8 @@ func TestRun_withCollectEvents(t *testing.T) {
 
 	eventsAllowedDelta := 10 * time.Second
 
-	// The creation timestamp of the secret needs to be after the check start. Otherwise, the event will not be emitted.
-	secret, err := secretForRelease(&rel, check.startTS.Add(10))
-	require.NoError(t, err)
+	secret, err := secretForRelease(&rel, time.Now().Add(10))
+	assert.NoError(t, err)
 
 	k8sClient := fake.NewSimpleClientset()
 	check.informerFactory = informers.NewSharedInformerFactory(k8sClient, time.Minute)
@@ -333,20 +330,18 @@ func TestRun_withCollectEvents(t *testing.T) {
 	mockedSender.SetupAcceptAll()
 
 	// First run to set up the informers.
-	err = check.CommonConfigure(mockedSender.GetSenderManager(), 0, nil, nil, "")
-	require.NoError(t, err)
-
+	check.CommonConfigure(mockedSender.GetSenderManager(), 0, nil, nil, "")
 	err = check.Run()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	// Create a new release and check that it creates the appropriate event.
 	_, err = k8sClient.CoreV1().Secrets("default").Create(context.TODO(), secret, metav1.CreateOptions{})
-	require.NoError(t, err)
-	require.Eventually(t, func() bool { // Wait until the create event has been processed
+	assert.NoError(t, err)
+	assert.Eventually(t, func() bool { // Wait until the create event has been processed
 		return len(check.store.getAll(k8sSecrets)) == 1
 	}, testTimeout, testTicker)
 	err = check.Run()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	expectedTags := check.allTags(&rel, k8sSecrets, true)
 	mockedSender.AssertEvent(
 		t,
@@ -358,14 +353,14 @@ func TestRun_withCollectEvents(t *testing.T) {
 	upgradedRel := rel
 	upgradedRel.Version = 2
 	secretUpgradedRel, err := secretForRelease(&upgradedRel, time.Now().Add(10))
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	_, err = k8sClient.CoreV1().Secrets("default").Create(context.TODO(), secretUpgradedRel, metav1.CreateOptions{})
-	require.NoError(t, err)
-	require.Eventually(t, func() bool { // Wait until the create event has been processed (revision 2 created)
+	assert.NoError(t, err)
+	assert.Eventually(t, func() bool { // Wait until the create event has been processed (revision 2 created)
 		return check.store.get("default/my_datadog", 2, k8sSecrets) != nil
 	}, testTimeout, testTicker)
 	err = check.Run()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	expectedTags = check.allTags(&rel, k8sSecrets, true)
 	mockedSender.AssertEvent(
 		t,
@@ -376,10 +371,10 @@ func TestRun_withCollectEvents(t *testing.T) {
 	// Delete the release (all revisions) and check that it creates the
 	// appropriate event.
 	err = k8sClient.CoreV1().Secrets("default").Delete(context.TODO(), rel.Name+".1", metav1.DeleteOptions{})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	err = k8sClient.CoreV1().Secrets("default").Delete(context.TODO(), rel.Name+".2", metav1.DeleteOptions{})
-	require.NoError(t, err)
-	require.Eventually(t, func() bool { // Wait until the delete events have been processed (store should be empty)
+	assert.NoError(t, err)
+	assert.Eventually(t, func() bool { // Wait until the delete events have been processed (store should be empty)
 		return len(check.store.getAll(k8sSecrets)) == 0
 	}, testTimeout, testTicker)
 	expectedTags = check.allTags(&rel, k8sSecrets, false)
@@ -412,9 +407,8 @@ func TestRun_skipEventForExistingRelease(t *testing.T) {
 		Namespace: "default",
 	}
 
-	// The creation timestamp for the secret needs to be before the check start to simulate an existing release.
-	secret, err := secretForRelease(&rel, check.startTS.Add(-10))
-	require.NoError(t, err)
+	secret, err := secretForRelease(&rel, time.Now().Add(-10))
+	assert.NoError(t, err)
 
 	k8sClient := fake.NewSimpleClientset()
 	check.informerFactory = informers.NewSharedInformerFactory(k8sClient, time.Minute)
@@ -424,11 +418,10 @@ func TestRun_skipEventForExistingRelease(t *testing.T) {
 
 	// Create a new release and check that we never send an event for it
 	_, err = k8sClient.CoreV1().Secrets("default").Create(context.TODO(), secret, metav1.CreateOptions{})
-	require.NoError(t, err)
-	err = check.CommonConfigure(mockedSender.GetSenderManager(), 0, nil, nil, "")
-	require.NoError(t, err)
+	assert.NoError(t, err)
+	check.CommonConfigure(mockedSender.GetSenderManager(), 0, nil, nil, "")
 	err = check.Run()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	mockedSender.AssertNotCalled(t, "Event")
 }
 
@@ -560,10 +553,9 @@ func TestRun_ServiceCheck(t *testing.T) {
 
 			k8sClient := fake.NewSimpleClientset()
 			check.informerFactory = informers.NewSharedInformerFactory(k8sClient, time.Minute)
-			err := check.CommonConfigure(mockedSender.GetSenderManager(), 0, nil, nil, "")
-			require.NoError(t, err)
-			err = check.Run()
-			require.NoError(t, err)
+			check.CommonConfigure(mockedSender.GetSenderManager(), 0, nil, nil, "")
+			err := check.Run()
+			assert.NoError(t, err)
 
 			// "my_datadog" release should report OK.
 			mockedSender.AssertServiceCheck(

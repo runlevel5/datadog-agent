@@ -7,24 +7,22 @@ package settings
 
 import (
 	"github.com/DataDog/datadog-agent/pkg/config"
-	"github.com/DataDog/datadog-agent/pkg/config/model"
 )
 
 // ProfilingGoroutines wraps runtime.SetBlockProfileRate setting
 type ProfilingGoroutines struct {
-	Config       config.ReaderWriter
+	Config       config.ConfigReaderWriter
 	ConfigPrefix string
-	ConfigKey    string
+	source       Source
 }
 
-// NewProfilingGoroutines returns a new ProfilingGoroutines
 func NewProfilingGoroutines() *ProfilingGoroutines {
-	return &ProfilingGoroutines{ConfigKey: "internal_profiling_goroutines"}
+	return &ProfilingGoroutines{source: SourceDefault}
 }
 
 // Name returns the name of the runtime setting
 func (r *ProfilingGoroutines) Name() string {
-	return r.ConfigKey
+	return "internal_profiling_goroutines"
 }
 
 // Description returns the runtime setting's description
@@ -39,7 +37,7 @@ func (r *ProfilingGoroutines) Hidden() bool {
 
 // Get returns the current value of the runtime setting
 func (r *ProfilingGoroutines) Get() (interface{}, error) {
-	var cfg config.ReaderWriter = config.Datadog
+	var cfg config.ConfigReaderWriter = config.Datadog
 	if r.Config != nil {
 		cfg = r.Config
 	}
@@ -47,17 +45,22 @@ func (r *ProfilingGoroutines) Get() (interface{}, error) {
 }
 
 // Set changes the value of the runtime setting
-func (r *ProfilingGoroutines) Set(value interface{}, source model.Source) error {
+func (r *ProfilingGoroutines) Set(value interface{}, source Source) error {
 	enabled, err := GetBool(value)
 	if err != nil {
 		return err
 	}
 
-	var cfg config.ReaderWriter = config.Datadog
+	var cfg config.ConfigReaderWriter = config.Datadog
 	if r.Config != nil {
 		cfg = r.Config
 	}
-	cfg.Set(r.ConfigPrefix+"internal_profiling.enable_goroutine_stacktraces", enabled, source)
+	cfg.Set(r.ConfigPrefix+"internal_profiling.enable_goroutine_stacktraces", enabled)
+	r.source = source
 
 	return nil
+}
+
+func (r *ProfilingGoroutines) GetSource() Source {
+	return r.source
 }

@@ -18,7 +18,7 @@ import (
 	s "github.com/DataDog/datadog-agent/pkg/secrets"
 )
 
-// ReadKubernetesSecret reads a secrets store in k8s
+// ReadKubernetesSecret TODO <agent-core>
 func ReadKubernetesSecret(kubeClient kubernetes.Interface, path string) s.Secret {
 	splitName := strings.Split(path, "/")
 

@@ -110,14 +110,18 @@ func (wcd *WinCrashDetect) Run() error {
 	return nil
 }
 
-func formatTitle(c *probe.WinCrashStatus) string { //nolint:revive // TODO fix revive unused-parameter
+func formatTitle(c *probe.WinCrashStatus) string {
 	return "A Windows system crash was detected"
 }
 
 func formatText(c *probe.WinCrashStatus) string {
+	offender := c.Offender
+	if len(offender) == 0 {
+		offender = "unknown"
+	}
 	baseString := `A system crash was detected.
 	The crash occurred at %s.
-	The offending moudule is %s.
+	The offending module is %s.
 	The bugcheck code is %s`
-	return fmt.Sprintf(baseString, c.DateString, c.Offender, c.BugCheck)
+	return fmt.Sprintf(baseString, c.DateString, offender, c.BugCheck)
 }

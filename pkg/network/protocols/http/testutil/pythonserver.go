@@ -53,10 +53,11 @@ finally:
 `
 )
 
-// HTTPPythonServer launches an HTTP python server.
-func HTTPPythonServer(t *testing.T, addr string, options Options) *exec.Cmd {
+func HTTPPythonServer(t *testing.T, addr string, options Options) (func(), error) {
 	host, port, err := net.SplitHostPort(addr)
-	require.NoError(t, err)
+	if err != nil {
+		return nil, err
+	}
 
 	curDir, _ := CurDir()
 	crtPath := filepath.Join(curDir, "testdata/cert.pem.0")
@@ -73,15 +74,14 @@ func HTTPPythonServer(t *testing.T, addr string, options Options) *exec.Cmd {
 	rawConnect(portCtx, t, host, port)
 	cancelPortCtx()
 
-	t.Cleanup(func() {
+	return func() {
 		if cmd.Process != nil {
 			_ = cmd.Process.Kill()
 		}
-	})
-	return cmd
+	}, nil
 }
 
-func writeTempFile(pattern, content string) (*os.File, error) {
+func writeTempFile(pattern string, content string) (*os.File, error) {
 	f, err := os.CreateTemp("", pattern)
 	if err != nil {
 		return nil, err
@@ -99,13 +99,13 @@ func writeTempFile(pattern, content string) (*os.File, error) {
 	return f, nil
 }
 
-func rawConnect(ctx context.Context, t *testing.T, host, port string) {
+func rawConnect(ctx context.Context, t *testing.T, host string, port string) {
 	for {
 		select {
 		case <-ctx.Done():
 			t.Fatalf("failed connecting to %s:%s", host, port)
 		default:
-			conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), time.Millisecond*100)
+			conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), time.Second)
 			if err != nil {
 				continue
 			}
@@ -115,4 +115,5 @@ func rawConnect(ctx context.Context, t *testing.T, host, port string) {
 			}
 		}
 	}
+
 }

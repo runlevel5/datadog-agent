@@ -19,7 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
-	"github.com/DataDog/datadog-agent/pkg/config/model"
 	"github.com/DataDog/datadog-agent/pkg/metrics/servicecheck"
 	"github.com/DataDog/datadog-agent/pkg/serializer/internal/stream"
 	"github.com/DataDog/datadog-agent/pkg/serializer/marshaler"
@@ -120,8 +119,10 @@ func TestPayloadsEmptyServiceCheck(t *testing.T) {
 }
 
 func TestPayloadsServiceChecks(t *testing.T) {
-	config.Datadog.Set("serializer_max_payload_size", 200, model.SourceAgentRuntime)
-	defer config.Datadog.UnsetForSource("serializer_max_payload_size", model.SourceAgentRuntime)
+
+	maxPayloadSize := config.Datadog.GetInt("serializer_max_payload_size")
+	config.Datadog.SetDefault("serializer_max_payload_size", 200)
+	defer config.Datadog.SetDefault("serializer_max_payload_size", maxPayloadSize)
 
 	serviceCheckCollection := []ServiceChecks{
 		{createServiceCheck("1"), createServiceCheck("2"), createServiceCheck("3")},

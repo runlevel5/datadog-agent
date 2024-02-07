@@ -124,17 +124,6 @@ func (fr *Framer) GetFrameCount() int64 {
 // Process handles an incoming chunk of data.  It will call outputFn for any recognized frames.  Partial
 // frames are maintained between calls to Process.  The passed buffer is not used after return.
 func (fr *Framer) Process(input *message.Message) {
-	// we can only process unstructured message in the framer
-	// TODO(remy): the same way the MultiLineHandler use the first part
-	// of a structured message to recompose partials ones into only one,
-	// we might consider doing the same on structured log messages with
-	// the framer.
-	if input.State != message.StateUnstructured {
-		fr.outputFn(input, len(input.GetContent()))
-		fr.frames.Inc()
-		return
-	}
-
 	// buffer is laid out as follows:
 	//
 	//                  /------from inBuf------\
@@ -147,7 +136,7 @@ func (fr *Framer) Process(input *message.Message) {
 
 	framed := fr.bytesFramed
 	seen := fr.buffer.Len()
-	fr.buffer.Write(input.GetContent())
+	fr.buffer.Write(input.Content)
 	end := fr.buffer.Len()
 	contentLenLimit := fr.contentLenLimit
 
@@ -176,16 +165,15 @@ func (fr *Framer) Process(input *message.Message) {
 		copy(owned, content)
 
 		c := &message.Message{
-			MessageContent: message.MessageContent{
-				State: message.StateUnstructured,
-			},
+			Content:            owned,
 			Origin:             input.Origin,
 			Status:             input.Status,
 			IngestionTimestamp: input.IngestionTimestamp,
-			ParsingExtra:       input.ParsingExtra,
-			ServerlessExtra:    input.ServerlessExtra,
+			ServerlessExtra: message.ServerlessExtra{
+				Timestamp: input.ServerlessExtra.Timestamp,
+				Lambda:    input.ServerlessExtra.Lambda,
+			},
 		}
-		c.SetContent(owned)
 
 		fr.outputFn(c, rawDataLen)
 		fr.frames.Inc()

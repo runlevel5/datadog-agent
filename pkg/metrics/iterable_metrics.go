@@ -9,9 +9,10 @@ import (
 	"context"
 	"sync"
 
-	"github.com/DataDog/datadog-agent/pkg/util/buf"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"go.uber.org/atomic"
+
+	"github.com/DataDog/datadog-agent/pkg/util"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 // iterableMetrics represents an iterable collection of metrics. A metric can be
@@ -24,7 +25,7 @@ import (
 // the items, and iterationStopped when it is finished.
 type iterableMetrics struct {
 	count              *atomic.Uint64
-	ch                 *buf.BufferedChan
+	ch                 *util.BufferedChan
 	bufferedChanClosed bool
 	cancel             context.CancelFunc
 	callback           func(interface{})
@@ -38,7 +39,7 @@ func newIterableMetric(callback func(interface{}), chanSize int, bufferSize int)
 	ctx, cancel := context.WithCancel(context.Background())
 	return &iterableMetrics{
 		count:    atomic.NewUint64(0),
-		ch:       buf.NewBufferedChan(ctx, chanSize, bufferSize),
+		ch:       util.NewBufferedChan(ctx, chanSize, bufferSize),
 		cancel:   cancel,
 		callback: callback,
 		current:  nil,
@@ -116,8 +117,7 @@ func Serialize(
 	iterableSketches *IterableSketches,
 	producer func(SerieSink, SketchesSink),
 	serieConsumer func(SerieSource),
-	sketchesConsumer func(SketchesSource),
-) {
+	sketchesConsumer func(SketchesSource)) {
 	var waitGroup sync.WaitGroup
 	var serieSink SerieSink = noOpSerieSink{}
 	var sketchesSink SketchesSink = noOpSketchesSink{}

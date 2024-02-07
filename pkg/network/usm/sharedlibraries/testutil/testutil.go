@@ -8,25 +8,20 @@
 package testutil
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/http/testutil"
-	protocolstestutil "github.com/DataDog/datadog-agent/pkg/network/protocols/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 // mutex protecting build process
 var mux sync.Mutex
 
-// OpenFromAnotherProcess launches an external file that holds active handler to the given paths.
-func OpenFromAnotherProcess(t *testing.T, paths ...string) (*exec.Cmd, error) {
+func OpenFromAnotherProcess(t *testing.T, paths ...string) *exec.Cmd {
 	programExecutable := getPrebuiltExecutable(t)
 
 	if programExecutable == "" {
@@ -35,10 +30,6 @@ func OpenFromAnotherProcess(t *testing.T, paths ...string) (*exec.Cmd, error) {
 	}
 
 	cmd := exec.Command(programExecutable, paths...)
-	patternScanner := protocolstestutil.NewScanner(regexp.MustCompile("awaiting signal"), make(chan struct{}, 1))
-	cmd.Stdout = patternScanner
-	cmd.Stderr = patternScanner
-
 	require.NoError(t, cmd.Start())
 
 	t.Cleanup(func() {
@@ -48,16 +39,7 @@ func OpenFromAnotherProcess(t *testing.T, paths ...string) (*exec.Cmd, error) {
 		_ = cmd.Process.Kill()
 	})
 
-	for {
-		select {
-		case <-patternScanner.DoneChan:
-			return cmd, nil
-		case <-time.After(time.Second * 5):
-			patternScanner.PrintLogs(t)
-			// please don't use t.Fatalf() here as we could test if it failed later
-			return nil, fmt.Errorf("couldn't luanch process in time")
-		}
-	}
+	return cmd
 }
 
 // getPrebuiltExecutable returns the path of the prebuilt fmapper program when applicable.

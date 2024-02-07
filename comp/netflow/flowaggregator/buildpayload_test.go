@@ -49,9 +49,6 @@ func Test_buildPayload(t *testing.T) {
 				Tos:             3,
 				NextHop:         []byte{10, 10, 10, 30},
 				TCPFlags:        uint32(19), // 19 = SYN,ACK,FIN
-				AdditionalFields: map[string]any{
-					"custom_field": "test",
-				},
 			},
 			expectedPayload: payload.FlowPayload{
 				FlushTimestamp: curTime.UnixMilli(),
@@ -87,9 +84,6 @@ func Test_buildPayload(t *testing.T) {
 				TCPFlags: []string{"FIN", "SYN", "ACK"},
 				NextHop: payload.NextHop{
 					IP: "10.10.10.30",
-				},
-				AdditionalFields: map[string]any{
-					"custom_field": "test",
 				},
 			},
 		},

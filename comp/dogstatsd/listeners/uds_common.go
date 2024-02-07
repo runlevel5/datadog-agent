@@ -6,14 +6,10 @@
 package listeners
 
 import (
-	"encoding/binary"
-	"errors"
 	"expvar"
 	"fmt"
-	"io"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -45,39 +41,23 @@ func init() {
 // back packets ready to be processed.
 // Origin detection will be implemented for UDS.
 type UDSListener struct {
-	packetOut               chan packets.Packets
+	conn                    *net.UnixConn
+	packetsBuffer           *packets.Buffer
 	sharedPacketPoolManager *packets.PoolManager
 	oobPoolManager          *packets.PoolManager
 	trafficCapture          replay.Component
 	OriginDetection         bool
-	config                  config.Reader
-
-	transport string
+	config                  config.ConfigReader
 
 	dogstatsdMemBasedRateLimiter bool
 }
 
-func setupUnixConn(conn *net.UnixConn, originDetection bool, config config.Reader) (bool, error) {
-	if originDetection {
-		err := enableUDSPassCred(conn)
-		if err != nil {
-			log.Errorf("dogstatsd-uds: error enabling origin detection: %s", err)
-			originDetection = false
-		} else {
-			log.Debugf("dogstatsd-uds: enabling origin detection on %s", conn.LocalAddr())
-		}
-	}
+// NewUDSListener returns an idle UDS Statsd listener
+func NewUDSListener(packetOut chan packets.Packets, sharedPacketPoolManager *packets.PoolManager, cfg config.ConfigReader, capture replay.Component) (*UDSListener, error) {
+	socketPath := cfg.GetString("dogstatsd_socket")
+	originDetection := cfg.GetBool("dogstatsd_origin_detection")
 
-	if rcvbuf := config.GetInt("dogstatsd_so_rcvbuf"); rcvbuf != 0 {
-		if err := conn.SetReadBuffer(rcvbuf); err != nil {
-			return originDetection, fmt.Errorf("could not set socket rcvbuf: %s", err)
-		}
-	}
-	return originDetection, nil
-}
-
-func setupSocketBeforeListen(socketPath string, transport string) (*net.UnixAddr, error) {
-	address, addrErr := net.ResolveUnixAddr(transport, socketPath)
+	address, addrErr := net.ResolveUnixAddr("unixgram", socketPath)
 	if addrErr != nil {
 		return nil, fmt.Errorf("dogstatsd-uds: can't ResolveUnixAddr: %v", addrErr)
 	}
@@ -93,86 +73,79 @@ func setupSocketBeforeListen(socketPath string, transport string) (*net.UnixAddr
 			return nil, fmt.Errorf("dogstatsd-uds: cannot remove stale UNIX socket: %v", err)
 		}
 	}
-	return address, nil
-}
 
-func setSocketWriteOnly(socketPath string) error {
-	err := os.Chmod(socketPath, 0722)
+	conn, err := net.ListenUnixgram("unixgram", address)
 	if err != nil {
-		return fmt.Errorf("can't set the socket at write only: %s", err)
+		return nil, fmt.Errorf("can't listen: %s", err)
 	}
-	return nil
-}
-
-// NewUDSOobPoolManager returns an UDS OOB pool manager
-func NewUDSOobPoolManager() *packets.PoolManager {
-	pool := &sync.Pool{
-		New: func() interface{} {
-			s := make([]byte, getUDSAncillarySize())
-			return &s
-		},
+	err = os.Chmod(socketPath, 0722)
+	if err != nil {
+		return nil, fmt.Errorf("can't set the socket at write only: %s", err)
 	}
 
-	return packets.NewPoolManager(pool)
-}
+	if originDetection {
+		err = enableUDSPassCred(conn)
+		if err != nil {
+			log.Errorf("dogstatsd-uds: error enabling origin detection: %s", err)
+			originDetection = false
+		} else {
+			log.Debugf("dogstatsd-uds: enabling origin detection on %s", conn.LocalAddr())
 
-// NewUDSListener returns an idle UDS Statsd listener
-func NewUDSListener(packetOut chan packets.Packets, sharedPacketPoolManager *packets.PoolManager, sharedOobPacketPoolManager *packets.PoolManager, cfg config.Reader, capture replay.Component, transport string) (*UDSListener, error) {
-	originDetection := cfg.GetBool("dogstatsd_origin_detection")
+		}
+	}
+
+	if rcvbuf := cfg.GetInt("dogstatsd_so_rcvbuf"); rcvbuf != 0 {
+		if err := conn.SetReadBuffer(rcvbuf); err != nil {
+			return nil, fmt.Errorf("could not set socket rcvbuf: %s", err)
+		}
+	}
 
 	listener := &UDSListener{
-		OriginDetection:              originDetection,
-		packetOut:                    packetOut,
+		OriginDetection: originDetection,
+		conn:            conn,
+		packetsBuffer: packets.NewBuffer(uint(cfg.GetInt("dogstatsd_packet_buffer_size")),
+			cfg.GetDuration("dogstatsd_packet_buffer_flush_timeout"), packetOut),
 		sharedPacketPoolManager:      sharedPacketPoolManager,
 		trafficCapture:               capture,
 		dogstatsdMemBasedRateLimiter: cfg.GetBool("dogstatsd_mem_based_rate_limiter.enabled"),
 		config:                       cfg,
-		transport:                    transport,
+	}
+
+	if listener.trafficCapture != nil {
+		err = listener.trafficCapture.RegisterSharedPoolManager(listener.sharedPacketPoolManager)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Init the oob buffer pool if origin detection is enabled
 	if originDetection {
-		listener.oobPoolManager = sharedOobPacketPoolManager
-		if listener.oobPoolManager == nil {
-			listener.oobPoolManager = NewUDSOobPoolManager()
+
+		pool := &sync.Pool{
+			New: func() interface{} {
+				s := make([]byte, getUDSAncillarySize())
+				return &s
+			},
 		}
 
+		listener.oobPoolManager = packets.NewPoolManager(pool)
+		if listener.trafficCapture != nil {
+			err = listener.trafficCapture.RegisterOOBPoolManager(listener.oobPoolManager)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
+	log.Debugf("dogstatsd-uds: %s successfully initialized", conn.LocalAddr())
 	return listener, nil
 }
 
 // Listen runs the intake loop. Should be called in its own goroutine
-func (l *UDSListener) handleConnection(conn *net.UnixConn) error {
-	listenerID := l.getListenerID(conn)
-	tlmListenerID := listenerID
-	if !l.config.GetBool("dogstatsd_telemetry_enabled_listener_id") {
-		tlmListenerID = ""
-	}
-
-	packetsBuffer := packets.NewBuffer(
-		uint(l.config.GetInt("dogstatsd_packet_buffer_size")),
-		l.config.GetDuration("dogstatsd_packet_buffer_flush_timeout"),
-		l.packetOut,
-		tlmListenerID,
-	)
-	tlmUDSConnections.Inc(tlmListenerID, l.transport)
-	defer func() {
-		_ = conn.Close()
-		packetsBuffer.Close()
-		l.clearTelemetry(tlmListenerID)
-		tlmUDSConnections.Dec(tlmListenerID, l.transport)
-	}()
-
-	var err error
-	l.OriginDetection, err = setupUnixConn(conn, l.OriginDetection, l.config)
-	if err != nil {
-		return err
-	}
-
+func (l *UDSListener) Listen() {
 	t1 := time.Now()
 	var t2 time.Time
-	log.Debugf("dogstatsd-uds: starting to handle %s", conn.LocalAddr())
+	log.Infof("dogstatsd-uds: starting to listen on %s", l.conn.LocalAddr())
 
 	var rateLimiter *ratelimit.MemBasedRateLimiter
 	if l.dogstatsdMemBasedRateLimiter {
@@ -188,11 +161,7 @@ func (l *UDSListener) handleConnection(conn *net.UnixConn) error {
 
 	for {
 		var n int
-		var oobn int
-		var oob *[]byte
-		var oobS []byte
 		var err error
-
 		// retrieve an available packet from the packet pool,
 		// which will be pushed back by the server when processed.
 		packet := l.sharedPacketPoolManager.Get().(*packets.Packet)
@@ -203,168 +172,118 @@ func (l *UDSListener) handleConnection(conn *net.UnixConn) error {
 			capBuff = replay.CapPool.Get().(*replay.CaptureBuffer)
 			capBuff.Pb.Ancillary = nil
 			capBuff.Pb.Payload = nil
-			capBuff.Pb.Pid = 0
-			capBuff.Pb.AncillarySize = int32(0)
-			capBuff.Pb.PayloadSize = int32(0)
 			capBuff.ContainerID = ""
 		}
 
 		if l.OriginDetection {
 			// Read datagram + credentials in ancillary data
-			oob = l.oobPoolManager.Get().(*[]byte)
-			oobS = *oob
-		}
+			oob := l.oobPoolManager.Get().(*[]byte)
+			oobS := *oob
+			var oobn int
 
-		if rateLimiter != nil {
-			if err = rateLimiter.MayWait(); err != nil {
-				log.Error(err)
+			if rateLimiter != nil {
+				if err = rateLimiter.MayWait(); err != nil {
+					log.Error(err)
+				}
 			}
-		}
 
-		t2 = time.Now()
-		tlmListener.Observe(float64(t2.Sub(t1).Nanoseconds()), tlmListenerID, l.transport, "uds")
+			t2 = time.Now()
+			tlmListener.Observe(float64(t2.Sub(t1).Nanoseconds()), "uds")
 
-		var expectedPacketLength uint32
-		var maxPacketLength uint32
-		if l.transport == "unix" {
-			// Read the expected packet length (in stream mode)
-			b := []byte{0, 0, 0, 0}
-			_, err = io.ReadFull(conn, b)
-			expectedPacketLength := binary.LittleEndian.Uint32(b)
+			n, oobn, _, _, err = l.conn.ReadMsgUnix(packet.Buffer, oobS)
 
-			switch {
-			case err == io.EOF, errors.Is(err, io.ErrUnexpectedEOF):
-				log.Debugf("dogstatsd-uds: %s connection closed", l.transport)
-				return nil
-			}
-			if expectedPacketLength > uint32(len(packet.Buffer)) {
-				log.Info("dogstatsd-uds: packet length too large, dropping connection")
-				return nil
-			}
-			maxPacketLength = expectedPacketLength
-		} else {
-			maxPacketLength = uint32(len(packet.Buffer))
-		}
+			t1 = time.Now()
 
-		for err == nil {
-			if oob != nil {
-				n, oobn, _, _, err = conn.ReadMsgUnix(packet.Buffer[n:maxPacketLength], oobS[oobn:])
-			} else {
-				n, _, err = conn.ReadFromUnix(packet.Buffer[n:maxPacketLength])
-			}
-			if n == 0 && oobn == 0 {
-				log.Debugf("dogstatsd-uds: %s connection closed", l.transport)
-				return nil
-			}
-			// If framing is disabled (unixgram, unixpacket), we always will have read the whole packet
-			if expectedPacketLength == 0 {
-				break
-			}
-			// Otherwise see if we need to continue to accumulate bytes or not
-			if uint32(n) == expectedPacketLength {
-				break
-			}
-			if uint32(n) > expectedPacketLength {
-				log.Info("dogstatsd-uds: read length mismatch, dropping connection")
-				return nil
-			}
-		}
-
-		t1 = time.Now()
-
-		if oob != nil {
 			// Extract container id from credentials
 			pid, container, taggingErr := processUDSOrigin(oobS[:oobn])
+
+			if capBuff != nil {
+				capBuff.Pb.Timestamp = time.Now().UnixNano()
+				capBuff.Pid = int32(pid)
+				capBuff.Oob = oob
+				capBuff.Buff = packet
+				capBuff.Pb.AncillarySize = int32(oobn)
+				capBuff.Pb.Ancillary = oobS[:oobn]
+				capBuff.Pb.PayloadSize = int32(n)
+				capBuff.Pb.Payload = packet.Buffer[:n]
+				capBuff.Pb.Pid = int32(pid)
+			}
+
 			if taggingErr != nil {
 				log.Warnf("dogstatsd-uds: error processing origin, data will not be tagged : %v", taggingErr)
 				udsOriginDetectionErrors.Add(1)
-				tlmUDSOriginDetectionError.Inc(tlmListenerID, l.transport)
+				tlmUDSOriginDetectionError.Inc()
 			} else {
 				packet.Origin = container
 				if capBuff != nil {
 					capBuff.ContainerID = container
 				}
 			}
-			if capBuff != nil {
-				capBuff.Oob = oob
-				capBuff.Pid = int32(pid)
-				capBuff.Pb.AncillarySize = int32(oobn)
-				capBuff.Pb.Ancillary = oobS[:oobn]
-			}
-
 			// Return the buffer back to the pool for reuse
 			l.oobPoolManager.Put(oob)
+		} else {
+			if rateLimiter != nil {
+				if err = rateLimiter.MayWait(); err != nil {
+					log.Error(err)
+				}
+			}
+
+			t2 = time.Now()
+			tlmListener.Observe(float64(t2.Sub(t1).Nanoseconds()), "uds")
+
+			// Read only datagram contents with no credentials
+			n, _, err = l.conn.ReadFromUnix(packet.Buffer)
+
+			t1 = time.Now()
+
+			if capBuff != nil {
+				capBuff.Pb.Timestamp = time.Now().UnixNano()
+				capBuff.Buff = packet
+				capBuff.Pb.Pid = 0
+				capBuff.Pb.AncillarySize = int32(0)
+				capBuff.Pb.PayloadSize = int32(n)
+				capBuff.Pb.Payload = packet.Buffer[:n]
+			}
 		}
 
 		if capBuff != nil {
-			capBuff.Buff = packet
-			capBuff.Pb.Timestamp = time.Now().UnixNano()
-			capBuff.Pb.PayloadSize = int32(n)
-			capBuff.Pb.Payload = packet.Buffer[:n]
-
 			l.trafficCapture.Enqueue(capBuff)
 		}
 
 		if err != nil {
 			// connection has been closed
 			if strings.HasSuffix(err.Error(), " use of closed network connection") {
-				return nil
+				return
 			}
 
 			log.Errorf("dogstatsd-uds: error reading packet: %v", err)
 			udsPacketReadingErrors.Add(1)
-			tlmUDSPackets.Inc(tlmListenerID, l.transport, "error")
+			tlmUDSPackets.Inc("error")
 			continue
 		}
-		tlmUDSPackets.Inc(tlmListenerID, l.transport, "ok")
+		tlmUDSPackets.Inc("ok")
 
 		udsBytes.Add(int64(n))
-		tlmUDSPacketsBytes.Add(float64(n), tlmListenerID, l.transport)
+		tlmUDSPacketsBytes.Add(float64(n))
 		packet.Contents = packet.Buffer[:n]
 		packet.Source = packets.UDS
-		packet.ListenerID = listenerID
 
 		// packetsBuffer handles the forwarding of the packets to the dogstatsd server intake channel
-		packetsBuffer.Append(packet)
+		l.packetsBuffer.Append(packet)
 	}
-}
-
-func (l *UDSListener) getConnID(conn *net.UnixConn) string {
-	// We use the file descriptor as a unique identifier for the connection. This might
-	// increase the cardinality in the backend, but this option is not designed to be enabled
-	// all the time. Plus is it useful to debug issues with the UDS listener since we will be
-	// able to use external tools to get additional stats about the socket/fd.
-	var fdConn uintptr
-	rawConn, err := conn.SyscallConn()
-	if err != nil {
-		log.Errorf("dogstatsd-uds: error getting file from connection: %s", err)
-	} else {
-		_ = rawConn.Control(func(fd uintptr) { fdConn = fd })
-	}
-	return strconv.Itoa(int(fdConn))
-}
-func (l *UDSListener) getListenerID(conn *net.UnixConn) string {
-	listenerID := "uds-" + conn.LocalAddr().Network()
-	connID := l.getConnID(conn)
-	if connID != "" {
-		listenerID += "-" + connID
-	}
-	return listenerID
 }
 
 // Stop closes the UDS connection and stops listening
 func (l *UDSListener) Stop() {
-	// Socket cleanup on exit is not necessary as sockets are automatically removed by go.
-}
+	l.packetsBuffer.Close()
+	l.conn.Close()
 
-func (l *UDSListener) clearTelemetry(id string) {
-	if id == "" {
-		return
+	// Socket cleanup on exit
+	socketPath := l.config.GetString("dogstatsd_socket")
+	if len(socketPath) > 0 {
+		err := os.Remove(socketPath)
+		if err != nil {
+			log.Infof("dogstatsd-uds: error removing socket file: %s", err)
+		}
 	}
-	// Since the listener id is volatile we need to make sure we clear the telemetry.
-	tlmListener.Delete(id, l.transport)
-	tlmUDSConnections.Delete(id, l.transport)
-	tlmUDSPackets.Delete(id, l.transport, "error")
-	tlmUDSPackets.Delete(id, l.transport, "ok")
-	tlmUDSPacketsBytes.Delete(id, l.transport)
 }

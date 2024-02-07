@@ -19,7 +19,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/scheduler"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
-	checkid "github.com/DataDog/datadog-agent/pkg/collector/check/id"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 	"github.com/DataDog/datadog-agent/pkg/tagger"
@@ -255,9 +254,7 @@ func (ac *AutoConfig) processNewConfig(config integration.Config) integration.Co
 		}
 	}
 
-	changes, changedIDsOfSecretsWithConfigs := ac.cfgMgr.processNewConfig(config)
-	ac.store.setIDsOfChecksWithSecrets(changedIDsOfSecretsWithConfigs)
-	return changes
+	return ac.cfgMgr.processNewConfig(config)
 }
 
 // AddListeners tries to initialise the listeners listed in the given configs. A first
@@ -363,7 +360,6 @@ func (ac *AutoConfig) RemoveScheduler(name string) {
 func (ac *AutoConfig) processRemovedConfigs(configs []integration.Config) {
 	changes := ac.cfgMgr.processDelConfigs(configs)
 	ac.applyChanges(changes)
-	ac.deleteMappingsOfCheckIDsWithSecrets(changes.Unschedule)
 }
 
 // MapOverLoadedConfigs calls the given function with the map of all
@@ -401,13 +397,6 @@ func (ac *AutoConfig) LoadedConfigs() []integration.Config {
 // state.
 func (ac *AutoConfig) GetUnresolvedTemplates() map[string][]integration.Config {
 	return ac.store.templateCache.getUnresolvedTemplates()
-}
-
-// GetIDOfCheckWithEncryptedSecrets returns the ID that a checkID had before
-// decrypting its secrets.
-// Returns empty if the check with the given ID does not have any secrets.
-func (ac *AutoConfig) GetIDOfCheckWithEncryptedSecrets(checkID checkid.ID) checkid.ID {
-	return ac.store.getIDOfCheckWithEncryptedSecrets(checkID)
 }
 
 // processNewService takes a service, tries to match it against templates and
@@ -471,18 +460,6 @@ func (ac *AutoConfig) applyChanges(changes integration.ConfigChanges) {
 
 		ac.scheduler.Schedule(changes.Schedule)
 	}
-}
-
-func (ac *AutoConfig) deleteMappingsOfCheckIDsWithSecrets(configs []integration.Config) {
-	var checkIDsToDelete []checkid.ID
-	for _, configToDelete := range configs {
-		for _, instance := range configToDelete.Instances {
-			checkID := checkid.BuildID(configToDelete.Name, configToDelete.FastDigest(), instance, configToDelete.InitConfig)
-			checkIDsToDelete = append(checkIDsToDelete, checkID)
-		}
-	}
-
-	ac.store.deleteMappingsOfCheckIDsWithSecrets(checkIDsToDelete)
 }
 
 // getConfigPollers gets a slice of config pollers that can be used without holding

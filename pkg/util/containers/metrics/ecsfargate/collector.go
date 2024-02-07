@@ -23,10 +23,8 @@ import (
 )
 
 const (
-	collectorID       = "ecs_fargate"
-	collectorPriority = 0
-
-	ecsTaskTimeout = 2 * time.Second
+	ecsFargateCollectorID = "ecs_fargate"
+	ecsTaskTimeout        = 2 * time.Second
 	// cpuKey represents the cpu key used in the resource limits map returned by the ECS API
 	cpuKey = "CPU"
 	// memoryKey represents the memory key used in the resource limits map returned by the ECS API
@@ -36,11 +34,12 @@ const (
 var ecsUnsetMemoryLimit = uint64(math.Pow(2, 62))
 
 func init() {
-	provider.RegisterCollector(provider.CollectorFactory{
-		ID: collectorID,
-		Constructor: func(cache *provider.Cache) (provider.CollectorMetadata, error) {
-			return newEcsFargateCollector(cache)
-		},
+	provider.GetProvider().RegisterCollector(provider.CollectorMetadata{
+		ID:            ecsFargateCollectorID,
+		Priority:      0,
+		Runtimes:      []string{provider.RuntimeNameECSFargate},
+		Factory:       func() (provider.Collector, error) { return newEcsFargateCollector() },
+		DelegateCache: true,
 	})
 }
 
@@ -52,34 +51,21 @@ type ecsFargateCollector struct {
 }
 
 // newEcsFargateCollector returns a new *ecsFargateCollector.
-func newEcsFargateCollector(cache *provider.Cache) (provider.CollectorMetadata, error) {
-	var collectorMetadata provider.CollectorMetadata
-
+func newEcsFargateCollector() (*ecsFargateCollector, error) {
 	if !config.IsFeaturePresent(config.ECSFargate) {
-		return collectorMetadata, provider.ErrPermaFail
+		return nil, provider.ErrPermaFail
 	}
 
 	client, err := metadata.V2()
 	if err != nil {
-		return collectorMetadata, provider.ConvertRetrierErr(err)
+		return nil, provider.ConvertRetrierErr(err)
 	}
 
-	collector := &ecsFargateCollector{client: client}
-	collectors := &provider.Collectors{
-		Stats:   provider.MakeRef[provider.ContainerStatsGetter](collector, collectorPriority),
-		Network: provider.MakeRef[provider.ContainerNetworkStatsGetter](collector, collectorPriority),
-	}
-
-	return provider.CollectorMetadata{
-		ID: collectorID,
-		Collectors: provider.CollectorCatalog{
-			provider.RuntimeNameECSFargate: provider.MakeCached(collectorID, cache, collectors),
-		},
-	}, nil
+	return &ecsFargateCollector{client: client}, nil
 }
 
 // ID returns the collector ID.
-func (e *ecsFargateCollector) ID() string { return collectorID }
+func (e *ecsFargateCollector) ID() string { return ecsFargateCollectorID }
 
 // GetContainerStats returns stats by container ID.
 func (e *ecsFargateCollector) GetContainerStats(containerNS, containerID string, cacheValidity time.Duration) (*provider.ContainerStats, error) {
@@ -99,6 +85,18 @@ func (e *ecsFargateCollector) GetContainerStats(containerNS, containerID string,
 	return containerStats, nil
 }
 
+// GetContainerPIDStats returns pid stats by container ID.
+func (e *ecsFargateCollector) GetContainerPIDStats(containerNS, containerID string, cacheValidity time.Duration) (*provider.ContainerPIDStats, error) {
+	// Not available
+	return nil, nil
+}
+
+// GetContainerOpenFilesCount returns open files count by container ID.
+func (e *ecsFargateCollector) GetContainerOpenFilesCount(containerNS, containerID string, cacheValidity time.Duration) (*uint64, error) {
+	// Not available
+	return nil, nil
+}
+
 // GetContainerNetworkStats returns network stats by container ID.
 func (e *ecsFargateCollector) GetContainerNetworkStats(containerNS, containerID string, cacheValidity time.Duration) (*provider.ContainerNetworkStats, error) {
 	stats, err := e.stats(containerID)
@@ -107,6 +105,18 @@ func (e *ecsFargateCollector) GetContainerNetworkStats(containerNS, containerID 
 	}
 
 	return convertNetworkStats(stats), nil
+}
+
+// GetContainerIDForPID returns the container ID for given PID
+func (e *ecsFargateCollector) GetContainerIDForPID(pid int, cacheValidity time.Duration) (string, error) {
+	// Not available
+	return "", nil
+}
+
+// GetSelfContainerID returns current process container ID
+func (e *ecsFargateCollector) GetSelfContainerID() (string, error) {
+	// Not available
+	return "", nil
 }
 
 // stats returns stats by container ID, it uses an in-memory cache to reduce the number of api calls.

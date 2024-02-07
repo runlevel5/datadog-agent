@@ -8,7 +8,6 @@ package config
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	sysconfig "github.com/DataDog/datadog-agent/cmd/system-probe/config"
@@ -70,8 +69,8 @@ type RuntimeSecurityConfig struct {
 	// HostServiceName string
 	HostServiceName string
 
-	// InternalMonitoringEnabled determines if the monitoring events of the agent should be sent to Datadog
-	InternalMonitoringEnabled bool
+	// AgentMonitoringEvents determines if the monitoring events of the agent should be sent to Datadog
+	CustomEventEnabled bool
 
 	// ActivityDumpEnabled defines if the activity dump manager should be enabled
 	ActivityDumpEnabled bool
@@ -127,6 +126,8 @@ type RuntimeSecurityConfig struct {
 	ActivityDumpSilentWorkloadsDelay time.Duration
 	// ActivityDumpSilentWorkloadsTicker configures ticker that will check if a workload is silent and should be traced
 	ActivityDumpSilentWorkloadsTicker time.Duration
+	// ActivityDumpAutoSuppressionEnabled do not send event if part of a profile
+	ActivityDumpAutoSuppressionEnabled bool
 
 	// # Dynamic configuration fields:
 	// ActivityDumpMaxDumpSize defines the maximum size of a dump
@@ -146,8 +147,6 @@ type RuntimeSecurityConfig struct {
 	SecurityProfileRCEnabled bool
 	// SecurityProfileDNSMatchMaxDepth defines the max depth of subdomain to be matched for DNS anomaly detection (0 to match everything)
 	SecurityProfileDNSMatchMaxDepth int
-	// SecurityProfileAutoSuppressionEnabled do not send event if part of a profile
-	SecurityProfileAutoSuppressionEnabled bool
 
 	// AnomalyDetectionEventTypes defines the list of events that should be allowed to generate anomaly detections
 	AnomalyDetectionEventTypes []model.EventType
@@ -179,8 +178,6 @@ type RuntimeSecurityConfig struct {
 	AnomalyDetectionTagRulesEnabled bool
 	// AnomalyDetectionSilentRuleEventsEnabled do not send rule event if also part of an anomaly event
 	AnomalyDetectionSilentRuleEventsEnabled bool
-	// AnomalyDetectionEnabled defines if we should send anomaly detection events
-	AnomalyDetectionEnabled bool
 
 	// SBOMResolverEnabled defines if the SBOM resolver should be enabled
 	SBOMResolverEnabled bool
@@ -202,9 +199,6 @@ type RuntimeSecurityConfig struct {
 	HashResolverEventTypes []model.EventType
 	// HashResolverCacheSize defines the number of hashes to keep in cache
 	HashResolverCacheSize int
-
-	// UserSessionsCacheSize defines the size of the User Sessions cache size
-	UserSessionsCacheSize int
 }
 
 // Config defines a security config
@@ -261,7 +255,7 @@ func NewRuntimeSecurityConfig() (*RuntimeSecurityConfig, error) {
 		LogTags:     coreconfig.SystemProbe.GetStringSlice("runtime_security_config.log_tags"),
 
 		// custom events
-		InternalMonitoringEnabled: coreconfig.SystemProbe.GetBool("runtime_security_config.internal_monitoring.enabled"),
+		CustomEventEnabled: coreconfig.SystemProbe.GetBool("runtime_security_config.agent_monitoring_events"),
 
 		// activity dump
 		ActivityDumpEnabled:                   coreconfig.SystemProbe.GetBool("runtime_security_config.activity_dump.enabled"),
@@ -284,6 +278,7 @@ func NewRuntimeSecurityConfig() (*RuntimeSecurityConfig, error) {
 		ActivityDumpSilentWorkloadsDelay:      coreconfig.SystemProbe.GetDuration("runtime_security_config.activity_dump.silent_workloads.delay"),
 		ActivityDumpSilentWorkloadsTicker:     coreconfig.SystemProbe.GetDuration("runtime_security_config.activity_dump.silent_workloads.ticker"),
 		ActivityDumpWorkloadDenyList:          coreconfig.SystemProbe.GetStringSlice("runtime_security_config.activity_dump.workload_deny_list"),
+		ActivityDumpAutoSuppressionEnabled:    coreconfig.SystemProbe.GetBool("runtime_security_config.security_profile.anomaly_detection.auto_suppression.enabled"),
 		// activity dump dynamic fields
 		ActivityDumpMaxDumpSize: func() int {
 			mds := coreconfig.SystemProbe.GetInt("runtime_security_config.activity_dump.max_dump_size")
@@ -307,14 +302,13 @@ func NewRuntimeSecurityConfig() (*RuntimeSecurityConfig, error) {
 		HashResolverCacheSize:      coreconfig.SystemProbe.GetInt("runtime_security_config.hash_resolver.cache_size"),
 
 		// security profiles
-		SecurityProfileEnabled:                coreconfig.SystemProbe.GetBool("runtime_security_config.security_profile.enabled"),
-		SecurityProfileDir:                    coreconfig.SystemProbe.GetString("runtime_security_config.security_profile.dir"),
-		SecurityProfileWatchDir:               coreconfig.SystemProbe.GetBool("runtime_security_config.security_profile.watch_dir"),
-		SecurityProfileCacheSize:              coreconfig.SystemProbe.GetInt("runtime_security_config.security_profile.cache_size"),
-		SecurityProfileMaxCount:               coreconfig.SystemProbe.GetInt("runtime_security_config.security_profile.max_count"),
-		SecurityProfileRCEnabled:              coreconfig.SystemProbe.GetBool("runtime_security_config.security_profile.remote_configuration.enabled"),
-		SecurityProfileDNSMatchMaxDepth:       coreconfig.SystemProbe.GetInt("runtime_security_config.security_profile.dns_match_max_depth"),
-		SecurityProfileAutoSuppressionEnabled: coreconfig.SystemProbe.GetBool("runtime_security_config.security_profile.auto_suppression.enabled"),
+		SecurityProfileEnabled:          coreconfig.SystemProbe.GetBool("runtime_security_config.security_profile.enabled"),
+		SecurityProfileDir:              coreconfig.SystemProbe.GetString("runtime_security_config.security_profile.dir"),
+		SecurityProfileWatchDir:         coreconfig.SystemProbe.GetBool("runtime_security_config.security_profile.watch_dir"),
+		SecurityProfileCacheSize:        coreconfig.SystemProbe.GetInt("runtime_security_config.security_profile.cache_size"),
+		SecurityProfileMaxCount:         coreconfig.SystemProbe.GetInt("runtime_security_config.security_profile.max_count"),
+		SecurityProfileRCEnabled:        coreconfig.SystemProbe.GetBool("runtime_security_config.security_profile.remote_configuration.enabled"),
+		SecurityProfileDNSMatchMaxDepth: coreconfig.SystemProbe.GetInt("runtime_security_config.security_profile.dns_match_max_depth"),
 
 		// anomaly detection
 		AnomalyDetectionEventTypes:                   parseEventTypeStringSlice(coreconfig.SystemProbe.GetStringSlice("runtime_security_config.security_profile.anomaly_detection.event_types")),
@@ -328,10 +322,6 @@ func NewRuntimeSecurityConfig() (*RuntimeSecurityConfig, error) {
 		AnomalyDetectionRateLimiterNumEventsAllowed:  coreconfig.SystemProbe.GetInt("runtime_security_config.security_profile.anomaly_detection.rate_limiter.num_events_allowed"),
 		AnomalyDetectionTagRulesEnabled:              coreconfig.SystemProbe.GetBool("runtime_security_config.security_profile.anomaly_detection.tag_rules.enabled"),
 		AnomalyDetectionSilentRuleEventsEnabled:      coreconfig.SystemProbe.GetBool("runtime_security_config.security_profile.anomaly_detection.silent_rule_events.enabled"),
-		AnomalyDetectionEnabled:                      coreconfig.SystemProbe.GetBool("runtime_security_config.security_profile.anomaly_detection.enabled"),
-
-		// User Sessions
-		UserSessionsCacheSize: coreconfig.SystemProbe.GetInt("runtime_security_config.user_sessions.cache_size"),
 	}
 
 	if err := rsConfig.sanitize(); err != nil {
@@ -474,14 +464,6 @@ func parseHashAlgorithmStringSlice(algorithms []string) []model.HashAlgorithm {
 		}
 	}
 	return output
-}
-
-// GetFamilyAddress returns the address famility to use for system-probe <-> security-agent communication
-func GetFamilyAddress(path string) (string, string) {
-	if strings.HasPrefix(path, "/") {
-		return "unix", path
-	}
-	return "tcp", path
 }
 
 var (

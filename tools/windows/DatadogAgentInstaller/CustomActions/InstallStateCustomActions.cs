@@ -1,5 +1,4 @@
 using System;
-using System.Security.Principal;
 using Datadog.CustomActions.Extensions;
 using Datadog.CustomActions.Interfaces;
 using Datadog.CustomActions.Native;
@@ -144,8 +143,8 @@ namespace Datadog.CustomActions
                 var currentBuild = subkey.GetValue("CurrentBuild");
                 if (currentBuild != null)
                 {
-                    _session["DDAGENT_WINDOWSBUILD"] = subkey.GetValue("CurrentBuild").ToString();
-                    _session.Log($"WindowsBuild: {_session["DDAGENT_WINDOWSBUILD"]}");
+                    _session["WindowsBuild"] = subkey.GetValue("CurrentBuild").ToString();
+                    _session.Log($"WindowsBuild: {_session["WindowsBuild"]}");
                 }
             }
             else
@@ -223,27 +222,13 @@ namespace Datadog.CustomActions
                     return ActionResult.Success;
                 }
 
-                foreach (var value in new[]
-                         {
-                             "installedDomain",
-                             "installedUser"
-                         })
-                {
-                    try
-                    {
-                        subkey.DeleteValue(value);
-                    }
-                    catch (Exception e)
-                    {
-                        // Don't print stack trace as it may be seen as a terminal error by readers of the log.
-                        _session.Log($"Warning, cannot removing registry value: {e.Message}");
-                    }
-                }
+                subkey.DeleteValue("installedDomain");
+                subkey.DeleteValue("installedUser");
             }
             catch (Exception e)
             {
-                _session.Log($"Warning, could not access registry key {Constants.DatadogAgentRegistryKey}: {e}");
-                // This step can fail without failing the un-installation.
+                _session.Log($"Error removing registry properties: {e}");
+                return ActionResult.Failure;
             }
 
             return ActionResult.Success;
@@ -253,46 +238,6 @@ namespace Datadog.CustomActions
         public static ActionResult UninstallWriteInstallState(Session session)
         {
             return new InstallStateCustomActions(new SessionWrapper(session)).UninstallWriteInstallState();
-        }
-
-        public static SecurityIdentifier GetPreviousAgentUser(ISession session, IRegistryServices registryServices, INativeMethods nativeMethods)
-        {
-            try
-            {
-                using var subkey =
-                    registryServices.OpenRegistryKey(Registries.LocalMachine, Constants.DatadogAgentRegistryKey);
-                if (subkey == null)
-                {
-                    throw new Exception("Datadog registry key does not exist");
-                }
-                var domain = subkey.GetValue("installedDomain")?.ToString();
-                var user = subkey.GetValue("installedUser")?.ToString();
-                if (string.IsNullOrEmpty(domain) || string.IsNullOrEmpty(user))
-                {
-                    throw new Exception("Agent user information is not in registry");
-                }
-
-                var accountName = $"{domain}\\{user}";
-                session.Log($"Found agent user information in registry {accountName}");
-                var userFound = nativeMethods.LookupAccountName(accountName,
-                    out _,
-                    out _,
-                    out var securityIdentifier,
-                    out _);
-                if (!userFound || securityIdentifier == null)
-                {
-                    throw new Exception($"Could not find account for user {accountName}.");
-                }
-
-                session.Log($"Found previous agent user {accountName} ({securityIdentifier})");
-                return securityIdentifier;
-            }
-            catch (Exception e)
-            {
-                session.Log($"Could not find previous agent user: {e}");
-            }
-
-            return null;
         }
     }
 }

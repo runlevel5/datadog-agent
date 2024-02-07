@@ -39,12 +39,11 @@ type ContainerListener struct {
 func NewContainerListener(Config) (ServiceListener, error) {
 	const name = "ad-containerlistener"
 	l := &ContainerListener{}
-	filterParams := workloadmeta.FilterParams{
-		Kinds:     []workloadmeta.Kind{workloadmeta.KindContainer},
-		Source:    workloadmeta.SourceRuntime,
-		EventType: workloadmeta.EventTypeAll,
-	}
-	f := workloadmeta.NewFilter(&filterParams)
+	f := workloadmeta.NewFilter(
+		[]workloadmeta.Kind{workloadmeta.KindContainer},
+		workloadmeta.SourceRuntime,
+		workloadmeta.EventTypeAll,
+	)
 
 	var err error
 	l.workloadmetaListener, err = newWorkloadmetaListener(name, f, l.createContainerService)

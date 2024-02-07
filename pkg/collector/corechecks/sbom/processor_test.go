@@ -8,7 +8,6 @@
 package sbom
 
 import (
-	"context"
 	"os"
 	"testing"
 	"time"
@@ -27,14 +26,12 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/epforwarder"
 	sbomscanner "github.com/DataDog/datadog-agent/pkg/sbom/scanner"
-	"github.com/DataDog/datadog-agent/pkg/util/hostname"
 	"github.com/DataDog/datadog-agent/pkg/util/pointer"
 	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 	fakeworkloadmeta "github.com/DataDog/datadog-agent/pkg/workloadmeta/testing"
 )
 
 func TestProcessEvents(t *testing.T) {
-	hname, _ := hostname.Get(context.TODO())
 	sbomGenerationTime := time.Now()
 
 	tests := []struct {
@@ -587,8 +584,8 @@ func TestProcessEvents(t *testing.T) {
 	cacheDir, err := os.MkdirTemp("", "sbom-cache")
 	assert.Nil(t, err)
 	defer os.RemoveAll(cacheDir)
-	cfg.SetWithoutSource("sbom.cache_directory", cacheDir)
-	cfg.SetWithoutSource("sbom.container_image.enabled", true)
+	cfg.Set("sbom.cache_directory", cacheDir)
+	cfg.Set("sbom.container_image.enabled", true)
 	_, err = sbomscanner.CreateGlobalScanner(cfg)
 	assert.Nil(t, err)
 
@@ -635,7 +632,6 @@ func TestProcessEvents(t *testing.T) {
 			for _, expectedSBOM := range test.expectedSBOMs {
 				encoded, err := proto.Marshal(&model.SBOMPayload{
 					Version:  1,
-					Host:     hname,
 					Source:   &sourceAgent,
 					Entities: []*model.SBOMEntity{expectedSBOM},
 					DdEnv:    &envVarEnv,

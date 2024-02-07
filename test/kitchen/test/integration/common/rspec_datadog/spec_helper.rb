@@ -219,10 +219,12 @@ end
 def log_trace(flavor, action)
   service = get_service_name(flavor)
   if os == :windows
-    # Collect events from DatadogAgent and this service, since this service may depend on datadogagent it may be
-    # that the actual error is coming from datadogagent failing to start.
-    system "powershell.exe -Command \"Get-EventLog -LogName Application -Newest 10 -Source datadogagent,#{service} | fl\""
-    system "powershell.exe -Command \"Get-EventLog -LogName System -Newest 10 -Source \\\"Service Control Manager\\\" | fl\""
+    if action == "stop" || action == "restart"
+      system "wevtutil qe System /q:\"*[System[(EventID=7040) and (EventData[Data[@Name='param1']='#{service}'])]\""
+    end
+    if action == "start" || action == "restart"
+      system "wevtutil qe System /q:\"*[System[(EventID=7036) and (EventData[Data[@Name='param1']='#{service}'])]\""
+    end
   else
     if has_systemctl
       system "sudo journalctl -u #{service} -xe --no-pager"
@@ -331,13 +333,6 @@ end
 
 def agent_processes_running?
   %w(datadog-agent agent.exe).each do |p|
-    return true if is_process_running?(p)
-  end
-  false
-end
-
-def trace_processes_running?
-  %w(trace-agent trace-agent.exe).each do |p|
     return true if is_process_running?(p)
   end
   false
@@ -489,6 +484,10 @@ end
 
 shared_examples_for 'Agent uninstall' do
   it_behaves_like 'an Agent that is removed'
+end
+
+def is_ng_installer()
+  parse_dna().fetch('dd-agent-rspec').fetch('ng_installer')
 end
 
 shared_examples_for "an installed Agent" do
@@ -696,7 +695,6 @@ shared_examples_for 'an Agent that stops' do
 
   it 'is not running any agent processes' do
     expect(agent_processes_running?).to be_falsey
-    expect(trace_processes_running?).to be_falsey
     expect(security_agent_running?).to be_falsey
     expect(system_probe_running?).to be_falsey
   end
@@ -860,7 +858,6 @@ shared_examples_for 'an Agent that is removed' do
   it 'should not be running the agent after removal' do
     sleep 15
     expect(agent_processes_running?).to be_falsey
-    expect(trace_processes_running?).to be_falsey
     expect(security_agent_running?).to be_falsey
     expect(system_probe_running?).to be_falsey
   end

@@ -16,6 +16,11 @@ import (
 )
 
 const (
+	// run the host metadata collector every 1800 seconds (30 minutes)
+	hostMetadataCollectorInterval = 1800
+	// run the host metadata collector interval can be set through configuration within acceptable bounds
+	hostMetadataCollectorMinInterval = 300   // 5min minimum
+	hostMetadataCollectorMaxInterval = 14400 // 4h maximum
 	// run the Agent checks metadata collector every 600 seconds (10 minutes). AgentChecksCollector implements the
 	// CollectorWithFirstRun and will send its first payload after a minute.
 	agentChecksMetadataCollectorInterval = 600
@@ -24,12 +29,20 @@ const (
 type collector struct {
 	os          string
 	interval    time.Duration
+	min         time.Duration
+	max         time.Duration
 	ignoreError bool
 }
 
 var (
 	// default collectors by os
 	defaultCollectors = map[string]collector{
+		"host": {
+			os:       "*",
+			interval: hostMetadataCollectorInterval * time.Second,
+			min:      hostMetadataCollectorMinInterval * time.Second,
+			max:      hostMetadataCollectorMaxInterval * time.Second,
+		},
 		"agent_checks": {os: "*", interval: agentChecksMetadataCollectorInterval * time.Second},
 	}
 
@@ -45,6 +58,12 @@ func init() {
 
 // addCollector adds a collector by name to the Scheduler
 func addCollector(name string, intl time.Duration, sch *Scheduler) error {
+	if collector, ok := defaultCollectors[name]; ok {
+		if (collector.min != 0 && intl < collector.min) || (collector.max != 0 && intl > collector.max) {
+			return fmt.Errorf("Ignoring collector '%s': interval %v is outside of accepted values (min: %v, max: %v)", name, intl, collector.min, collector.max)
+		}
+	}
+
 	if err := sch.AddCollector(name, intl); err != nil {
 		return fmt.Errorf("Unable to add '%s' metadata provider: %v", name, err)
 	}

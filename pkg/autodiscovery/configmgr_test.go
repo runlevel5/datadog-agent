@@ -13,14 +13,11 @@ import (
 	"testing"
 
 	"github.com/mohae/deepcopy"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/listeners"
-	"github.com/DataDog/datadog-agent/pkg/autodiscovery/providers/names"
-	checkid "github.com/DataDog/datadog-agent/pkg/collector/check/id"
 	"github.com/DataDog/datadog-agent/pkg/util/testutil"
 )
 
@@ -102,15 +99,10 @@ func matchSvc(serviceID string) func(integration.Config) bool {
 }
 
 var (
-	nonTemplateConfig             = integration.Config{Name: "non-template"}
-	nonTemplateConfigWithSecrets  = integration.Config{Name: "non-template-with-secrets", Instances: []integration.Data{integration.Data("foo: ENC[bar]")}}
-	clusterCheckConfigWithSecrets = integration.Config{
-		Provider:  names.ClusterChecks,
-		Name:      "non-template-with-secrets-cluster-check",
-		Instances: []integration.Data{integration.Data("foo: ENC[bar]")},
-	}
-	templateConfig = integration.Config{Name: "template", LogsConfig: []byte("source: %%host%%"), ADIdentifiers: []string{"my-service"}}
-	myService      = &dummyService{ID: "my-service", ADIdentifiers: []string{"my-service"}, Hosts: map[string]string{"main": "myhost"}}
+	nonTemplateConfig            = integration.Config{Name: "non-template"}
+	nonTemplateConfigWithSecrets = integration.Config{Name: "non-template-with-secrets", Instances: []integration.Data{integration.Data("foo: ENC[bar]")}}
+	templateConfig               = integration.Config{Name: "template", LogsConfig: []byte("source: %%host%%"), ADIdentifiers: []string{"my-service"}}
+	myService                    = &dummyService{ID: "my-service", ADIdentifiers: []string{"my-service"}, Hosts: map[string]string{"main": "myhost"}}
 )
 
 type ConfigManagerSuite struct {
@@ -126,7 +118,7 @@ func (suite *ConfigManagerSuite) SetupTest() {
 // A new, non-template config is scheduled immediately and unscheduled when
 // deleted
 func (suite *ConfigManagerSuite) TestNewNonTemplateScheduled() {
-	changes, _ := suite.cm.processNewConfig(nonTemplateConfig)
+	changes := suite.cm.processNewConfig(nonTemplateConfig)
 	assertConfigsMatch(suite.T(), changes.Schedule, matchName("non-template"))
 	assertConfigsMatch(suite.T(), changes.Unschedule)
 
@@ -155,10 +147,7 @@ func (suite *ConfigManagerSuite) TestNewNonTemplateWithSecretsScheduled() {
 	defer mockDecrypt.install()()
 
 	inputNewConfig := deepcopy.Copy(nonTemplateConfigWithSecrets).(integration.Config)
-	changes, changedIDs := suite.cm.processNewConfig(inputNewConfig)
-
-	assert.Empty(suite.T(), changedIDs) // Only returned if the config provider is cluster-checks.
-
+	changes := suite.cm.processNewConfig(inputNewConfig)
 	assertConfigsMatch(suite.T(), changes.Schedule, matchName(nonTemplateConfigWithSecrets.Name))
 	assertConfigsMatch(suite.T(), changes.Unschedule)
 	// Verify content is actually decoded
@@ -173,59 +162,10 @@ func (suite *ConfigManagerSuite) TestNewNonTemplateWithSecretsScheduled() {
 	require.True(suite.T(), strings.Contains(string(changes.Unschedule[0].Instances[0]), "barDecoded"))
 }
 
-func (suite *ConfigManagerSuite) TestNewClusterCheckWithSecretsScheduled() {
-	mockDecrypt := MockSecretDecrypt{suite.T(), []mockSecretScenario{
-		{
-			expectedData:   []byte("foo: ENC[bar]"),
-			expectedOrigin: clusterCheckConfigWithSecrets.Name,
-			returnedData:   []byte("foo: barDecoded"),
-			returnedError:  nil,
-		},
-		{
-			expectedData:   []byte{},
-			expectedOrigin: clusterCheckConfigWithSecrets.Name,
-			returnedData:   []byte{},
-			returnedError:  nil,
-		},
-	}}
-	defer mockDecrypt.install()()
-
-	inputNewConfig := deepcopy.Copy(clusterCheckConfigWithSecrets).(integration.Config)
-	changes, changedIDs := suite.cm.processNewConfig(inputNewConfig)
-
-	// Check that changedIDs contains the correct mapping of IDs
-	originalCheckID := checkid.BuildID(
-		clusterCheckConfigWithSecrets.Name,
-		clusterCheckConfigWithSecrets.FastDigest(),
-		clusterCheckConfigWithSecrets.Instances[0],
-		clusterCheckConfigWithSecrets.InitConfig,
-	)
-	newCheckID := checkid.BuildID(
-		changes.Schedule[0].Name,
-		changes.Schedule[0].FastDigest(),
-		changes.Schedule[0].Instances[0],
-		changes.Schedule[0].InitConfig,
-	)
-	assert.Equal(suite.T(), map[checkid.ID]checkid.ID{newCheckID: originalCheckID}, changedIDs)
-
-	assertConfigsMatch(suite.T(), changes.Schedule, matchName(clusterCheckConfigWithSecrets.Name))
-	assertConfigsMatch(suite.T(), changes.Unschedule)
-	// Verify content is actually decoded
-	require.True(suite.T(), strings.Contains(string(changes.Schedule[0].Instances[0]), "barDecoded"))
-	newConfigDigest := changes.Schedule[0].Digest()
-
-	inputDelConfig := deepcopy.Copy(clusterCheckConfigWithSecrets).(integration.Config)
-	changes = suite.cm.processDelConfigs([]integration.Config{inputDelConfig})
-	assertConfigsMatch(suite.T(), changes.Schedule)
-	assertConfigsMatch(suite.T(), changes.Unschedule, matchName(clusterCheckConfigWithSecrets.Name))
-	assertConfigsMatch(suite.T(), changes.Unschedule, matchDigest(newConfigDigest))
-	require.True(suite.T(), strings.Contains(string(changes.Unschedule[0].Instances[0]), "barDecoded"))
-}
-
 // A new template config is not scheduled when there is no matching service, and
 // not unscheduled when removed
 func (suite *ConfigManagerSuite) TestNewTemplateNotScheduled() {
-	changes, _ := suite.cm.processNewConfig(templateConfig)
+	changes := suite.cm.processNewConfig(templateConfig)
 	assertConfigsMatch(suite.T(), changes.Schedule)
 	assertConfigsMatch(suite.T(), changes.Unschedule)
 
@@ -238,7 +178,7 @@ func (suite *ConfigManagerSuite) TestNewTemplateNotScheduled() {
 // is resolved and scheduled when such a service arrives; deleting the config
 // unschedules the resolved configs.
 func (suite *ConfigManagerSuite) TestNewTemplateBeforeService_ConfigRemovedFirst() {
-	changes, _ := suite.cm.processNewConfig(templateConfig)
+	changes := suite.cm.processNewConfig(templateConfig)
 	assertConfigsMatch(suite.T(), changes.Schedule)
 	assertConfigsMatch(suite.T(), changes.Unschedule)
 
@@ -259,7 +199,7 @@ func (suite *ConfigManagerSuite) TestNewTemplateBeforeService_ConfigRemovedFirst
 // is resolved and scheduled when such a service arrives; deleting the service
 // unschedules the resolved configs.
 func (suite *ConfigManagerSuite) TestNewTemplateBeforeService_ServiceRemovedFirst() {
-	changes, _ := suite.cm.processNewConfig(templateConfig)
+	changes := suite.cm.processNewConfig(templateConfig)
 	assertConfigsMatch(suite.T(), changes.Schedule)
 	assertConfigsMatch(suite.T(), changes.Unschedule)
 
@@ -284,7 +224,7 @@ func (suite *ConfigManagerSuite) TestNewServiceBeforeTemplate_ConfigRemovedFirst
 	assertConfigsMatch(suite.T(), changes.Schedule)
 	assertConfigsMatch(suite.T(), changes.Unschedule)
 
-	changes, _ = suite.cm.processNewConfig(templateConfig)
+	changes = suite.cm.processNewConfig(templateConfig)
 	assertConfigsMatch(suite.T(), changes.Schedule, matchAll(matchName("template"), matchLogsConfig("source: myhost\n")))
 	assertConfigsMatch(suite.T(), changes.Unschedule)
 
@@ -305,7 +245,7 @@ func (suite *ConfigManagerSuite) TestNewServiceBeforeTemplate_ServiceRemovedFirs
 	assertConfigsMatch(suite.T(), changes.Schedule)
 	assertConfigsMatch(suite.T(), changes.Unschedule)
 
-	changes, _ = suite.cm.processNewConfig(templateConfig)
+	changes = suite.cm.processNewConfig(templateConfig)
 	assertConfigsMatch(suite.T(), changes.Schedule, matchAll(matchName("template"), matchLogsConfig("source: myhost\n")))
 	assertConfigsMatch(suite.T(), changes.Unschedule)
 
@@ -401,8 +341,7 @@ func (suite *ConfigManagerSuite) TestFuzz() {
 				if _, found := configs[digest]; !found {
 					configs[digest] = cfg
 					fmt.Printf("add non-template config %s (digest %s)\n", cfg.Name, digest)
-					changes, _ := cm.processNewConfig(cfg)
-					applyChanges(changes)
+					applyChanges(cm.processNewConfig(cfg))
 				}
 			case p < 60 && op < removeAfterOps: // add template config
 				cfg := makeTemplateConfig(r)
@@ -411,8 +350,7 @@ func (suite *ConfigManagerSuite) TestFuzz() {
 					configs[digest] = cfg
 					fmt.Printf("add template config %s (digest %s) with AD idents [%s]\n",
 						cfg.Name, digest, strings.Join(cfg.ADIdentifiers, ", "))
-					changes, _ := cm.processNewConfig(cfg)
-					applyChanges(changes)
+					applyChanges(cm.processNewConfig(cfg))
 				}
 			case p < 70 && len(services) > 0: // remove service
 				i := rand.Intn(len(services))
@@ -505,14 +443,14 @@ func (suite *ReconcilingConfigManagerSuite) TestServiceTemplateFiltering() {
 
 	// adding a template that does not end in -keep only matches my-service
 	cfg1 := integration.Config{Name: "cfg1", ADIdentifiers: []string{"my-service", "filter"}}
-	changes, _ = suite.cm.processNewConfig(cfg1)
+	changes = suite.cm.processNewConfig(cfg1)
 	assertConfigsMatch(suite.T(), changes.Schedule, matchAll(matchName("cfg1"), matchSvc("my-service")))
 	assertConfigsMatch(suite.T(), changes.Unschedule)
 	assertLoadedConfigsMatch(suite.T(), suite.cm, matchAll(matchName("cfg1"), matchSvc("my-service")))
 
 	// adding a template that ends in -keep matches both services
 	cfg2 := integration.Config{Name: "cfg2-keep", ADIdentifiers: []string{"my-service", "filter"}}
-	changes, _ = suite.cm.processNewConfig(cfg2)
+	changes = suite.cm.processNewConfig(cfg2)
 	assertConfigsMatch(suite.T(), changes.Schedule,
 		matchAll(matchName("cfg2-keep"), matchSvc("my-service")),
 		matchAll(matchName("cfg2-keep"), matchSvc("filter")),

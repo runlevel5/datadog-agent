@@ -7,7 +7,10 @@
 package hostinfo
 
 import (
+	"go.uber.org/fx"
+
 	"github.com/DataDog/datadog-agent/pkg/process/checks"
+	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
 // team: processes
@@ -15,3 +18,11 @@ import (
 type Component interface {
 	Object() *checks.HostInfo
 }
+
+var Module = fxutil.Component(
+	fx.Provide(newHostInfo),
+)
+
+var MockModule = fxutil.Component(
+	fx.Provide(newMockHostInfo),
+)

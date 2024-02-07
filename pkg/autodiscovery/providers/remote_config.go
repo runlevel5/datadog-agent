@@ -10,12 +10,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"strings"
 	"sync"
 
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/providers/names"
-	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -46,7 +44,7 @@ func NewRemoteConfigProvider() *RemoteConfigProvider {
 }
 
 // Collect retrieves integrations from the remote-config, builds Config objects and returns them
-func (rc *RemoteConfigProvider) Collect(ctx context.Context) ([]integration.Config, error) { //nolint:revive // TODO fix revive unused-parameter
+func (rc *RemoteConfigProvider) Collect(ctx context.Context) ([]integration.Config, error) {
 	rc.mu.RLock()
 	defer rc.mu.RUnlock()
 
@@ -63,7 +61,7 @@ func (rc *RemoteConfigProvider) Collect(ctx context.Context) ([]integration.Conf
 }
 
 // IsUpToDate allows to cache configs as long as no changes are detected in remote-config
-func (rc *RemoteConfigProvider) IsUpToDate(ctx context.Context) (bool, error) { //nolint:revive // TODO fix revive unused-parameter
+func (rc *RemoteConfigProvider) IsUpToDate(ctx context.Context) (bool, error) {
 	rc.mu.RLock()
 	defer rc.mu.RUnlock()
 
@@ -95,8 +93,6 @@ func (rc *RemoteConfigProvider) IntegrationScheduleCallback(updates map[string]s
 	defer rc.mu.Unlock()
 	var err error
 
-	allowedIntegration := config.GetRemoteConfigurationAllowedIntegrations(config.Datadog)
-
 	newCache := make(map[string]integration.Config, 0)
 	// Now schedule everything
 	for cfgPath, intg := range updates {
@@ -110,14 +106,6 @@ func (rc *RemoteConfigProvider) IntegrationScheduleCallback(updates map[string]s
 			applyStateCallback(cfgPath, state.ApplyStatus{
 				State: state.ApplyStateError,
 				Error: err.Error(),
-			})
-			break
-		}
-
-		if !allowedIntegration[strings.ToLower(d.Name)] {
-			applyStateCallback(cfgPath, state.ApplyStatus{
-				State: state.ApplyStateError,
-				Error: fmt.Sprintf("Integration %s is not allowed to be scheduled in this agent", d.Name),
 			})
 			break
 		}

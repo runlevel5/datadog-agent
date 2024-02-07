@@ -3,7 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-// Package backoff provides backoff mechanisms
 package backoff
 
 import (
@@ -111,7 +110,7 @@ func (e *ExpBackoffPolicy) DecError(numErrors int) int {
 }
 
 // GetBackoffDuration returns amount of time to sleep after numErrors error
-func (c *ConstantBackoffPolicy) GetBackoffDuration(numErrors int) time.Duration { //nolint:revive // TODO fix revive unused-parameter
+func (c *ConstantBackoffPolicy) GetBackoffDuration(numErrors int) time.Duration {
 	return c.backoffTime
 }
 

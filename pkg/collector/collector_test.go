@@ -41,7 +41,6 @@ func (c *TestCheck) ID() checkid.ID {
 	}
 	return checkid.ID(c.String())
 }
-
 func (c *TestCheck) String() string {
 	if c.name != "" {
 		return c.name
@@ -85,7 +84,7 @@ type CollectorTestSuite struct {
 }
 
 func (suite *CollectorTestSuite) SetupTest() {
-	suite.c = NewCollector(aggregator.NewNoOpSenderManager(), 500*time.Millisecond)
+	suite.c = NewCollector(aggregator.NewNoOpSenderManager())
 	suite.c.Start()
 }
 

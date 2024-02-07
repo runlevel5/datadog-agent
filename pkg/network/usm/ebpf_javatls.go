@@ -26,7 +26,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/network/protocols"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/http"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/tls/java"
-	"github.com/DataDog/datadog-agent/pkg/network/usm/buildmode"
 	"github.com/DataDog/datadog-agent/pkg/process/monitor"
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -314,9 +313,4 @@ func buildTracerArguments(c *config.Config) string {
 		allArgs = append(allArgs, "dd.trace.debug=true")
 	}
 	return strings.Join(allArgs, ",")
-}
-
-// IsBuildModeSupported returns always true, as java tls module is supported by all modes.
-func (*javaTLSProgram) IsBuildModeSupported(buildmode.Type) bool {
-	return true
 }

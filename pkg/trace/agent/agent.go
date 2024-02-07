@@ -8,8 +8,6 @@ package agent
 import (
 	"context"
 	"runtime"
-	"strconv"
-	"sync"
 	"time"
 
 	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
@@ -35,12 +33,6 @@ const (
 	// tagHostname specifies the hostname of the tracer.
 	// DEPRECATED: Tracer hostname is now specified as a TracerPayload field.
 	tagHostname = "_dd.hostname"
-
-	// tagInstallID, tagInstallType, and tagInstallTime are included in the first trace sent by the agent,
-	// and used to track successful onboarding onto APM.
-	tagInstallID   = "_dd.install.id"
-	tagInstallType = "_dd.install.type"
-	tagInstallTime = "_dd.install.time"
 
 	// manualSampling is the value for _dd.p.dm when user sets sampling priority directly in code.
 	manualSampling = "-4"
@@ -88,8 +80,6 @@ type Agent struct {
 
 	// Used to synchronize on a clean exit
 	ctx context.Context
-
-	firstSpanOnce sync.Once
 }
 
 // NewAgent returns a new Agent object, ready to be started. It takes a context
@@ -197,7 +187,9 @@ func (a *Agent) loop() {
 	<-a.ctx.Done()
 	log.Info("Exiting...")
 
-	a.OTLPReceiver.Stop() // Stop OTLPReceiver before Receiver to avoid sending to closed channel
+	// Stop OTLPReceiver before Receiver to avoid sending to closed channel
+	a.OTLPReceiver.Stop()
+
 	if err := a.Receiver.Stop(); err != nil {
 		log.Error(err)
 	}
@@ -228,27 +220,6 @@ func (a *Agent) setRootSpanTags(root *pb.Span) {
 			traceutil.SetMeta(root, k, v)
 		}
 	}
-}
-
-// setFirstTraceTags sets additional tags on the first trace ever processed by the agent,
-// so that we can see that the customer has successfully onboarded onto APM.
-func (a *Agent) setFirstTraceTags(root *pb.Span) {
-	if a.conf == nil || a.conf.InstallSignature.InstallType == "" || root == nil {
-		return
-	}
-	a.firstSpanOnce.Do(func() {
-		// The install time and type can also be set on the trace by the tracer,
-		// in which case we do not want the agent to overwrite them.
-		if _, ok := traceutil.GetMeta(root, tagInstallID); !ok {
-			traceutil.SetMeta(root, tagInstallID, a.conf.InstallSignature.InstallID)
-		}
-		if _, ok := traceutil.GetMeta(root, tagInstallType); !ok {
-			traceutil.SetMeta(root, tagInstallType, a.conf.InstallSignature.InstallType)
-		}
-		if _, ok := traceutil.GetMeta(root, tagInstallTime); !ok {
-			traceutil.SetMeta(root, tagInstallTime, strconv.FormatInt(a.conf.InstallSignature.InstallTime, 10))
-		}
-	})
 }
 
 // Process is the default work unit that receives a trace, transforms it and
@@ -353,11 +324,6 @@ func (a *Agent) Process(p *api.Payload) {
 		p.ReplaceChunk(i, pt.TraceChunk)
 
 		if !pt.TraceChunk.DroppedTrace {
-			// Now that we know this trace has been sampled,
-			// if this is the first trace we have processed since restart,
-			// set a special set of tags on its root span to track that this
-			// customer has successfully onboarded onto APM.
-			a.setFirstTraceTags(root)
 			sampledChunks.SpanCount += int64(len(pt.TraceChunk.Spans))
 		}
 		sampledChunks.EventCount += int64(numEvents)

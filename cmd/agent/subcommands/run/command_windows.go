@@ -10,9 +10,7 @@ package run
 
 import (
 	"context"
-	_ "expvar" // Blank import used because this isn't directly used in this file
-	"github.com/DataDog/datadog-agent/comp/checks/winregistry"
-	winregistryimpl "github.com/DataDog/datadog-agent/comp/checks/winregistry/impl"
+	_ "expvar"         // Blank import used because this isn't directly used in this file
 	_ "net/http/pprof" // Blank import used because this isn't directly used in this file
 
 	"go.uber.org/fx"
@@ -22,10 +20,7 @@ import (
 	"github.com/DataDog/datadog-agent/cmd/agent/common/signals"
 
 	// checks implemented as components
-	"github.com/DataDog/datadog-agent/comp/aggregator/demultiplexer"
 	"github.com/DataDog/datadog-agent/comp/checks/agentcrashdetect"
-	"github.com/DataDog/datadog-agent/comp/checks/agentcrashdetect/agentcrashdetectimpl"
-	comptraceconfig "github.com/DataDog/datadog-agent/comp/trace/config"
 
 	// core components
 	"github.com/DataDog/datadog-agent/comp/core"
@@ -33,22 +28,21 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/flare"
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig"
-	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig/sysprobeconfigimpl"
 	"github.com/DataDog/datadog-agent/comp/core/telemetry"
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/replay"
 	dogstatsdServer "github.com/DataDog/datadog-agent/comp/dogstatsd/server"
-	dogstatsddebug "github.com/DataDog/datadog-agent/comp/dogstatsd/serverDebug"
+	dogstatsdDebug "github.com/DataDog/datadog-agent/comp/dogstatsd/serverDebug"
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
 	logsAgent "github.com/DataDog/datadog-agent/comp/logs/agent"
-	"github.com/DataDog/datadog-agent/comp/metadata/host"
-	"github.com/DataDog/datadog-agent/comp/metadata/inventoryagent"
 	"github.com/DataDog/datadog-agent/comp/metadata/runner"
 	netflowServer "github.com/DataDog/datadog-agent/comp/netflow/server"
 	otelcollector "github.com/DataDog/datadog-agent/comp/otelcol/collector"
 	"github.com/DataDog/datadog-agent/comp/remote-config/rcclient"
+	comptraceconfig "github.com/DataDog/datadog-agent/comp/trace/config"
+	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/serializer"
+	"github.com/DataDog/datadog-agent/pkg/util"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
-	"github.com/DataDog/datadog-agent/pkg/util/optional"
 	// runtime init routines
 )
 
@@ -72,39 +66,22 @@ func StartAgentWithDefaults(ctxChan <-chan context.Context) (<-chan error, error
 			telemetry telemetry.Component,
 			sysprobeconfig sysprobeconfig.Component,
 			server dogstatsdServer.Component,
-			serverDebug dogstatsddebug.Component,
+			serverDebug dogstatsdDebug.Component,
 			capture replay.Component,
 			rcclient rcclient.Component,
 			forwarder defaultforwarder.Component,
-			logsAgent optional.Option[logsAgent.Component],
+			logsAgent util.Optional[logsAgent.Component],
 			metadataRunner runner.Component,
 			sharedSerializer serializer.MetricSerializer,
 			otelcollector otelcollector.Component,
-			demultiplexer demultiplexer.Component,
-			hostMetadata host.Component,
-			invAgent inventoryagent.Component,
 			_ netflowServer.Component,
+			_ agentcrashdetect.Component,
+			_ comptraceconfig.Component,
 		) error {
 
-			defer StopAgentWithDefaults(server, demultiplexer)
+			defer StopAgentWithDefaults(server)
 
-			err := startAgent(
-				&cliParams{GlobalParams: &command.GlobalParams{}},
-				log,
-				flare,
-				telemetry,
-				sysprobeconfig,
-				server,
-				capture,
-				serverDebug,
-				rcclient,
-				logsAgent,
-				forwarder,
-				sharedSerializer,
-				otelcollector,
-				demultiplexer,
-				hostMetadata,
-				invAgent)
+			err := startAgent(&cliParams{GlobalParams: &command.GlobalParams{}}, log, flare, telemetry, sysprobeconfig, server, capture, serverDebug, rcclient, logsAgent, forwarder, sharedSerializer, otelcollector)
 			if err != nil {
 				return err
 			}
@@ -129,8 +106,8 @@ func StartAgentWithDefaults(ctxChan <-chan context.Context) (<-chan error, error
 			// no config file path specification in this situation
 			fx.Supply(core.BundleParams{
 				ConfigParams:         config.NewAgentParamsWithSecrets(""),
-				SysprobeConfigParams: sysprobeconfigimpl.NewParams(),
-				LogParams:            log.ForDaemon(command.LoggerName, "log_file", path.DefaultLogFile),
+				SysprobeConfigParams: sysprobeconfig.NewParams(),
+				LogParams:            log.LogForDaemon(command.LoggerName, "log_file", path.DefaultLogFile),
 			}),
 			getSharedFxOption(),
 			getPlatformModules(),
@@ -150,16 +127,39 @@ func StartAgentWithDefaults(ctxChan <-chan context.Context) (<-chan error, error
 	return errChan, nil
 }
 
+func run(log log.Component,
+	config config.Component,
+	flare flare.Component,
+	telemetry telemetry.Component,
+	sysprobeconfig sysprobeconfig.Component,
+	server dogstatsdServer.Component,
+	capture replay.Component,
+	serverDebug dogstatsdDebug.Component,
+	forwarder defaultforwarder.Component,
+	rcclient rcclient.Component,
+	metadataRunner runner.Component,
+	demux *aggregator.AgentDemultiplexer,
+	sharedSerializer serializer.MetricSerializer,
+	cliParams *cliParams,
+	logsAgent util.Optional[logsAgent.Component],
+	otelcollector otelcollector.Component,
+	_ netflowServer.Component,
+	_ agentcrashdetect.Component,
+	_ comptraceconfig.Component,
+) error {
+	// commonRun provides a mechanism to have the shared run function not require the unused components
+	// (i.e. here `_ netflowServer`, `_ agentcrashdetect`, etc.).  The run function can have different
+	// parameters on different platforms based on platform-specific components.  commonRun is the shared initialization.
+
+	return commonRun(log, config, flare, telemetry, sysprobeconfig, server, capture, serverDebug, forwarder, rcclient, metadataRunner, demux, sharedSerializer, cliParams, logsAgent, otelcollector)
+}
+
 func getPlatformModules() fx.Option {
 	return fx.Options(
-		agentcrashdetectimpl.Module,
-		winregistryimpl.Module,
+		agentcrashdetect.Module,
 		comptraceconfig.Module,
 		fx.Replace(comptraceconfig.Params{
 			FailIfAPIKeyMissing: false,
 		}),
-		// Force the instantiation of the components
-		fx.Invoke(func(_ agentcrashdetect.Component) {}),
-		fx.Invoke(func(_ winregistry.Component) {}),
 	)
 }

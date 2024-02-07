@@ -14,7 +14,7 @@ import (
 )
 
 // NewProcessEventsCheck returns an instance of the ProcessEventsCheck.
-func NewProcessEventsCheck(config config.Reader) *ProcessEventsCheck {
+func NewProcessEventsCheck(config config.ConfigReader) *ProcessEventsCheck {
 	return &ProcessEventsCheck{
 		config: config,
 	}
@@ -22,11 +22,11 @@ func NewProcessEventsCheck(config config.Reader) *ProcessEventsCheck {
 
 // ProcessEventsCheck collects process lifecycle events such as exec and exit signals
 type ProcessEventsCheck struct {
-	config config.Reader
+	config config.ConfigReader
 }
 
 // Init initializes the ProcessEventsCheck.
-func (e *ProcessEventsCheck) Init(_ *SysProbeConfig, _ *HostInfo, _ bool) error {
+func (e *ProcessEventsCheck) Init(_ *SysProbeConfig, _ *HostInfo) error {
 	return nil
 }
 

@@ -19,7 +19,7 @@ if ohai['platform'] == "windows"
   maintainer 'Datadog Inc.' # Windows doesn't want our e-mail address :(
 else
   install_dir '/opt/datadog-dogstatsd'
-  if redhat_target? || suse_target?
+  if redhat? || suse?
     maintainer 'Datadog, Inc <package@datadoghq.com>'
 
     # NOTE: with script dependencies, we only care about preinst/postinst/posttrans,
@@ -32,7 +32,7 @@ else
     # have to list them, because they'll already be there because of preinst
     runtime_script_dependency :pre, "coreutils"
     runtime_script_dependency :pre, "grep"
-    if redhat_target?
+    if redhat?
       runtime_script_dependency :pre, "glibc-common"
       runtime_script_dependency :pre, "shadow-utils"
     else
@@ -43,7 +43,7 @@ else
     maintainer 'Datadog Packages <package@datadoghq.com>'
   end
 
-  if debian_target?
+  if debian?
     runtime_recommended_dependency 'datadog-signing-keys (>= 1:1.3.1)'
   end
 end
@@ -169,15 +169,15 @@ dependency 'datadog-dogstatsd'
 dependency 'datadog-dogstatsd-finalize'
 
 # package scripts
-if linux_target?
-  if debian_target?
+if linux?
+  if debian?
     package_scripts_path "#{Omnibus::Config.project_root}/package-scripts/dogstatsd-deb"
   else
     package_scripts_path "#{Omnibus::Config.project_root}/package-scripts/dogstatsd-rpm"
   end
 end
 
-if linux_target?
+if linux?
   extra_package_file '/etc/init/datadog-dogstatsd.conf'
   extra_package_file '/lib/systemd/system/datadog-dogstatsd.service'
   extra_package_file '/etc/datadog-dogstatsd/'

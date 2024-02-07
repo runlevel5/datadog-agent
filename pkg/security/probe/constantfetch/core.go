@@ -125,31 +125,15 @@ func getActualTypeName(tn string) string {
 
 func runRequestOnBTFType(r constantRequest, ty btf.Type) uint64 {
 	sTy, ok := ty.(*btf.Struct)
-	if ok {
-		return runRequestOnBTFTypeStructOrUnion(r, sTy.Size, sTy.Members)
+	if !ok {
+		return ErrorSentinel
 	}
 
-	uTy, ok := ty.(*btf.Union)
-	if ok {
-		return runRequestOnBTFTypeStructOrUnion(r, uTy.Size, uTy.Members)
-	}
-
-	return ErrorSentinel
-}
-
-func runRequestOnBTFTypeStructOrUnion(r constantRequest, size uint32, members []btf.Member) uint64 {
 	if r.sizeof {
-		return uint64(size)
+		return uint64(sTy.Size)
 	}
 
-	for _, m := range members {
-		if m.Name == "" {
-			sub := runRequestOnBTFType(r, m.Type)
-			if sub != ErrorSentinel {
-				return uint64(m.Offset.Bytes()) + sub
-			}
-		}
-
+	for _, m := range sTy.Members {
 		if m.Name == r.fieldName {
 			return uint64(m.Offset.Bytes())
 		}

@@ -11,7 +11,6 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator/ckey"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/internal/tags"
-	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -49,7 +48,7 @@ func (cs *CheckSampler) addSample(metricSample *metrics.MetricSample) {
 		return
 	}
 
-	if err := cs.metrics.AddSample(contextKey, metricSample, metricSample.Timestamp, 1, config.Datadog); err != nil {
+	if err := cs.metrics.AddSample(contextKey, metricSample, metricSample.Timestamp, 1); err != nil {
 		log.Debugf("Ignoring sample '%s' on host '%s' and tags '%s': %s", metricSample.Name, metricSample.Host, metricSample.Tags, err)
 	}
 }
@@ -133,6 +132,7 @@ func (cs *CheckSampler) commitSeries(timestamp float64) {
 		if !ok {
 			log.Errorf("Can't resolve context of error '%s': inconsistent context resolver state: context with key '%v' is not tracked", err, ckey)
 		} else {
+
 			log.Infof("No value returned for check metric '%s' on host '%s' and tags '%s': %s", context.Name, context.Host, context.Tags().Join(", "), err)
 		}
 	}
@@ -148,7 +148,6 @@ func (cs *CheckSampler) commitSeries(timestamp float64) {
 		serie.Host = context.Host
 		serie.NoIndex = context.noIndex
 		serie.SourceTypeName = checksSourceTypeName // this source type is required for metrics coming from the checks
-		serie.Source = context.source
 
 		cs.series = append(cs.series, serie)
 	}

@@ -17,7 +17,6 @@ import (
 )
 
 type service struct {
-	servicemain.DefaultSettings
 	errChan <-chan error
 	ctxChan chan context.Context
 }

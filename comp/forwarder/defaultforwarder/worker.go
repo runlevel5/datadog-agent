@@ -55,8 +55,7 @@ func NewWorker(
 	lowPrioChan <-chan transaction.Transaction,
 	requeueChan chan<- transaction.Transaction,
 	blocked *blockedEndpoints,
-	pointSuccessfullySent PointSuccessfullySent,
-) *Worker {
+	pointSuccessfullySent PointSuccessfullySent) *Worker {
 	return &Worker{
 		config:                config,
 		log:                   log,
@@ -74,7 +73,7 @@ func NewWorker(
 
 // NewHTTPClient creates a new http.Client
 func NewHTTPClient(config config.Component) *http.Client {
-	transport := httputils.CreateHTTPTransport(config)
+	transport := httputils.CreateHTTPTransport()
 
 	return &http.Client{
 		Timeout:   config.GetDuration("forwarder_timeout") * time.Second,
@@ -100,6 +99,7 @@ func (w *Worker) Stop(purgeHighPrio bool) {
 			}
 		}
 	}
+
 }
 
 // Start starts a Worker.

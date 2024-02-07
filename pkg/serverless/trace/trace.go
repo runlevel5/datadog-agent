@@ -13,7 +13,6 @@ import (
 	compcorecfg "github.com/DataDog/datadog-agent/comp/core/config"
 	comptracecfg "github.com/DataDog/datadog-agent/comp/trace/config"
 	ddConfig "github.com/DataDog/datadog-agent/pkg/config"
-	"github.com/DataDog/datadog-agent/pkg/config/model"
 	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
 	"github.com/DataDog/datadog-agent/pkg/trace/agent"
 	"github.com/DataDog/datadog-agent/pkg/trace/config"
@@ -84,7 +83,7 @@ func (s *ServerlessTraceAgent) Start(enabled bool, loadConfig Load, lambdaSpanCh
 		// Set the serverless config option which will be used to determine if
 		// hostname should be resolved. Skipping hostname resolution saves >1s
 		// in load time between gRPC calls and agent commands.
-		ddConfig.Datadog.Set("serverless.enabled", true, model.SourceAgentRuntime)
+		ddConfig.Datadog.Set("serverless.enabled", true)
 
 		tc, confErr := loadConfig.Load()
 		if confErr != nil {

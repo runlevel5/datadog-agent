@@ -5,10 +5,7 @@
 
 package config
 
-import (
-	"github.com/DataDog/datadog-agent/comp/core/config"
-	"github.com/DataDog/datadog-agent/comp/core/log"
-)
+import "github.com/DataDog/datadog-agent/comp/core/config"
 
 type configService struct {
 	conf *NetflowConfig
@@ -19,8 +16,8 @@ func (cs *configService) Get() *NetflowConfig {
 	return cs.conf
 }
 
-func newService(conf config.Component, logger log.Component) (Component, error) {
-	c, err := ReadConfig(conf, logger)
+func newService(conf config.Component) (Component, error) {
+	c, err := ReadConfig(conf)
 	if err != nil {
 		return nil, err
 	}

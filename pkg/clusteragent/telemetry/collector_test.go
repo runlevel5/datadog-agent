@@ -9,12 +9,11 @@ package telemetry
 
 import (
 	"fmt"
+	"github.com/DataDog/datadog-agent/pkg/config"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/DataDog/datadog-agent/pkg/config"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -55,7 +54,7 @@ func TestTelemetryPath(t *testing.T) {
 
 	collector := NewCollector(testRcClientId, testKubernetesClusterId)
 	collector.SetTestHost(server.URL)
-	config.Datadog.SetWithoutSource("api_key", "dummy")
+	config.Datadog.Set("api_key", "dummy")
 
 	var reqCount int
 	var path string

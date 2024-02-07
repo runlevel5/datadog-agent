@@ -26,12 +26,6 @@ const (
 	// APIGatewayWebsocketEvent describes an event from websocket AWS API Gateways
 	APIGatewayWebsocketEvent
 
-	// APIGatewayLambdaAuthorizerTokenEvent describes an event from a token-based API Gateway lambda authorizer
-	APIGatewayLambdaAuthorizerTokenEvent
-
-	// APIGatewayLambdaAuthorizerRequestParametersEvent describes an event from a request-parameters-based API Gateway lambda authorizer
-	APIGatewayLambdaAuthorizerRequestParametersEvent
-
 	// ALBEvent describes an event from application load balancers
 	ALBEvent
 
@@ -76,12 +70,12 @@ const (
 )
 
 // eventParseFunc defines the signature of AWS event parsing functions
-type eventParseFunc func(map[string]any) bool
+type eventParseFunc func(map[string]interface{}) bool
 
 // GetEventType takes in a payload string and returns an AWSEventType
 // that matches the input payload. Returns `Unknown` if a payload could not be
 // matched to an event.
-func GetEventType(payload map[string]any) AWSEventType {
+func GetEventType(payload map[string]interface{}) AWSEventType {
 	if isAPIGatewayEvent(payload) {
 		return APIGatewayEvent
 	}
@@ -92,14 +86,6 @@ func GetEventType(payload map[string]any) AWSEventType {
 
 	if isAPIGatewayWebsocketEvent(payload) {
 		return APIGatewayWebsocketEvent
-	}
-
-	if isAPIGatewayLambdaAuthorizerTokenEvent(payload) {
-		return APIGatewayLambdaAuthorizerTokenEvent
-	}
-
-	if isAPIGatewayLambdaAuthorizerRequestParametersEvent(payload) {
-		return APIGatewayLambdaAuthorizerRequestParametersEvent
 	}
 
 	if isALBEvent(payload) {
@@ -154,33 +140,25 @@ func GetEventType(payload map[string]any) AWSEventType {
 		return LambdaFunctionURLEvent
 	}
 
-	// Ultimately check this is a Kong API Gateway event as a last resort.
-	// This is because Kong API Gateway events are a subset of API Gateway events
-	// as of https://github.com/Kong/kong/blob/348c980/kong/plugins/aws-lambda/request-util.lua#L248-L260
-	if isKongAPIGatewayEvent(payload) {
-		return APIGatewayEvent
-	}
-
 	return Unknown
 }
 
 // Unmarshal unmarshals a payload string into a generic interface
-func Unmarshal(payload []byte) (map[string]any, error) {
-	jsonPayload := make(map[string]any)
+func Unmarshal(payload []byte) (map[string]interface{}, error) {
+	jsonPayload := make(map[string]interface{})
 	if err := jsonEncoder.Unmarshal(payload, &jsonPayload); err != nil {
 		return nil, err
 	}
 	return jsonPayload, nil
 }
 
-func isAPIGatewayEvent(event map[string]any) bool {
-	return json.GetNestedValue(event, "requestcontext", "stage") != nil &&
+func isAPIGatewayEvent(event map[string]interface{}) bool {
+	return json.GetNestedValue(event, "requestcontext") != nil &&
 		json.GetNestedValue(event, "httpmethod") != nil &&
-		json.GetNestedValue(event, "resource") != nil &&
-		!isAPIGatewayLambdaAuthorizerRequestParametersEvent(event)
+		json.GetNestedValue(event, "resource") != nil
 }
 
-func isAPIGatewayV2Event(event map[string]any) bool {
+func isAPIGatewayV2Event(event map[string]interface{}) bool {
 	version, ok := json.GetNestedValue(event, "version").(string)
 	if !ok {
 		return false
@@ -194,73 +172,49 @@ func isAPIGatewayV2Event(event map[string]any) bool {
 		!strings.Contains(domainName, "lambda-url")
 }
 
-// Kong API Gateway events are regular API Gateway events with a few missing
-// fields (cf. https://github.com/Kong/kong/blob/348c980/kong/plugins/aws-lambda/request-util.lua#L248-L260)
-// As a result, this function must be called after isAPIGatewayEvent() and
-// related API Gateway event payload checks. It returns true when httpmethod and
-// resource are present.
-func isKongAPIGatewayEvent(event map[string]any) bool {
-	return json.GetNestedValue(event, "httpmethod") != nil &&
-		json.GetNestedValue(event, "resource") != nil
-}
-
-func isAPIGatewayWebsocketEvent(event map[string]any) bool {
+func isAPIGatewayWebsocketEvent(event map[string]interface{}) bool {
 	return json.GetNestedValue(event, "requestcontext") != nil &&
 		json.GetNestedValue(event, "requestcontext", "messagedirection") != nil
 }
 
-func isAPIGatewayLambdaAuthorizerTokenEvent(event map[string]any) bool {
-	return json.GetNestedValue(event, "type") == "token" &&
-		json.GetNestedValue(event, "authorizationtoken") != nil &&
-		json.GetNestedValue(event, "methodarn") != nil
-}
-
-func isAPIGatewayLambdaAuthorizerRequestParametersEvent(event map[string]any) bool {
-	return json.GetNestedValue(event, "type") == "request" &&
-		json.GetNestedValue(event, "methodarn") != nil &&
-		json.GetNestedValue(event, "headers") != nil &&
-		json.GetNestedValue(event, "querystringparameters") != nil &&
-		json.GetNestedValue(event, "requestcontext", "apiid") != nil
-}
-
-func isALBEvent(event map[string]any) bool {
+func isALBEvent(event map[string]interface{}) bool {
 	return json.GetNestedValue(event, "requestcontext", "elb") != nil
 }
 
-func isCloudwatchEvent(event map[string]any) bool {
+func isCloudwatchEvent(event map[string]interface{}) bool {
 	source, ok := json.GetNestedValue(event, "source").(string)
 	return ok && source == "aws.events"
 }
 
-func isCloudwatchLogsEvent(event map[string]any) bool {
+func isCloudwatchLogsEvent(event map[string]interface{}) bool {
 	return json.GetNestedValue(event, "awslogs") != nil
 }
 
-func isCloudFrontRequestEvent(event map[string]any) bool {
+func isCloudFrontRequestEvent(event map[string]interface{}) bool {
 	return eventRecordsKeyExists(event, "cf")
 }
 
-func isDynamoDBStreamEvent(event map[string]any) bool {
+func isDynamoDBStreamEvent(event map[string]interface{}) bool {
 	return eventRecordsKeyExists(event, "dynamodb")
 }
 
-func isKinesisStreamEvent(event map[string]any) bool {
+func isKinesisStreamEvent(event map[string]interface{}) bool {
 	return eventRecordsKeyExists(event, "kinesis")
 }
 
-func isS3Event(event map[string]any) bool {
+func isS3Event(event map[string]interface{}) bool {
 	return eventRecordsKeyExists(event, "s3")
 }
 
-func isSNSEvent(event map[string]any) bool {
+func isSNSEvent(event map[string]interface{}) bool {
 	return eventRecordsKeyExists(event, "sns")
 }
 
-func isSQSEvent(event map[string]any) bool {
+func isSQSEvent(event map[string]interface{}) bool {
 	return eventRecordsKeyEquals(event, "eventsource", "aws:sqs")
 }
 
-func isSNSSQSEvent(event map[string]any) bool {
+func isSNSSQSEvent(event map[string]interface{}) bool {
 	if !eventRecordsKeyEquals(event, "eventsource", "aws:sqs") {
 		return false
 	}
@@ -277,15 +231,15 @@ func isSNSSQSEvent(event map[string]any) bool {
 	return messageType == "notification" && topicArn != ""
 }
 
-func isAppSyncResolverEvent(event map[string]any) bool {
+func isAppSyncResolverEvent(event map[string]interface{}) bool {
 	return json.GetNestedValue(event, "info", "selectionsetgraphql") != nil
 }
 
-func isEventBridgeEvent(event map[string]any) bool {
+func isEventBridgeEvent(event map[string]interface{}) bool {
 	return json.GetNestedValue(event, "detail-type") != nil && json.GetNestedValue(event, "source") != "aws.events"
 }
 
-func isLambdaFunctionURLEvent(event map[string]any) bool {
+func isLambdaFunctionURLEvent(event map[string]interface{}) bool {
 	lambdaURL, ok := json.GetNestedValue(event, "requestcontext", "domainname").(string)
 	if !ok {
 		return false
@@ -293,26 +247,26 @@ func isLambdaFunctionURLEvent(event map[string]any) bool {
 	return strings.Contains(lambdaURL, "lambda-url")
 }
 
-func eventRecordsKeyExists(event map[string]any, key string) bool {
+func eventRecordsKeyExists(event map[string]interface{}, key string) bool {
 	records, ok := json.GetNestedValue(event, "records").([]interface{})
 	if !ok {
 		return false
 	}
 	if len(records) > 0 {
-		if records[0].(map[string]any)[key] != nil {
+		if records[0].(map[string]interface{})[key] != nil {
 			return true
 		}
 	}
 	return false
 }
 
-func eventRecordsKeyEquals(event map[string]any, key string, val string) bool {
+func eventRecordsKeyEquals(event map[string]interface{}, key string, val string) bool {
 	records, ok := json.GetNestedValue(event, "records").([]interface{})
 	if !ok {
 		return false
 	}
 	if len(records) > 0 {
-		if mapVal := records[0].(map[string]any)[key]; mapVal != nil {
+		if mapVal := records[0].(map[string]interface{})[key]; mapVal != nil {
 			return mapVal == val
 		}
 	}

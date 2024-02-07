@@ -10,9 +10,10 @@ package run
 import (
 	"context"
 
-	"github.com/spf13/cobra"
-
 	"github.com/DataDog/datadog-agent/cmd/trace-agent/subcommands"
+	"github.com/DataDog/datadog-agent/comp/trace/config"
+	"github.com/DataDog/datadog-agent/pkg/trace/watchdog"
+	"github.com/spf13/cobra"
 )
 
 type RunParams struct {
@@ -29,5 +30,20 @@ type RunParams struct {
 func setOSSpecificParamFlags(cmd *cobra.Command, cliParams *RunParams) {}
 
 func runTraceAgent(cliParams *RunParams, defaultConfPath string) error {
-	return runFx(context.Background(), cliParams, defaultConfPath)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	return runFx(ctx, cliParams, defaultConfPath)
+}
+
+func Run(cs *contextSupplier, cliParams *RunParams, config config.Component) error {
+	ctx, cancelFunc := context.WithCancel(cs.ctx)
+
+	// Handle stops properly
+	go func() {
+		defer watchdog.LogOnPanic()
+		handleSignal(cancelFunc)
+	}()
+
+	return runAgent(ctx, cliParams, config)
+
 }

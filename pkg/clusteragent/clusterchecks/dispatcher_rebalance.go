@@ -171,9 +171,9 @@ func (d *dispatcher) moveCheck(src, dest, checkID string) error {
 	return nil
 }
 
-func (d *dispatcher) rebalance(force bool) []types.RebalanceResponse {
+func (d *dispatcher) rebalance() []types.RebalanceResponse {
 	if config.Datadog.GetBool("cluster_checks.rebalance_with_utilization") {
-		return d.rebalanceUsingUtilization(force)
+		return d.rebalanceUsingUtilization()
 	}
 
 	return d.rebalanceUsingBusyness()
@@ -298,7 +298,7 @@ func (d *dispatcher) rebalanceUsingBusyness() []types.RebalanceResponse {
 // checks are not very costly. They're ignored by this function.
 // - It can't predict the execution time of checks that are running for the
 // first time. This could become a problem for checks that take too long.
-func (d *dispatcher) rebalanceUsingUtilization(force bool) []types.RebalanceResponse {
+func (d *dispatcher) rebalanceUsingUtilization() []types.RebalanceResponse {
 	// Collect CLC runners stats and update cache before rebalancing
 	d.updateRunnersStats()
 
@@ -325,28 +325,20 @@ func (d *dispatcher) rebalanceUsingUtilization(force bool) []types.RebalanceResp
 	currentUtilizationStdDev := currentChecksDistribution.utilizationStdDev()
 	proposedUtilizationStdDev := proposedDistribution.utilizationStdDev()
 	minPercImprovement := config.Datadog.GetInt("cluster_checks.rebalance_min_percentage_improvement")
-
-	if force || rebalanceIsWorthIt(currentChecksDistribution, proposedDistribution, minPercImprovement) {
-
-		jsonDistribution, _ := json.Marshal(proposedDistribution)
-
-		if force {
-			log.Infof("Forcing rebalance proposed distribution for the cluster checks. Utilization stdDev of proposed distribution: %.3f. StdDev of current distribution: %.3f. Proposed distribution: %s",
-				proposedUtilizationStdDev, currentUtilizationStdDev, jsonDistribution)
-		} else {
-			log.Infof("Found a better distribution for the cluster checks. Utilization stdDev of proposed distribution: %.3f. StdDev of current distribution: %.3f. Proposed distribution: %s",
-				proposedUtilizationStdDev, currentUtilizationStdDev, jsonDistribution)
-		}
-
-		setPredictedUtilization(proposedDistribution)
-
-		return d.applyDistribution(proposedDistribution, currentChecksDistribution)
+	if !rebalanceIsWorthIt(currentChecksDistribution, proposedDistribution, minPercImprovement) {
+		log.Debugf("Didn't find a distribution better enough so that rescheduling checks is worth it (current utilization stddev: %.3f, found utilization stddev: %.3f)",
+			currentUtilizationStdDev, proposedUtilizationStdDev)
+		setPredictedUtilization(currentChecksDistribution)
+		return nil
 	}
 
-	log.Debugf("Didn't find a distribution better enough so that rescheduling checks is worth it (current utilization stddev: %.3f, found utilization stddev: %.3f)",
-		currentUtilizationStdDev, proposedUtilizationStdDev)
-	setPredictedUtilization(currentChecksDistribution)
-	return nil
+	jsonDistribution, _ := json.Marshal(proposedDistribution)
+	log.Infof("Found a better distribution for the cluster checks. Utilization stdDev of proposed distribution: %.3f. StdDev of current distribution: %.3f. Proposed distribution: %s",
+		proposedUtilizationStdDev, currentUtilizationStdDev, jsonDistribution)
+
+	setPredictedUtilization(proposedDistribution)
+
+	return d.applyDistribution(proposedDistribution, currentChecksDistribution)
 }
 
 func (d *dispatcher) currentDistribution() checksDistribution {
@@ -363,12 +355,15 @@ func (d *dispatcher) currentDistribution() checksDistribution {
 
 	for nodeName, nodeStoreInfo := range d.store.nodes {
 		for checkID, stats := range nodeStoreInfo.clcRunnerStats {
-			if !stats.IsClusterCheck {
+			digest, found := d.store.idToDigest[checkid.ID(checkID)]
+			if !found { // Not a cluster check
 				continue
 			}
 
 			minCollectionInterval := defaults.DefaultCheckInterval
-			conf := d.store.digestToConfig[d.store.idToDigest[checkid.ID(checkID)]]
+
+			conf := d.store.digestToConfig[digest]
+
 			if len(conf.Instances) > 0 {
 				commonOptions := integration.CommonInstanceConfig{}
 				err := yaml.Unmarshal(conf.Instances[0], &commonOptions)

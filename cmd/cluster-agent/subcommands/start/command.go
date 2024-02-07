@@ -25,7 +25,6 @@ import (
 	dcav1 "github.com/DataDog/datadog-agent/cmd/cluster-agent/api/v1"
 	"github.com/DataDog/datadog-agent/cmd/cluster-agent/command"
 	"github.com/DataDog/datadog-agent/cmd/cluster-agent/custommetrics"
-	"github.com/DataDog/datadog-agent/comp/aggregator/demultiplexer"
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
@@ -79,7 +78,7 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 				fx.Supply(globalParams),
 				fx.Supply(core.BundleParams{
 					ConfigParams: config.NewClusterAgentParams(globalParams.ConfFilePath, config.WithConfigLoadSecrets(true)),
-					LogParams:    log.ForDaemon(command.LoggerName, "log_file", path.DefaultDCALogFile),
+					LogParams:    log.LogForDaemon(command.LoggerName, "log_file", path.DefaultDCALogFile),
 				}),
 				core.Bundle,
 				forwarder.Bundle,
@@ -88,12 +87,6 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 					params.Options.DisableAPIKeyChecking = true
 					return params
 				}),
-				demultiplexer.Module,
-				fx.Provide(func() demultiplexer.Params {
-					opts := aggregator.DefaultAgentDemultiplexerOptions()
-					opts.UseEventPlatformForwarder = false
-					return demultiplexer.Params{Options: opts}
-				}),
 			)
 		},
 	}
@@ -101,7 +94,7 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 	return []*cobra.Command{startCmd}
 }
 
-func start(log log.Component, config config.Component, telemetry telemetry.Component, demultiplexer demultiplexer.Component) error {
+func start(log log.Component, config config.Component, telemetry telemetry.Component, forwarder defaultforwarder.Component, cliParams *command.GlobalParams) error {
 	stopCh := make(chan struct{})
 
 	mainCtx, mainCtxCancel := context.WithCancel(context.Background())
@@ -169,7 +162,7 @@ func start(log log.Component, config config.Component, telemetry telemetry.Compo
 	}
 
 	// Starting server early to ease investigations
-	if err := api.StartServer(demultiplexer); err != nil {
+	if err := api.StartServer(aggregator.GetSenderManager()); err != nil {
 		return fmt.Errorf("Error while starting agent API, exiting: %v", err)
 	}
 
@@ -194,10 +187,11 @@ func start(log log.Component, config config.Component, telemetry telemetry.Compo
 	// * It is still able to serve metrics to the WPA controller and
 	// * The metrics reported are reported as stale so that there is no "lie" about the accuracy of the reported metrics.
 	// Serving stale data is better than serving no data at all.
-	demultiplexer.AddAgentStartupTelemetry(fmt.Sprintf("%s - Datadog Cluster Agent", version.AgentVersion))
+	opts := aggregator.DefaultAgentDemultiplexerOptions()
+	opts.UseEventPlatformForwarder = false
+	demux := aggregator.InitAndStartAgentDemultiplexer(log, forwarder, opts, hname)
+	demux.AddAgentStartupTelemetry(fmt.Sprintf("%s - Datadog Cluster Agent", version.AgentVersion))
 
-	// Create the Leader election engine and initialize it
-	leaderelection.CreateGlobalLeaderEngine(mainCtx)
 	le, err := leaderelection.GetLeaderEngine()
 	if err != nil {
 		return err
@@ -245,10 +239,10 @@ func start(log log.Component, config config.Component, telemetry telemetry.Compo
 	// don't import cmd/agent
 
 	// create and setup the Autoconfig instance
-	common.LoadComponents(mainCtx, demultiplexer, pkgconfig.Datadog.GetString("confd_path"))
+	common.LoadComponents(mainCtx, aggregator.GetSenderManager(), pkgconfig.Datadog.GetString("confd_path"))
 
 	// Set up check collector
-	common.AC.AddScheduler("check", collector.InitCheckScheduler(common.Coll, demultiplexer), true)
+	common.AC.AddScheduler("check", collector.InitCheckScheduler(common.Coll, aggregator.GetSenderManager()), true)
 	common.Coll.Start()
 
 	// start the autoconfig, this will immediately run any configured check
@@ -289,7 +283,7 @@ func start(log log.Component, config config.Component, telemetry telemetry.Compo
 		go func() {
 			defer wg.Done()
 
-			if err := runCompliance(mainCtx, demultiplexer, apiCl, le.IsLeader); err != nil {
+			if err := runCompliance(mainCtx, aggregator.GetSenderManager(), apiCl, le.IsLeader); err != nil {
 				pkglog.Errorf("Error while running compliance agent: %v", err)
 			}
 		}()
@@ -330,18 +324,9 @@ func start(log log.Component, config config.Component, telemetry telemetry.Compo
 			// Webhook and secret controllers are started successfully
 			// Setup the k8s admission webhook server
 			server := admissioncmd.NewServer()
-			server.Register(pkgconfig.Datadog.GetString("admission_controller.inject_config.endpoint"), mutate.InjectConfig, apiCl.DynamicCl, apiCl.Cl)
-			server.Register(pkgconfig.Datadog.GetString("admission_controller.inject_tags.endpoint"), mutate.InjectTags, apiCl.DynamicCl, apiCl.Cl)
-			server.Register(pkgconfig.Datadog.GetString("admission_controller.auto_instrumentation.endpoint"), mutate.InjectAutoInstrumentation, apiCl.DynamicCl, apiCl.Cl)
-
-			// CWS Instrumentation webhooks
-			cwsInstrumentation, err := mutate.NewCWSInstrumentation()
-			if err != nil {
-				pkglog.Errorf("failed to register CWS Instrumentation webhook: %v", err)
-			} else {
-				server.Register(pkgconfig.Datadog.GetString("admission_controller.cws_instrumentation.pod_endpoint"), cwsInstrumentation.InjectCWSPodInstrumentation, apiCl.DynamicCl, apiCl.Cl)
-				server.Register(pkgconfig.Datadog.GetString("admission_controller.cws_instrumentation.command_endpoint"), cwsInstrumentation.InjectCWSCommandInstrumentation, apiCl.DynamicCl, apiCl.Cl)
-			}
+			server.Register(pkgconfig.Datadog.GetString("admission_controller.inject_config.endpoint"), mutate.InjectConfig, apiCl.DynamicCl)
+			server.Register(pkgconfig.Datadog.GetString("admission_controller.inject_tags.endpoint"), mutate.InjectTags, apiCl.DynamicCl)
+			server.Register(pkgconfig.Datadog.GetString("admission_controller.auto_instrumentation.endpoint"), mutate.InjectAutoInstrumentation, apiCl.DynamicCl)
 
 			// Start the k8s admission webhook server
 			wg.Add(1)
@@ -381,7 +366,7 @@ func start(log log.Component, config config.Component, telemetry telemetry.Compo
 
 	close(stopCh)
 
-	demultiplexer.Stop(true)
+	demux.Stop(true)
 	if err := metricsServer.Shutdown(context.Background()); err != nil {
 		pkglog.Errorf("Error shutdowning metrics server on port %d: %v", metricsPort, err)
 	}
@@ -430,7 +415,9 @@ func initializeRemoteConfig(ctx context.Context) (*remote.Client, error) {
 		return nil, fmt.Errorf("unable to create remote-config service: %w", err)
 	}
 
-	configService.Start(ctx)
+	if err := configService.Start(ctx); err != nil {
+		return nil, fmt.Errorf("unable to start remote-config service: %w", err)
+	}
 
 	rcClient, err := remote.NewClient("cluster-agent", configService, version.AgentVersion, []data.Product{data.ProductAPMTracing}, time.Second*5)
 	if err != nil {

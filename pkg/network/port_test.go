@@ -8,13 +8,11 @@
 package network
 
 import (
-	"fmt"
 	"net"
 	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -24,7 +22,6 @@ import (
 	"github.com/vishvananda/netns"
 
 	netlinktestutil "github.com/DataDog/datadog-agent/pkg/network/netlink/testutil"
-	nettestutil "github.com/DataDog/datadog-agent/pkg/network/testutil"
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -123,24 +120,17 @@ func TestReadInitialUDPState(t *testing.T) {
 	err := exec.Command("testdata/setup_netns.sh", nsName).Run()
 	require.NoError(t, err, "setup_netns.sh failed")
 
-	l := nettestutil.StartServerUDP(t, net.ParseIP("0.0.0.0"), 0)
-	t.Cleanup(func() {
-		l.Close()
-	})
+	l, err := net.ListenUDP("udp", &net.UDPAddr{})
+	require.NoError(t, err)
+	defer func() { _ = l.Close() }()
 
-	l6 := nettestutil.StartServerUDP(t, net.ParseIP("::"), 0)
-	t.Cleanup(func() {
-		defer l6.Close()
-	})
-
-	conn, ok := l.(*net.UDPConn)
-	require.True(t, ok)
-	connl6, ok := l6.(*net.UDPConn)
-	assert.True(t, ok)
+	l6, err := net.ListenUDP("udp6", &net.UDPAddr{})
+	require.NoError(t, err)
+	defer func() { _ = l.Close() }()
 
 	ports := []uint16{
-		getPortUDP(t, conn),
-		getPortUDP(t, connl6),
+		getPortUDP(t, l),
+		getPortUDP(t, l6),
 		34567,
 		34568,
 	}
@@ -152,19 +142,32 @@ func TestReadInitialUDPState(t *testing.T) {
 	nsIno, err := kernel.GetInoForNs(ns)
 	require.NoError(t, err)
 
-	require.EventuallyWithT(t, func(c *assert.CollectT) {
+	require.Eventually(t, func() bool {
 		initialPorts, err := ReadInitialState("/proc", UDP, true)
-		require.NoError(c, err)
+		require.NoError(t, err)
 		for _, p := range ports[:2] {
-			assert.Contains(c, initialPorts, PortMapping{testRootNs, p}, fmt.Sprintf("PortMapping (testRootNs, p) returned false for port %d", p))
+			if _, ok := initialPorts[PortMapping{testRootNs, p}]; !ok {
+				t.Errorf("PortMapping(testRootNs, p) returned false for port %d", p)
+				return false
+			}
 		}
 		for _, p := range ports[2:] {
-			assert.Contains(c, initialPorts, PortMapping{nsIno, p}, fmt.Sprintf("PortMapping(nsIno, p) returned false for port %d", p))
+			if _, ok := initialPorts[PortMapping{nsIno, p}]; !ok {
+				t.Errorf("PortMapping(nsIno, p) returned false for port %d", p)
+				return false
+			}
 		}
-		if isUnusedUDPPort(t, 999) {
-			assert.NotContains(c, initialPorts, PortMapping{testRootNs, 999}, "expected IsListening(testRootNs, 999) to return false, but returned true")
-			assert.NotContains(c, initialPorts, PortMapping{nsIno, 999}, "expected IsListening(nsIno, 999) to return false, but returned true")
+
+		if _, ok := initialPorts[PortMapping{testRootNs, 999}]; ok {
+			t.Errorf("expected IsListening(testRootNs, 999) to return false, but returned true")
+			return false
 		}
+		if _, ok := initialPorts[PortMapping{nsIno, 999}]; ok {
+			t.Errorf("expected IsListening(testRootNs, 999) to return false, but returned true")
+			return false
+		}
+
+		return true
 	}, 3*time.Second, time.Second, "udp/udp6 ports are listening")
 }
 
@@ -178,15 +181,4 @@ func getPort(t *testing.T, listener net.Listener) uint16 {
 
 func getPortUDP(_ *testing.T, udpConn *net.UDPConn) uint16 {
 	return uint16(udpConn.LocalAddr().(*net.UDPAddr).Port)
-}
-
-func isUnusedUDPPort(t *testing.T, port int) bool {
-	l, err := net.ListenUDP("udp", &net.UDPAddr{Port: port})
-	if err != nil && strings.Contains(err.Error(), "address already in use") {
-		return false
-	}
-	t.Cleanup(func() {
-		l.Close()
-	})
-	return true
 }

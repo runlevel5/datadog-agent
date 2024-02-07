@@ -64,15 +64,19 @@ Write-Host "Generating Chocolatey $installMethod package version $agentVersion i
 Write-Host ("Downloading {0}" -f $url)
 $statusCode = -1
 try {
-    $tempMsi = "$(Get-Location)\ddagent.msi"
-    Remove-Item $tempMsi -ErrorAction Ignore
-    (New-Object net.webclient).Downloadfile($url, $tempMsi)
-    $checksum = (Get-FileHash $tempMsi -Algorithm SHA256).Hash
-    Remove-Item $tempMsi
+    $req = [System.Net.WebRequest]::Create($url)
+    $rep = $req.GetResponse()
+    $statusCode = $rep.StatusCode
 }
-catch {
-    Write-Host "Could not generate checksum for package $($url): $($_)"
-    exit 4
+catch [System.Net.WebException] {
+    if ($_.Exception.Status -eq "ProtocolError") {
+        $statusCode = [int]$_.Exception.Response.StatusCode
+    }
+}
+Write-Host $statusCode
+
+if ($statusCode -ne 200) {
+    Write-Warning "Package $($url) doesn't exists yet, make sure it exists before publishing the Chocolatey package !"
 }
 
 if (!(Test-Path $outputDirectory)) {
@@ -81,7 +85,7 @@ if (!(Test-Path $outputDirectory)) {
 
 if ($installMethod -eq "online") {
     # Set the $url in the install script
-    (Get-Content $installScript).replace('$__url_from_ci__', '"' +  $url  + '"').replace('$__checksum_from_ci__', '"' +  $checksum  + '"') | Set-Content $installScript
+    (Get-Content $installScript).replace('$__url_from_ci__', '"' +  $url  + '"') | Set-Content $installScript
 }
 
 Write-Host "Generated nupsec file:"

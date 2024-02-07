@@ -9,7 +9,9 @@
 package ndmtmp
 
 import (
-	"github.com/DataDog/datadog-agent/comp/ndmtmp/forwarder/forwarderimpl"
+	"github.com/DataDog/datadog-agent/comp/ndmtmp/aggregator"
+	"github.com/DataDog/datadog-agent/comp/ndmtmp/forwarder"
+	"github.com/DataDog/datadog-agent/comp/ndmtmp/sender"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
@@ -19,5 +21,14 @@ import (
 
 // Bundle defines the fx options for this bundle.
 var Bundle = fxutil.Bundle(
-	forwarderimpl.Module,
+	sender.Module,
+	forwarder.Module,
+	aggregator.Module,
+)
+
+// MockBundle defines the fx options for mock versions of everything in this bundle.
+var MockBundle = fxutil.Bundle(
+	sender.Module,
+	forwarder.MockModule,
+	aggregator.MockModule,
 )

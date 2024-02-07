@@ -28,7 +28,7 @@ import (
 )
 
 // RunJavaVersion run class under java version
-func RunJavaVersion(t testing.TB, version, class string, testdir string, waitForParam ...*regexp.Regexp) error {
+func RunJavaVersion(t testing.TB, version, class string, waitForParam ...*regexp.Regexp) error {
 	t.Helper()
 	var waitFor *regexp.Regexp
 	if len(waitForParam) == 0 {
@@ -44,10 +44,9 @@ func RunJavaVersion(t testing.TB, version, class string, testdir string, waitFor
 		"IMAGE_VERSION=" + version,
 		"ENTRYCLASS=" + class,
 		"EXTRA_HOSTS=host.docker.internal:" + addr,
-		"TESTDIR=" + testdir,
 	}
 
-	return protocolsUtils.RunDockerServer(t, version, dir+"/../testdata/docker-compose.yml", env, waitFor, protocolsUtils.DefaultTimeout, 3)
+	return protocolsUtils.RunDockerServer(t, version, dir+"/../testdata/docker-compose.yml", env, waitFor, protocolsUtils.DefaultTimeout)
 }
 
 // FindProcessByCommandLine gets a proc name and part of its command line, and returns all PIDs matched for those conditions.
@@ -78,7 +77,7 @@ func FindProcessByCommandLine(procName, command string) ([]int, error) {
 // RunJavaVersionAndWaitForRejection is running a java version program, waiting for it to successfully load, and then
 // checking the java TLS program didn't attach to it (rejected the injection). The last part is done using log scanner
 // we're registering a new log scanner and looking for a specific log (java pid (\d+) attachment rejected).
-func RunJavaVersionAndWaitForRejection(t testing.TB, version, class string, testdir string, waitForCondition *regexp.Regexp) {
+func RunJavaVersionAndWaitForRejection(t testing.TB, version, class string, waitForCondition *regexp.Regexp) {
 	t.Helper()
 
 	dir, _ := testutil.CurDir()
@@ -87,7 +86,6 @@ func RunJavaVersionAndWaitForRejection(t testing.TB, version, class string, test
 		"IMAGE_VERSION=" + version,
 		"ENTRYCLASS=" + class,
 		"EXTRA_HOSTS=host.docker.internal:" + addr,
-		"TESTDIR=" + testdir,
 	}
 
 	l := javaInjectionRejectionLogger{
@@ -97,7 +95,7 @@ func RunJavaVersionAndWaitForRejection(t testing.TB, version, class string, test
 	}
 	configureLoggerForTest(t, &l)
 
-	require.NoError(t, protocolsUtils.RunDockerServer(t, version, dir+"/../testdata/docker-compose.yml", env, waitForCondition, time.Second*15, 3))
+	require.NoError(t, protocolsUtils.RunDockerServer(t, version, dir+"/../testdata/docker-compose.yml", env, waitForCondition, time.Second*15))
 	pids, err := FindProcessByCommandLine("java", class)
 	require.NoError(t, err)
 	require.Lenf(t, pids, 1, "found more process (%d) than expected (1)", len(pids))

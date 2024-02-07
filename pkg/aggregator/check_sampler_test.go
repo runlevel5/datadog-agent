@@ -8,25 +8,27 @@
 package aggregator
 
 import (
+	"github.com/DataDog/datadog-agent/pkg/aggregator/ckey"
+	"github.com/DataDog/datadog-agent/pkg/aggregator/internal/tags"
+	"github.com/DataDog/datadog-agent/pkg/tagset"
+
+	// stdlib
 	"math"
 	"testing"
 	"time"
 
-	"github.com/DataDog/opentelemetry-mapping-go/pkg/quantile"
+	// 3p
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/DataDog/datadog-agent/pkg/aggregator/ckey"
-	"github.com/DataDog/datadog-agent/pkg/aggregator/internal/tags"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
-	"github.com/DataDog/datadog-agent/pkg/tagger"
-	"github.com/DataDog/datadog-agent/pkg/tagset"
+	"github.com/DataDog/opentelemetry-mapping-go/pkg/quantile"
 )
 
 func generateContextKey(sample metrics.MetricSampleContext) ckey.ContextKey {
 	k := ckey.NewKeyGenerator()
 	tb := tagset.NewHashingTagsAccumulator()
-	sample.GetTags(tb, tb, tagger.EnrichTags)
+	sample.GetTags(tb, tb)
 	return k.Generate(sample.GetName(), sample.GetHost(), tb)
 }
 
@@ -88,7 +90,6 @@ func testCheckGaugeSampling(t *testing.T, store *tags.Store) {
 	expectedSeries := []*metrics.Serie{expectedSerie1, expectedSerie2}
 	metrics.AssertSeriesEqual(t, expectedSeries, series)
 }
-
 func TestCheckGaugeSampling(t *testing.T) {
 	testWithTagsStore(t, testCheckGaugeSampling)
 }
@@ -141,7 +142,6 @@ func testCheckRateSampling(t *testing.T, store *tags.Store) {
 		metrics.AssertSerieEqual(t, expectedSerie, series[0])
 	}
 }
-
 func TestCheckRateSampling(t *testing.T) {
 	testWithTagsStore(t, testCheckRateSampling)
 }
@@ -206,7 +206,6 @@ func testHistogramCountSampling(t *testing.T, store *tags.Store) {
 	checkSampler.commit(12349.0)
 	require.Len(t, checkSampler.contextResolver.expireCountByKey, 0)
 }
-
 func TestHistogramCountSampling(t *testing.T) {
 	testWithTagsStore(t, testHistogramCountSampling)
 }
@@ -283,7 +282,6 @@ func testCheckHistogramBucketSampling(t *testing.T, store *tags.Store) {
 	checkSampler.flush()
 	assert.Equal(t, len(checkSampler.lastBucketValue), 0)
 }
-
 func TestCheckHistogramBucketSampling(t *testing.T) {
 	testWithTagsStore(t, testCheckHistogramBucketSampling)
 }
@@ -337,8 +335,8 @@ func testCheckHistogramBucketDontFlushFirstValue(t *testing.T, store *tags.Store
 		},
 		ContextKey: generateContextKey(bucket1),
 	}, flushed[0], .03)
-}
 
+}
 func TestCheckHistogramBucketDontFlushFirstValue(t *testing.T) {
 	testWithTagsStore(t, testCheckHistogramBucketDontFlushFirstValue)
 }
@@ -373,7 +371,6 @@ func testCheckHistogramBucketInfinityBucket(t *testing.T, store *tags.Store) {
 		ContextKey: generateContextKey(bucket1),
 	}, flushed[0], .03)
 }
-
 func TestCheckHistogramBucketInfinityBucket(t *testing.T) {
 	testWithTagsStore(t, testCheckHistogramBucketInfinityBucket)
 }

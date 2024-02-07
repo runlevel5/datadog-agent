@@ -68,9 +68,7 @@ func TestServerlessOTLPAgentReceivesTraces(t *testing.T) {
 	})
 
 	// setup metric agent
-	metricAgent := &metrics.ServerlessMetricAgent{
-		SketchesBucketOffset: time.Second * 10,
-	}
+	metricAgent := &metrics.ServerlessMetricAgent{}
 	metricAgent.Start(5*time.Second, &metrics.MetricConfig{}, &metrics.MetricDogStatsD{})
 	defer metricAgent.Stop()
 	assert.NotNil(metricAgent.Demux)

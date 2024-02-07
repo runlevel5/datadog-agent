@@ -9,12 +9,11 @@ import (
 	"fmt"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
-	"github.com/DataDog/datadog-agent/pkg/config/model"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 const (
-	maxHTTPFrag = 512 // matches hard limit currently imposed in NPM driver
+	maxHTTPFrag = 160
 )
 
 func adjustUSM(cfg config.Config) {
@@ -40,21 +39,19 @@ func adjustUSM(cfg config.Config) {
 	deprecateInt64(cfg, netNS("http_notification_threshold"), smNS("http_notification_threshold"))
 	applyDefault(cfg, smNS("http_notification_threshold"), 512)
 	deprecateInt64(cfg, netNS("http_max_request_fragment"), smNS("http_max_request_fragment"))
-	// set the default to be the max allowed by the driver.  So now the config will allow us to
-	// shorten the allowed path, but not lengthen it.
-	applyDefault(cfg, smNS("http_max_request_fragment"), maxHTTPFrag)
+	applyDefault(cfg, smNS("http_max_request_fragment"), 160)
 	applyDefault(cfg, smNS("max_concurrent_requests"), cfg.GetInt(spNS("max_tracked_connections")))
 
 	if cfg.GetBool(dsmNS("enabled")) {
 		// DSM infers USM
-		cfg.Set(smNS("enabled"), true, model.SourceAgentRuntime)
+		cfg.Set(smNS("enabled"), true)
 	}
 
 	if cfg.GetBool(smNS("process_service_inference", "enabled")) &&
 		!cfg.GetBool(smNS("enabled")) &&
 		!cfg.GetBool(dsmNS("enabled")) {
 		log.Info("universal service monitoring and data streams monitoring are disabled, disabling process service inference")
-		cfg.Set(smNS("process_service_inference", "enabled"), false, model.SourceAgentRuntime)
+		cfg.Set(smNS("process_service_inference", "enabled"), false)
 	}
 
 	validateInt(cfg, smNS("http_notification_threshold"), cfg.GetInt(smNS("max_tracked_http_connections"))/2, func(v int) error {

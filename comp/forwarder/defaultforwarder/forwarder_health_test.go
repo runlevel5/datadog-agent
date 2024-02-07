@@ -14,7 +14,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/pkg/config/resolver"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
@@ -35,8 +34,7 @@ func TestHasValidAPIKey(t *testing.T) {
 		ts2.URL: {"key3"},
 	}
 	log := fxutil.Test[log.Component](t, log.MockModule)
-	cfg := fxutil.Test[config.Component](t, config.MockModule)
-	fh := forwarderHealth{log: log, config: cfg, domainResolvers: resolver.NewSingleDomainResolvers(keysPerDomains)}
+	fh := forwarderHealth{log: log, domainResolvers: resolver.NewSingleDomainResolvers(keysPerDomains)}
 	fh.init()
 	assert.True(t, fh.hasValidAPIKey())
 
@@ -116,8 +114,7 @@ func TestHasValidAPIKeyErrors(t *testing.T) {
 		ts3.URL: {"key4"},
 	}
 	log := fxutil.Test[log.Component](t, log.MockModule)
-	cfg := fxutil.Test[config.Component](t, config.MockModule)
-	fh := forwarderHealth{log: log, config: cfg}
+	fh := forwarderHealth{log: log}
 	fh.init()
 	fh.keysPerAPIEndpoint = keysPerAPIEndpoint
 	assert.True(t, fh.hasValidAPIKey())
@@ -127,4 +124,5 @@ func TestHasValidAPIKeyErrors(t *testing.T) {
 	assert.Equal(t, &apiKeyUnexpectedStatusCode, apiKeyStatus.Get("API key ending with _key2"))
 	assert.Equal(t, &apiKeyValid, apiKeyStatus.Get("API key ending with key3"))
 	assert.Equal(t, &apiKeyEndpointUnreachable, apiKeyStatus.Get("API key ending with key4"))
+
 }

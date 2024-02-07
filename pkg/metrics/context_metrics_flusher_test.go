@@ -11,8 +11,9 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/DataDog/datadog-agent/pkg/aggregator/ckey"
 	"github.com/stretchr/testify/require"
+
+	"github.com/DataDog/datadog-agent/pkg/aggregator/ckey"
 )
 
 func TestFlushAndClearSingleContextMetrics(t *testing.T) {
@@ -73,8 +74,7 @@ func addMetricSample(contextMetrics ContextMetrics, contextKey int, value float6
 		Value: value,
 		Mtype: GaugeType,
 	}
-	c := setupConfig()
-	contextMetrics.AddSample(ckey.ContextKey(contextKey), &mSample, 1, 10, nil, c)
+	contextMetrics.AddSample(ckey.ContextKey(contextKey), &mSample, 1, 10, nil)
 }
 
 func flushAndClear(require *require.Assertions, flusher *ContextMetricsFlusher) [][]*Serie {

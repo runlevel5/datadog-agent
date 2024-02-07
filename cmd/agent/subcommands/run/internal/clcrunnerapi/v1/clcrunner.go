@@ -15,7 +15,6 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/DataDog/datadog-agent/cmd/agent/common"
-	checkid "github.com/DataDog/datadog-agent/pkg/collector/check/id"
 	"github.com/DataDog/datadog-agent/pkg/status"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -47,11 +46,10 @@ func getCLCRunnerStats(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, string(body), 500)
 		return
 	}
-	flattenedStats := flattenCLCStats(stats)
-	statsWithIDsKnownByDCA := replaceIDsWithIDsKnownByDCA(flattenedStats)
-	jsonStats, err := json.Marshal(statsWithIDsKnownByDCA)
+	s := flattenCLCStats(stats)
+	jsonStats, err := json.Marshal(s)
 	if err != nil {
-		log.Errorf("Error marshalling stats. Error: %v, Stats: %v", err, statsWithIDsKnownByDCA)
+		log.Errorf("Error marshalling stats. Error: %v, Stats: %v", err, s)
 		body, _ := json.Marshal(map[string]string{"error": err.Error()})
 		http.Error(w, string(body), 500)
 		return
@@ -70,29 +68,6 @@ func flattenCLCStats(stats status.CLCChecks) map[string]status.CLCStats {
 	}
 
 	return flatened
-}
-
-// replaceIDsWithIDsKnownByDCA replaces the check IDs in the map received with
-// the ID that those checks had before decrypting their secrets. This is needed
-// because if the Cluster Agent does not decrypt secrets and the runner does,
-// the check ID seen by both of them is going to be different and the Cluster
-// Agent won't recognize the check as a cluster check.
-// The API defined in this file is only used by the Cluster Agent, so it makes
-// sense to use the IDs that it recognizes.
-func replaceIDsWithIDsKnownByDCA(stats map[string]status.CLCStats) map[string]status.CLCStats {
-	res := make(map[string]status.CLCStats, len(stats))
-
-	for checkID, checkStats := range stats {
-		originalID := common.AC.GetIDOfCheckWithEncryptedSecrets(checkid.ID(checkID))
-
-		if originalID != "" {
-			res[string(originalID)] = checkStats
-		} else {
-			res[checkID] = checkStats
-		}
-	}
-
-	return res
 }
 
 func getCLCRunnerWorkers(w http.ResponseWriter, r *http.Request) {

@@ -141,7 +141,7 @@ func (h *AutoMultilineHandler) processAndTry(message *message.Message) {
 	h.singleLineHandler.process(message)
 
 	for i, scoredPattern := range h.scoredMatches {
-		match := scoredPattern.regexp.Match(message.GetContent())
+		match := scoredPattern.regexp.Match(message.Content)
 		if match {
 			scoredPattern.score++
 

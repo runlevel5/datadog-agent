@@ -356,9 +356,9 @@ var (
 		"MAP_HUGE_16GB":       34 << unix.MAP_HUGE_SHIFT,
 	}
 
-	// SignalConstants are the supported signals for the kill syscall
+	// signalConstants are the supported signals for the kill syscall
 	// generate_constants:Signal constants,Signal constants are the supported signals for the kill syscall.
-	SignalConstants = map[string]int{
+	signalConstants = map[string]int{
 		"SIGHUP":    int(unix.SIGHUP),
 		"SIGINT":    int(unix.SIGINT),
 		"SIGQUIT":   int(unix.SIGQUIT),

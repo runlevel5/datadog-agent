@@ -9,17 +9,15 @@ import (
 	"fmt"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
-	"github.com/DataDog/datadog-agent/pkg/config/model"
 )
 
 // LogPayloadsRuntimeSetting wraps operations to start logging aggregator payload at runtime.
 type LogPayloadsRuntimeSetting struct {
-	ConfigKey string
+	source Source
 }
 
-// NewLogPayloadsRuntimeSetting returns a new LogPayloadsRuntimeSetting
 func NewLogPayloadsRuntimeSetting() *LogPayloadsRuntimeSetting {
-	return &LogPayloadsRuntimeSetting{ConfigKey: "log_payloads"}
+	return &LogPayloadsRuntimeSetting{source: SourceDefault}
 }
 
 // Description returns the runtime setting's description
@@ -34,7 +32,7 @@ func (l *LogPayloadsRuntimeSetting) Hidden() bool {
 
 // Name returns the name of the runtime setting
 func (l *LogPayloadsRuntimeSetting) Name() string {
-	return l.ConfigKey
+	return "log_payloads"
 }
 
 // Get returns the current value of the runtime setting
@@ -43,7 +41,7 @@ func (l *LogPayloadsRuntimeSetting) Get() (interface{}, error) {
 }
 
 // Set changes the value of the runtime setting
-func (l *LogPayloadsRuntimeSetting) Set(v interface{}, source model.Source) error {
+func (l *LogPayloadsRuntimeSetting) Set(v interface{}, source Source) error {
 	var newValue bool
 	var err error
 
@@ -51,6 +49,11 @@ func (l *LogPayloadsRuntimeSetting) Set(v interface{}, source model.Source) erro
 		return fmt.Errorf("LogPayloadsRuntimeSetting: %v", err)
 	}
 
-	config.Datadog.Set("log_payloads", newValue, source)
+	config.Datadog.Set("log_payloads", newValue)
+	l.source = source
 	return nil
+}
+
+func (l *LogPayloadsRuntimeSetting) GetSource() Source {
+	return l.source
 }

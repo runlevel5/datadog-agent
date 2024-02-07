@@ -16,7 +16,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 	"github.com/DataDog/datadog-agent/pkg/util/clusteragent"
-	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/hostname"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/clustername"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -30,13 +29,12 @@ const (
 
 // dispatcher holds the management logic for cluster-checks
 type dispatcher struct {
-	store                         *clusterStore
-	nodeExpirationSeconds         int64
-	extraTags                     []string
-	clcRunnersClient              clusteragent.CLCRunnerClientInterface
-	advancedDispatching           bool
-	excludedChecks                map[string]struct{}
-	excludedChecksFromDispatching map[string]struct{}
+	store                 *clusterStore
+	nodeExpirationSeconds int64
+	extraTags             []string
+	clcRunnersClient      clusteragent.CLCRunnerClientInterface
+	advancedDispatching   bool
+	excludedChecks        map[string]struct{}
 }
 
 func newDispatcher() *dispatcher {
@@ -52,15 +50,6 @@ func newDispatcher() *dispatcher {
 		d.excludedChecks = make(map[string]struct{}, len(excludedChecks))
 		for _, checkName := range excludedChecks {
 			d.excludedChecks[checkName] = struct{}{}
-		}
-	}
-
-	excludedChecksFromDispatching := config.Datadog.GetStringSlice("cluster_checks.exclude_checks_from_dispatching")
-	// This option will almost always be empty
-	if len(excludedChecksFromDispatching) > 0 {
-		d.excludedChecksFromDispatching = make(map[string]struct{}, len(excludedChecksFromDispatching))
-		for _, checkName := range excludedChecksFromDispatching {
-			d.excludedChecksFromDispatching[checkName] = struct{}{}
 		}
 	}
 
@@ -105,12 +94,6 @@ func (d *dispatcher) Schedule(configs []integration.Config) {
 		if !c.ClusterCheck {
 			continue // Ignore non cluster-check configs
 		}
-
-		if c.HasFilter(containers.MetricsFilter) || c.HasFilter(containers.GlobalFilter) {
-			log.Debugf("Config %s is filtered out for metrics collection, ignoring it", c.Name)
-			continue
-		}
-
 		if c.NodeName != "" {
 			// An endpoint check backed by a pod
 			patched, err := d.patchEndpointsConfiguration(c)
@@ -233,7 +216,7 @@ func (d *dispatcher) run(ctx context.Context) {
 			// Rebalance if needed
 			if d.advancedDispatching {
 				// Rebalance checks distribution
-				d.rebalance(false)
+				d.rebalance()
 			}
 		}
 	}

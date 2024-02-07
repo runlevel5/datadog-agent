@@ -42,22 +42,8 @@ package 'java' do
   case node[:platform]
   when 'redhat', 'centos', 'fedora', 'amazon'
     package_name 'java'
-  when 'ubuntu'
+  when 'ubuntu', 'debian'
     package_name 'default-jre'
-  when 'debian'
-    package_name 'default-jre'
-    # ignore failure because of error about /etc/ssl/certs/java/cacerts
-    ignore_failure true
-  end
-end
-
-# do install a second time to fix debian error
-package 'ca-certificates-java' do
-  case node[:platform]
-  when 'debian'
-    action :install
-  else
-    action :nothing
   end
 end
 
@@ -193,23 +179,25 @@ end
 
 # Install relevant packages for docker
 include_recipe "::docker_installation"
-cookbook_file "/tmp/docker-images.txt" do
-  source "docker-images.txt"
-  mode '0444'
+docker_file_dir = "#{root_dir}/kitchen-dockers"
+remote_directory docker_file_dir do
+  source 'dockers'
+  files_owner 'root'
+  files_group 'root'
+  files_mode '0750'
   action :create
-  ignore_failure true
+  recursive true
 end
 
-file "/tmp/docker_password" do
-  content node[:docker][:password].to_s || ""
-  mode 400
-  sensitive true
-end
-
-execute 'pull docker images' do
+# Load docker images
+execute 'install docker-compose' do
+  cwd docker_file_dir
   command <<-EOF
-    cat /tmp/docker_password | docker login --username #{node[:docker][:username].to_s} --password-stdin #{node[:docker][:registry]}
-    xargs -L1 -a /tmp/docker-images.txt docker pull
+    for docker_file in $(ls); do
+      echo docker load -i $docker_file
+      docker load -i $docker_file
+      rm -rf $docker_file
+    done
   EOF
   user "root"
   live_stream true

@@ -19,8 +19,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	hostMetadataUtils "github.com/DataDog/datadog-agent/comp/metadata/host/utils"
 	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/metadata/host"
+	"github.com/DataDog/datadog-agent/pkg/util/hostname"
 	"github.com/DataDog/datadog-agent/pkg/version"
 )
 
@@ -75,8 +76,16 @@ func TestGetStatus(t *testing.T) {
 	// when the datadog.yaml file is loaded
 	cfg := ddconfig.Mock(t)
 	ddconfig.SetFeatures(t)
-	cfg.SetWithoutSource("hostname", "test") // Prevents panic since feature detection has not run
-	cfg.SetWithoutSource("language_detection.enabled", true)
+	cfg.Set("hostname", "test") // Prevents panic since feature detection has not run
+	cfg.Set("language_detection.enabled", true)
+
+	hostnameData, err := hostname.GetWithProvider(context.Background())
+	var metadata *host.Payload
+	if err != nil {
+		metadata = host.GetPayloadFromCache(context.Background(), hostname.Data{Hostname: "unknown", Provider: "unknown"})
+	} else {
+		metadata = host.GetPayloadFromCache(context.Background(), hostnameData)
+	}
 
 	expectedStatus := &Status{
 		Date: float64(testTime.UnixNano()),
@@ -87,7 +96,7 @@ func TestGetStatus(t *testing.T) {
 			Config: ConfigStatus{
 				LogLevel: cfg.GetString("log_level"),
 			},
-			Metadata: *hostMetadataUtils.GetFromCache(context.Background(), cfg),
+			Metadata: *metadata,
 		},
 		Expvars: expectedExpVars,
 	}

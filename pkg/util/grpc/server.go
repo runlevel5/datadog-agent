@@ -22,7 +22,6 @@ type contextKey struct {
 	key string
 }
 
-// ConnContextKey is a contextKey with http-connection key
 var ConnContextKey = &contextKey{"http-connection"}
 
 // NewMuxedGRPCServer returns an http.Server that multiplexes connections

@@ -517,8 +517,9 @@ workloadLoop:
 			if !errors.Is(err, unix.E2BIG) {
 				seclog.Debugf("%v", err)
 				break
+			} else {
+				seclog.Errorf("%v", err)
 			}
-			seclog.Errorf("%v", err)
 		}
 	}
 }

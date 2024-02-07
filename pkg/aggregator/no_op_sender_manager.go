@@ -21,24 +21,19 @@ func NewNoOpSenderManager() NoOpSenderManager {
 }
 
 // GetSender returns a sender.Sender with passed ID
-func (NoOpSenderManager) GetSender(id checkid.ID) (sender.Sender, error) { //nolint:revive // TODO fix revive unused-parameter
+func (NoOpSenderManager) GetSender(id checkid.ID) (sender.Sender, error) {
 	return nil, errors.New("NotImplemented")
 }
 
 // SetSender returns the passed sender with the passed ID.
-func (NoOpSenderManager) SetSender(sender.Sender, checkid.ID) error { //nolint:revive // TODO fix revive unused-parameter
+func (NoOpSenderManager) SetSender(sender.Sender, checkid.ID) error {
 	return errors.New("NotImplemented")
 }
 
 // DestroySender frees up the resources used by the sender with passed ID (by deregistering it from the aggregator)
-func (NoOpSenderManager) DestroySender(id checkid.ID) {} //nolint:revive // TODO fix revive unused-parameter
+func (NoOpSenderManager) DestroySender(id checkid.ID) {}
 
 // GetDefaultSender returns a default sender.
-func (NoOpSenderManager) GetDefaultSender() (sender.Sender, error) { //nolint:revive // TODO fix revive unused-parameter
+func (NoOpSenderManager) GetDefaultSender() (sender.Sender, error) {
 	return nil, errors.New("NotImplemented")
-}
-
-// LazyGetSenderManager gets an instance of SenderManager lazily.
-func (sender NoOpSenderManager) LazyGetSenderManager() (sender.SenderManager, error) {
-	return sender, nil
 }

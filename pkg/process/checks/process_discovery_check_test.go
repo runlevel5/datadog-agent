@@ -27,7 +27,7 @@ func TestProcessDiscoveryCheck(t *testing.T) {
 	}()
 
 	maxBatchSize := 10
-	getMaxBatchSize = func(config.Reader) int { return maxBatchSize }
+	getMaxBatchSize = func(config.ConfigReader) int { return maxBatchSize }
 
 	check := NewProcessDiscoveryCheck(config.Mock(t))
 	check.Init(
@@ -38,7 +38,6 @@ func TestProcessDiscoveryCheck(t *testing.T) {
 				TotalMemory: 0,
 			},
 		},
-		true,
 	)
 
 	// Test check runs without error

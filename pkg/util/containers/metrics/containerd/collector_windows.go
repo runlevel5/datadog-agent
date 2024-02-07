@@ -43,7 +43,7 @@ func getContainerdStatsWindows(windowsStats *wstats.WindowsContainerStatistics) 
 	}
 
 	return &provider.ContainerStats{
-		Timestamp: windowsStats.Timestamp.AsTime(),
+		Timestamp: windowsStats.Timestamp,
 		CPU:       getContainerdCPUStatsWindows(windowsStats.Processor),
 		Memory:    getContainerdMemoryStatsWindows(windowsStats.Memory),
 		IO:        getContainerdIOStatsWindows(windowsStats.Storage),

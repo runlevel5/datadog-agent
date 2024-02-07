@@ -6,14 +6,11 @@
 package containerlifecycle
 
 import (
-	"context"
 	"fmt"
 
 	model "github.com/DataDog/agent-payload/v5/contlcycle"
 
 	types "github.com/DataDog/datadog-agent/pkg/containerlifecycle"
-	"github.com/DataDog/datadog-agent/pkg/util/hostname"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 type event interface {
@@ -83,15 +80,7 @@ func (e *eventTransformer) withOwnerID(id string) {
 }
 
 func (e *eventTransformer) toPayloadModel() (*model.EventsPayload, error) {
-	hname, err := hostname.Get(context.TODO())
-	if err != nil {
-		log.Warnf("Error getting hostname: %v", err)
-	}
-
-	payload := &model.EventsPayload{
-		Version: types.PayloadV1,
-		Host:    hname,
-	}
+	payload := &model.EventsPayload{Version: types.PayloadV1}
 	kind, err := e.kind(e.objectKind)
 	if err != nil {
 		return nil, err

@@ -17,7 +17,6 @@ import (
 	"net"
 	nethttp "net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,7 +26,6 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
-	"github.com/cihub/seelog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -42,19 +40,12 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/http"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/http/testutil"
 	usmhttp2 "github.com/DataDog/datadog-agent/pkg/network/protocols/http2"
+	"github.com/DataDog/datadog-agent/pkg/network/protocols/telemetry"
 	libtelemetry "github.com/DataDog/datadog-agent/pkg/network/protocols/telemetry"
+	"github.com/DataDog/datadog-agent/pkg/network/tracer/testutil/grpc"
+	"github.com/DataDog/datadog-agent/pkg/process/util"
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
-
-func TestMain(m *testing.M) {
-	logLevel := os.Getenv("DD_LOG_LEVEL")
-	if logLevel == "" {
-		logLevel = "warn"
-	}
-	log.SetupLogger(seelog.Default, logLevel)
-	os.Exit(m.Run())
-}
 
 const (
 	kb = 1024
@@ -67,14 +58,7 @@ const (
 
 var (
 	emptyBody = []byte(nil)
-	kv        = kernel.MustHostVersion()
 )
-
-func skipIfUSMNotSupported(t *testing.T) {
-	if kv < http.MinimumKernelVersion {
-		t.Skipf("USM is not supported on %v", kv)
-	}
-}
 
 func TestMonitorProtocolFail(t *testing.T) {
 	failingStartupMock := func(_ *manager.Manager) error {
@@ -112,54 +96,9 @@ type HTTPTestSuite struct {
 }
 
 func TestHTTP(t *testing.T) {
-	skipIfUSMNotSupported(t)
 	ebpftest.TestBuildModes(t, []ebpftest.BuildMode{ebpftest.Prebuilt, ebpftest.RuntimeCompiled, ebpftest.CORE}, "", func(t *testing.T) {
 		suite.Run(t, new(HTTPTestSuite))
 	})
-}
-
-func (s *HTTPTestSuite) TestHTTPStats() {
-	t := s.T()
-	t.Run("status code", func(t *testing.T) {
-		testHTTPStats(t, true)
-	})
-	t.Run("status class", func(t *testing.T) {
-		testHTTPStats(t, false)
-	})
-}
-
-func testHTTPStats(t *testing.T, aggregateByStatusCode bool) {
-	// Start an HTTP server on localhost:8080
-	serverAddr := "127.0.0.1:8080"
-	srvDoneFn := testutil.HTTPServer(t, serverAddr, testutil.Options{
-		EnableKeepAlive: true,
-	})
-	t.Cleanup(srvDoneFn)
-
-	cfg := networkconfig.New()
-	cfg.EnableHTTPStatsByStatusCode = aggregateByStatusCode
-	monitor := newHTTPMonitorWithCfg(t, cfg)
-
-	resp, err := nethttp.Get(fmt.Sprintf("http://%s/%d/test", serverAddr, nethttp.StatusNoContent))
-	require.NoError(t, err)
-	_ = resp.Body.Close()
-	srvDoneFn()
-
-	// Iterate through active connections until we find connection created above
-	require.Eventuallyf(t, func() bool {
-		stats := getHttpStats(t, monitor)
-
-		for key, reqStats := range stats {
-			if key.Method == http.MethodGet && strings.HasSuffix(key.Path.Content.Get(), "/test") && (key.SrcPort == 8080 || key.DstPort == 8080) {
-				currentStats := reqStats.Data[reqStats.NormalizeStatusCode(204)]
-				if currentStats != nil && currentStats.Count == 1 {
-					return true
-				}
-			}
-		}
-
-		return false
-	}, 3*time.Second, 100*time.Millisecond, "couldn't find http connection matching: %s", serverAddr)
 }
 
 func (s *HTTPTestSuite) TestHTTPMonitorCaptureRequestMultipleTimes() {
@@ -191,7 +130,7 @@ func (s *HTTPTestSuite) TestHTTPMonitorCaptureRequestMultipleTimes() {
 				resp, err := client.Do(req)
 				require.NoError(t, err)
 				// Have to read the response body to ensure the client will be able to properly close the connection.
-				io.Copy(io.Discard, resp.Body)
+				io.ReadAll(resp.Body)
 				resp.Body.Close()
 			}
 			srvDoneFn()
@@ -420,6 +359,52 @@ func (s *HTTPTestSuite) TestHTTPMonitorIntegrationWithNAT() {
 	})
 }
 
+func (s *HTTPTestSuite) TestUnknownMethodRegression() {
+	t := s.T()
+
+	// SetupDNAT sets up a NAT translation from 2.2.2.2 to 1.1.1.1
+	netlink.SetupDNAT(t)
+
+	monitor := newHTTPMonitor(t)
+	targetAddr := "2.2.2.2:8080"
+	serverAddr := "1.1.1.1:8080"
+	serverAddrIP := util.AddressFromString("1.1.1.1")
+	srvDoneFn := testutil.HTTPServer(t, serverAddr, testutil.Options{
+		EnableTLS:       false,
+		EnableKeepAlive: true,
+	})
+	t.Cleanup(srvDoneFn)
+
+	requestFn := requestGenerator(t, targetAddr, emptyBody)
+	for i := 0; i < 100; i++ {
+		requestFn()
+	}
+
+	time.Sleep(5 * time.Second)
+	stats := getHttpStats(t, monitor)
+	tel := telemetry.ReportPayloadTelemetry("1")
+	requestsSum := 0
+	for key := range stats {
+		if key.Method == http.MethodUnknown {
+			t.Error("detected HTTP request with method unknown")
+		}
+		// we just want our requests
+		if strings.Contains(key.Path.Content.Get(), "/request-") &&
+			key.DstPort == 8080 &&
+			util.FromLowHigh(key.DstIPLow, key.DstIPHigh) == serverAddrIP {
+			requestsSum++
+		}
+	}
+
+	require.Equal(t, int64(0), tel["usm.http.dropped"])
+	require.Equal(t, int64(0), tel["usm.http.rejected"])
+	require.Equal(t, int64(0), tel["usm.http.malformed"])
+	// requestGenerator() doesn't query 100 responses
+	require.Equal(t, int64(0), tel["usm.http.hits1XX"])
+
+	require.Equal(t, int(100), requestsSum)
+}
+
 func (s *HTTPTestSuite) TestRSTPacketRegression() {
 	t := s.T()
 
@@ -528,6 +513,8 @@ type captureRange struct {
 }
 
 func TestHTTP2(t *testing.T) {
+	t.Skip("tests are broken after upgrading go-grpc to 1.58")
+
 	currKernelVersion, err := kernel.HostVersion()
 	require.NoError(t, err)
 	if currKernelVersion < usmhttp2.MinimumKernelVersion {
@@ -537,59 +524,6 @@ func TestHTTP2(t *testing.T) {
 	ebpftest.TestBuildModes(t, []ebpftest.BuildMode{ebpftest.Prebuilt, ebpftest.RuntimeCompiled, ebpftest.CORE}, "", func(t *testing.T) {
 		suite.Run(t, new(USMHTTP2Suite))
 	})
-}
-
-func (s *USMHTTP2Suite) TestHTTP2ManyDifferentPaths() {
-	t := s.T()
-	cfg := networkconfig.New()
-	cfg.EnableHTTP2Monitoring = true
-
-	startH2CServer(t)
-
-	monitor, err := NewMonitor(cfg, nil, nil, nil)
-	require.NoError(t, err)
-	require.NoError(t, monitor.Start())
-	defer monitor.Stop()
-
-	// Should be bigger than the length of the http2_dynamic_table which is 1024
-	numberOfRequests := 1500
-	clients := getClientsArray(t, 1)
-	for i := 0; i < numberOfRequests; i++ {
-		for j := 0; j < 2; j++ {
-			req, err := clients[0].Post(fmt.Sprintf("%s/test-%d", http2SrvAddr, i+1), "application/json", bytes.NewReader([]byte("test")))
-			require.NoError(t, err, "could not make request")
-			req.Body.Close()
-		}
-	}
-
-	matches := PrintableInt(0)
-
-	seenRequests := map[string]int{}
-	assert.Eventuallyf(t, func() bool {
-		stats := monitor.GetProtocolStats()
-		http2Stats, ok := stats[protocols.HTTP2]
-		if !ok {
-			return false
-		}
-		http2StatsTyped := http2Stats.(map[http.Key]*http.RequestStats)
-		for key, stat := range http2StatsTyped {
-			if (key.DstPort == http2SrvPort || key.SrcPort == http2SrvPort) && key.Method == http.MethodPost && strings.HasPrefix(key.Path.Content.Get(), "/test") {
-				if _, ok := seenRequests[key.Path.Content.Get()]; !ok {
-					seenRequests[key.Path.Content.Get()] = 0
-				}
-				seenRequests[key.Path.Content.Get()] += stat.Data[200].Count
-				matches.Add(stat.Data[200].Count)
-			}
-		}
-
-		return matches.Load() == 2*numberOfRequests
-	}, time.Second*10, time.Millisecond*100, "%v != %v", &matches, 2*numberOfRequests)
-
-	for i := 0; i < numberOfRequests; i++ {
-		if v, ok := seenRequests[fmt.Sprintf("/test-%d", i+1)]; !ok || v != 2 {
-			t.Logf("path: /test-%d should have 2 occurrences but instead has %d", i+1, v)
-		}
-	}
 }
 
 func (s *USMHTTP2Suite) TestSimpleHTTP2() {
@@ -603,11 +537,12 @@ func (s *USMHTTP2Suite) TestSimpleHTTP2() {
 		name              string
 		runClients        func(t *testing.T, clientsCount int)
 		expectedEndpoints map[http.Key]captureRange
+		skip              bool
 	}{
 		{
 			name: " / path",
 			runClients: func(t *testing.T, clientsCount int) {
-				clients := getClientsArray(t, clientsCount)
+				clients := getClientsArray(t, clientsCount, grpc.Options{})
 
 				for i := 0; i < 1000; i++ {
 					client := clients[getClientsIndex(i, clientsCount)]
@@ -622,14 +557,14 @@ func (s *USMHTTP2Suite) TestSimpleHTTP2() {
 					Method: http.MethodPost,
 				}: {
 					lower: 999,
-					upper: 1001,
+					upper: 1000,
 				},
 			},
 		},
 		{
 			name: " /index.html path",
 			runClients: func(t *testing.T, clientsCount int) {
-				clients := getClientsArray(t, clientsCount)
+				clients := getClientsArray(t, clientsCount, grpc.Options{})
 
 				for i := 0; i < 1000; i++ {
 					client := clients[getClientsIndex(i, clientsCount)]
@@ -644,7 +579,7 @@ func (s *USMHTTP2Suite) TestSimpleHTTP2() {
 					Method: http.MethodPost,
 				}: {
 					lower: 999,
-					upper: 1001,
+					upper: 1000,
 				},
 			},
 		},
@@ -653,6 +588,10 @@ func (s *USMHTTP2Suite) TestSimpleHTTP2() {
 		for _, clientCount := range []int{1, 2, 5} {
 			testNameSuffix := fmt.Sprintf("-different clients - %v", clientCount)
 			t.Run(tt.name+testNameSuffix, func(t *testing.T) {
+				if tt.skip {
+					t.Skip("Skipping test due to known issue")
+				}
+
 				monitor, err := NewMonitor(cfg, nil, nil, nil)
 				require.NoError(t, err)
 				require.NoError(t, monitor.Start())
@@ -661,7 +600,7 @@ func (s *USMHTTP2Suite) TestSimpleHTTP2() {
 				tt.runClients(t, clientCount)
 
 				res := make(map[http.Key]int)
-				assert.Eventually(t, func() bool {
+				require.Eventually(t, func() bool {
 					stats := monitor.GetProtocolStats()
 					http2Stats, ok := stats[protocols.HTTP2]
 					if !ok {
@@ -699,20 +638,12 @@ func (s *USMHTTP2Suite) TestSimpleHTTP2() {
 
 					return true
 				}, time.Second*5, time.Millisecond*100, "%v != %v", res, tt.expectedEndpoints)
-				if t.Failed() {
-					o, err := monitor.DumpMaps("http2_in_flight")
-					if err != nil {
-						t.Logf("failed dumping http2_in_flight: %s", err)
-					} else {
-						t.Log(o)
-					}
-				}
 			})
 		}
 	}
 }
 
-func getClientsArray(t *testing.T, size int) []*nethttp.Client {
+func getClientsArray(t *testing.T, size int, options grpc.Options) []*nethttp.Client {
 	t.Helper()
 
 	res := make([]*nethttp.Client, size)
@@ -770,48 +701,31 @@ func getClientsIndex(index, totalCount int) int {
 
 func assertAllRequestsExists(t *testing.T, monitor *Monitor, requests []*nethttp.Request) {
 	requestsExist := make([]bool, len(requests))
-
-	assert.Eventually(t, func() bool {
+	for i := 0; i < 10; i++ {
+		time.Sleep(10 * time.Millisecond)
 		stats := getHttpStats(t, monitor)
-
-		if len(stats) == 0 {
-			return false
-		}
-
 		for reqIndex, req := range requests {
-			if !requestsExist[reqIndex] {
-				exists, err := isRequestIncludedOnce(stats, req)
-				require.NoError(t, err)
-				requestsExist[reqIndex] = exists
-			}
+			included, err := isRequestIncludedOnce(stats, req)
+			require.NoError(t, err)
+			requestsExist[reqIndex] = requestsExist[reqIndex] || included
 		}
-
-		// Slight optimization here, if one is missing, then go into another cycle of checking the new connections.
-		// otherwise, if all present, abort.
-		for _, exists := range requestsExist {
-			if !exists {
-				return false
-			}
-		}
-
-		return true
-	}, 3*time.Second, time.Millisecond*100, "connection not found")
-
-	if t.Failed() {
-		o, err := monitor.DumpMaps("http_in_flight")
-		if err != nil {
-			t.Logf("failed dumping http_in_flight: %s", err)
-		} else {
-			t.Log(o)
-		}
-
-		for reqIndex, exists := range requestsExist {
-			if !exists {
-				// reqIndex is 0 based, while the number is requests[reqIndex] is 1 based.
-				t.Logf("request %d was not found (req %v)", reqIndex+1, requests[reqIndex])
-			}
+		if allTrue(requestsExist) {
+			return
 		}
 	}
+
+	for reqIndex, exists := range requestsExist {
+		require.Truef(t, exists, "request %d was not found (req %v)", reqIndex, requests[reqIndex])
+	}
+}
+
+func allTrue(x []bool) bool {
+	for _, v := range x {
+		if !v {
+			return false
+		}
+	}
+	return true
 }
 
 func testHTTPMonitor(t *testing.T, targetAddr, serverAddr string, numReqs int, o testutil.Options) {
@@ -965,9 +879,9 @@ func countRequestOccurrences(allStats map[http.Key]*http.RequestStats, req *neth
 	return occurrences
 }
 
-func newHTTPMonitorWithCfg(t *testing.T, cfg *networkconfig.Config) *Monitor {
+func newHTTPMonitor(t *testing.T) *Monitor {
+	cfg := networkconfig.New()
 	cfg.EnableHTTPMonitoring = true
-
 	monitor, err := NewMonitor(cfg, nil, nil, nil)
 	skipIfNotSupported(t, err)
 	require.NoError(t, err)
@@ -982,10 +896,6 @@ func newHTTPMonitorWithCfg(t *testing.T, cfg *networkconfig.Config) *Monitor {
 	skipIfNotSupported(t, err)
 	require.NoError(t, err)
 	return monitor
-}
-
-func newHTTPMonitor(t *testing.T) *Monitor {
-	return newHTTPMonitorWithCfg(t, networkconfig.New())
 }
 
 func skipIfNotSupported(t *testing.T, err error) {

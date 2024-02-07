@@ -83,93 +83,86 @@ func TestSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-// TestNewLeaseAcquiring only tests the proper creation of the lock,
-// the acquisition of the leadership and that the ConfigMap/Lease contains is properly updated.
+// TestNewLeaseAcquiring_ConfigMap only test the proper creation of the lock,
+// the acquisition of the leadership and that the ConfigMap contains is properly updated.
 // The leadership transition is tested as part of an end to end test.
-func TestNewLeaseAcquiring(t *testing.T) {
+func TestNewLeaseAcquiring_ConfigMap(t *testing.T) {
 	const leaseName = "datadog-leader-election"
 
-	tests := []struct {
-		name     string
-		lockType string
-	}{
-		{
-			name:     "ConfigMap",
-			lockType: rl.ConfigMapsLeasesResourceLock,
-		},
-		{
-			name:     "Lease",
-			lockType: rl.LeasesResourceLock,
-		},
+	client := fake.NewSimpleClientset()
+
+	le := &LeaderEngine{
+		HolderIdentity:  "foo",
+		LeaseName:       leaseName,
+		LeaderNamespace: "default",
+		LeaseDuration:   1 * time.Second,
+		coreClient:      client.CoreV1(),
+		coordClient:     client.CoordinationV1(),
+		leaderMetric:    &dummyGauge{},
+		lockType:        rl.ConfigMapsLeasesResourceLock,
 	}
+	_, err := client.CoreV1().ConfigMaps("default").Get(context.TODO(), leaseName, metav1.GetOptions{})
+	require.True(t, errors.IsNotFound(err))
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			client := fake.NewSimpleClientset()
+	le.leaderElector, err = le.newElection()
+	require.NoError(t, err)
 
-			le := &LeaderEngine{
-				ctx:             context.Background(),
-				HolderIdentity:  "foo",
-				LeaseName:       leaseName,
-				LeaderNamespace: "default",
-				LeaseDuration:   1 * time.Second,
-				coreClient:      client.CoreV1(),
-				coordClient:     client.CoordinationV1(),
-				leaderMetric:    &dummyGauge{},
-				lockType:        tt.lockType,
-			}
+	newCm, err := client.CoreV1().ConfigMaps("default").Get(context.TODO(), leaseName, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.Equal(t, newCm.Name, leaseName)
+	require.Nil(t, newCm.Annotations)
 
-			// Specific lease checks
-			switch tt.lockType {
-			case rl.ConfigMapsLeasesResourceLock:
-				_, err := client.CoreV1().ConfigMaps("default").Get(context.TODO(), leaseName, metav1.GetOptions{})
-				require.True(t, errors.IsNotFound(err))
-			case rl.LeasesResourceLock:
-				_, err := client.CoordinationV1().Leases("default").Get(context.TODO(), leaseName, metav1.GetOptions{})
-				require.True(t, errors.IsNotFound(err))
-			}
-			var err error
-			le.leaderElector, err = le.newElection()
-			require.NoError(t, err)
+	err = le.EnsureLeaderElectionRuns()
+	require.NoError(t, err)
+	Cm, err := client.CoreV1().ConfigMaps("default").Get(context.TODO(), leaseName, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.Contains(t, Cm.Annotations[rl.LeaderElectionRecordAnnotationKey], "\"leaderTransitions\":1")
+	require.True(t, le.IsLeader())
 
-			// Specific lease checks
-			switch tt.lockType {
-			case rl.ConfigMapsLeasesResourceLock:
-				newCm, err := client.CoreV1().ConfigMaps("default").Get(context.TODO(), leaseName, metav1.GetOptions{})
-				require.NoError(t, err)
-				require.Equal(t, newCm.Name, leaseName)
-				require.Nil(t, newCm.Annotations)
-			case rl.LeasesResourceLock:
-				newLease, err := client.CoordinationV1().Leases("default").Get(context.TODO(), leaseName, metav1.GetOptions{})
-				require.NoError(t, err)
-				require.Equal(t, newLease.Name, leaseName)
-				require.Nil(t, newLease.Annotations)
-			}
+	// As a leader, GetLeaderIP should return an empty IP
+	ip, err := le.GetLeaderIP()
+	assert.Equal(t, "", ip)
+	assert.NoError(t, err)
+}
 
-			err = le.EnsureLeaderElectionRuns()
-			require.NoError(t, err)
+func TestNewLeaseAcquiring_Lease(t *testing.T) {
+	const leaseName = "datadog-leader-election"
 
-			// Specific lease checks
-			switch tt.lockType {
-			case rl.ConfigMapsLeasesResourceLock:
-				Cm, err := client.CoreV1().ConfigMaps("default").Get(context.TODO(), leaseName, metav1.GetOptions{})
-				require.NoError(t, err)
-				require.Contains(t, Cm.Annotations[rl.LeaderElectionRecordAnnotationKey], "\"leaderTransitions\":1")
-			case rl.LeasesResourceLock:
-				lease, err := client.CoordinationV1().Leases("default").Get(context.TODO(), leaseName, metav1.GetOptions{})
-				require.NoError(t, err)
-				require.NotNil(t, lease.Spec.LeaseTransitions)
-				require.Equal(t, int32(1), *lease.Spec.LeaseTransitions)
-			}
+	client := fake.NewSimpleClientset()
 
-			require.True(t, le.IsLeader())
-
-			// As a leader, GetLeaderIP should return an empty IP
-			ip, err := le.GetLeaderIP()
-			assert.Equal(t, "", ip)
-			assert.NoError(t, err)
-		})
+	le := &LeaderEngine{
+		HolderIdentity:  "foo",
+		LeaseName:       leaseName,
+		LeaderNamespace: "default",
+		LeaseDuration:   1 * time.Second,
+		coreClient:      client.CoreV1(),
+		coordClient:     client.CoordinationV1(),
+		leaderMetric:    &dummyGauge{},
+		lockType:        rl.LeasesResourceLock,
 	}
+	_, err := client.CoordinationV1().Leases("default").Get(context.TODO(), leaseName, metav1.GetOptions{})
+	require.True(t, errors.IsNotFound(err))
+
+	le.leaderElector, err = le.newElection()
+	require.NoError(t, err)
+
+	newLease, err := client.CoordinationV1().Leases("default").Get(context.TODO(), leaseName, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.Equal(t, newLease.Name, leaseName)
+	require.Nil(t, newLease.Annotations)
+
+	err = le.EnsureLeaderElectionRuns()
+	require.NoError(t, err)
+	lease, err := client.CoordinationV1().Leases("default").Get(context.TODO(), leaseName, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, lease.Spec.LeaseTransitions)
+	require.Equal(t, int32(1), *lease.Spec.LeaseTransitions)
+	require.True(t, le.IsLeader())
+
+	// As a leader, GetLeaderIP should return an empty IP
+	ip, err := le.GetLeaderIP()
+	assert.Equal(t, "", ip)
+	assert.NoError(t, err)
 }
 
 func TestSubscribe(t *testing.T) {
@@ -201,7 +194,6 @@ func TestSubscribe(t *testing.T) {
 		t.Run(fmt.Sprintf("case %d: %s", nb, tc.name), func(t *testing.T) {
 			client := fake.NewSimpleClientset()
 			le := &LeaderEngine{
-				ctx:             context.Background(),
 				HolderIdentity:  "foo",
 				LeaseName:       leaseName,
 				LeaderNamespace: "default",
@@ -263,7 +255,6 @@ func TestGetLeaderIPFollower_ConfigMap(t *testing.T) {
 	client := fake.NewSimpleClientset()
 
 	le := &LeaderEngine{
-		ctx:             context.Background(),
 		HolderIdentity:  "foo",
 		LeaseName:       leaseName,
 		ServiceName:     endpointsName,
@@ -345,7 +336,6 @@ func TestGetLeaderIPFollower_Lease(t *testing.T) {
 	client := fake.NewSimpleClientset()
 
 	le := &LeaderEngine{
-		ctx:             context.Background(),
 		HolderIdentity:  "foo",
 		LeaseName:       leaseName,
 		ServiceName:     endpointsName,

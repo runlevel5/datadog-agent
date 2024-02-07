@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func testCrashReader(filename string, ctx *logCallbackContext, exterr *uint32) error { //nolint:revive // TODO fix revive unused-parameter
+func testCrashReader(filename string, ctx *logCallbackContext, exterr *uint32) error {
 	testbytes, err := os.ReadFile(filename)
 	if err != nil {
 		return err
@@ -29,7 +29,7 @@ func testCrashReader(filename string, ctx *logCallbackContext, exterr *uint32) e
 
 }
 
-func testCrashReaderWithLineSplits(filename string, ctx *logCallbackContext, exterr *uint32) error { //nolint:revive // TODO fix revive unused-parameter
+func testCrashReaderWithLineSplits(filename string, ctx *logCallbackContext, exterr *uint32) error {
 	testbytes, err := os.ReadFile(filename)
 	if err != nil {
 		return err
@@ -82,5 +82,44 @@ func TestCrashParserWithLineSplits(t *testing.T) {
 	before, _, _ := strings.Cut(wcs.Offender, "+")
 	assert.Equal(t, "ddapmcrash", before)
 	assert.Equal(t, "0000007E", wcs.BugCheck)
+
+}
+
+func TestCrashParserWithNoBugcheck(t *testing.T) {
+
+	wcs := &WinCrashStatus{
+		FileName: "testdata/crashsample2.txt",
+	}
+	// first read in the sample data
+
+	readfn = testCrashReader
+
+	parseCrashDump(wcs)
+
+	assert.True(t, wcs.Success)
+	assert.Empty(t, wcs.ErrString)
+	assert.Equal(t, "Mon Jun 26 22:07:25.382 2023 (UTC - 7:00)", wcs.DateString)
+	before, _, _ := strings.Cut(wcs.Offender, "+")
+	assert.Equal(t, "ddapmcrash", before)
+	assert.Equal(t, "0000007E", strings.ToUpper(wcs.BugCheck))
+
+}
+
+func TestCrashParserWithNoOffender(t *testing.T) {
+
+	wcs := &WinCrashStatus{
+		FileName: "testdata/dump_no_offender.txt",
+	}
+	// first read in the sample data
+
+	readfn = testCrashReader
+
+	parseCrashDump(wcs)
+
+	assert.True(t, wcs.Success)
+	assert.Empty(t, wcs.ErrString)
+	assert.Equal(t, "Thu Oct 12 14:48:06.609 2023 (UTC - 7:00)", wcs.DateString)
+	assert.NotEmpty(t, wcs.Offender)
+	assert.Equal(t, "0000013A", strings.ToUpper(wcs.BugCheck))
 
 }

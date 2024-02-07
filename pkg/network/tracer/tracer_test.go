@@ -36,7 +36,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/ebpf/ebpftest"
 	"github.com/DataDog/datadog-agent/pkg/network"
 	"github.com/DataDog/datadog-agent/pkg/network/config"
-	"github.com/DataDog/datadog-agent/pkg/network/tracer/testutil/testdns"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -195,18 +194,15 @@ func (s *TracerSuite) TestTCPSendAndReceive() {
 	err = wg.Wait()
 	require.NoError(t, err)
 
-	var conn *network.ConnectionStats
-	require.Eventually(t, func() bool {
-		// Iterate through active connections until we find connection created above, and confirm send + recv counts
-		connections := getConnections(t, tr)
-		var ok bool
-		conn, ok = findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
-		return conn != nil && ok
-	}, 3*time.Second, 100*time.Millisecond, "failed to find connection")
+	// Iterate through active connections until we find connection created above, and confirm send + recv counts
+	connections := getConnections(t, tr)
 
+	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
+	require.True(t, ok)
 	m := conn.Monotonic
 	assert.Equal(t, 10*clientMessageSize, int(m.SentBytes))
 	assert.Equal(t, 10*serverMessageSize, int(m.RecvBytes))
+	assert.Equal(t, 0, int(m.Retransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
 	assert.Equal(t, addrPort(server.address), int(conn.DPort))
 	assert.Equal(t, network.OUTGOING, conn.Direction)
@@ -400,15 +396,12 @@ func (s *TracerSuite) TestTCPConnsReported() {
 
 func (s *TracerSuite) TestUDPSendAndReceive() {
 	t := s.T()
-	cfg := testConfig()
-	tr := setupTracer(t, cfg)
-
 	t.Run("v4", func(t *testing.T) {
 		if !testConfig().CollectUDPv4Conns {
 			t.Skip("UDPv4 disabled")
 		}
 		t.Run("fixed port", func(t *testing.T) {
-			testUDPSendAndReceive(t, tr, "127.0.0.1:8081")
+			testUDPSendAndReceive(t, "127.0.0.1:8081")
 		})
 	})
 	t.Run("v6", func(t *testing.T) {
@@ -416,13 +409,14 @@ func (s *TracerSuite) TestUDPSendAndReceive() {
 			t.Skip("UDPv6 disabled")
 		}
 		t.Run("fixed port", func(t *testing.T) {
-			testUDPSendAndReceive(t, tr, "[::1]:8081")
+			testUDPSendAndReceive(t, "[::1]:8081")
 		})
 	})
 }
 
-func testUDPSendAndReceive(t *testing.T, tr *Tracer, addr string) {
-	tr.removeClient(clientID)
+func testUDPSendAndReceive(t *testing.T, addr string) {
+	cfg := testConfig()
+	tr := setupTracer(t, cfg)
 
 	server := &UDPServer{
 		address: addr,
@@ -1003,9 +997,15 @@ func getConnections(t require.TestingT, tr *Tracer) *network.Connections {
 	return connections
 }
 
-func testDNSStats(t *testing.T, tr *Tracer, domain string, success, failure, timeout int, serverIP string) {
-	tr.removeClient(clientID)
-	initTracerState(t, tr)
+const (
+	validDNSServer = "8.8.8.8"
+)
+
+func testDNSStats(t *testing.T, domain string, success int, failure int, timeout int, serverIP string) {
+	config := testConfig()
+	config.CollectDNSStats = true
+	config.DNSTimeout = 1 * time.Second
+	tr := setupTracer(t, config)
 
 	dnsServerAddr := &net.UDPAddr{IP: net.ParseIP(serverIP), Port: 53}
 
@@ -1013,16 +1013,16 @@ func testDNSStats(t *testing.T, tr *Tracer, domain string, success, failure, tim
 	queryMsg.SetQuestion(dns.Fqdn(domain), dns.TypeA)
 	queryMsg.RecursionDesired = true
 
-	var dnsClientAddr *net.UDPAddr
-	require.Eventually(t, func() bool {
-		dnsClient := new(dns.Client)
-		dnsConn, err := dnsClient.Dial(dnsServerAddr.String())
-		require.NoError(t, err)
-		dnsClientAddr = dnsConn.LocalAddr().(*net.UDPAddr)
-		_, _, err = dnsClient.ExchangeWithConn(queryMsg, dnsConn)
-		_ = dnsConn.Close()
-		return err == nil || timeout != 0
-	}, 6*time.Second, 100*time.Millisecond, "Failed to get dns response")
+	dnsClient := new(dns.Client)
+	dnsConn, err := dnsClient.Dial(dnsServerAddr.String())
+	require.NoError(t, err)
+	defer dnsConn.Close()
+	dnsClientAddr := dnsConn.LocalAddr().(*net.UDPAddr)
+	_, _, err = dnsClient.ExchangeWithConn(queryMsg, dnsConn)
+
+	if err != nil && timeout == 0 {
+		t.Fatalf("Failed to get dns response %s\n", err.Error())
+	}
 
 	// Allow the DNS reply to be processed in the snooper
 	time.Sleep(time.Millisecond * 500)
@@ -1058,26 +1058,21 @@ func testDNSStats(t *testing.T, tr *Tracer, domain string, success, failure, tim
 	failedResponses := total - successfulResponses
 
 	// DNS Stats
-	assert.Equal(t, uint32(success), successfulResponses, "expected %d successful responses but got %d", success, successfulResponses)
+	assert.Equal(t, uint32(success), successfulResponses)
 	assert.Equal(t, uint32(failure), failedResponses)
-	assert.Equal(t, uint32(timeout), timeouts, "expected %d timeouts but got %d", timeout, timeouts)
+	assert.Equal(t, uint32(timeout), timeouts)
 }
 
 func (s *TracerSuite) TestDNSStats() {
 	t := s.T()
-	cfg := testConfig()
-	cfg.CollectDNSStats = true
-	cfg.DNSTimeout = 1 * time.Second
-	cfg.CollectLocalDNS = true
-	tr := setupTracer(t, cfg)
 	t.Run("valid domain", func(t *testing.T) {
-		testDNSStats(t, tr, "good.com", 1, 0, 0, testdns.GetServerIP(t).String())
+		testDNSStats(t, "golang.org", 1, 0, 0, validDNSServer)
 	})
 	t.Run("invalid domain", func(t *testing.T) {
-		testDNSStats(t, tr, "abcdedfg", 0, 1, 0, testdns.GetServerIP(t).String())
+		testDNSStats(t, "abcdedfg", 0, 1, 0, validDNSServer)
 	})
 	t.Run("timeout", func(t *testing.T) {
-		testDNSStats(t, tr, "golang.org", 0, 0, 1, "1.2.3.4")
+		testDNSStats(t, "golang.org", 0, 0, 1, "1.2.3.4")
 	})
 }
 

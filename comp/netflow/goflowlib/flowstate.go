@@ -8,12 +8,8 @@ package goflowlib
 import (
 	"context"
 	"fmt"
-	"github.com/DataDog/datadog-agent/comp/netflow/config"
-	"github.com/DataDog/datadog-agent/comp/netflow/goflowlib/netflowstate"
 
 	"github.com/netsampler/goflow2/decoders/netflow/templates"
-	"go.uber.org/atomic"
-
 	// install the in-memory template manager
 	_ "github.com/netsampler/goflow2/decoders/netflow/templates/memory"
 	"github.com/netsampler/goflow2/utils"
@@ -43,20 +39,10 @@ type FlowRunnableState interface {
 }
 
 // StartFlowRoutine starts one of the goflow flow routine depending on the flow type
-func StartFlowRoutine(
-	flowType common.FlowType,
-	hostname string,
-	port uint16,
-	workers int,
-	namespace string,
-	fieldMappings []config.Mapping,
-	flowInChan chan *common.Flow,
-	logger log.Component,
-	atomicErr *atomic.String,
-	listenerFlowCount *atomic.Int64) (*FlowStateWrapper, error) {
+func StartFlowRoutine(flowType common.FlowType, hostname string, port uint16, workers int, namespace string, flowInChan chan *common.Flow, logger log.Component) (*FlowStateWrapper, error) {
 	var flowState FlowRunnableState
 
-	formatDriver := NewAggregatorFormatDriver(flowInChan, namespace, listenerFlowCount)
+	formatDriver := NewAggregatorFormatDriver(flowInChan, namespace)
 	logrusLogger := GetLogrusLevel(logger)
 	ctx := context.Background()
 
@@ -68,7 +54,7 @@ func StartFlowRoutine(
 		}
 		defer templateSystem.Close(ctx)
 
-		state := netflowstate.NewStateNetFlow(fieldMappings)
+		state := utils.NewStateNetFlow()
 		state.Format = formatDriver
 		state.Logger = logrusLogger
 		state.TemplateSystem = templateSystem
@@ -91,10 +77,8 @@ func StartFlowRoutine(
 		err := flowState.FlowRoutine(workers, hostname, int(port), reusePort)
 		if err != nil {
 			logger.Errorf("Error listening to %s: %s", flowType, err)
-			atomicErr.Store(err.Error())
 		}
 	}()
-
 	return &FlowStateWrapper{
 		State:    flowState,
 		Hostname: hostname,

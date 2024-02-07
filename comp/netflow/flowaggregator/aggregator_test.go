@@ -23,7 +23,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/prometheus/client_golang/prometheus"
 	promClient "github.com/prometheus/client_model/go"
-	"go.uber.org/atomic"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -37,7 +36,6 @@ import (
 	ddlog "github.com/DataDog/datadog-agent/pkg/util/log"
 
 	"github.com/DataDog/datadog-agent/pkg/networkdevice/metadata"
-	ndmtestutils "github.com/DataDog/datadog-agent/pkg/networkdevice/testutils"
 
 	"github.com/DataDog/datadog-agent/comp/netflow/common"
 	"github.com/DataDog/datadog-agent/comp/netflow/config"
@@ -90,53 +88,53 @@ func TestAggregator(t *testing.T) {
 	// language=json
 	event := []byte(`
 {
+  "flush_timestamp": 1550505606000,
+  "type": "netflow9",
+  "sampling_rate": 0,
+  "direction": "ingress",
+  "start": 1234568,
+  "end": 1234569,
   "bytes": 20,
-  "destination": {
-    "ip": "10.10.10.20",
-    "port": "80",
-    "mac": "00:00:00:00:00:00",
-    "mask": "0.0.0.0/0"
-  },
+  "packets": 4,
+  "ether_type": "IPv4",
+  "ip_protocol": "TCP",
   "device": {
     "namespace": "my-ns"
   },
-  "direction": "ingress",
-  "egress": {
-    "interface": {
-      "index": 0
-    }
-  },
-  "end": 1234569,
-  "ether_type": "IPv4",
   "exporter": {
     "ip": "127.0.0.1"
   },
-  "flush_timestamp": 1550505606000,
-  "host": "my-hostname",
-  "ingress": {
-    "interface": {
-      "index": 0
-    }
-  },
-  "ip_protocol": "TCP",
-  "next_hop": {
-    "ip": ""
-  },
-  "packets": 4,
-  "sampling_rate": 0,
   "source": {
     "ip": "10.10.10.10",
     "port": "2000",
     "mac": "00:00:00:00:00:00",
     "mask": "0.0.0.0/0"
   },
-  "start": 1234568,
+  "destination": {
+    "ip": "10.10.10.20",
+    "port": "80",
+    "mac": "00:00:00:00:00:00",
+    "mask": "0.0.0.0/0"
+  },
+  "ingress": {
+    "interface": {
+      "index": 0
+    }
+  },
+  "egress": {
+    "interface": {
+      "index": 0
+    }
+  },
+  "host": "my-hostname",
   "tcp_flags": [
     "FIN",
     "SYN",
     "ACK"
   ],
-  "type": "netflow9"
+  "next_hop": {
+    "ip": ""
+  }
 }
 `)
 	compactEvent := new(bytes.Buffer)
@@ -161,8 +159,8 @@ func TestAggregator(t *testing.T) {
 	err = json.Compact(compactMetadataEvent, metadataEvent)
 	assert.NoError(t, err)
 
-	epForwarder.EXPECT().SendEventPlatformEventBlocking(message.NewMessage(compactEvent.Bytes(), nil, "", 0), "network-devices-netflow").Return(nil).Times(1)
-	epForwarder.EXPECT().SendEventPlatformEventBlocking(message.NewMessage(compactMetadataEvent.Bytes(), nil, "", 0), "network-devices-metadata").Return(nil).Times(1)
+	epForwarder.EXPECT().SendEventPlatformEventBlocking(&message.Message{Content: compactEvent.Bytes()}, "network-devices-netflow").Return(nil).Times(1)
+	epForwarder.EXPECT().SendEventPlatformEventBlocking(&message.Message{Content: compactMetadataEvent.Bytes()}, "network-devices-metadata").Return(nil).Times(1)
 	logger := fxutil.Test[log.Component](t, log.MockModule)
 
 	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
@@ -216,8 +214,7 @@ stopLoop:
 }
 
 func TestAggregator_withMockPayload(t *testing.T) {
-	port, err := ndmtestutils.GetFreePort()
-	require.NoError(t, err)
+	port := testutil.GetFreePort()
 	flushTime, _ := time.Parse(time.RFC3339, "2019-02-18T16:00:06Z")
 
 	sender := mocksender.NewMockSender("")
@@ -260,10 +257,10 @@ func TestAggregator_withMockPayload(t *testing.T) {
 }
 `)
 	compactMetadataEvent := new(bytes.Buffer)
-	err = json.Compact(compactMetadataEvent, metadataEvent)
+	err := json.Compact(compactMetadataEvent, metadataEvent)
 	require.NoError(t, err)
 
-	epForwarder.EXPECT().SendEventPlatformEventBlocking(message.NewMessage(compactMetadataEvent.Bytes(), nil, "", 0), "network-devices-metadata").Return(nil).Times(1)
+	epForwarder.EXPECT().SendEventPlatformEventBlocking(&message.Message{Content: compactMetadataEvent.Bytes()}, "network-devices-metadata").Return(nil).Times(1)
 
 	logger := fxutil.Test[log.Component](t, log.MockModule)
 	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
@@ -283,11 +280,7 @@ func TestAggregator_withMockPayload(t *testing.T) {
 		stoppedFlushLoop <- struct{}{}
 	}()
 
-	// Create an error channel to pass to StartFlowRoutine
-	listenerErr := atomic.NewString("")
-	listenerFlowCount := atomic.NewInt64(0)
-
-	flowState, err := goflowlib.StartFlowRoutine(common.TypeNetFlow5, "127.0.0.1", port, 1, "default", nil, aggregator.GetFlowInChan(), logger, listenerErr, listenerFlowCount)
+	flowState, err := goflowlib.StartFlowRoutine(common.TypeNetFlow5, "127.0.0.1", port, 1, "default", aggregator.GetFlowInChan(), logger)
 	assert.NoError(t, err)
 
 	time.Sleep(100 * time.Millisecond) // wait to make sure goflow listener is started before sending
@@ -564,7 +557,7 @@ func TestFlowAggregator_sendExporterMetadata_multiplePayloads(t *testing.T) {
 		payloadBytes, err := json.Marshal(payload)
 		require.NoError(t, err)
 
-		m := message.NewMessage(payloadBytes, nil, "", 0)
+		m := &message.Message{Content: payloadBytes}
 		epForwarder.EXPECT().SendEventPlatformEventBlocking(m, "network-devices-metadata").Return(nil).Times(1)
 	}
 	aggregator.sendExporterMetadata(flows, now)
@@ -679,7 +672,7 @@ func TestFlowAggregator_sendExporterMetadata_invalidIPIgnored(t *testing.T) {
 	compactMetadataEvent := new(bytes.Buffer)
 	err := json.Compact(compactMetadataEvent, metadataEvent)
 	assert.NoError(t, err)
-	epForwarder.EXPECT().SendEventPlatformEventBlocking(message.NewMessage(compactMetadataEvent.Bytes(), nil, "", 0), "network-devices-metadata").Return(nil).Times(1)
+	epForwarder.EXPECT().SendEventPlatformEventBlocking(&message.Message{Content: compactMetadataEvent.Bytes()}, "network-devices-metadata").Return(nil).Times(1)
 
 	// call sendExporterMetadata does not trigger any call to epForwarder.SendEventPlatformEventBlocking(...)
 	aggregator.sendExporterMetadata(flows, now)
@@ -763,7 +756,7 @@ func TestFlowAggregator_sendExporterMetadata_multipleNamespaces(t *testing.T) {
 	compactMetadataEvent := new(bytes.Buffer)
 	err := json.Compact(compactMetadataEvent, metadataEvent)
 	assert.NoError(t, err)
-	epForwarder.EXPECT().SendEventPlatformEventBlocking(message.NewMessage(compactMetadataEvent.Bytes(), nil, "", 0), "network-devices-metadata").Return(nil).Times(1)
+	epForwarder.EXPECT().SendEventPlatformEventBlocking(&message.Message{Content: compactMetadataEvent.Bytes()}, "network-devices-metadata").Return(nil).Times(1)
 
 	// language=json
 	metadataEvent2 := []byte(`
@@ -782,7 +775,7 @@ func TestFlowAggregator_sendExporterMetadata_multipleNamespaces(t *testing.T) {
 	compactMetadataEvent2 := new(bytes.Buffer)
 	err = json.Compact(compactMetadataEvent2, metadataEvent2)
 	assert.NoError(t, err)
-	epForwarder.EXPECT().SendEventPlatformEventBlocking(message.NewMessage(compactMetadataEvent2.Bytes(), nil, "", 0), "network-devices-metadata").Return(nil).Times(1)
+	epForwarder.EXPECT().SendEventPlatformEventBlocking(&message.Message{Content: compactMetadataEvent2.Bytes()}, "network-devices-metadata").Return(nil).Times(1)
 
 	// call sendExporterMetadata does not trigger any call to epForwarder.SendEventPlatformEventBlocking(...)
 	aggregator.sendExporterMetadata(flows, now)
@@ -871,7 +864,7 @@ func TestFlowAggregator_sendExporterMetadata_singleExporterIpWithMultipleFlowTyp
 	compactMetadataEvent := new(bytes.Buffer)
 	err := json.Compact(compactMetadataEvent, metadataEvent)
 	assert.NoError(t, err)
-	epForwarder.EXPECT().SendEventPlatformEventBlocking(message.NewMessage(compactMetadataEvent.Bytes(), nil, "", 0), "network-devices-metadata").Return(nil).Times(1)
+	epForwarder.EXPECT().SendEventPlatformEventBlocking(&message.Message{Content: compactMetadataEvent.Bytes()}, "network-devices-metadata").Return(nil).Times(1)
 
 	// call sendExporterMetadata does not trigger any call to epForwarder.SendEventPlatformEventBlocking(...)
 	aggregator.sendExporterMetadata(flows, now)

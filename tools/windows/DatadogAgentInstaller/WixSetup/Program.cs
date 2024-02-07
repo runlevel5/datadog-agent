@@ -22,18 +22,15 @@ namespace WixSetup
             {
                 System.IO.File.Copy(path, "wix/WixSetup.g.wxs", overwrite: true);
             };
-            // In debug mode, build the MSI directly
-            project.BuildMsi();
-#else
-            // In the CI, use the BuildMsiCmd to be able to sign the binaries before building the MSI
+#endif
+
             project
                 .BuildMsiCmd();
-#endif
         }
 
         private static void Main()
         {
-            var cabcachedir = "cabcache";
+            string cabcachedir = "cabcache";
             if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AGENT_MSI_OUTDIR")))
             {
                 // Set custom output directory (WixSharp defaults to current directory)

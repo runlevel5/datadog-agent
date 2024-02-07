@@ -42,11 +42,12 @@ build do
   env["CFLAGS"] << " -std=c99"
 
   update_config_guess
-  configure_options = [
-    " --enable-docs",
-    " --disable-static"
-  ]
-  configure(*configure_options, env: env)
+
+  command "./configure" \
+          " --prefix=#{install_dir}/embedded" \
+          " --enable-docs" \
+          " --disable-static", env: env
+
   make "-j #{workers}", env: env
   make "install", env: env
 end

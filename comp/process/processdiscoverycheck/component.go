@@ -7,7 +7,10 @@
 package processdiscoverycheck
 
 import (
+	"go.uber.org/fx"
+
 	"github.com/DataDog/datadog-agent/comp/process/types"
+	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
 // team: processes
@@ -15,3 +18,8 @@ import (
 type Component interface {
 	types.CheckComponent
 }
+
+// Module defines the fx options for this component.
+var Module = fxutil.Component(
+	fx.Provide(newCheck),
+)

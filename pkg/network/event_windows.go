@@ -114,9 +114,8 @@ func FlowToConnStat(cs *ConnectionStats, flow *driver.PerFlowData, enableMonoton
 	cs.Family = family
 	cs.Direction = connDirection(flow.Flags)
 	cs.SPortIsEphemeral = IsPortInEphemeralRange(cs.Family, cs.Type, cs.SPort)
-	cs.Cookie = flow.FlowCookie
+	cs.Cookie = flow.FlowHandle
 	if connectionType == TCP {
-
 		tf := flow.TCPFlow()
 		if tf != nil {
 			cs.Monotonic.Retransmits = uint32(tf.RetransmitCount)
@@ -130,6 +129,7 @@ func FlowToConnStat(cs *ConnectionStats, flow *driver.PerFlowData, enableMonoton
 		if isFlowClosed(flow.Flags) {
 			cs.Monotonic.TCPClosed = 1
 		}
+
 		if flow.ClassificationStatus == driver.ClassificationClassified {
 			switch crq := flow.ClassifyRequest; {
 			default:

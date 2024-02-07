@@ -24,18 +24,17 @@ import (
 
 // team: agent-shared-components
 
-// LogConfig reads the logger config
-type LogConfig config.Reader
+type LogConfig config.ConfigReader
 
 // Component is the component type.
 type Component interface {
-	config.Reader
+	config.ConfigReader
 
 	// Warnings returns config warnings collected during setup.
 	Warnings() *config.Warnings
 
 	// Object returns wrapped config
-	Object() config.Reader
+	Object() config.ConfigReader
 }
 
 // Module defines the fx options for this component.

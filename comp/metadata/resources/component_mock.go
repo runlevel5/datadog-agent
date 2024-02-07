@@ -7,6 +7,11 @@
 
 package resources
 
+import (
+	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
+	"go.uber.org/fx"
+)
+
 // MockParams defines the parameter for the mock resources metadata providers.
 // It is designed to be used with `fx.Supply` and allows to set the return value for the resources mock.
 //
@@ -28,3 +33,9 @@ type MockParams struct {
 type Mock interface {
 	Component
 }
+
+// MockModule defines the fx options for the mock component.
+var MockModule = fxutil.Component(
+	fx.Provide(newMock),
+	fx.Supply(MockParams{}),
+)

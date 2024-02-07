@@ -398,11 +398,7 @@ func toProtoLaunchType(launchType workloadmeta.ECSLaunchType) (pb.ECSLaunchType,
 func WorkloadmetaFilterFromProtoFilter(protoFilter *pb.WorkloadmetaFilter) (*workloadmeta.Filter, error) {
 	if protoFilter == nil {
 		// Return filter that subscribes to everything
-		filterParams := workloadmeta.FilterParams{
-			Source:    workloadmeta.SourceAll,
-			EventType: workloadmeta.EventTypeAll,
-		}
-		return workloadmeta.NewFilter(&filterParams), nil
+		return workloadmeta.NewFilter(nil, workloadmeta.SourceAll, workloadmeta.EventTypeAll), nil
 	}
 
 	var kinds []workloadmeta.Kind
@@ -426,12 +422,7 @@ func WorkloadmetaFilterFromProtoFilter(protoFilter *pb.WorkloadmetaFilter) (*wor
 		return nil, err
 	}
 
-	filterParams := workloadmeta.FilterParams{
-		Kinds:     kinds,
-		Source:    source,
-		EventType: eventType,
-	}
-	return workloadmeta.NewFilter(&filterParams), nil
+	return workloadmeta.NewFilter(kinds, source, eventType), nil
 }
 
 // WorkloadmetaEventFromProtoEvent converts the given protobuf workloadmeta event into a workloadmeta.Event

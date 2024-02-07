@@ -83,7 +83,7 @@ func getMetadataItem(ctx context.Context, endpoint string) (string, error) {
 		return "", fmt.Errorf("cloud provider is disabled by configuration")
 	}
 
-	res, err := httputils.Get(ctx, endpoint, nil, timeout, config.Datadog)
+	res, err := httputils.Get(ctx, endpoint, nil, timeout)
 	if err != nil {
 		return "", fmt.Errorf("unable to fetch Tencent Metadata API, %s", err)
 	}

@@ -31,11 +31,6 @@ func installClusterCheckEndpoints(r *mux.Router, sc clusteragent.ServerContext) 
 	r.HandleFunc("/clusterchecks", api.WithTelemetryWrapper("getState", getState(sc))).Methods("GET")
 }
 
-// RebalancePostPayload struct is for the JSON messages received from a client POST request
-type RebalancePostPayload struct {
-	Force bool `json:"force"`
-}
-
 // postCheckStatus is used by the node-agent's config provider
 func postCheckStatus(sc clusteragent.ServerContext) func(w http.ResponseWriter, r *http.Request) {
 	if sc.ClusterCheckHandler == nil {
@@ -103,15 +98,7 @@ func postRebalanceChecks(sc clusteragent.ServerContext) func(w http.ResponseWrit
 			return
 		}
 
-		decoder := json.NewDecoder(r.Body)
-		var requestData RebalancePostPayload
-		err := decoder.Decode(&requestData)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		response, err := sc.ClusterCheckHandler.RebalanceClusterChecks(requestData.Force)
+		response, err := sc.ClusterCheckHandler.RebalanceClusterChecks()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

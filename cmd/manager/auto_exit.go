@@ -3,7 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-// Package manager implements exit mechanisms
 package manager
 
 import (
@@ -26,7 +25,7 @@ type ExitDetector interface {
 }
 
 // ConfigureAutoExit starts automatic shutdown mechanism if necessary
-func ConfigureAutoExit(ctx context.Context, cfg config.Reader) error {
+func ConfigureAutoExit(ctx context.Context, cfg config.ConfigReader) error {
 	var sd ExitDetector
 	var err error
 

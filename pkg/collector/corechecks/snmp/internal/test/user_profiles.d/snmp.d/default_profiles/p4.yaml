@@ -11,4 +11,4 @@ sysobjectid: 1.2.5.*
 metrics:
   - symbol:
       OID: 1.2.3.5
-      name: default_p4_metric
+      name: p4_default_metric

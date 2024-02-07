@@ -10,7 +10,6 @@ import (
 	"github.com/DataDog/datadog-agent/comp/netflow/config"
 	"github.com/DataDog/datadog-agent/comp/netflow/flowaggregator"
 	"github.com/DataDog/datadog-agent/comp/netflow/goflowlib"
-	"go.uber.org/atomic"
 )
 
 // netflowListener contains state of goflow listener and the related netflow config
@@ -18,32 +17,20 @@ import (
 type netflowListener struct {
 	flowState *goflowlib.FlowStateWrapper
 	config    config.ListenerConfig
-	error     *atomic.String
-	flowCount *atomic.Int64
+}
+
+// Shutdown will close the goflow listener state
+func (l *netflowListener) shutdown() {
+	l.flowState.Shutdown()
 }
 
 func startFlowListener(listenerConfig config.ListenerConfig, flowAgg *flowaggregator.FlowAggregator, logger log.Component) (*netflowListener, error) {
-	listenerAtomicErr := atomic.NewString("")
-	listenerFlowCount := atomic.NewInt64(0)
-
-	flowState, err := goflowlib.StartFlowRoutine(
-		listenerConfig.FlowType,
-		listenerConfig.BindHost,
-		listenerConfig.Port,
-		listenerConfig.Workers,
-		listenerConfig.Namespace,
-		listenerConfig.Mapping,
-		flowAgg.GetFlowInChan(),
-		logger,
-		listenerAtomicErr,
-		listenerFlowCount)
-
-	listener := &netflowListener{
+	flowState, err := goflowlib.StartFlowRoutine(listenerConfig.FlowType, listenerConfig.BindHost, listenerConfig.Port, listenerConfig.Workers, listenerConfig.Namespace, flowAgg.GetFlowInChan(), logger)
+	if err != nil {
+		return nil, err
+	}
+	return &netflowListener{
 		flowState: flowState,
 		config:    listenerConfig,
-		error:     listenerAtomicErr,
-		flowCount: listenerFlowCount,
-	}
-
-	return listener, err
+	}, nil
 }

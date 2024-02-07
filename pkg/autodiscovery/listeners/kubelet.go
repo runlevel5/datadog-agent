@@ -34,12 +34,11 @@ func NewKubeletListener(Config) (ServiceListener, error) {
 	const name = "ad-kubeletlistener"
 
 	l := &KubeletListener{}
-	filterParams := workloadmeta.FilterParams{
-		Kinds:     []workloadmeta.Kind{workloadmeta.KindKubernetesPod},
-		Source:    workloadmeta.SourceNodeOrchestrator,
-		EventType: workloadmeta.EventTypeAll,
-	}
-	f := workloadmeta.NewFilter(&filterParams)
+	f := workloadmeta.NewFilter(
+		[]workloadmeta.Kind{workloadmeta.KindKubernetesPod},
+		workloadmeta.SourceNodeOrchestrator,
+		workloadmeta.EventTypeAll,
+	)
 
 	var err error
 	l.workloadmetaListener, err = newWorkloadmetaListener(name, f, l.processPod)

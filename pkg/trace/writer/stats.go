@@ -216,9 +216,6 @@ func (w *StatsWriter) buildPayloads(sp *pb.StatsPayload, maxEntriesPerPayload in
 	}
 	if len(grouped) > 1 {
 		w.stats.Splits.Inc()
-		for _, g := range grouped {
-			g.SplitPayload = true
-		}
 	}
 	return grouped
 }

@@ -9,10 +9,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"os"
-
 	"github.com/spf13/cobra"
 	"go.uber.org/fx"
+	"os"
 
 	"github.com/DataDog/datadog-agent/cmd/security-agent/command"
 	"github.com/DataDog/datadog-agent/cmd/security-agent/flags"
@@ -46,7 +45,7 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 				fx.Supply(cliParams),
 				fx.Supply(core.BundleParams{
 					ConfigParams: config.NewSecurityAgentParams(globalParams.ConfigFilePaths),
-					LogParams:    log.ForOneShot(command.LoggerName, "off", true)}),
+					LogParams:    log.LogForOneShot(command.LoggerName, "off", true)}),
 				core.Bundle,
 			)
 		},

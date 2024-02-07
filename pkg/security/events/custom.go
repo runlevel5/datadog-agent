@@ -9,6 +9,9 @@ package events
 import (
 	"time"
 
+	"github.com/mailru/easyjson"
+	"github.com/mailru/easyjson/jwriter"
+
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
@@ -27,11 +30,6 @@ const (
 	RulesetLoadedRuleID = "ruleset_loaded"
 	// RulesetLoadedRuleDesc is the rule description for the ruleset_loaded events
 	RulesetLoadedRuleDesc = "New ruleset loaded"
-
-	// HeartbeatRuleID is the rule ID for the heartbeat events
-	HeartbeatRuleID = "heartbeat"
-	// HeartbeatRuleDesc is the rule description for the heartbeat events
-	HeartbeatRuleDesc = "Heartbeat"
 
 	// AbnormalPathRuleID is the rule ID for the abnormal_path events
 	AbnormalPathRuleID = "abnormal_path"
@@ -57,9 +55,6 @@ const (
 	BrokenProcessLineageErrorRuleID = "broken_process_lineage"
 	// BrokenProcessLineageErrorRuleDesc is the rule description for events with a broken process lineage
 	BrokenProcessLineageErrorRuleDesc = "Broken process lineage detected"
-
-	// RefreshUserCacheRuleID is the rule ID used to refresh users and groups cache
-	RefreshUserCacheRuleID = "refresh_user_cache"
 )
 
 // CustomEventCommonFields represents the fields common to all custom events
@@ -96,7 +91,7 @@ func AllCustomRuleIDs() []string {
 }
 
 // NewCustomEventLazy returns a new custom event
-func NewCustomEventLazy(eventType model.EventType, marshalerCtor func() EventMarshaler, tags ...string) *CustomEvent {
+func NewCustomEventLazy(eventType model.EventType, marshalerCtor func() easyjson.Marshaler, tags ...string) *CustomEvent {
 	return &CustomEvent{
 		eventType:     eventType,
 		marshalerCtor: marshalerCtor,
@@ -105,8 +100,8 @@ func NewCustomEventLazy(eventType model.EventType, marshalerCtor func() EventMar
 }
 
 // NewCustomEvent returns a new custom event
-func NewCustomEvent(eventType model.EventType, marshaler EventMarshaler, tags ...string) *CustomEvent {
-	return NewCustomEventLazy(eventType, func() EventMarshaler {
+func NewCustomEvent(eventType model.EventType, marshaler easyjson.Marshaler, tags ...string) *CustomEvent {
+	return NewCustomEventLazy(eventType, func() easyjson.Marshaler {
 		return marshaler
 	}, tags...)
 }
@@ -115,7 +110,7 @@ func NewCustomEvent(eventType model.EventType, marshaler EventMarshaler, tags ..
 type CustomEvent struct {
 	eventType     model.EventType
 	tags          []string
-	marshalerCtor func() EventMarshaler
+	marshalerCtor func() easyjson.Marshaler
 }
 
 // Clone returns a copy of the current CustomEvent
@@ -147,7 +142,7 @@ func (ce *CustomEvent) GetEventType() model.EventType {
 	return ce.eventType
 }
 
-// MarshalJSON marshals the custom event to JSON using easyJSON
-func (ce *CustomEvent) MarshalJSON() ([]byte, error) {
-	return ce.marshalerCtor().ToJSON()
+// MarshalEasyJSON marshals the custom event to JSON using easyJSON
+func (ce *CustomEvent) MarshalEasyJSON(w *jwriter.Writer) {
+	ce.marshalerCtor().MarshalEasyJSON(w)
 }

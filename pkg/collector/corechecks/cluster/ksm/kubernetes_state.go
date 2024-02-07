@@ -113,7 +113,6 @@ type KSMConfig struct {
 	LabelsMapper map[string]string `yaml:"labels_mapper"`
 
 	// Tags contains the list of tags to attach to every metric, event and service check emitted by this integration.
-	// It is also enriched in `initTags` with `kube_cluster_name` and global tags.
 	// Example:
 	// tags:
 	//   - env:prod
@@ -213,12 +212,6 @@ func (k *KSMCheck) Configure(senderManager sender.SenderManager, integrationConf
 		return err
 	}
 
-	// Retrieve cluster name
-	k.getClusterName()
-
-	// Initialize global tags and check tags
-	k.initTags()
-
 	// Prepare label joins
 	for _, joinConf := range k.instance.LabelJoins {
 		joinConf.setupGetAllLabels()
@@ -234,6 +227,11 @@ func (k *KSMCheck) Configure(senderManager sender.SenderManager, integrationConf
 
 	// Prepare labels mapper
 	k.mergeLabelsMapper(defaultLabelsMapper())
+
+	// Retrieve cluster name
+	k.getClusterName()
+
+	k.initTags()
 
 	builder := kubestatemetrics.New()
 
@@ -471,15 +469,6 @@ func (k *KSMCheck) Run() error {
 		return err
 	}
 
-	// Normally the sender is kept for the lifetime of the check.
-	// But as `SetCheckCustomTags` is cheap and `k.instance.Tags` is immutable
-	// It's fast and safe to set it after we get the sender.
-	sender.SetCheckCustomTags(k.instance.Tags)
-
-	// Do not fallback to the Agent hostname if the hostname corresponding to the KSM metric is unknown
-	// Note that by design, some metrics cannot have hostnames (e.g kubernetes_state.pod.unschedulable)
-	sender.DisableDefaultHostname(true)
-
 	// If the check is configured as a cluster check, the cluster check worker needs to skip the leader election section.
 	// we also do a safety check for dedicated runners to avoid trying the leader election
 	if !k.isCLCRunner || !k.instance.LeaderSkip {
@@ -503,6 +492,10 @@ func (k *KSMCheck) Run() error {
 	}
 
 	defer sender.Commit()
+
+	// Do not fallback to the Agent hostname if the hostname corresponding to the KSM metric is unknown
+	// Note that by design, some metrics cannot have hostnames (e.g kubernetes_state.pod.unschedulable)
+	sender.DisableDefaultHostname(true)
 
 	labelJoiner := newLabelJoiner(k.instance.labelJoins)
 	for _, stores := range k.allStores {
@@ -633,7 +626,7 @@ func (k *KSMCheck) hostnameAndTags(labels map[string]string, labelJoiner *labelJ
 		tags = append(tags, owners...)
 	}
 
-	return hostname, tags
+	return hostname, append(tags, k.instance.Tags...)
 }
 
 // familyFilter is a metric families filter for label joins
@@ -782,6 +775,10 @@ func (k *KSMCheck) getClusterName() {
 // Sets the kube_cluster_name tag for all metrics.
 // Adds the global user-defined tags from the Agent config.
 func (k *KSMCheck) initTags() {
+	if k.instance.Tags == nil {
+		k.instance.Tags = []string{}
+	}
+
 	if k.clusterNameTagValue != "" {
 		k.instance.Tags = append(k.instance.Tags, "kube_cluster_name:"+k.clusterNameTagValue)
 	}
@@ -827,10 +824,10 @@ func (k *KSMCheck) sendTelemetry(s sender.Sender) {
 	// reset the cache for the next check run
 	defer k.telemetry.reset()
 
-	s.Gauge(ksmMetricPrefix+"telemetry.metrics.count.total", float64(k.telemetry.getTotal()), "", nil)
-	s.Gauge(ksmMetricPrefix+"telemetry.unknown_metrics.count", float64(k.telemetry.getUnknown()), "", nil) // useful to track metrics that aren't mapped to DD metrics
+	s.Gauge(ksmMetricPrefix+"telemetry.metrics.count.total", float64(k.telemetry.getTotal()), "", k.instance.Tags)
+	s.Gauge(ksmMetricPrefix+"telemetry.unknown_metrics.count", float64(k.telemetry.getUnknown()), "", k.instance.Tags) // useful to track metrics that aren't mapped to DD metrics
 	for resource, count := range k.telemetry.getResourcesCount() {
-		s.Gauge(ksmMetricPrefix+"telemetry.metrics.count", float64(count), "", []string{"resource_name:" + resource})
+		s.Gauge(ksmMetricPrefix+"telemetry.metrics.count", float64(count), "", append(k.instance.Tags, "resource_name:"+resource))
 	}
 }
 

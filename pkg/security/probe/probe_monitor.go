@@ -25,7 +25,7 @@ import (
 )
 
 // Monitor regroups all the work we want to do to monitor the probes we pushed in the kernel
-type Monitors struct {
+type Monitor struct {
 	probe *Probe
 
 	eventStreamMonitor *eventstream.Monitor
@@ -36,15 +36,15 @@ type Monitors struct {
 	syscallsMonitor    *syscalls.Monitor
 }
 
-// NewMonitors returns a new instance of a ProbeMonitor
-func NewMonitors(p *Probe) *Monitors {
-	return &Monitors{
+// NewMonitor returns a new instance of a ProbeMonitor
+func NewMonitor(p *Probe) *Monitor {
+	return &Monitor{
 		probe: p,
 	}
 }
 
 // Init initializes the monitor
-func (m *Monitors) Init() error {
+func (m *Monitor) Init() error {
 	var err error
 	p := m.probe
 
@@ -80,12 +80,12 @@ func (m *Monitors) Init() error {
 }
 
 // GetEventStreamMonitor returns the perf buffer monitor
-func (m *Monitors) GetEventStreamMonitor() *eventstream.Monitor {
+func (m *Monitor) GetEventStreamMonitor() *eventstream.Monitor {
 	return m.eventStreamMonitor
 }
 
 // SendStats sends statistics about the probe to Datadog
-func (m *Monitors) SendStats() error {
+func (m *Monitor) SendStats() error {
 	// delay between two send in order to reduce the statsd pool presure
 	const delay = time.Second
 	time.Sleep(delay)
@@ -150,11 +150,7 @@ func (m *Monitors) SendStats() error {
 }
 
 // ProcessEvent processes an event through the various monitors and controllers of the probe
-func (m *Monitors) ProcessEvent(event *model.Event) {
-	if !m.probe.Config.RuntimeSecurity.InternalMonitoringEnabled {
-		return
-	}
-
+func (m *Monitor) ProcessEvent(event *model.Event) {
 	// handle event errors
 	if event.Error == nil {
 		return

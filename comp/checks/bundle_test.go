@@ -10,18 +10,26 @@ package checks
 import (
 	"testing"
 
-	"github.com/DataDog/datadog-agent/comp/core"
+	"github.com/DataDog/datadog-agent/comp/checks/agentcrashdetect"
+	"github.com/DataDog/datadog-agent/comp/core/config"
+	compsysconfig "github.com/DataDog/datadog-agent/comp/core/sysprobeconfig"
 	comptraceconfig "github.com/DataDog/datadog-agent/comp/trace/config"
-	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil/crashreport"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 )
 
 func TestBundleDependencies(t *testing.T) {
-	fxutil.TestBundle(t, Bundle,
+	require.NoError(t, fx.ValidateApp(
+		// instantiate all of the check components, since this is not done
+		// automatically.
 		comptraceconfig.Module,
-		core.MockBundle,
-		fx.Supply(core.BundleParams{}),
+		config.Module,
+		compsysconfig.Module,
 		fx.Supply(crashreport.WinCrashReporter{}),
-	)
+		fx.Supply(config.Params{}),
+		fx.Supply(compsysconfig.Params{}),
+		fx.Invoke(func(agentcrashdetect.Component) {}),
+		Bundle,
+	))
 }

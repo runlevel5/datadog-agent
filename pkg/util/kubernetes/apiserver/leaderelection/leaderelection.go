@@ -45,7 +45,6 @@ var globalLeaderEngine *LeaderEngine
 // LeaderEngine is a structure for the LeaderEngine client to run leader election
 // on Kubernetes clusters
 type LeaderEngine struct {
-	ctx       context.Context
 	initRetry retry.Retrier
 
 	running bool
@@ -71,15 +70,13 @@ type LeaderEngine struct {
 	leaderMetric telemetry.Gauge
 }
 
-func newLeaderEngine(ctx context.Context) *LeaderEngine {
+func newLeaderEngine() *LeaderEngine {
 	return &LeaderEngine{
-		ctx:             ctx,
 		LeaseName:       config.Datadog.GetString("leader_lease_name"),
 		LeaderNamespace: common.GetResourcesNamespace(),
 		ServiceName:     config.Datadog.GetString("cluster_agent.kubernetes_service_name"),
 		leaderMetric:    metrics.NewLeaderMetric(),
 		subscribers:     []chan struct{}{},
-		LeaseDuration:   defaultLeaderLeaseDuration,
 	}
 }
 
@@ -90,31 +87,17 @@ func ResetGlobalLeaderEngine() {
 	telemetryComponent.GetCompatComponent().Reset()
 }
 
-// Initialize initializes the leader engine
-func (le *LeaderEngine) initialize() *retry.Error {
-	err := globalLeaderEngine.initRetry.TriggerRetry()
-	if err != nil {
-		log.Debugf("Leader Election init error: %s", err)
-	}
-	return err
-}
-
-// GetLeaderEngine returns an initialized leader engine.
+// GetLeaderEngine returns a leader engine client with default parameters.
 func GetLeaderEngine() (*LeaderEngine, error) {
-	if globalLeaderEngine == nil {
-		return nil, fmt.Errorf("Global Leader Engine was not created")
-	}
-	err := globalLeaderEngine.initialize()
-	if err != nil {
-		return nil, err
-	}
-	return globalLeaderEngine, nil
+	return GetCustomLeaderEngine("", defaultLeaderLeaseDuration)
 }
 
-// CreateGlobalLeaderEngine returns a non initialized leader engine client
-func CreateGlobalLeaderEngine(ctx context.Context) *LeaderEngine {
+// GetCustomLeaderEngine wraps GetLeaderEngine for testing purposes.
+func GetCustomLeaderEngine(holderIdentity string, ttl time.Duration) (*LeaderEngine, error) {
 	if globalLeaderEngine == nil {
-		globalLeaderEngine = newLeaderEngine(ctx)
+		globalLeaderEngine = newLeaderEngine()
+		globalLeaderEngine.HolderIdentity = holderIdentity
+		globalLeaderEngine.LeaseDuration = ttl
 		globalLeaderEngine.initRetry.SetupRetrier(&retry.Config{ //nolint:errcheck
 			Name:              "leaderElection",
 			AttemptMethod:     globalLeaderEngine.init,
@@ -123,14 +106,19 @@ func CreateGlobalLeaderEngine(ctx context.Context) *LeaderEngine {
 			MaxRetryDelay:     5 * time.Minute,
 		})
 	}
-	return globalLeaderEngine
+	err := globalLeaderEngine.initRetry.TriggerRetry()
+	if err != nil {
+		log.Debugf("Leader Election init error: %s", err)
+		return nil, err
+	}
+	return globalLeaderEngine, nil
 }
 
 func (le *LeaderEngine) init() error {
 	var err error
 
 	if le.HolderIdentity == "" {
-		le.HolderIdentity, err = common.GetSelfPodName()
+		le.HolderIdentity, err = getSelfPodName()
 		if err != nil {
 			log.Debugf("cannot get pod name: %s", err)
 			return err
@@ -227,7 +215,7 @@ func (le *LeaderEngine) EnsureLeaderElectionRuns() error {
 func (le *LeaderEngine) runLeaderElection() {
 	for {
 		log.Infof("Starting leader election process for %q...", le.HolderIdentity)
-		le.leaderElector.Run(le.ctx)
+		le.leaderElector.Run(context.Background())
 		log.Info("Leader election lost")
 	}
 }

@@ -26,7 +26,7 @@ build do
     env["GOMODCACHE"] = gomodcache.to_path
   end
 
-  if windows_target?
+  if windows?
     major_version_arg = "%MAJOR_VERSION%"
   else
     major_version_arg = "$MAJOR_VERSION"
@@ -36,13 +36,13 @@ build do
   command "invoke dogstatsd.build --rebuild --major-version #{major_version_arg}", env: env
 
   mkdir "#{install_dir}/etc/datadog-dogstatsd"
-  unless windows_target?
+  unless windows?
     mkdir "#{install_dir}/run/"
     mkdir "#{install_dir}/scripts/"
   end
 
   # move around bin and config files
-  if windows_target?
+  if windows?
     mkdir "#{Omnibus::Config.source_dir()}/datadog-agent/src/github.com/DataDog/datadog-agent/bin/agent"
     copy 'bin/dogstatsd/dogstatsd.exe', "#{Omnibus::Config.source_dir()}/datadog-agent/src/github.com/DataDog/datadog-agent/bin/agent"
   else
@@ -50,15 +50,15 @@ build do
   end
   move 'bin/dogstatsd/dist/dogstatsd.yaml', "#{install_dir}/etc/datadog-dogstatsd/dogstatsd.yaml.example"
 
-  if linux_target?
-    if debian_target?
+  if linux?
+    if debian?
       erb source: "upstart_debian.conf.erb",
           dest: "#{install_dir}/scripts/datadog-dogstatsd.conf",
           mode: 0644,
           vars: { install_dir: install_dir }
     # Ship a different upstart job definition on RHEL to accommodate the old
     # version of upstart (0.6.5) that RHEL 6 provides.
-    elsif redhat_target? || suse_target?
+    elsif redhat? || suse?
       erb source: "upstart_redhat.conf.erb",
           dest: "#{install_dir}/scripts/datadog-dogstatsd.conf",
           mode: 0644,

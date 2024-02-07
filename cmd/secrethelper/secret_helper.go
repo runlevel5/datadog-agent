@@ -53,7 +53,7 @@ const (
 	k8sSecretPrefix         = "k8s_secret"
 )
 
-// NewKubeClient returns a new kubernetes.Interface
+// NewKubeClient TODO <agent-core>
 type NewKubeClient func(timeout time.Duration) (kubernetes.Interface, error)
 
 // cliParams are the command-line arguments for this subcommand

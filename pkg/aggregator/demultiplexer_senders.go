@@ -59,7 +59,7 @@ func (s *senders) DestroySender(id checkid.ID) {
 	s.senderPool.removeSender(id)
 }
 
-// GetDefaultSender returns a default sender.
+// getDefaultSender returns a default sender.
 func (s *senders) GetDefaultSender() (sender.Sender, error) {
 	s.senderInit.Do(func() {
 		var defaultCheckID checkid.ID        // the default value is the zero value

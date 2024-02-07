@@ -220,7 +220,7 @@ func (c *ScannerCache) PutBlob(blobID string, blobInfo types.BlobInfo) error {
 
 // DeleteBlobs implements cache.Cache#DeleteBlobs does nothing because the cache cleaning logic is
 // managed by CacheCleaner
-func (c *ScannerCache) DeleteBlobs(blobIDs []string) error { //nolint:revive // TODO fix revive unusued-parameter
+func (c *ScannerCache) DeleteBlobs(blobIDs []string) error {
 	return nil
 }
 

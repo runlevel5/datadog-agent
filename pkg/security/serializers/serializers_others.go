@@ -9,33 +9,24 @@
 package serializers
 
 import (
-	json "encoding/json"
-
-	"github.com/DataDog/datadog-agent/pkg/security/events"
 	"github.com/DataDog/datadog-agent/pkg/security/resolvers"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
+	jlexer "github.com/mailru/easyjson/jlexer"
+	jwriter "github.com/mailru/easyjson/jwriter"
 )
 
 // EventSerializer serializes an event to JSON
 type EventSerializer struct{}
 
-// ToJSON returns json
-func (e *EventSerializer) ToJSON() ([]byte, error) {
-	return json.Marshal(e)
+// MarshalEasyJSON supports easyjson.Marshaler interface
+func (v EventSerializer) MarshalEasyJSON(w *jwriter.Writer) {
 }
 
-// MarshalEvent marshal the event
-func MarshalEvent(event *model.Event, probe *resolvers.Resolvers) ([]byte, error) {
-	s := NewEventSerializer(event, probe)
-	return json.Marshal(s)
-}
-
-// MarshalCustomEvent marshal the custom event
-func MarshalCustomEvent(event *events.CustomEvent) ([]byte, error) {
-	return json.Marshal(event)
+// UnmarshalEasyJSON supports easyjson.Unmarshaler interface
+func (v *EventSerializer) UnmarshalEasyJSON(l *jlexer.Lexer) {
 }
 
 // NewEventSerializer creates a new event serializer based on the event type
-func NewEventSerializer(event *model.Event, resolvers *resolvers.Resolvers) *EventSerializer { //nolint:revive // TODO fix revive unused-parameter
+func NewEventSerializer(event *model.Event, resolvers *resolvers.Resolvers) *EventSerializer {
 	return nil
 }

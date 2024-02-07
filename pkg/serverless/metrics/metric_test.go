@@ -36,9 +36,7 @@ func TestMain(m *testing.M) {
 
 func TestStartDoesNotBlock(t *testing.T) {
 	config.Load()
-	metricAgent := &ServerlessMetricAgent{
-		SketchesBucketOffset: time.Second * 10,
-	}
+	metricAgent := &ServerlessMetricAgent{}
 	defer metricAgent.Stop()
 	metricAgent.Start(10*time.Second, &MetricConfig{}, &MetricDogStatsD{})
 	assert.NotNil(t, metricAgent.Demux)
@@ -58,9 +56,7 @@ func (m *InvalidMetricConfigMocked) GetMultipleEndpoints() (map[string][]string,
 }
 
 func TestStartInvalidConfig(t *testing.T) {
-	metricAgent := &ServerlessMetricAgent{
-		SketchesBucketOffset: time.Second * 10,
-	}
+	metricAgent := &ServerlessMetricAgent{}
 	defer metricAgent.Stop()
 	metricAgent.Start(1*time.Second, &InvalidMetricConfigMocked{}, &MetricDogStatsD{})
 	assert.False(t, metricAgent.IsReady())
@@ -73,25 +69,20 @@ func (m *MetricDogStatsDMocked) NewServer(demux aggregator.Demultiplexer) (dogst
 }
 
 func TestStartInvalidDogStatsD(t *testing.T) {
-	metricAgent := &ServerlessMetricAgent{
-		SketchesBucketOffset: time.Second * 10,
-	}
+	metricAgent := &ServerlessMetricAgent{}
 	defer metricAgent.Stop()
 	metricAgent.Start(1*time.Second, &MetricConfig{}, &MetricDogStatsDMocked{})
 	assert.False(t, metricAgent.IsReady())
 }
 
 func TestStartWithProxy(t *testing.T) {
-	t.SkipNow()
 	originalValues := config.Datadog.GetStringSlice(statsDMetricBlocklistKey)
-	defer config.Datadog.SetWithoutSource(statsDMetricBlocklistKey, originalValues)
-	config.Datadog.SetWithoutSource(statsDMetricBlocklistKey, []string{})
+	defer config.Datadog.Set(statsDMetricBlocklistKey, originalValues)
+	config.Datadog.Set(statsDMetricBlocklistKey, []string{})
 
 	t.Setenv(proxyEnabledEnvVar, "true")
 
-	metricAgent := &ServerlessMetricAgent{
-		SketchesBucketOffset: time.Second * 10,
-	}
+	metricAgent := &ServerlessMetricAgent{}
 	defer metricAgent.Stop()
 	metricAgent.Start(10*time.Second, &MetricConfig{}, &MetricDogStatsD{})
 
@@ -105,9 +96,7 @@ func TestStartWithProxy(t *testing.T) {
 }
 
 func TestRaceFlushVersusAddSample(t *testing.T) {
-	metricAgent := &ServerlessMetricAgent{
-		SketchesBucketOffset: time.Second * 10,
-	}
+	metricAgent := &ServerlessMetricAgent{}
 	defer metricAgent.Stop()
 	metricAgent.Start(10*time.Second, &ValidMetricConfigMocked{}, &MetricDogStatsD{})
 
@@ -226,7 +215,7 @@ func TestRaceFlushVersusParsePacket(t *testing.T) {
 
 	go func(wg *sync.WaitGroup) {
 		for i := 0; i < 1000; i++ {
-			s.ServerlessFlush(time.Second * 10)
+			s.ServerlessFlush()
 		}
 		finish.Done()
 	}(finish)

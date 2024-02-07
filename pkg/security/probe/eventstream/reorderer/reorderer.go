@@ -75,7 +75,7 @@ func (h *reOrdererHeap) greater(i, j int) bool {
 	return h.heap[i].timestamp > h.heap[j].timestamp
 }
 
-func (h *reOrdererHeap) up(node *reOrdererNode, i int, metric *Metric) { //nolint:revive // TODO fix revive unused-parameter
+func (h *reOrdererHeap) up(node *reOrdererNode, i int, metric *Metric) {
 	var parent int
 	for {
 		parent = (i - 1) / 2

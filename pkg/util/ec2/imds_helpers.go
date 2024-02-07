@@ -47,7 +47,8 @@ func getToken(ctx context.Context) (string, time.Time, error) {
 			"X-aws-ec2-metadata-token-ttl-seconds": fmt.Sprintf("%d", int(tokenLifetime.Seconds())),
 		},
 		nil,
-		config.Datadog.GetDuration("ec2_metadata_timeout")*time.Millisecond, config.Datadog)
+		config.Datadog.GetDuration("ec2_metadata_timeout")*time.Millisecond)
+
 	if err != nil {
 		return "", time.Now(), err
 	}
@@ -93,7 +94,7 @@ func doHTTPRequest(ctx context.Context, url string, forceIMDSv2 bool) (string, e
 		}
 	}
 
-	res, err := httputils.Get(ctx, url, headers, time.Duration(config.Datadog.GetInt("ec2_metadata_timeout"))*time.Millisecond, config.Datadog)
+	res, err := httputils.Get(ctx, url, headers, time.Duration(config.Datadog.GetInt("ec2_metadata_timeout"))*time.Millisecond)
 	// We don't want to register the source when we force imdsv2
 	if err == nil && !forceIMDSv2 {
 		setCloudProviderSource(source)

@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
-	"strings"
 	"time"
 	"unsafe"
 
@@ -20,7 +19,6 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
-	checkbase "github.com/DataDog/datadog-agent/pkg/collector/check"
 	"github.com/DataDog/datadog-agent/pkg/collector/check/defaults"
 	checkid "github.com/DataDog/datadog-agent/pkg/collector/check/id"
 	"github.com/DataDog/datadog-agent/pkg/collector/check/stats"
@@ -39,11 +37,6 @@ import (
 char *getStringAddr(char **array, unsigned int idx);
 */
 import "C"
-
-const (
-	// Keep this pattern in sync with SkipInstanceError in integrations-core
-	skipInstanceErrorPattern = "The integration refused to load the check configuration, it may be too old or too new."
-)
 
 // PythonCheck represents a Python check, implements `Check` interface
 type PythonCheck struct {
@@ -283,10 +276,6 @@ func (c *PythonCheck) Configure(senderManager sender.SenderManager, integrationC
 	var rtLoaderError error
 	if res == 0 {
 		rtLoaderError = getRtLoaderError()
-		if rtLoaderError != nil && strings.Contains(rtLoaderError.Error(), skipInstanceErrorPattern) {
-			return fmt.Errorf("%w: %w", checkbase.ErrSkipCheckInstance, rtLoaderError)
-		}
-
 		log.Warnf("could not get a '%s' check instance with the new api: %s", c.ModuleName, rtLoaderError)
 		log.Warn("trying to instantiate the check with the old api, passing agentConfig to the constructor")
 
@@ -301,14 +290,10 @@ func (c *PythonCheck) Configure(senderManager sender.SenderManager, integrationC
 
 		res := C.get_check_deprecated(rtloader, c.class, cInitConfig, cInstance, cAgentConfig, cCheckID, cCheckName, &check)
 		if res == 0 {
-			rtLoaderDeprecatedCheckError := getRtLoaderError()
-			if strings.Contains(rtLoaderDeprecatedCheckError.Error(), skipInstanceErrorPattern) {
-				return fmt.Errorf("%w: %w", checkbase.ErrSkipCheckInstance, rtLoaderDeprecatedCheckError)
-			}
 			if rtLoaderError != nil {
-				return fmt.Errorf("could not invoke '%s' python check constructor. New constructor API returned:\n%wDeprecated constructor API returned:\n%w", c.ModuleName, rtLoaderError, rtLoaderDeprecatedCheckError)
+				return fmt.Errorf("could not invoke '%s' python check constructor. New constructor API returned:\n%sDeprecated constructor API returned:\n%s", c.ModuleName, rtLoaderError, getRtLoaderError())
 			}
-			return fmt.Errorf("could not invoke '%s' python check constructor: %w", c.ModuleName, rtLoaderDeprecatedCheckError)
+			return fmt.Errorf("could not invoke '%s' python check constructor: %s", c.ModuleName, getRtLoaderError())
 		}
 		log.Warnf("passing `agentConfig` to the constructor is deprecated, please use the `get_config` function from the 'datadog_agent' package (%s).", c.ModuleName)
 	}

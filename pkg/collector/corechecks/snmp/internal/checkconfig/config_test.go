@@ -10,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/snmp/internal/profile"
-
 	"github.com/stretchr/testify/assert"
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
@@ -22,7 +20,7 @@ import (
 )
 
 func TestConfigurations(t *testing.T) {
-	profile.SetConfdPathAndCleanProfiles()
+	SetConfdPathAndCleanProfiles()
 	aggregator.NewBufferedAggregator(nil, nil, "", 1*time.Hour)
 
 	// language=yaml
@@ -173,7 +171,7 @@ bulk_max_repetitions: 20
 			},
 			MetricTags: []profiledefinition.MetricTagConfig{
 				{Tag: "if_index", Index: 1},
-				{Tag: "if_desc", Symbol: profiledefinition.SymbolConfigCompat{OID: "1.3.6.1.2.1.2.2.1.2", Name: "ifDescr"},
+				{Tag: "if_desc", Column: profiledefinition.SymbolConfig{OID: "1.3.6.1.2.1.2.2.1.2", Name: "ifDescr"},
 					IndexTransform: []profiledefinition.MetricIndexTransform{
 						{
 							Start: 1,
@@ -194,7 +192,7 @@ bulk_max_repetitions: 20
 					"16": "dns",
 				}},
 				{Tag: "if_type",
-					Symbol: profiledefinition.SymbolConfigCompat{OID: "1.3.6.1.2.1.2.2.1.3", Name: "ifType"},
+					Column: profiledefinition.SymbolConfig{OID: "1.3.6.1.2.1.2.2.1.3", Name: "ifType"},
 					Mapping: map[string]string{
 						"1":  "other",
 						"2":  "regular1822",
@@ -203,7 +201,7 @@ bulk_max_repetitions: 20
 						"29": "ultra",
 					}},
 				{
-					Symbol: profiledefinition.SymbolConfigCompat{
+					Column: profiledefinition.SymbolConfig{
 						Name: "cpiPduName",
 						OID:  "1.2.3.4.8.1.2",
 					},
@@ -218,13 +216,14 @@ bulk_max_repetitions: 20
 		{Symbol: profiledefinition.SymbolConfig{OID: "1.2.3.4", Name: "aGlobalMetric"}},
 	}
 	expectedMetrics = append(expectedMetrics, profiledefinition.MetricsConfig{Symbol: profiledefinition.SymbolConfig{OID: "1.3.6.1.2.1.1.3.0", Name: "sysUpTimeInstance"}})
-	expectedMetrics = append(expectedMetrics, profile.FixtureProfileDefinitionMap()["f5-big-ip"].Definition.Metrics...)
+	expectedMetrics = append(expectedMetrics, fixtureProfileDefinitionMap()["f5-big-ip"].Definition.Metrics...)
 
 	expectedMetricTags := []profiledefinition.MetricTagConfig{
-		{Tag: "my_symbol", Symbol: profiledefinition.SymbolConfigCompat{OID: "1.2.3", Name: "mySymbol"}},
-		{Tag: "my_symbol_mapped", Symbol: profiledefinition.SymbolConfigCompat{OID: "1.2.3", Name: "mySymbol"}, Mapping: map[string]string{"1": "one", "2": "two"}},
+		{Tag: "my_symbol", OID: "1.2.3", Name: "mySymbol"},
+		{Tag: "my_symbol_mapped", OID: "1.2.3", Name: "mySymbol", Mapping: map[string]string{"1": "one", "2": "two"}},
 		{
-			Symbol:  profiledefinition.SymbolConfigCompat{OID: "1.2.3", Name: "mySymbol"},
+			OID:     "1.2.3",
+			Name:    "mySymbol",
 			Match:   "(\\w)(\\w+)",
 			Pattern: regexp.MustCompile(`(\w)(\w+)`),
 			Tags: map[string]string{
@@ -233,7 +232,8 @@ bulk_max_repetitions: 20
 			},
 		},
 		{
-			Symbol:  profiledefinition.SymbolConfigCompat{OID: "1.3.6.1.2.1.1.5.0", Name: "sysName"},
+			OID:     "1.3.6.1.2.1.1.5.0",
+			Name:    "sysName",
 			Match:   "(\\w)(\\w+)",
 			Pattern: regexp.MustCompile(`(\w)(\w+)`),
 			Tags: map[string]string{
@@ -242,7 +242,7 @@ bulk_max_repetitions: 20
 				"suffix":   "\\2",
 			},
 		},
-		{Tag: "snmp_host", Symbol: profiledefinition.SymbolConfigCompat{OID: "1.3.6.1.2.1.1.5.0", Name: "sysName"}},
+		{Tag: "snmp_host", OID: "1.3.6.1.2.1.1.5.0", Name: "sysName"},
 	}
 
 	assert.Equal(t, expectedMetrics, config.Metrics)
@@ -285,7 +285,7 @@ workers: 30
 }
 
 func TestProfileNormalizeMetrics(t *testing.T) {
-	profile.SetConfdPathAndCleanProfiles()
+	SetConfdPathAndCleanProfiles()
 
 	// language=yaml
 	rawInstanceConfig := []byte(`
@@ -323,7 +323,7 @@ profiles:
 }
 
 func TestInlineProfileConfiguration(t *testing.T) {
-	profile.SetConfdPathAndCleanProfiles()
+	SetConfdPathAndCleanProfiles()
 	aggregator.NewBufferedAggregator(nil, nil, "", 1*time.Hour)
 
 	// language=yaml
@@ -364,7 +364,7 @@ profiles:
 	}
 
 	metricsTags := []profiledefinition.MetricTagConfig{
-		{Tag: "snmp_host", Symbol: profiledefinition.SymbolConfigCompat{OID: "1.3.6.1.2.1.1.5.0", Name: "sysName"}},
+		{Tag: "snmp_host", OID: "1.3.6.1.2.1.1.5.0", Name: "sysName"},
 	}
 
 	assert.Equal(t, "123", config.CommunityString)
@@ -381,7 +381,7 @@ profiles:
 }
 
 func TestDefaultConfigurations(t *testing.T) {
-	profile.SetConfdPathAndCleanProfiles()
+	SetConfdPathAndCleanProfiles()
 
 	// language=yaml
 	rawInstanceConfig := []byte(`
@@ -405,11 +405,11 @@ community_string: abc
 	assert.Equal(t, metrics, config.Metrics)
 	assert.Equal(t, metricsTags, config.MetricTags)
 	assert.Equal(t, 2, len(config.Profiles))
-	assert.Equal(t, profile.FixtureProfileDefinitionMap()["f5-big-ip"].Definition.Metrics, config.Profiles["f5-big-ip"].Definition.Metrics)
+	assert.Equal(t, fixtureProfileDefinitionMap()["f5-big-ip"].Definition.Metrics, config.Profiles["f5-big-ip"].Definition.Metrics)
 }
 
 func TestPortConfiguration(t *testing.T) {
-	profile.SetConfdPathAndCleanProfiles()
+	SetConfdPathAndCleanProfiles()
 	// TEST Default port
 	// language=yaml
 	rawInstanceConfig := []byte(`
@@ -433,7 +433,7 @@ community_string: abc
 }
 
 func TestBatchSizeConfiguration(t *testing.T) {
-	profile.SetConfdPathAndCleanProfiles()
+	SetConfdPathAndCleanProfiles()
 	// TEST Default batch size
 	// language=yaml
 	rawInstanceConfig := []byte(`
@@ -486,7 +486,7 @@ oid_batch_size: 15
 }
 
 func TestBulkMaxRepetitionConfiguration(t *testing.T) {
-	profile.SetConfdPathAndCleanProfiles()
+	SetConfdPathAndCleanProfiles()
 	// TEST Default batch size
 	// language=yaml
 	rawInstanceConfig := []byte(`
@@ -551,7 +551,7 @@ bulk_max_repetitions: -5
 }
 
 func TestGlobalMetricsConfigurations(t *testing.T) {
-	profile.SetConfdPathAndCleanProfiles()
+	SetConfdPathAndCleanProfiles()
 
 	// language=yaml
 	rawInstanceConfig := []byte(`
@@ -581,7 +581,7 @@ global_metrics:
 }
 
 func TestUseGlobalMetricsFalse(t *testing.T) {
-	profile.SetConfdPathAndCleanProfiles()
+	SetConfdPathAndCleanProfiles()
 
 	// language=yaml
 	rawInstanceConfig := []byte(`
@@ -611,7 +611,7 @@ global_metrics:
 }
 
 func Test_NewCheckConfig_errors(t *testing.T) {
-	profile.SetConfdPathAndCleanProfiles()
+	SetConfdPathAndCleanProfiles()
 
 	tests := []struct {
 		name              string
@@ -701,8 +701,8 @@ network_address: 10.0.0.0/xx
 }
 
 func Test_getProfileForSysObjectID(t *testing.T) {
-	mockProfiles := profile.ProfileConfigMap{
-		"profile1": profile.ProfileConfig{
+	mockProfiles := profileConfigMap{
+		"profile1": profileConfig{
 			Definition: profiledefinition.ProfileDefinition{
 				Metrics: []profiledefinition.MetricsConfig{
 					{Symbol: profiledefinition.SymbolConfig{OID: "1.2.3.4.5", Name: "someMetric"}},
@@ -710,7 +710,7 @@ func Test_getProfileForSysObjectID(t *testing.T) {
 				SysObjectIds: profiledefinition.StringArray{"1.3.6.1.4.1.3375.2.1.3.4.*"},
 			},
 		},
-		"profile2": profile.ProfileConfig{
+		"profile2": profileConfig{
 			Definition: profiledefinition.ProfileDefinition{
 				Metrics: []profiledefinition.MetricsConfig{
 					{Symbol: profiledefinition.SymbolConfig{OID: "1.2.3.4.5", Name: "someMetric"}},
@@ -718,7 +718,7 @@ func Test_getProfileForSysObjectID(t *testing.T) {
 				SysObjectIds: profiledefinition.StringArray{"1.3.6.1.4.1.3375.2.1.3.4.10"},
 			},
 		},
-		"profile3": profile.ProfileConfig{
+		"profile3": profileConfig{
 			Definition: profiledefinition.ProfileDefinition{
 				Metrics: []profiledefinition.MetricsConfig{
 					{Symbol: profiledefinition.SymbolConfig{OID: "1.2.3.4.5", Name: "someMetric"}},
@@ -727,8 +727,8 @@ func Test_getProfileForSysObjectID(t *testing.T) {
 			},
 		},
 	}
-	mockProfilesWithPatternError := profile.ProfileConfigMap{
-		"profile1": profile.ProfileConfig{
+	mockProfilesWithPatternError := profileConfigMap{
+		"profile1": profileConfig{
 			Definition: profiledefinition.ProfileDefinition{
 				Metrics: []profiledefinition.MetricsConfig{
 					{Symbol: profiledefinition.SymbolConfig{OID: "1.2.3.4.5", Name: "someMetric"}},
@@ -737,8 +737,8 @@ func Test_getProfileForSysObjectID(t *testing.T) {
 			},
 		},
 	}
-	mockProfilesWithInvalidPatternError := profile.ProfileConfigMap{
-		"profile1": profile.ProfileConfig{
+	mockProfilesWithInvalidPatternError := profileConfigMap{
+		"profile1": profileConfig{
 			Definition: profiledefinition.ProfileDefinition{
 				Metrics: []profiledefinition.MetricsConfig{
 					{Symbol: profiledefinition.SymbolConfig{OID: "1.2.3.4.5", Name: "someMetric"}},
@@ -747,8 +747,8 @@ func Test_getProfileForSysObjectID(t *testing.T) {
 			},
 		},
 	}
-	mockProfilesWithDefaultDuplicateSysobjectid := profile.ProfileConfigMap{
-		"profile1": profile.ProfileConfig{
+	mockProfilesWithDefaultDuplicateSysobjectid := profileConfigMap{
+		"profile1": profileConfig{
 			Definition: profiledefinition.ProfileDefinition{
 				Metrics: []profiledefinition.MetricsConfig{
 					{Symbol: profiledefinition.SymbolConfig{OID: "1.2.3.4.5", Name: "someMetric"}},
@@ -756,7 +756,7 @@ func Test_getProfileForSysObjectID(t *testing.T) {
 				SysObjectIds: profiledefinition.StringArray{"1.3.6.1.4.1.3375.2.1.3"},
 			},
 		},
-		"profile2": profile.ProfileConfig{
+		"profile2": profileConfig{
 			Definition: profiledefinition.ProfileDefinition{
 				Metrics: []profiledefinition.MetricsConfig{
 					{Symbol: profiledefinition.SymbolConfig{OID: "1.2.3.4.5", Name: "someMetric"}},
@@ -764,7 +764,7 @@ func Test_getProfileForSysObjectID(t *testing.T) {
 				SysObjectIds: profiledefinition.StringArray{"1.3.6.1.4.1.3375.2.1.3"},
 			},
 		},
-		"profile3": profile.ProfileConfig{
+		"profile3": profileConfig{
 			Definition: profiledefinition.ProfileDefinition{
 				Metrics: []profiledefinition.MetricsConfig{
 					{Symbol: profiledefinition.SymbolConfig{OID: "1.2.3.4.5", Name: "someMetric"}},
@@ -773,17 +773,17 @@ func Test_getProfileForSysObjectID(t *testing.T) {
 			},
 		},
 	}
-	mockProfilesWithUserProfilePrecedenceWithUserProfileFirstInList := profile.ProfileConfigMap{
-		"user-profile": profile.ProfileConfig{
+	mockProfilesWithUserProfilePrecedenceWithUserProfileFirstInList := profileConfigMap{
+		"user-profile": profileConfig{
 			Definition: profiledefinition.ProfileDefinition{
 				Metrics: []profiledefinition.MetricsConfig{
 					{Symbol: profiledefinition.SymbolConfig{OID: "1.2.3.4.5", Name: "userMetric"}},
 				},
 				SysObjectIds: profiledefinition.StringArray{"1.3.6.1.4.1.3375.2.1.3"},
 			},
-			IsUserProfile: true,
+			isUserProfile: true,
 		},
-		"default-profile": profile.ProfileConfig{
+		"default-profile": profileConfig{
 			Definition: profiledefinition.ProfileDefinition{
 				Metrics: []profiledefinition.MetricsConfig{
 					{Symbol: profiledefinition.SymbolConfig{OID: "1.2.3.4.5", Name: "defaultMetric"}},
@@ -792,8 +792,8 @@ func Test_getProfileForSysObjectID(t *testing.T) {
 			},
 		},
 	}
-	mockProfilesWithUserProfilePrecedenceWithDefaultProfileFirstInList := profile.ProfileConfigMap{
-		"default-profile": profile.ProfileConfig{
+	mockProfilesWithUserProfilePrecedenceWithDefaultProfileFirstInList := profileConfigMap{
+		"default-profile": profileConfig{
 			Definition: profiledefinition.ProfileDefinition{
 				Metrics: []profiledefinition.MetricsConfig{
 					{Symbol: profiledefinition.SymbolConfig{OID: "1.2.3.4.5", Name: "defaultMetric"}},
@@ -801,18 +801,18 @@ func Test_getProfileForSysObjectID(t *testing.T) {
 				SysObjectIds: profiledefinition.StringArray{"1.3.6.1.4.1.3375.2.1.3"},
 			},
 		},
-		"user-profile": profile.ProfileConfig{
+		"user-profile": profileConfig{
 			Definition: profiledefinition.ProfileDefinition{
 				Metrics: []profiledefinition.MetricsConfig{
 					{Symbol: profiledefinition.SymbolConfig{OID: "1.2.3.4.5", Name: "userMetric"}},
 				},
 				SysObjectIds: profiledefinition.StringArray{"1.3.6.1.4.1.3375.2.1.3"},
 			},
-			IsUserProfile: true,
+			isUserProfile: true,
 		},
 	}
-	mockProfilesWithUserProfileMatchAllAndMorePreciseDefaultProfile := profile.ProfileConfigMap{
-		"default-profile": profile.ProfileConfig{
+	mockProfilesWithUserProfileMatchAllAndMorePreciseDefaultProfile := profileConfigMap{
+		"default-profile": profileConfig{
 			Definition: profiledefinition.ProfileDefinition{
 				Metrics: []profiledefinition.MetricsConfig{
 					{Symbol: profiledefinition.SymbolConfig{OID: "1.2.3.4.5", Name: "defaultMetric"}},
@@ -820,39 +820,39 @@ func Test_getProfileForSysObjectID(t *testing.T) {
 				SysObjectIds: profiledefinition.StringArray{"1.3.*"},
 			},
 		},
-		"user-profile": profile.ProfileConfig{
+		"user-profile": profileConfig{
 			Definition: profiledefinition.ProfileDefinition{
 				Metrics: []profiledefinition.MetricsConfig{
 					{Symbol: profiledefinition.SymbolConfig{OID: "1.2.3.4.5", Name: "userMetric"}},
 				},
 				SysObjectIds: profiledefinition.StringArray{"1.*"},
 			},
-			IsUserProfile: true,
+			isUserProfile: true,
 		},
 	}
-	mockProfilesWithUserDuplicateSysobjectid := profile.ProfileConfigMap{
-		"profile1": profile.ProfileConfig{
+	mockProfilesWithUserDuplicateSysobjectid := profileConfigMap{
+		"profile1": profileConfig{
 			Definition: profiledefinition.ProfileDefinition{
 				Metrics: []profiledefinition.MetricsConfig{
 					{Symbol: profiledefinition.SymbolConfig{OID: "1.2.3.4.5", Name: "someMetric"}},
 				},
 				SysObjectIds: profiledefinition.StringArray{"1.3.6.1.4.1.3375.2.1.3"},
 			},
-			IsUserProfile: true,
+			isUserProfile: true,
 		},
-		"profile2": profile.ProfileConfig{
+		"profile2": profileConfig{
 			Definition: profiledefinition.ProfileDefinition{
 				Metrics: []profiledefinition.MetricsConfig{
 					{Symbol: profiledefinition.SymbolConfig{OID: "1.2.3.4.5", Name: "someMetric"}},
 				},
 				SysObjectIds: profiledefinition.StringArray{"1.3.6.1.4.1.3375.2.1.3"},
 			},
-			IsUserProfile: true,
+			isUserProfile: true,
 		},
 	}
 	tests := []struct {
 		name            string
-		profiles        profile.ProfileConfigMap
+		profiles        profileConfigMap
 		sysObjectID     string
 		expectedProfile string
 		expectedError   string
@@ -937,7 +937,7 @@ func Test_getProfileForSysObjectID(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			profile, err := profile.GetProfileForSysObjectID(tt.profiles, tt.sysObjectID)
+			profile, err := GetProfileForSysObjectID(tt.profiles, tt.sysObjectID)
 			if tt.expectedError == "" {
 				assert.Nil(t, err)
 			} else {
@@ -997,7 +997,7 @@ func Test_Configure_invalidYaml(t *testing.T) {
 }
 
 func TestNumberConfigsUsingStrings(t *testing.T) {
-	profile.SetConfdPathAndCleanProfiles()
+	SetConfdPathAndCleanProfiles()
 	// language=yaml
 	rawInstanceConfig := []byte(`
 ip_address: 1.2.3.4
@@ -1015,7 +1015,7 @@ retries: "5"
 }
 
 func TestExtraTags(t *testing.T) {
-	profile.SetConfdPathAndCleanProfiles()
+	SetConfdPathAndCleanProfiles()
 	// language=yaml
 	rawInstanceConfig := []byte(`
 ip_address: 1.2.3.4
@@ -1061,7 +1061,7 @@ func Test_snmpConfig_setProfile(t *testing.T) {
 			},
 			MetricTags: profiledefinition.MetricTagConfigList{
 				profiledefinition.MetricTagConfig{
-					Symbol: profiledefinition.SymbolConfigCompat{
+					Column: profiledefinition.SymbolConfig{
 						OID: "1.2.3.4.7",
 					},
 				},
@@ -1074,7 +1074,7 @@ func Test_snmpConfig_setProfile(t *testing.T) {
 		},
 		Metrics: metrics,
 		MetricTags: []profiledefinition.MetricTagConfig{
-			{Tag: "location", Symbol: profiledefinition.SymbolConfigCompat{OID: "1.3.6.1.2.1.1.6.0", Name: "sysLocation"}},
+			{Tag: "interface", Column: profiledefinition.SymbolConfig{OID: "1.3.6.1.2.1.31.1.1.1.1", Name: "ifName"}},
 		},
 		Metadata: profiledefinition.MetadataConfig{
 			"device": {
@@ -1111,7 +1111,7 @@ func Test_snmpConfig_setProfile(t *testing.T) {
 				IDTags: profiledefinition.MetricTagConfigList{
 					{
 						Tag: "interface",
-						Symbol: profiledefinition.SymbolConfigCompat{
+						Column: profiledefinition.SymbolConfig{
 							OID:  "1.3.6.1.2.1.31.1.1.1.1",
 							Name: "ifName",
 						},
@@ -1125,7 +1125,7 @@ func Test_snmpConfig_setProfile(t *testing.T) {
 		Device:  profiledefinition.DeviceMeta{Vendor: "b-vendor"},
 		Metrics: []profiledefinition.MetricsConfig{{Symbol: profiledefinition.SymbolConfig{OID: "2.3.4.5.6.1", Name: "b-metric"}}},
 		MetricTags: []profiledefinition.MetricTagConfig{
-			{Tag: "btag", Symbol: profiledefinition.SymbolConfigCompat{OID: "2.3.4.5.6.2", Name: "b-tag-name"}},
+			{Tag: "btag", OID: "2.3.4.5.6.2", Name: "b-tag-name"},
 		},
 		Metadata: profiledefinition.MetadataConfig{
 			"device": {
@@ -1162,7 +1162,7 @@ func Test_snmpConfig_setProfile(t *testing.T) {
 				IDTags: profiledefinition.MetricTagConfigList{
 					{
 						Tag: "b-interface",
-						Symbol: profiledefinition.SymbolConfigCompat{
+						Column: profiledefinition.SymbolConfig{
 							OID:  "2.3.4.5.6.7",
 							Name: "b-ifName",
 						},
@@ -1173,11 +1173,11 @@ func Test_snmpConfig_setProfile(t *testing.T) {
 		SysObjectIds: profiledefinition.StringArray{"1.3.6.1.4.1.3375.2.1.3.4.*"},
 	}
 
-	mockProfiles := profile.ProfileConfigMap{
-		"profile1": profile.ProfileConfig{
+	mockProfiles := profileConfigMap{
+		"profile1": profileConfig{
 			Definition: profile1,
 		},
-		"profile2": profile.ProfileConfig{
+		"profile2": profileConfig{
 			Definition: profile2,
 		},
 	}
@@ -1195,10 +1195,10 @@ func Test_snmpConfig_setProfile(t *testing.T) {
 	assert.Equal(t, profile1, *c.ProfileDef)
 	assert.Equal(t, metrics, c.Metrics)
 	assert.Equal(t, []profiledefinition.MetricTagConfig{
-		{Tag: "location", Symbol: profiledefinition.SymbolConfigCompat{OID: "1.3.6.1.2.1.1.6.0", Name: "sysLocation"}},
+		{Tag: "interface", Column: profiledefinition.SymbolConfig{OID: "1.3.6.1.2.1.31.1.1.1.1", Name: "ifName"}},
 	}, c.MetricTags)
 	assert.Equal(t, OidConfig{
-		ScalarOids: []string{"1.2.3.4.5", "1.3.6.1.2.1.1.6.0"},
+		ScalarOids: []string{"1.2.3.4.5"},
 		ColumnOids: []string{"1.2.3.4.6", "1.2.3.4.7"},
 	}, c.OidConfig)
 	assert.Equal(t, []string{"snmp_profile:profile1", "device_vendor:a-vendor"}, c.ProfileTags)
@@ -1214,7 +1214,6 @@ func Test_snmpConfig_setProfile(t *testing.T) {
 	assert.Equal(t, OidConfig{
 		ScalarOids: []string{
 			"1.2.3.4.5",
-			"1.3.6.1.2.1.1.6.0",
 			"1.3.6.1.2.1.1.99.1.0",
 			"1.3.6.1.2.1.1.99.2.0",
 			"1.3.6.1.2.1.1.99.3.0",
@@ -1236,7 +1235,6 @@ func Test_snmpConfig_setProfile(t *testing.T) {
 	assert.Equal(t, OidConfig{
 		ScalarOids: []string{
 			"1.2.3.4.5",
-			"1.3.6.1.2.1.1.6.0",
 		},
 		ColumnOids: []string{
 			"1.2.3.4.6",
@@ -1253,13 +1251,12 @@ func Test_snmpConfig_setProfile(t *testing.T) {
 	c.RequestedMetrics = append(c.RequestedMetrics,
 		profiledefinition.MetricsConfig{Symbol: profiledefinition.SymbolConfig{OID: "3.1", Name: "global-metric"}})
 	c.RequestedMetricTags = append(c.RequestedMetricTags,
-		profiledefinition.MetricTagConfig{Tag: "global-tag", Symbol: profiledefinition.SymbolConfigCompat{OID: "3.2", Name: "globalSymbol"}})
+		profiledefinition.MetricTagConfig{Tag: "global-tag", OID: "3.2", Name: "globalSymbol"})
 	err = c.SetProfile("profile1")
 	assert.NoError(t, err)
 	assert.Equal(t, OidConfig{
 		ScalarOids: []string{
 			"1.2.3.4.5",
-			"1.3.6.1.2.1.1.6.0",
 			"1.3.6.1.2.1.1.99.1.0",
 			"1.3.6.1.2.1.1.99.2.0",
 			"1.3.6.1.2.1.1.99.3.0",
@@ -1429,7 +1426,7 @@ collect_topology: true
 }
 
 func Test_buildConfig_namespace(t *testing.T) {
-	defer coreconfig.Datadog.SetWithoutSource("network_devices.namespace", "default")
+	defer coreconfig.Datadog.Set("network_devices.namespace", "default")
 
 	// Should use namespace defined in instance config
 	// language=yaml
@@ -1474,7 +1471,7 @@ ip_address: 1.2.3.4
 community_string: "abc"
 `)
 	rawInitConfig = []byte(``)
-	coreconfig.Datadog.SetWithoutSource("network_devices.namespace", "totoro")
+	coreconfig.Datadog.Set("network_devices.namespace", "totoro")
 	conf, err = NewCheckConfig(rawInstanceConfig, rawInitConfig)
 	assert.Nil(t, err)
 	assert.Equal(t, "totoro", conf.Namespace)
@@ -1502,7 +1499,7 @@ community_string: "abc"
 `)
 	rawInitConfig = []byte(`
 namespace: `)
-	coreconfig.Datadog.SetWithoutSource("network_devices.namespace", "mononoke")
+	coreconfig.Datadog.Set("network_devices.namespace", "mononoke")
 	conf, err = NewCheckConfig(rawInstanceConfig, rawInitConfig)
 	assert.Nil(t, err)
 	assert.Equal(t, "mononoke", conf.Namespace)
@@ -1514,7 +1511,7 @@ ip_address: 1.2.3.4
 community_string: "abc"
 `)
 	rawInitConfig = []byte(``)
-	coreconfig.Datadog.SetWithoutSource("network_devices.namespace", "")
+	coreconfig.Datadog.Set("network_devices.namespace", "")
 	_, err = NewCheckConfig(rawInstanceConfig, rawInitConfig)
 	assert.EqualError(t, err, "namespace cannot be empty")
 }
@@ -1643,9 +1640,9 @@ func TestSetAutodetectPreservesRequests(t *testing.T) {
 	met1 := metric("1.1", "metricOne")
 	met2 := metric("1.2", "metricTwo")
 	met3 := metric("1.3", "metricThree")
-	tag1 := profiledefinition.MetricTagConfig{Tag: "tag_one", Symbol: profiledefinition.SymbolConfigCompat{OID: "2.1", Name: "tagOne"}}
-	tag2 := profiledefinition.MetricTagConfig{Tag: "tag_two", Symbol: profiledefinition.SymbolConfigCompat{OID: "2.2", Name: "tagTwo"}}
-	tag3 := profiledefinition.MetricTagConfig{Tag: "tag_three", Symbol: profiledefinition.SymbolConfigCompat{OID: "2.3", Name: "tagThree"}}
+	tag1 := profiledefinition.MetricTagConfig{Tag: "tag_one", OID: "2.1", Name: "tagOne"}
+	tag2 := profiledefinition.MetricTagConfig{Tag: "tag_two", OID: "2.2", Name: "tagTwo"}
+	tag3 := profiledefinition.MetricTagConfig{Tag: "tag_three", OID: "2.3", Name: "tagThree"}
 
 	config := &CheckConfig{
 		CollectTopology:     false,
@@ -2173,7 +2170,7 @@ func TestCheckConfig_Copy(t *testing.T) {
 			},
 		},
 		RequestedMetricTags: []profiledefinition.MetricTagConfig{
-			{Tag: "my_symbol", Symbol: profiledefinition.SymbolConfigCompat{OID: "1.2.3", Name: "mySymbol"}},
+			{Tag: "my_symbol", OID: "1.2.3", Name: "mySymbol"},
 		},
 		Metrics: []profiledefinition.MetricsConfig{
 			{
@@ -2184,11 +2181,11 @@ func TestCheckConfig_Copy(t *testing.T) {
 			},
 		},
 		MetricTags: []profiledefinition.MetricTagConfig{
-			{Tag: "my_symbol", Symbol: profiledefinition.SymbolConfigCompat{OID: "1.2.3", Name: "mySymbol"}},
+			{Tag: "my_symbol", OID: "1.2.3", Name: "mySymbol"},
 		},
 		OidBatchSize:       10,
 		BulkMaxRepetitions: 10,
-		Profiles: profile.ProfileConfigMap{"f5-big-ip": profile.ProfileConfig{
+		Profiles: profileConfigMap{"f5-big-ip": profileConfig{
 			Definition: profiledefinition.ProfileDefinition{
 				Device: profiledefinition.DeviceMeta{Vendor: "f5"},
 			},
@@ -2270,7 +2267,7 @@ func TestCheckConfig_getResolvedSubnetName(t *testing.T) {
 }
 
 func TestCheckConfig_GetStaticTags(t *testing.T) {
-	coreconfig.Datadog.SetWithoutSource("hostname", "my-hostname")
+	coreconfig.Datadog.Set("hostname", "my-hostname")
 	tests := []struct {
 		name         string
 		config       CheckConfig

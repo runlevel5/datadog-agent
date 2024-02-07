@@ -6,7 +6,17 @@
 // Package expvars initializes the expvar server of the process agent.
 package expvars
 
+import (
+	"go.uber.org/fx"
+
+	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
+)
+
 // team: processes
 
 type Component interface {
 }
+
+var Module = fxutil.Component(
+	fx.Provide(newExpvarServer),
+)

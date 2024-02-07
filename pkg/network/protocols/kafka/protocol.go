@@ -17,7 +17,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/network/config"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/events"
-	"github.com/DataDog/datadog-agent/pkg/network/usm/buildmode"
 	"github.com/DataDog/datadog-agent/pkg/network/usm/utils"
 )
 
@@ -141,9 +140,4 @@ func (p *protocol) GetStats() *protocols.ProtocolStats {
 		Type:  protocols.Kafka,
 		Stats: p.statkeeper.GetAndResetAllStats(),
 	}
-}
-
-// IsBuildModeSupported returns always true, as kafka module is supported by all modes.
-func (*protocol) IsBuildModeSupported(buildmode.Type) bool {
-	return true
 }

@@ -20,7 +20,7 @@ import (
 
 func TestLookupUserWithId(t *testing.T) {
 	cfg := config.Mock(t)
-	cfg.SetWithoutSource("process_config.cache_lookupid", true)
+	cfg.Set("process_config.cache_lookupid", true)
 
 	for _, tc := range []struct {
 		name          string
@@ -41,7 +41,7 @@ func TestLookupUserWithId(t *testing.T) {
 	} {
 		const testUID = "0"
 		t.Run(tc.name, func(t *testing.T) {
-			p := NewLookupIDProbe(cfg)
+			p := NewLookupIdProbe(cfg)
 
 			checkResult := func(u *user.User, err error) {
 				t.Helper()
@@ -93,9 +93,9 @@ func TestLookupIdConfigSetting(t *testing.T) {
 
 	t.Run("enabled", func(t *testing.T) {
 		cfg := config.Mock(t)
-		cfg.SetWithoutSource("process_config.cache_lookupid", true)
+		cfg.Set("process_config.cache_lookupid", true)
 
-		p := NewLookupIDProbe(cfg)
+		p := NewLookupIdProbe(cfg)
 		p.lookupId = testLookupIdFunc
 
 		_, _ = p.LookupId("1234") // testLookupIdFunc should be called and "1234" added to the cache
@@ -106,9 +106,9 @@ func TestLookupIdConfigSetting(t *testing.T) {
 
 	t.Run("disabled", func(t *testing.T) {
 		cfg := config.Mock(t)
-		cfg.SetWithoutSource("process_config.cache_lookupid", false)
+		cfg.Set("process_config.cache_lookupid", false)
 
-		p := NewLookupIDProbe(cfg)
+		p := NewLookupIdProbe(cfg)
 		p.lookupId = testLookupIdFunc
 
 		_, _ = p.LookupId("1234")

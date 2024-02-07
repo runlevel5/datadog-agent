@@ -18,14 +18,13 @@ var (
 	// noProxyUsedInFuture map containing URL's that will use a proxy in the future
 	noProxyUsedInFuture = make(map[string]bool)
 
-	// noProxyChanged map containing URL's whose proxy behavior will change in the future
+	// noProxyChanged map containing URL's whos proxy behavior will change in the future
 	noProxyChanged = make(map[string]bool)
 
 	// noProxyMapMutex Lock for all no proxy maps
 	noProxyMapMutex = sync.Mutex{}
 )
 
-// GetNumberOfWarnings returns the total number of warnings
 func GetNumberOfWarnings() int {
 	noProxyMapMutex.Lock()
 	defer noProxyMapMutex.Unlock()
@@ -33,7 +32,6 @@ func GetNumberOfWarnings() int {
 	return len(noProxyIgnoredWarningMap) + len(noProxyUsedInFuture) + len(noProxyChanged)
 }
 
-// GetProxyIgnoredWarnings returns the list of URL which will ignore the proxy in the future
 func GetProxyIgnoredWarnings() []string {
 	noProxyMapMutex.Lock()
 	defer noProxyMapMutex.Unlock()
@@ -45,7 +43,6 @@ func GetProxyIgnoredWarnings() []string {
 	return ignoredWarnings
 }
 
-// GetProxyUsedInFutureWarnings returns the list of URL which will use a proxy in the future
 func GetProxyUsedInFutureWarnings() []string {
 	noProxyMapMutex.Lock()
 	defer noProxyMapMutex.Unlock()
@@ -57,7 +54,6 @@ func GetProxyUsedInFutureWarnings() []string {
 	return usedInFuture
 }
 
-// GetProxyChangedWarnings returns the list of URL whose proxy behavior will change in the future
 func GetProxyChangedWarnings() []string {
 	noProxyMapMutex.Lock()
 	defer noProxyMapMutex.Unlock()

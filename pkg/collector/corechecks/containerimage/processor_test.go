@@ -6,7 +6,6 @@
 package containerimage
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -20,7 +19,6 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
 	"github.com/DataDog/datadog-agent/pkg/epforwarder"
-	"github.com/DataDog/datadog-agent/pkg/util/hostname"
 	"github.com/DataDog/datadog-agent/pkg/util/pointer"
 	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 )
@@ -437,11 +435,9 @@ func TestProcessEvents(t *testing.T) {
 				return imagesSent.Load() == int32(len(test.expectedImages))
 			}, 1*time.Second, 5*time.Millisecond)
 
-			hname, _ := hostname.Get(context.TODO())
 			for _, expectedImage := range test.expectedImages {
 				encoded, err := proto.Marshal(&model.ContainerImagePayload{
 					Version: "v1",
-					Host:    hname,
 					Source:  &sourceAgent,
 					Images:  []*model.ContainerImage{expectedImage},
 				})

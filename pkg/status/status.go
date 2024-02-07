@@ -17,8 +17,6 @@ import (
 
 	"github.com/DataDog/datadog-agent/cmd/agent/common"
 	hostMetadataUtils "github.com/DataDog/datadog-agent/comp/metadata/host/utils"
-	"github.com/DataDog/datadog-agent/comp/metadata/inventoryagent"
-	netflowServer "github.com/DataDog/datadog-agent/comp/netflow/server"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/admission"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/clusterchecks"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/custommetrics"
@@ -31,9 +29,11 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/utils"
 	logsStatus "github.com/DataDog/datadog-agent/pkg/logs/status"
+	"github.com/DataDog/datadog-agent/pkg/metadata/host"
 	"github.com/DataDog/datadog-agent/pkg/snmp/traps"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
+	"github.com/DataDog/datadog-agent/pkg/util/hostname"
 	httputils "github.com/DataDog/datadog-agent/pkg/util/http"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/apiserver"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -43,14 +43,14 @@ import (
 var timeFormat = "2006-01-02 15:04:05.999 MST"
 
 // GetStatus grabs the status from expvar and puts it into a map
-func GetStatus(verbose bool, invAgent inventoryagent.Component) (map[string]interface{}, error) {
-	stats, err := getCommonStatus(invAgent)
+func GetStatus(verbose bool) (map[string]interface{}, error) {
+	stats, err := getCommonStatus()
 	if err != nil {
 		return nil, err
 	}
 	stats["verbose"] = verbose
 	stats["config"] = getPartialConfig()
-	metadata := stats["metadata"].(*hostMetadataUtils.Payload)
+	metadata := stats["metadata"].(*host.Payload)
 	hostTags := make([]string, 0, len(metadata.HostTags.System)+len(metadata.HostTags.GoogleCloudPlatform))
 	hostTags = append(hostTags, metadata.HostTags.System...)
 	hostTags = append(hostTags, metadata.HostTags.GoogleCloudPlatform...)
@@ -104,8 +104,8 @@ func GetStatus(verbose bool, invAgent inventoryagent.Component) (map[string]inte
 }
 
 // GetAndFormatStatus gets and formats the status all in one go
-func GetAndFormatStatus(invAgent inventoryagent.Component) ([]byte, error) {
-	s, err := GetStatus(true, invAgent)
+func GetAndFormatStatus() ([]byte, error) {
+	s, err := GetStatus(true)
 	if err != nil {
 		return nil, err
 	}
@@ -125,13 +125,15 @@ func GetAndFormatStatus(invAgent inventoryagent.Component) ([]byte, error) {
 
 // GetCheckStatusJSON gets the status of a single check as JSON
 func GetCheckStatusJSON(c check.Check, cs *checkstats.Stats) ([]byte, error) {
-	stats := make(map[string]interface{})
-	stats = getRunnerStats(stats)
-	checks := stats["runnerStats"].(map[string]interface{})["Checks"].(map[string]interface{})
+	s, err := GetStatus(false)
+	if err != nil {
+		return nil, err
+	}
+	checks := s["runnerStats"].(map[string]interface{})["Checks"].(map[string]interface{})
 	checks[c.String()] = make(map[checkid.ID]interface{})
 	checks[c.String()].(map[checkid.ID]interface{})[c.ID()] = cs
 
-	statusJSON, err := json.Marshal(stats)
+	statusJSON, err := json.Marshal(s)
 	if err != nil {
 		return nil, err
 	}
@@ -156,8 +158,7 @@ func GetCheckStatus(c check.Check, cs *checkstats.Stats) ([]byte, error) {
 
 // GetDCAStatus grabs the status from expvar and puts it into a map
 func GetDCAStatus(verbose bool) (map[string]interface{}, error) {
-	// inventory is not enabled for the clusteragent/DCA so we pass nil to getCommonStatus
-	stats, err := getCommonStatus(nil)
+	stats, err := getCommonStatus()
 	if err != nil {
 		return nil, err
 	}
@@ -198,12 +199,6 @@ func GetDCAStatus(verbose bool) (map[string]interface{}, error) {
 		}
 	}
 
-	stats["adEnabledFeatures"] = config.GetDetectedFeatures()
-	if common.AC != nil {
-		stats["adConfigErrors"] = common.AC.GetAutodiscoveryErrors()
-	}
-	stats["filterErrors"] = containers.GetFilterErrors()
-
 	if config.Datadog.GetBool("orchestrator_explorer.enabled") {
 		if apiErr != nil {
 			stats["orchestrator"] = map[string]string{"Error": apiErr.Error()}
@@ -238,8 +233,7 @@ func GetAndFormatDCAStatus() ([]byte, error) {
 
 // GetAndFormatSecurityAgentStatus gets and formats the security agent status
 func GetAndFormatSecurityAgentStatus(runtimeStatus, complianceStatus map[string]interface{}) ([]byte, error) {
-	// inventory metadata is not enabled in the security agent, we pass nil to GetStatus
-	s, err := GetStatus(true, nil)
+	s, err := GetStatus(true)
 	if err != nil {
 		return nil, err
 	}
@@ -329,16 +323,24 @@ func getRemoteConfigStatus() map[string]interface{} {
 
 // getCommonStatus grabs the status from expvar and puts it into a map.
 // It gets the status elements common to all Agent flavors.
-func getCommonStatus(invAgent inventoryagent.Component) (map[string]interface{}, error) {
+func getCommonStatus() (map[string]interface{}, error) {
 	stats := make(map[string]interface{})
-	stats, err := expvarStats(stats, invAgent)
+	stats, err := expvarStats(stats)
 	if err != nil {
 		log.Errorf("Error Getting ExpVar Stats: %v", err)
 	}
 
 	stats["version"] = version.AgentVersion
 	stats["flavor"] = flavor.GetFlavor()
-	stats["metadata"] = hostMetadataUtils.GetFromCache(context.TODO(), config.Datadog)
+	hostnameData, err := hostname.GetWithProvider(context.TODO())
+
+	if err != nil {
+		log.Errorf("Error grabbing hostname for status: %v", err)
+		stats["metadata"] = host.GetPayloadFromCache(context.TODO(), hostname.Data{Hostname: "unknown", Provider: "unknown"})
+	} else {
+		stats["metadata"] = host.GetPayloadFromCache(context.TODO(), hostnameData)
+	}
+
 	stats["conf_file"] = config.Datadog.ConfigFileUsed()
 	stats["pid"] = os.Getpid()
 	stats["go_version"] = runtime.Version()
@@ -350,22 +352,17 @@ func getCommonStatus(invAgent inventoryagent.Component) (map[string]interface{},
 	return stats, nil
 }
 
-func getRunnerStats(stats map[string]interface{}) map[string]interface{} {
-	runnerStatsJSON := []byte(expvar.Get("runner").String())
-	runnerStats := make(map[string]interface{})
-	json.Unmarshal(runnerStatsJSON, &runnerStats) //nolint:errcheck
-	stats["runnerStats"] = runnerStats
-	return stats
-}
-
-func expvarStats(stats map[string]interface{}, invAgent inventoryagent.Component) (map[string]interface{}, error) {
+func expvarStats(stats map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	forwarderStatsJSON := []byte(expvar.Get("forwarder").String())
 	forwarderStats := make(map[string]interface{})
 	json.Unmarshal(forwarderStatsJSON, &forwarderStats) //nolint:errcheck
 	stats["forwarderStats"] = forwarderStats
 
-	stats = getRunnerStats(stats)
+	runnerStatsJSON := []byte(expvar.Get("runner").String())
+	runnerStats := make(map[string]interface{})
+	json.Unmarshal(runnerStatsJSON, &runnerStats) //nolint:errcheck
+	stats["runnerStats"] = runnerStats
 
 	autoConfigStatsJSON := []byte(expvar.Get("autoconfig").String())
 	autoConfigStats := make(map[string]interface{})
@@ -466,20 +463,13 @@ func expvarStats(stats map[string]interface{}, invAgent inventoryagent.Component
 		}
 	}
 	stats["inventories"] = checkMetadata
-
-	// invAgent can be nil when generating a status page for some agent where inventory is not enabled
-	// (clusteragent, security-agent, ...).
-	//
-	// todo: (component) remove this condition once status is a component.
-	if invAgent != nil {
-		stats["agent_metadata"] = invAgent.Get()
+	if data, ok := inventoriesStats["agent_metadata"]; ok {
+		stats["agent_metadata"] = data
 	} else {
 		stats["agent_metadata"] = map[string]string{}
 	}
 
 	stats["snmpTrapsStats"] = traps.GetStatus()
-
-	stats["netflowStats"] = netflowServer.GetStatus()
 
 	complianceVar := expvar.Get("compliance")
 	if complianceVar != nil {

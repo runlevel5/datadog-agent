@@ -9,7 +9,6 @@
 package tests
 
 import (
-	"context"
 	"embed"
 	"fmt"
 	"os"
@@ -56,9 +55,9 @@ func checkSyscallTester(t *testing.T, path string) error {
 	return nil
 }
 
-func runSyscallTesterFunc(ctx context.Context, t *testing.T, path string, args ...string) error {
+func runSyscallTesterFunc(t *testing.T, path string, args ...string) error {
 	t.Helper()
-	sideTester := exec.CommandContext(ctx, path, args...)
+	sideTester := exec.Command(path, args...)
 	output, err := sideTester.CombinedOutput()
 
 	if err != nil {

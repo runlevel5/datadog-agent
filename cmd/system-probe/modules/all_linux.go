@@ -23,7 +23,6 @@ var All = []module.Factory{
 	Process,
 	DynamicInstrumentation,
 	LanguageDetectionModule,
-	ComplianceModule,
 }
 
 func inactivityEventLog(duration time.Duration) {

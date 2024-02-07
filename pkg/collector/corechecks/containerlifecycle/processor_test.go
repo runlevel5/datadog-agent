@@ -14,14 +14,11 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
 	checkid "github.com/DataDog/datadog-agent/pkg/collector/check/id"
-	"github.com/DataDog/datadog-agent/pkg/util/hostname"
 
 	"github.com/stretchr/testify/mock"
 )
 
 func TestProcessQueues(t *testing.T) {
-	hname, _ := hostname.Get(context.TODO())
-
 	tests := []struct {
 		name            string
 		containersQueue *queue
@@ -37,7 +34,7 @@ func TestProcessQueues(t *testing.T) {
 		{
 			name: "one container",
 			containersQueue: &queue{data: []*model.EventsPayload{
-				{Version: "v1", Host: hname, Events: modelEvents("cont1")},
+				{Version: "v1", Events: modelEvents("cont1")},
 			}},
 			podsQueue: &queue{},
 			wantFunc: func(t *testing.T, s *mocksender.MockSender) {
@@ -47,12 +44,12 @@ func TestProcessQueues(t *testing.T) {
 		{
 			name: "multiple chunks per types",
 			containersQueue: &queue{data: []*model.EventsPayload{
-				{Version: "v1", Host: hname, Events: modelEvents("cont1", "cont2")},
-				{Version: "v1", Host: hname, Events: modelEvents("cont3")},
+				{Version: "v1", Events: modelEvents("cont1", "cont2")},
+				{Version: "v1", Events: modelEvents("cont3")},
 			}},
 			podsQueue: &queue{data: []*model.EventsPayload{
-				{Version: "v1", Host: hname, Events: modelEvents("pod1", "pod2")},
-				{Version: "v1", Host: hname, Events: modelEvents("pod3")},
+				{Version: "v1", Events: modelEvents("pod1", "pod2")},
+				{Version: "v1", Events: modelEvents("pod3")},
 			}},
 			wantFunc: func(t *testing.T, s *mocksender.MockSender) {
 				s.AssertNumberOfCalls(t, "EventPlatformEvent", 4)

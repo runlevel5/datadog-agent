@@ -9,7 +9,11 @@ package serializers
 import (
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/security/events"
+	"github.com/DataDog/datadog-agent/pkg/security/resolvers"
+	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/utils"
+	jwriter "github.com/mailru/easyjson/jwriter"
 )
 
 // nolint: deadcode, unused
@@ -35,4 +39,23 @@ func getTimeIfNotZero(t time.Time) *utils.EasyjsonTime {
 	}
 	tt := utils.NewEasyjsonTime(t)
 	return &tt
+}
+
+// MarshalEvent marshal the event
+func MarshalEvent(event *model.Event, probe *resolvers.Resolvers) ([]byte, error) {
+	s := NewEventSerializer(event, probe)
+	w := &jwriter.Writer{
+		Flags: jwriter.NilSliceAsEmpty | jwriter.NilMapAsEmpty,
+	}
+	s.MarshalEasyJSON(w)
+	return w.BuildBytes()
+}
+
+// MarshalCustomEvent marshal the custom event
+func MarshalCustomEvent(event *events.CustomEvent) ([]byte, error) {
+	w := &jwriter.Writer{
+		Flags: jwriter.NilSliceAsEmpty | jwriter.NilMapAsEmpty,
+	}
+	event.MarshalEasyJSON(w)
+	return w.BuildBytes()
 }

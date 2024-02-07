@@ -17,6 +17,7 @@ import (
 )
 
 func TestGetFullSqlText(t *testing.T) {
+	initAndStartAgentDemultiplexer(t)
 	for _, tnsAlias := range []string{"", TNS_ALIAS} {
 		chk.db = nil
 

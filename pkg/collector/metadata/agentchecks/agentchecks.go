@@ -14,6 +14,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector"
 	"github.com/DataDog/datadog-agent/pkg/collector/runner/expvars"
 	"github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/metadata/common"
 	"github.com/DataDog/datadog-agent/pkg/metadata/externalhost"
 	"github.com/DataDog/datadog-agent/pkg/status"
 	"github.com/DataDog/datadog-agent/pkg/util/hostname"
@@ -81,7 +82,7 @@ func GetPayload(ctx context.Context) *Payload {
 	// Grab the non agent checks information
 	metaPayload := hostMetadataUtils.GetMetaFromCache(ctx, config.Datadog)
 	metaPayload.Hostname = hostnameData.Hostname
-	cp := hostMetadataUtils.GetCommonPayload(hostnameData.Hostname, config.Datadog)
+	cp := common.GetPayload(hostnameData.Hostname)
 	ehp := externalhost.GetPayload()
 	payload := &Payload{
 		CommonPayload{*cp},

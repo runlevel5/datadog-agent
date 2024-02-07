@@ -11,9 +11,10 @@ name 'datadog-agent'
 dependency "python2" if with_python_runtime? "2"
 dependency "python3" if with_python_runtime? "3"
 
-dependency "openscap" if linux_target? and !arm7l_target? and !heroku_target? # Security-agent dependency, not needed for Heroku
+dependency "libarchive" if windows?
+dependency "yaml-cpp" if windows?
 
-dependency 'datadog-agent-dependencies'
+dependency "openscap" if linux? and !arm7l? and !heroku? # Security-agent dependency, not needed for Heroku
 
 source path: '..'
 relative_path 'src/github.com/DataDog/datadog-agent'
@@ -24,7 +25,7 @@ build do
   # set GOPATH on the omnibus source dir for this software
   gopath = Pathname.new(project_dir) + '../../../..'
   etc_dir = "/etc/datadog-agent"
-  if windows_target?
+  if windows?
     env = {
         'GOPATH' => gopath.to_path,
         'PATH' => "#{gopath.to_path}/bin:#{ENV['PATH']}",
@@ -59,7 +60,7 @@ build do
   env = with_embedded_path(env)
 
   # we assume the go deps are already installed before running omnibus
-  if windows_target?
+  if windows?
     platform = windows_arch_i386? ? "x86" : "x64"
     do_windows_sysprobe = ""
     if not windows_arch_i386? and ENV['WINDOWS_DDNPM_DRIVER'] and not ENV['WINDOWS_DDNPM_DRIVER'].empty?
@@ -67,7 +68,7 @@ build do
     end
     command "inv -e rtloader.clean"
     command "inv -e rtloader.make --python-runtimes #{py_runtimes_arg} --install-prefix \"#{windows_safe_path(python_2_embedded)}\" --cmake-options \"-G \\\"Unix Makefiles\\\"\" --arch #{platform}", :env => env
-    command "mv rtloader/bin/*.dll  #{install_dir}/bin/agent/"
+    command "mv rtloader/bin/*.dll  #{Omnibus::Config.source_dir()}/datadog-agent/src/github.com/DataDog/datadog-agent/bin/agent/"
     command "inv -e agent.build --exclude-rtloader --python-runtimes #{py_runtimes_arg} --major-version #{major_version_arg} --rebuild --no-development --embedded-path=#{install_dir}/embedded --arch #{platform} #{do_windows_sysprobe} --flavor #{flavor_arg}", env: env
     command "inv -e systray.build --major-version #{major_version_arg} --rebuild --arch #{platform}", env: env
   else
@@ -77,32 +78,42 @@ build do
     command "inv -e agent.build --exclude-rtloader --python-runtimes #{py_runtimes_arg} --major-version #{major_version_arg} --rebuild --no-development --embedded-path=#{install_dir}/embedded --python-home-2=#{install_dir}/embedded --python-home-3=#{install_dir}/embedded --flavor #{flavor_arg}", env: env
   end
 
-  if osx_target?
+  if osx?
     conf_dir = "#{install_dir}/etc"
   else
     conf_dir = "#{install_dir}/etc/datadog-agent"
   end
   mkdir conf_dir
   mkdir "#{install_dir}/bin"
-  unless windows_target?
+  unless windows?
     mkdir "#{install_dir}/run/"
     mkdir "#{install_dir}/scripts/"
   end
 
+  ## build the custom action library required for the install
+  if windows?
+    platform = windows_arch_i386? ? "x86" : "x64"
+    debug_customaction = ""
+    if ENV['DEBUG_CUSTOMACTION'] and not ENV['DEBUG_CUSTOMACTION'].empty?
+      debug_customaction = "--debug"
+    end
+    command "invoke -e customaction.build --major-version #{major_version_arg} #{debug_customaction} --arch=" + platform
+  end
+
   # move around bin and config files
   move 'bin/agent/dist/datadog.yaml', "#{conf_dir}/datadog.yaml.example"
-  if linux_target? or (windows_target? and not windows_arch_i386? and ENV['WINDOWS_DDNPM_DRIVER'] and not ENV['WINDOWS_DDNPM_DRIVER'].empty?)
+  if linux? or (windows? and not windows_arch_i386? and ENV['WINDOWS_DDNPM_DRIVER'] and not ENV['WINDOWS_DDNPM_DRIVER'].empty?)
       move 'bin/agent/dist/system-probe.yaml', "#{conf_dir}/system-probe.yaml.example"
   end
   move 'bin/agent/dist/conf.d', "#{conf_dir}/"
 
-  unless windows_target?
+  unless windows?
     copy 'bin/agent', "#{install_dir}/bin/"
   else
     copy 'bin/agent/ddtray.exe', "#{install_dir}/bin/agent"
-    copy 'bin/agent/agent.exe', "#{install_dir}/bin/agent"
     copy 'bin/agent/dist', "#{install_dir}/bin/agent"
     mkdir Omnibus::Config.package_dir() unless Dir.exists?(Omnibus::Config.package_dir())
+    copy 'bin/agent/customaction*.pdb', "#{Omnibus::Config.package_dir()}/"
   end
 
   block do
@@ -111,52 +122,45 @@ build do
     platform = windows_arch_i386? ? "x86" : "x64"
     command "invoke trace-agent.build --python-runtimes #{py_runtimes_arg} --major-version #{major_version_arg} --arch #{platform} --flavor #{flavor_arg}", :env => env
 
-    if windows_target?
-      copy 'bin/trace-agent/trace-agent.exe', "#{install_dir}/bin/agent"
+    if windows?
+      copy 'bin/trace-agent/trace-agent.exe', "#{Omnibus::Config.source_dir()}/datadog-agent/src/github.com/DataDog/datadog-agent/bin/agent"
     else
       copy 'bin/trace-agent/trace-agent', "#{install_dir}/embedded/bin"
     end
   end
 
-  # Process agent
-  if windows_target?
+  if windows?
     platform = windows_arch_i386? ? "x86" : "x64"
     # Build the process-agent with the correct go version for windows
     command "invoke -e process-agent.build --python-runtimes #{py_runtimes_arg} --major-version #{major_version_arg} --arch #{platform} --flavor #{flavor_arg}", :env => env
 
-    copy 'bin/process-agent/process-agent.exe', "#{install_dir}/bin/agent"
+    copy 'bin/process-agent/process-agent.exe', "#{Omnibus::Config.source_dir()}/datadog-agent/src/github.com/DataDog/datadog-agent/bin/agent"
+
+    unless windows_arch_i386?
+      if ENV['WINDOWS_DDNPM_DRIVER'] and not ENV['WINDOWS_DDNPM_DRIVER'].empty?
+        ## don't bother with system probe build on x86.
+        command "invoke -e system-probe.build --windows"
+        copy 'bin/system-probe/system-probe.exe', "#{Omnibus::Config.source_dir()}/datadog-agent/src/github.com/DataDog/datadog-agent/bin/agent"
+      end
+    end
   else
     command "invoke -e process-agent.build --python-runtimes #{py_runtimes_arg} --major-version #{major_version_arg} --flavor #{flavor_arg}", :env => env
     copy 'bin/process-agent/process-agent', "#{install_dir}/embedded/bin"
   end
 
-  # System-probe
-  if windows_target?
-    unless windows_arch_i386?
-      if ENV['WINDOWS_DDNPM_DRIVER'] and not ENV['WINDOWS_DDNPM_DRIVER'].empty?
-        ## don't bother with system probe build on x86.
-        command "invoke -e system-probe.build --windows"
-        copy 'bin/system-probe/system-probe.exe', "#{install_dir}/bin/agent"
-      end
-    end
-  elsif linux_target?
-    command "invoke -e system-probe.build-sysprobe-binary"
-    copy "bin/system-probe/system-probe", "#{install_dir}/embedded/bin"
-  end
-
   # Add SELinux policy for system-probe
-  if debian_target? || redhat_target?
+  if debian? || redhat?
     mkdir "#{conf_dir}/selinux"
     command "inv -e selinux.compile-system-probe-policy-file --output-directory #{conf_dir}/selinux", env: env
   end
 
   # Security agent
-  unless heroku_target?
-    if not windows_target? or (ENV['WINDOWS_DDPROCMON_DRIVER'] and not ENV['WINDOWS_DDPROCMON_DRIVER'].empty?)
+  unless heroku?
+    if not windows? or (ENV['WINDOWS_DDPROCMON_DRIVER'] and not ENV['WINDOWS_DDPROCMON_DRIVER'].empty?)
       command "invoke -e security-agent.build --major-version #{major_version_arg}", :env => env
-      if windows_target?
-        copy 'bin/security-agent/security-agent.exe', "#{install_dir}/bin/agent"
-      else
+      if windows?
+        copy 'bin/security-agent/security-agent.exe', "#{Omnibus::Config.source_dir()}/datadog-agent/src/github.com/DataDog/datadog-agent/bin/agent"
+      else 
         copy 'bin/security-agent/security-agent', "#{install_dir}/embedded/bin"
       end
       move 'bin/agent/dist/security-agent.yaml', "#{conf_dir}/security-agent.yaml.example"
@@ -164,15 +168,15 @@ build do
   end
 
   # APM Injection agent
-  if windows_target?
+  if windows?
     if ENV['WINDOWS_APMINJECT_MODULE'] and not ENV['WINDOWS_APMINJECT_MODULE'].empty?
       command "inv generate-config --build-type apm-injection --output-file ./bin/agent/dist/apm-inject.yaml", :env => env
      #move 'bin/agent/dist/system-probe.yaml', "#{conf_dir}/system-probe.yaml.example"
       move 'bin/agent/dist/apm-inject.yaml', "#{conf_dir}/apm-inject.yaml.example"
     end
   end
-  if linux_target?
-    if debian_target?
+  if linux?
+    if debian?
       erb source: "upstart_debian.conf.erb",
           dest: "#{install_dir}/scripts/datadog-agent.conf",
           mode: 0644,
@@ -209,7 +213,7 @@ build do
           dest: "#{install_dir}/scripts/datadog-agent-security",
           mode: 0755,
           vars: { install_dir: install_dir, etc_dir: etc_dir }
-    elsif redhat_target? || suse_target?
+    elsif redhat? || suse?
       # Ship a different upstart job definition on RHEL to accommodate the old
       # version of upstart (0.6.5) that RHEL 6 provides.
       erb source: "upstart_redhat.conf.erb",
@@ -256,7 +260,7 @@ build do
         vars: { install_dir: install_dir, etc_dir: etc_dir }
   end
 
-  if osx_target?
+  if osx?
     # Launchd service definition
     erb source: "launchd.plist.example.erb",
         dest: "#{conf_dir}/com.datadoghq.agent.plist.example",
@@ -277,7 +281,7 @@ build do
   # The file below is touched by software builds that don't put anything in the installation
   # directory (libgcc right now) so that the git_cache gets updated let's remove it from the
   # final package
-  unless windows_target?
+  unless windows?
     delete "#{install_dir}/uselessfile"
   end
 end

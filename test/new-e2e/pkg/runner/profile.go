@@ -6,11 +6,7 @@
 package runner
 
 import (
-	"fmt"
-	"hash/fnv"
-	"io"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -35,9 +31,9 @@ const (
 )
 
 var (
-	defaultWorkspaceRootFolder = path.Join(os.TempDir(), "pulumi-workspace")
-	runProfile                 Profile
-	initProfile                sync.Once
+	workspaceFolder = os.TempDir()
+	runProfile      Profile
+	initProfile     sync.Once
 )
 
 // Profile interface defines functions required by a profile
@@ -46,10 +42,8 @@ type Profile interface {
 	EnvironmentNames() string
 	// ProjectName used by Pulumi
 	ProjectName() string
-	// GetWorkspacePath returns the directory for local Pulumi workspace.
-	// Since one Workspace supports one single program and we have one program per stack,
-	// the path should be unique for each stack.
-	GetWorkspacePath(stackName string) string
+	// RootWorkspacePath returns the root directory for local Pulumi workspace
+	RootWorkspacePath() string
 	// ParamStore() returns the normal parameter store
 	ParamStore() parameters.Store
 	// SecretStore returns the secure parameter store
@@ -62,19 +56,17 @@ type Profile interface {
 
 // Shared implementations for common profiles methods
 type baseProfile struct {
-	projectName         string
-	environments        []string
-	store               parameters.Store
-	secretStore         parameters.Store
-	workspaceRootFolder string
+	projectName  string
+	environments []string
+	store        parameters.Store
+	secretStore  parameters.Store
 }
 
 func newProfile(projectName string, environments []string, store parameters.Store, secretStore *parameters.Store) baseProfile {
 	p := baseProfile{
-		projectName:         projectName,
-		environments:        environments,
-		store:               store,
-		workspaceRootFolder: defaultWorkspaceRootFolder,
+		projectName:  projectName,
+		environments: environments,
+		store:        store,
 	}
 
 	if secretStore == nil {
@@ -104,19 +96,6 @@ func (p baseProfile) ParamStore() parameters.Store {
 // SecretStore returns the secret parameters store
 func (p baseProfile) SecretStore() parameters.Store {
 	return p.secretStore
-}
-
-// GetWorkspacePath returns the directory for CI Pulumi workspace.
-// Since one Workspace supports one single program and we have one program per stack,
-// the path should be unique for each stack.
-func (p baseProfile) GetWorkspacePath(stackName string) string {
-	return path.Join(p.workspaceRootFolder, hashString(stackName))
-}
-
-func hashString(s string) string {
-	hasher := fnv.New64a()
-	_, _ = io.WriteString(hasher, s)
-	return fmt.Sprintf("%016x", hasher.Sum64())
 }
 
 // GetProfile return a profile initialising it at first call

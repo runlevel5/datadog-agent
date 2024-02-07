@@ -5,7 +5,6 @@
 
 //go:build secrets
 
-// Package providers defines default secrets providers
 package providers
 
 import (
@@ -22,7 +21,7 @@ const (
 	maxSecretFileSize = 8192
 )
 
-// ReadSecretFile reads the given secret file
+// ReadSecretFile TODO <agent-core>
 func ReadSecretFile(path string) s.Secret {
 	fi, err := os.Lstat(path)
 	if err != nil {

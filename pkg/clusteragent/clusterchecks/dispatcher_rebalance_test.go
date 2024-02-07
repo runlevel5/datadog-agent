@@ -1389,7 +1389,7 @@ func TestRebalance(t *testing.T) {
 			}
 
 			// rebalance checks
-			dispatcher.rebalance(false)
+			dispatcher.rebalance()
 
 			// assert runner stats repartition is updated correctly
 			for node, store := range tc.out {
@@ -1560,7 +1560,7 @@ func TestRebalanceUsingUtilization(t *testing.T) {
 		"digest2": "node1",
 	}
 
-	checksMoved := testDispatcher.rebalanceUsingUtilization(false)
+	checksMoved := testDispatcher.rebalanceUsingUtilization()
 
 	requireNotLocked(t, testDispatcher.store)
 
@@ -1592,7 +1592,7 @@ func TestRebalanceUsingUtilization(t *testing.T) {
 
 	// The next rebalance should not move anything because there were not any
 	// changes in the checks stats.
-	checksMoved = testDispatcher.rebalanceUsingUtilization(false)
+	checksMoved = testDispatcher.rebalanceUsingUtilization()
 	assert.Empty(t, checksMoved)
 }
 

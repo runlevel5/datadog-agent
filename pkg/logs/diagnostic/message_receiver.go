@@ -14,13 +14,13 @@ import (
 
 // MessageReceiver interface to handle messages for diagnostics
 type MessageReceiver interface {
-	HandleMessage(*message.Message, []byte, string)
+	HandleMessage(message.Message, string, []byte)
 }
 
 type messagePair struct {
-	msg       *message.Message
-	rendered  []byte
-	eventType string
+	msg         *message.Message
+	redactedMsg []byte
+	eventType   string
 }
 
 // BufferedMessageReceiver handles in coming log messages and makes them available for diagnostics
@@ -93,15 +93,11 @@ func (b *BufferedMessageReceiver) IsEnabled() bool {
 }
 
 // HandleMessage buffers a message for diagnostic processing
-func (b *BufferedMessageReceiver) HandleMessage(m *message.Message, rendered []byte, eventType string) {
+func (b *BufferedMessageReceiver) HandleMessage(m message.Message, eventType string, redactedMsg []byte) {
 	if !b.IsEnabled() {
 		return
 	}
-	b.inputChan <- messagePair{
-		msg:       m,
-		rendered:  rendered,
-		eventType: eventType,
-	}
+	b.inputChan <- messagePair{&m, redactedMsg, eventType}
 }
 
 // Filter writes the buffered events from the input channel formatted as a string to the output channel
@@ -113,7 +109,7 @@ func (b *BufferedMessageReceiver) Filter(filters *Filters, done <-chan struct{})
 			select {
 			case msgPair := <-b.inputChan:
 				if shouldHandleMessage(&msgPair, filters) {
-					out <- b.formatter.Format(msgPair.msg, msgPair.eventType, msgPair.rendered)
+					out <- b.formatter.Format(msgPair.msg, msgPair.eventType, msgPair.redactedMsg)
 				}
 			case <-done:
 				return

@@ -13,8 +13,12 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
+func getFamilyAddress(config *config.RuntimeSecurityConfig) (string, string) {
+	return "tcp", config.SocketPath
+}
+
 // UpdateEventMonitorOpts adapt the event monitor option
-func UpdateEventMonitorOpts(opts *eventmonitor.Opts, config *config.Config) { //nolint:revive // TODO fix revive unused-parameter
+func UpdateEventMonitorOpts(opts *eventmonitor.Opts, config *config.Config) {
 	if config.RuntimeSecurity.RemoteConfigurationEnabled {
 		log.Info("remote-configuration is not supported for CWS on this platform")
 		// force disabling RC on non linux platform
@@ -23,9 +27,9 @@ func UpdateEventMonitorOpts(opts *eventmonitor.Opts, config *config.Config) { //
 }
 
 // DisableRuntimeSecurity disables all the runtime security features
-func DisableRuntimeSecurity(config *config.Config) {} //nolint:revive // TODO fix revive unused-parameter
+func DisableRuntimeSecurity(config *config.Config) {}
 
 // platform specific init function
-func (c *CWSConsumer) init(evm *eventmonitor.EventMonitor, config *config.RuntimeSecurityConfig, opts Opts) error { //nolint:revive // TODO fix revive unused-parameter
+func (c *CWSConsumer) init(evm *eventmonitor.EventMonitor, config *config.RuntimeSecurityConfig, opts Opts) error {
 	return nil
 }

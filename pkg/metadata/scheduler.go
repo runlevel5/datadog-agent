@@ -10,8 +10,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 
+	"github.com/DataDog/datadog-agent/cmd/agent/common/signals"
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 )
@@ -21,7 +23,8 @@ var catalog = make(map[string]Collector)
 
 var (
 	// For testing purposes
-	newTimer = time.NewTimer
+	newTimer                 = time.NewTimer
+	enableFirstRunCollection = true
 )
 
 type scheduledCollector struct {
@@ -43,6 +46,13 @@ func NewScheduler(demux aggregator.Demultiplexer) *Scheduler {
 	scheduler := &Scheduler{
 		demux:      demux,
 		collectors: make(map[string]*scheduledCollector),
+	}
+
+	if enableFirstRunCollection && config.Datadog.GetBool("enable_metadata_collection") {
+		err := scheduler.firstRun()
+		if err != nil {
+			log.Errorf("Unable to send host metadata at first run: %v", err)
+		}
 	}
 
 	scheduler.context, scheduler.contextCancel = context.WithCancel(context.Background())
@@ -138,6 +148,16 @@ func (c *Scheduler) TriggerAndResetCollectorTimer(name string, delay time.Durati
 	}
 
 	sc.sendTimer.Reset(delay)
+}
+
+// Always send host metadata at the first run
+func (c *Scheduler) firstRun() error {
+	p, found := catalog["host"]
+	if !found {
+		log.Error("Unable to find 'host' metadata collector in the catalog!")
+		signals.ErrorStopper <- true
+	}
+	return p.Send(context.TODO(), c.demux.Serializer())
 }
 
 // RegisterCollector adds a Metadata Collector to the catalog

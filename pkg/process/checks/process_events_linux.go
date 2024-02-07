@@ -24,7 +24,7 @@ import (
 )
 
 // NewProcessEventsCheck returns an instance of the ProcessEventsCheck.
-func NewProcessEventsCheck(config ddconfig.Reader) *ProcessEventsCheck {
+func NewProcessEventsCheck(config ddconfig.ConfigReader) *ProcessEventsCheck {
 	return &ProcessEventsCheck{
 		config: config,
 	}
@@ -34,7 +34,7 @@ func NewProcessEventsCheck(config ddconfig.Reader) *ProcessEventsCheck {
 type ProcessEventsCheck struct {
 	initMutex sync.Mutex
 
-	config ddconfig.Reader
+	config ddconfig.ConfigReader
 
 	store    events.Store
 	listener *events.SysProbeListener
@@ -44,7 +44,7 @@ type ProcessEventsCheck struct {
 }
 
 // Init initializes the ProcessEventsCheck.
-func (e *ProcessEventsCheck) Init(_ *SysProbeConfig, info *HostInfo, _ bool) error {
+func (e *ProcessEventsCheck) Init(_ *SysProbeConfig, info *HostInfo) error {
 	e.initMutex.Lock()
 	defer e.initMutex.Unlock()
 

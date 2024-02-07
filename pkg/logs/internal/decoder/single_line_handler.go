@@ -44,25 +44,21 @@ func (h *SingleLineHandler) process(message *message.Message) {
 	isTruncated := h.shouldTruncate
 	h.shouldTruncate = false
 
-	content := message.GetContent()
-	content = bytes.TrimSpace(content)
+	message.Content = bytes.TrimSpace(message.Content)
 
 	if isTruncated {
 		// the previous line has been truncated because it was too long,
 		// the new line is just a remainder,
 		// adding the truncated flag at the beginning of the content
-		content = append(truncatedFlag, content...)
+		message.Content = append(truncatedFlag, message.Content...)
 	}
 
-	// how should we detect logs which are too long before rendering them?
-	if len(content) < h.lineLimit {
-		message.SetContent(content) // refresh the content in the message
+	if len(message.Content) < h.lineLimit {
 		h.outputFn(message)
 	} else {
 		// the line is too long, it needs to be cut off and send,
 		// adding the truncated flag the end of the content
-		content = append(content, truncatedFlag...)
-		message.SetContent(content) // refresh the content in the message
+		message.Content = append(message.Content, truncatedFlag...)
 		h.outputFn(message)
 		// make sure the following part of the line will be cut off as well
 		h.shouldTruncate = true

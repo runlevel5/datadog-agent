@@ -30,7 +30,6 @@ const (
 )
 
 type service struct {
-	servicemain.DefaultSettings
 	globalParams *command.GlobalParams
 }
 

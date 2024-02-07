@@ -11,19 +11,12 @@ from .pipeline import update_circleci_config, update_gitlab_config
 GO_VERSION_FILE = "./.go-version"
 
 
-@task
-def go_version(_):
-    current_version = _get_repo_go_version()
-    print(current_version)
-
-
 @task(
     help={
         "version": "The version of Go to use",
         "image_tag": "Tag from buildimages with format v<build_id>_<commit_id>",
         "test_version": "Whether the image is a test image or not",
         "warn": "Don't exit in case of matching error, just warn.",
-        "release_note": "Whether to create a release note or not. The default behaviour is to create a release note",
     }
 )
 def update_go(
@@ -32,7 +25,6 @@ def update_go(
     image_tag: str,
     test_version: Optional[bool] = False,
     warn: Optional[bool] = False,
-    release_note: Optional[bool] = True,
 ):
     """
     Updates the version of Go and build images.
@@ -86,11 +78,10 @@ def update_go(
             )
         )
 
-    if release_note:
-        releasenote_path = _create_releasenote(ctx, version)
-        print(
-            f"A default release note was created at {releasenote_path}, edit it if necessary, for example to list CVEs it fixes."
-        )
+    releasenote_path = _create_releasenote(ctx, version)
+    print(
+        f"A default release note was created at {releasenote_path}, edit it if necessary, for example to list CVEs it fixes."
+    )
     if major_update:
         # Examples of major updates with long descriptions:
         # releasenotes/notes/go1.16.7-4ec8477608022a26.yaml

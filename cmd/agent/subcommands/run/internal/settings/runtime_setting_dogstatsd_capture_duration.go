@@ -9,18 +9,19 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/config"
-	"github.com/DataDog/datadog-agent/pkg/config/model"
+	pkgsettings "github.com/DataDog/datadog-agent/pkg/config/settings"
 )
 
 // DsdCaptureDurationRuntimeSetting wraps operations to change the duration, in seconds, of traffic captures
 type DsdCaptureDurationRuntimeSetting struct {
-	value string
+	value  string
+	source pkgsettings.Source
 }
 
 func NewDsdCaptureDurationRuntimeSetting(value string) *DsdCaptureDurationRuntimeSetting {
 	return &DsdCaptureDurationRuntimeSetting{
-		value: value,
+		value:  value,
+		source: pkgsettings.SourceDefault,
 	}
 }
 
@@ -46,7 +47,7 @@ func (l *DsdCaptureDurationRuntimeSetting) Get() (interface{}, error) {
 }
 
 // Set changes the value of the runtime setting
-func (l *DsdCaptureDurationRuntimeSetting) Set(v interface{}, source model.Source) error {
+func (l *DsdCaptureDurationRuntimeSetting) Set(v interface{}, source pkgsettings.Source) error {
 	var err error
 
 	s, ok := v.(string)
@@ -61,6 +62,10 @@ func (l *DsdCaptureDurationRuntimeSetting) Set(v interface{}, source model.Sourc
 
 	// TODO
 	// common.DSD.Capture.SetDuration(d)
-	config.Datadog.Set(l.value, s, source)
+	l.source = source
 	return nil
+}
+
+func (l *DsdCaptureDurationRuntimeSetting) GetSource() pkgsettings.Source {
+	return l.source
 }

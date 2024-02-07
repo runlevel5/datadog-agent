@@ -18,30 +18,30 @@ import (
 type LogsConfigKeys struct {
 	prefix       string
 	vectorPrefix string
-	config       coreConfig.Reader
+	config       coreConfig.ConfigReader
 }
 
 // defaultLogsConfigKeys defines the default YAML keys used to retrieve logs configuration
-func defaultLogsConfigKeys(config coreConfig.Reader) *LogsConfigKeys {
+func defaultLogsConfigKeys(config coreConfig.ConfigReader) *LogsConfigKeys {
 	return NewLogsConfigKeys("logs_config.", config)
 }
 
 // defaultLogsConfigKeys defines the default YAML keys used to retrieve logs configuration
-func defaultLogsConfigKeysWithVectorOverride(config coreConfig.Reader) *LogsConfigKeys {
+func defaultLogsConfigKeysWithVectorOverride(config coreConfig.ConfigReader) *LogsConfigKeys {
 	return NewLogsConfigKeysWithVector("logs_config.", "logs.", config)
 }
 
 // NewLogsConfigKeys returns a new logs configuration keys set
-func NewLogsConfigKeys(configPrefix string, config coreConfig.Reader) *LogsConfigKeys {
+func NewLogsConfigKeys(configPrefix string, config coreConfig.ConfigReader) *LogsConfigKeys {
 	return &LogsConfigKeys{prefix: configPrefix, vectorPrefix: "", config: config}
 }
 
 // NewLogsConfigKeysWithVector returns a new logs configuration keys set with vector config keys enabled
-func NewLogsConfigKeysWithVector(configPrefix, vectorPrefix string, config coreConfig.Reader) *LogsConfigKeys {
+func NewLogsConfigKeysWithVector(configPrefix, vectorPrefix string, config coreConfig.ConfigReader) *LogsConfigKeys {
 	return &LogsConfigKeys{prefix: configPrefix, vectorPrefix: vectorPrefix, config: config}
 }
 
-func (l *LogsConfigKeys) getConfig() coreConfig.Reader {
+func (l *LogsConfigKeys) getConfig() coreConfig.ConfigReader {
 	return l.config
 }
 
@@ -49,7 +49,7 @@ func (l *LogsConfigKeys) getConfigKey(key string) string {
 	return l.prefix + key
 }
 
-func isSetAndNotEmpty(config coreConfig.Reader, key string) bool {
+func isSetAndNotEmpty(config coreConfig.ConfigReader, key string) bool {
 	return config.IsSet(key) && len(config.GetString(key)) > 0
 }
 

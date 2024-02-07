@@ -18,10 +18,10 @@ import (
 )
 
 // NewProcessDiscoveryCheck returns an instance of the ProcessDiscoveryCheck.
-func NewProcessDiscoveryCheck(config ddconfig.Reader) *ProcessDiscoveryCheck {
+func NewProcessDiscoveryCheck(config ddconfig.ConfigReader) *ProcessDiscoveryCheck {
 	return &ProcessDiscoveryCheck{
 		config:    config,
-		userProbe: NewLookupIDProbe(config),
+		userProbe: NewLookupIdProbe(config),
 	}
 }
 
@@ -29,7 +29,7 @@ func NewProcessDiscoveryCheck(config ddconfig.Reader) *ProcessDiscoveryCheck {
 // It uses its own ProcessDiscovery payload.
 // The goal of this check is to collect information about possible integrations that may be enabled by the end user.
 type ProcessDiscoveryCheck struct {
-	config ddconfig.Reader
+	config ddconfig.ConfigReader
 
 	probe      procutil.Probe
 	userProbe  *LookupIdProbe
@@ -40,7 +40,7 @@ type ProcessDiscoveryCheck struct {
 }
 
 // Init initializes the ProcessDiscoveryCheck. It is a runtime error to call Run without first having called Init.
-func (d *ProcessDiscoveryCheck) Init(syscfg *SysProbeConfig, info *HostInfo, _ bool) error {
+func (d *ProcessDiscoveryCheck) Init(syscfg *SysProbeConfig, info *HostInfo) error {
 	d.info = info
 	d.initCalled = true
 	d.probe = newProcessProbe(d.config, procutil.WithPermission(syscfg.ProcessModuleEnabled))

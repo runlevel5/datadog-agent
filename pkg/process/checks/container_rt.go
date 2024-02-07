@@ -21,7 +21,7 @@ const (
 )
 
 // NewRTContainerCheck returns an instance of the RTContainerCheck.
-func NewRTContainerCheck(config ddconfig.Reader) *RTContainerCheck {
+func NewRTContainerCheck(config ddconfig.ConfigReader) *RTContainerCheck {
 	return &RTContainerCheck{
 		config: config,
 	}
@@ -33,11 +33,11 @@ type RTContainerCheck struct {
 	hostInfo          *HostInfo
 	containerProvider proccontainers.ContainerProvider
 	lastRates         map[string]*proccontainers.ContainerRateMetrics
-	config            ddconfig.Reader
+	config            ddconfig.ConfigReader
 }
 
 // Init initializes a RTContainerCheck instance.
-func (r *RTContainerCheck) Init(_ *SysProbeConfig, hostInfo *HostInfo, _ bool) error {
+func (r *RTContainerCheck) Init(_ *SysProbeConfig, hostInfo *HostInfo) error {
 	r.maxBatchSize = getMaxBatchSize(r.config)
 	r.hostInfo = hostInfo
 	r.containerProvider = proccontainers.GetSharedContainerProvider()
@@ -134,7 +134,6 @@ func convertToContainerStat(container *model.Container) *model.ContainerStat {
 		TotalPct:     container.TotalPct,
 		CpuUsageNs:   container.CpuUsageNs,
 		CpuLimit:     container.CpuLimit,
-		CpuRequest:   container.CpuRequest,
 		MemUsage:     container.MemUsage,
 		MemRss:       container.MemRss,
 		MemCache:     container.MemCache,

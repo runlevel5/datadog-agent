@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
-	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
+	coreConfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/logs/client"
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
 	"github.com/DataDog/datadog-agent/pkg/logs/metrics"
@@ -112,13 +112,20 @@ func newDestination(endpoint config.Endpoint,
 	if maxConcurrentBackgroundSends <= 0 {
 		maxConcurrentBackgroundSends = 1
 	}
-	policy := backoff.NewExpBackoffPolicy(
-		endpoint.BackoffFactor,
-		endpoint.BackoffBase,
-		endpoint.BackoffMax,
-		endpoint.RecoveryInterval,
-		endpoint.RecoveryReset,
-	)
+	var policy backoff.Policy
+	if endpoint.Origin == config.ServerlessIntakeOrigin {
+		policy = backoff.NewConstantBackoffPolicy(
+			coreConfig.Datadog.GetDuration("serverless.constant_backoff_interval"),
+		)
+	} else {
+		policy = backoff.NewExpBackoffPolicy(
+			endpoint.BackoffFactor,
+			endpoint.BackoffBase,
+			endpoint.BackoffMax,
+			endpoint.RecoveryInterval,
+			endpoint.RecoveryReset,
+		)
+	}
 
 	expVars := &expvar.Map{}
 	expVars.AddFloat(expVarIdleMsMapKey, 0)
@@ -347,7 +354,7 @@ func httpClientFactory(timeout time.Duration) func() *http.Client {
 		return &http.Client{
 			Timeout: timeout,
 			// reusing core agent HTTP transport to benefit from proxy settings.
-			Transport: httputils.CreateHTTPTransport(pkgconfig.Datadog),
+			Transport: httputils.CreateHTTPTransport(),
 		}
 	}
 }

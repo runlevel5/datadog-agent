@@ -7,21 +7,19 @@ package settings
 
 import (
 	"github.com/DataDog/datadog-agent/pkg/config"
-	pkgconfiglogs "github.com/DataDog/datadog-agent/pkg/config/logs"
-	"github.com/DataDog/datadog-agent/pkg/config/model"
 	"github.com/DataDog/datadog-agent/pkg/metadata/inventories"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 // LogLevelRuntimeSetting wraps operations to change log level at runtime.
 type LogLevelRuntimeSetting struct {
-	Config    config.ReaderWriter
+	Config    config.ConfigReaderWriter
 	ConfigKey string
+	source    Source
 }
 
-// NewLogLevelRuntimeSetting returns a new LogLevelRuntimeSetting
 func NewLogLevelRuntimeSetting() *LogLevelRuntimeSetting {
-	return &LogLevelRuntimeSetting{ConfigKey: "log_level"}
+	return &LogLevelRuntimeSetting{source: SourceDefault}
 }
 
 // Description returns the runtime setting's description
@@ -36,7 +34,7 @@ func (l *LogLevelRuntimeSetting) Hidden() bool {
 
 // Name returns the name of the runtime setting
 func (l *LogLevelRuntimeSetting) Name() string {
-	return l.ConfigKey
+	return "log_level"
 }
 
 // Get returns the current value of the runtime setting
@@ -48,24 +46,30 @@ func (l *LogLevelRuntimeSetting) Get() (interface{}, error) {
 	return level.String(), nil
 }
 
+func (l *LogLevelRuntimeSetting) GetSource() Source {
+	return l.source
+}
+
 // Set changes the value of the runtime setting
-func (l *LogLevelRuntimeSetting) Set(v interface{}, source model.Source) error {
+func (l *LogLevelRuntimeSetting) Set(v interface{}, source Source) error {
 	level := v.(string)
 
-	err := pkgconfiglogs.ChangeLogLevel(level)
+	err := config.ChangeLogLevel(level)
 	if err != nil {
 		return err
 	}
+
+	l.source = source
 
 	key := "log_level"
 	if l.ConfigKey != "" {
 		key = l.ConfigKey
 	}
-	var cfg config.ReaderWriter = config.Datadog
+	var cfg config.ConfigReaderWriter = config.Datadog
 	if l.Config != nil {
 		cfg = l.Config
 	}
-	cfg.Set(key, level, source)
+	cfg.Set(key, level)
 	// we trigger a new inventory metadata payload since the configuration was updated by the user.
 	inventories.Refresh()
 	return nil

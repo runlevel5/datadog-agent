@@ -66,7 +66,7 @@ type provides struct {
 	fx.Out
 
 	// [...]
-	FlareProvider flaretypes.Provider // Your component will provides a new Provider
+	FlareProvider flaretypes.Provider // Your component will provides a new FlareProvider
 	// [...]
 }
 
@@ -74,7 +74,7 @@ func newComponent(deps dependencies) (provides, error) {
 	// [...]
 	return provides{
 		// [...]
-		FlareProvider: flaretypes.NewProvider(myComponent.fillFlare), // NewProvider will wrap your callback in order to be use as a 'Provider'
+		FlareProvider: flaretypes.NewProvider(myComponent.fillFlare), // NewProvider will wrap your callback in order to be use as a 'FlareProvider'
 		// [...]
 	}, nil
 }

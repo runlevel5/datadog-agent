@@ -1,8 +1,7 @@
 [
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.billed_duration",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -22,12 +21,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.billed_duration",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -47,12 +46,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.duration",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -72,12 +71,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.duration",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -97,12 +96,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.errors",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -124,12 +123,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.errors",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -151,12 +150,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.estimated_cost",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -176,12 +175,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.estimated_cost",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -201,12 +200,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.init_duration",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -226,12 +225,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.invocations",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -252,12 +251,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.invocations",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -278,12 +277,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.max_memory_used",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -303,12 +302,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.max_memory_used",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -328,12 +327,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.memorysize",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -353,12 +352,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.memorysize",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -378,12 +377,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.post_runtime_duration",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -403,12 +402,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.post_runtime_duration",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -428,12 +427,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.produced_bytes",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -453,12 +452,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.produced_bytes",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -478,12 +477,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.response_duration",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -503,12 +502,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.response_duration",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -528,12 +527,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.response_latency",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -553,12 +552,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.response_latency",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -578,12 +577,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.runtime_duration",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -603,12 +602,12 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   },
   {
-    "distributions": null,
-    "dogsketches": [],
     "metric": "aws.lambda.enhanced.runtime_duration",
+    "distributions": null,
     "tags": [
       "account_id:425362996713",
       "architecture:XXX",
@@ -628,6 +627,7 @@
       "tagc:valuec",
       "tagd:valued",
       "version:integration-tests-version"
-    ]
+    ],
+    "dogsketches": []
   }
 ]

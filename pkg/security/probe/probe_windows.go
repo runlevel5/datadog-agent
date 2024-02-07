@@ -51,9 +51,7 @@ func (p *Probe) Setup() error {
 }
 
 // Stop the probe
-func (p *Probe) Stop() {
-	p.pm.Stop()
-}
+func (p *Probe) Stop() {}
 
 // Start processing events
 func (p *Probe) Start() error {
@@ -219,7 +217,7 @@ func NewProbe(config *config.Config, opts Opts) (*Probe, error) {
 }
 
 // OnNewDiscarder is called when a new discarder is found. We currently don't generate discarders on Windows.
-func (p *Probe) OnNewDiscarder(rs *rules.RuleSet, ev *model.Event, field eval.Field, eventType eval.EventType) { //nolint:revive // TODO fix revive unused-parameter
+func (p *Probe) OnNewDiscarder(rs *rules.RuleSet, ev *model.Event, field eval.Field, eventType eval.EventType) {
 }
 
 // ApplyRuleSet setup the probes for the provided set of rules and returns the policy report.
@@ -232,6 +230,7 @@ func (p *Probe) FlushDiscarders() error {
 	return nil
 }
 
-// HandleActions executes the actions of a triggered rule
-func (p *Probe) HandleActions(_ *rules.Rule, _ eval.Event) {
+// RefreshUserCache refreshes the user cache
+func (p *Probe) RefreshUserCache(containerID string) error {
+	return nil
 }

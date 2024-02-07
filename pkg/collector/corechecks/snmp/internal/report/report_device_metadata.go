@@ -20,8 +20,8 @@ import (
 	devicemetadata "github.com/DataDog/datadog-agent/pkg/networkdevice/metadata"
 	"github.com/DataDog/datadog-agent/pkg/networkdevice/profile/profiledefinition"
 
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/snmp/common"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/snmp/internal/checkconfig"
-	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/snmp/internal/common"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/snmp/internal/lldp"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/snmp/internal/metadata"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/snmp/internal/valuestore"
@@ -86,32 +86,32 @@ func (ms *MetricSender) ReportNetworkDeviceMetadata(config *checkconfig.CheckCon
 	}
 }
 
-func computeInterfaceStatus(adminStatus devicemetadata.IfAdminStatus, operStatus devicemetadata.IfOperStatus) devicemetadata.InterfaceStatus {
-	if adminStatus == devicemetadata.AdminStatusUp {
+func computeInterfaceStatus(adminStatus common.IfAdminStatus, operStatus common.IfOperStatus) common.InterfaceStatus {
+	if adminStatus == common.AdminStatus_Up {
 		switch {
-		case operStatus == devicemetadata.OperStatusUp:
-			return devicemetadata.InterfaceStatusUp
-		case operStatus == devicemetadata.OperStatusDown:
-			return devicemetadata.InterfaceStatusDown
+		case operStatus == common.OperStatus_Up:
+			return common.InterfaceStatus_Up
+		case operStatus == common.OperStatus_Down:
+			return common.InterfaceStatus_Down
 		}
-		return devicemetadata.InterfaceStatusWarning
+		return common.InterfaceStatus_Warning
 	}
-	if adminStatus == devicemetadata.AdminStatusDown {
+	if adminStatus == common.AdminStatus_Down {
 		switch {
-		case operStatus == devicemetadata.OperStatusUp:
-			return devicemetadata.InterfaceStatusDown
-		case operStatus == devicemetadata.OperStatusDown:
-			return devicemetadata.InterfaceStatusOff
+		case operStatus == common.OperStatus_Up:
+			return common.InterfaceStatus_Down
+		case operStatus == common.OperStatus_Down:
+			return common.InterfaceStatus_Off
 		}
-		return devicemetadata.InterfaceStatusWarning
+		return common.InterfaceStatus_Warning
 	}
-	if adminStatus == devicemetadata.AdminStatusTesting {
+	if adminStatus == common.AdminStatus_Testing {
 		switch {
-		case operStatus != devicemetadata.OperStatusDown:
-			return devicemetadata.InterfaceStatusWarning
+		case operStatus != common.OperStatus_Down:
+			return common.InterfaceStatus_Warning
 		}
 	}
-	return devicemetadata.InterfaceStatusDown
+	return common.InterfaceStatus_Down
 }
 
 func buildMetadataStore(metadataConfigs profiledefinition.MetadataConfig, values *valuestore.ResultValueStore) *metadata.Store {
@@ -197,35 +197,26 @@ func buildNetworkDeviceMetadata(deviceID string, idTags []string, config *checkc
 	}
 
 	return devicemetadata.DeviceMetadata{
-		ID:             deviceID,
-		IDTags:         idTags,
-		Name:           sysName,
-		Description:    sysDescr,
-		IPAddress:      config.IPAddress,
-		SysObjectID:    sysObjectID,
-		Location:       location,
-		Profile:        config.Profile,
-		ProfileVersion: getProfileVersion(config),
-		Vendor:         vendor,
-		Tags:           tags,
-		Subnet:         config.ResolvedSubnetName,
-		Status:         deviceStatus,
-		SerialNumber:   serialNumber,
-		Version:        version,
-		ProductName:    productName,
-		Model:          model,
-		OsName:         osName,
-		OsVersion:      osVersion,
-		OsHostname:     osHostname,
+		ID:           deviceID,
+		IDTags:       idTags,
+		Name:         sysName,
+		Description:  sysDescr,
+		IPAddress:    config.IPAddress,
+		SysObjectID:  sysObjectID,
+		Location:     location,
+		Profile:      config.Profile,
+		Vendor:       vendor,
+		Tags:         tags,
+		Subnet:       config.ResolvedSubnetName,
+		Status:       deviceStatus,
+		SerialNumber: serialNumber,
+		Version:      version,
+		ProductName:  productName,
+		Model:        model,
+		OsName:       osName,
+		OsVersion:    osVersion,
+		OsHostname:   osHostname,
 	}
-}
-
-func getProfileVersion(config *checkconfig.CheckConfig) uint64 {
-	var profileVersion uint64
-	if config.ProfileDef != nil {
-		profileVersion = config.ProfileDef.Version
-	}
-	return profileVersion
 }
 
 func buildNetworkInterfacesMetadata(deviceID string, store *metadata.Store) []devicemetadata.InterfaceMetadata {
@@ -258,8 +249,8 @@ func buildNetworkInterfacesMetadata(deviceID string, store *metadata.Store) []de
 			Alias:       store.GetColumnAsString("interface.alias", strIndex),
 			Description: store.GetColumnAsString("interface.description", strIndex),
 			MacAddress:  store.GetColumnAsString("interface.mac_address", strIndex),
-			AdminStatus: devicemetadata.IfAdminStatus((store.GetColumnAsFloat("interface.admin_status", strIndex))),
-			OperStatus:  devicemetadata.IfOperStatus((store.GetColumnAsFloat("interface.oper_status", strIndex))),
+			AdminStatus: common.IfAdminStatus((store.GetColumnAsFloat("interface.admin_status", strIndex))),
+			OperStatus:  common.IfOperStatus((store.GetColumnAsFloat("interface.oper_status", strIndex))),
 			IDTags:      ifIDTags,
 		}
 		interfaces = append(interfaces, networkInterface)

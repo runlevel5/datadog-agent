@@ -22,8 +22,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/trace/metrics/timing"
 	"github.com/DataDog/datadog-agent/pkg/trace/traceutil"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 var bufferPool = sync.Pool{
@@ -76,14 +74,7 @@ func ConfigHandler(r *api.HTTPReceiver, client remote.ConfigUpdater, cfg *config
 		}
 		cfg, err := client.ClientGetConfigs(req.Context(), &configsRequest)
 		if err != nil {
-			if e, ok := status.FromError(err); ok {
-				switch e.Code() {
-				case codes.Unimplemented, codes.NotFound:
-					statusCode = http.StatusNotFound
-				}
-			} else {
-				statusCode = http.StatusInternalServerError
-			}
+			statusCode = http.StatusInternalServerError
 			http.Error(w, err.Error(), statusCode)
 			return
 		}

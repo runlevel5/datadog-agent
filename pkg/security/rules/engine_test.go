@@ -45,7 +45,7 @@ func TestRuleEngineGatherPolicyProviders(t *testing.T) {
 				config: tt.fields.config,
 			}
 
-			got := e.gatherDefaultPolicyProviders()
+			got := e.gatherPolicyProviders()
 
 			assert.Equal(t, tt.wantLen, len(got))
 			assert.Equal(t, tt.wantType, got[1].Type())

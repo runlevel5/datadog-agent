@@ -1,13 +1,23 @@
 [
   {
-    "app_version": "integration-tests-version",
+    "container_id": "",
+    "language_name": "",
+    "language_version": null,
+    "tracer_version": null,
+    "runtime_id": "",
     "chunks": [
       {
-        "dropped_trace": false,
-        "origin": "lambda",
         "priority": 1,
+        "origin": "lambda",
         "spans": [
           {
+            "service": "integration-tests-service",
+            "name": "aws.lambda",
+            "resource": "integration-tests-extension-XXXXXX-trace-java",
+            "trace_id": null,
+            "span_id": null,
+            "parent_id": null,
+            "start": null,
             "duration": null,
             "error": 0,
             "meta": {
@@ -38,37 +48,37 @@
               "_sampling_priority_rate_v1": 1,
               "_top_level": 1
             },
-            "name": "aws.lambda",
-            "parent_id": null,
-            "resource": "integration-tests-extension-XXXXXX-trace-java",
-            "service": "integration-tests-service",
-            "span_id": null,
-            "start": null,
-            "trace_id": null,
             "type": "serverless"
           }
         ],
-        "tags": null
+        "tags": null,
+        "dropped_trace": false
       }
     ],
-    "container_id": "",
+    "tags": null,
     "env": "integration-tests-env",
     "hostname": "",
-    "language_name": "",
-    "language_version": null,
-    "runtime_id": "",
-    "tags": null,
-    "tracer_version": null
+    "app_version": "integration-tests-version"
   },
   {
-    "app_version": "integration-tests-version",
+    "container_id": "",
+    "language_name": "",
+    "language_version": null,
+    "tracer_version": null,
+    "runtime_id": "",
     "chunks": [
       {
-        "dropped_trace": false,
-        "origin": "lambda",
         "priority": 1,
+        "origin": "lambda",
         "spans": [
           {
+            "service": "integration-tests-service",
+            "name": "aws.lambda",
+            "resource": "integration-tests-extension-XXXXXX-trace-java",
+            "trace_id": null,
+            "span_id": null,
+            "parent_id": null,
+            "start": null,
             "duration": null,
             "error": 0,
             "meta": {
@@ -99,37 +109,37 @@
               "_sampling_priority_rate_v1": 1,
               "_top_level": 1
             },
-            "name": "aws.lambda",
-            "parent_id": null,
-            "resource": "integration-tests-extension-XXXXXX-trace-java",
-            "service": "integration-tests-service",
-            "span_id": null,
-            "start": null,
-            "trace_id": null,
             "type": "serverless"
           }
         ],
-        "tags": null
+        "tags": null,
+        "dropped_trace": false
       }
     ],
-    "container_id": "",
+    "tags": null,
     "env": "integration-tests-env",
     "hostname": "",
-    "language_name": "",
-    "language_version": null,
-    "runtime_id": "",
-    "tags": null,
-    "tracer_version": null
+    "app_version": "integration-tests-version"
   },
   {
-    "app_version": "integration-tests-version",
+    "container_id": "",
+    "language_name": "",
+    "language_version": null,
+    "tracer_version": null,
+    "runtime_id": "",
     "chunks": [
       {
-        "dropped_trace": false,
-        "origin": "lambda",
         "priority": 1,
+        "origin": "lambda",
         "spans": [
           {
+            "service": "integration-tests-service",
+            "name": "aws.lambda.cold_start",
+            "resource": "integration-tests-extension-XXXXXX-trace-java",
+            "trace_id": null,
+            "span_id": null,
+            "parent_id": null,
+            "start": null,
             "duration": null,
             "error": 0,
             "meta": {
@@ -156,26 +166,16 @@
               "_sampling_priority_rate_v1": 1,
               "_top_level": 1
             },
-            "name": "aws.lambda.cold_start",
-            "parent_id": null,
-            "resource": "integration-tests-extension-XXXXXX-trace-java",
-            "service": "integration-tests-service",
-            "span_id": null,
-            "start": null,
-            "trace_id": null,
             "type": "serverless"
           }
         ],
-        "tags": null
+        "tags": null,
+        "dropped_trace": false
       }
     ],
-    "container_id": "",
+    "tags": null,
     "env": "integration-tests-env",
     "hostname": "",
-    "language_name": "",
-    "language_version": null,
-    "runtime_id": "",
-    "tags": null,
-    "tracer_version": null
+    "app_version": "integration-tests-version"
   }
 ]

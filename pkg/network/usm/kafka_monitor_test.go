@@ -11,10 +11,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols"
-	"github.com/stretchr/testify/suite"
 	"io"
 	"net"
 	nethttp "net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -77,32 +77,24 @@ func skipTestIfKernelNotSupported(t *testing.T) {
 	}
 }
 
-type KafkaProtocolParsingSuite struct {
-	suite.Suite
-	testIndex int
-}
-
-func (s *KafkaProtocolParsingSuite) getTopicName() string {
-	s.testIndex++
-	return fmt.Sprintf("%s-%d", "franz-kafka", s.testIndex)
-}
-
 func TestKafkaProtocolParsing(t *testing.T) {
-	skipTestIfKernelNotSupported(t)
-	serverHost := "127.0.0.1"
-	require.NoError(t, kafka.RunServer(t, serverHost, kafkaPort))
-
-	ebpftest.TestBuildModes(t, []ebpftest.BuildMode{ebpftest.Prebuilt, ebpftest.RuntimeCompiled, ebpftest.CORE}, "", func(t *testing.T) {
-		suite.Run(t, new(KafkaProtocolParsingSuite))
-	})
+	ebpftest.TestBuildModes(t, []ebpftest.BuildMode{ebpftest.Prebuilt, ebpftest.RuntimeCompiled, ebpftest.CORE}, "", testKafkaProtocolParsing)
 }
 
-func (s *KafkaProtocolParsingSuite) TestKafkaProtocolParsing() {
-	t := s.T()
+func testKafkaProtocolParsing(t *testing.T) {
+	skipTestIfKernelNotSupported(t)
 
 	clientHost := "localhost"
 	targetHost := "127.0.0.1"
 	serverHost := "127.0.0.1"
+
+	testIndex := 0
+	// Kafka does not allow us to delete topic, but to mark them for deletion, so we have to generate a unique topic
+	// per a test.
+	getTopicName := func() string {
+		testIndex++
+		return fmt.Sprintf("%s-%d", "franz-kafka", testIndex)
+	}
 
 	kafkaTeardown := func(t *testing.T, ctx testContext) {
 		if _, ok := ctx.extras["client"]; !ok {
@@ -110,11 +102,17 @@ func (s *KafkaProtocolParsingSuite) TestKafkaProtocolParsing() {
 		}
 		if client, ok := ctx.extras["client"].(*kafka.Client); ok {
 			defer client.Client.Close()
+			for k, value := range ctx.extras {
+				if strings.HasPrefix(k, "topic_name") {
+					_ = client.DeleteTopic(value.(string))
+				}
+			}
 		}
 	}
 
 	serverAddress := net.JoinHostPort(serverHost, kafkaPort)
 	targetAddress := net.JoinHostPort(targetHost, kafkaPort)
+	require.NoError(t, kafka.RunServer(t, serverHost, kafkaPort))
 
 	defaultDialer := &net.Dialer{
 		LocalAddr: &net.TCPAddr{
@@ -130,7 +128,7 @@ func (s *KafkaProtocolParsingSuite) TestKafkaProtocolParsing() {
 				targetAddress: targetAddress,
 				serverAddress: serverAddress,
 				extras: map[string]interface{}{
-					"topic_name": s.getTopicName(),
+					"topic_name": getTopicName(),
 				},
 			},
 			testBody: func(t *testing.T, ctx testContext, monitor *Monitor) {
@@ -180,7 +178,7 @@ func (s *KafkaProtocolParsingSuite) TestKafkaProtocolParsing() {
 				targetAddress: targetAddress,
 				serverAddress: serverAddress,
 				extras: map[string]interface{}{
-					"topic_name": s.getTopicName(),
+					"topic_name": getTopicName(),
 				},
 			},
 			testBody: func(t *testing.T, ctx testContext, monitor *Monitor) {
@@ -222,7 +220,7 @@ func (s *KafkaProtocolParsingSuite) TestKafkaProtocolParsing() {
 				targetAddress: targetAddress,
 				serverAddress: serverAddress,
 				extras: map[string]interface{}{
-					"topic_name": s.getTopicName(),
+					"topic_name": getTopicName(),
 				},
 			},
 			testBody: func(t *testing.T, ctx testContext, monitor *Monitor) {
@@ -266,7 +264,7 @@ func (s *KafkaProtocolParsingSuite) TestKafkaProtocolParsing() {
 				targetAddress: targetAddress,
 				serverAddress: serverAddress,
 				extras: map[string]interface{}{
-					"topic_name": s.getTopicName(),
+					"topic_name": getTopicName(),
 				},
 			},
 			testBody: func(t *testing.T, ctx testContext, monitor *Monitor) {
@@ -301,7 +299,7 @@ func (s *KafkaProtocolParsingSuite) TestKafkaProtocolParsing() {
 					resp, err := httpClient.Do(req)
 					require.NoError(t, err)
 					// Have to read the response body to ensure the client will be able to properly close the connection.
-					io.Copy(io.Discard, resp.Body)
+					io.ReadAll(resp.Body)
 					resp.Body.Close()
 				}
 				srvDoneFn()
@@ -361,7 +359,7 @@ func (s *KafkaProtocolParsingSuite) TestKafkaProtocolParsing() {
 				targetAddress: targetAddress,
 				serverAddress: serverAddress,
 				extras: map[string]interface{}{
-					"topic_name": s.getTopicName(),
+					"topic_name": getTopicName(),
 				},
 			},
 			testBody: func(t *testing.T, ctx testContext, monitor *Monitor) {

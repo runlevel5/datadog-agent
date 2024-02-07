@@ -31,7 +31,7 @@ func getSignalProbes(fentry bool) []*manager.Probe {
 			UID: SecurityAgentUID,
 		},
 		SyscallFuncName: "kill",
-	}, fentry, Entry)...)
+	}, fentry, Entry|SupportFentry)...)
 
 	return signalProbes
 }

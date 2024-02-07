@@ -90,7 +90,10 @@ func CopyFile(client *ssh.Client, src string, dst string) error {
 	}
 	defer sftpClient.Close()
 
-	return copyFile(sftpClient, src, dst)
+	if err := copyFile(sftpClient, src, dst); err != nil {
+		return err
+	}
+	return nil
 }
 
 // CopyFolder create a sftp session and copy a folder to remote host through SSH

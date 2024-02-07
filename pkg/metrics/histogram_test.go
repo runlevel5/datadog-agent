@@ -6,14 +6,16 @@
 package metrics
 
 import (
+	// stdlib
 	"math/rand"
-	"strings"
 	"testing"
 	"time"
 
-	pkgconfigmodel "github.com/DataDog/datadog-agent/pkg/config/model"
+	// 3p
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/DataDog/datadog-agent/pkg/config"
 )
 
 func TestHistogramConf(t *testing.T) {
@@ -27,8 +29,7 @@ func TestHistogramConfError(t *testing.T) {
 }
 
 func TestConfigureDefault(t *testing.T) {
-	cfg := setupConfig()
-	hist := NewHistogram(10, cfg)
+	hist := NewHistogram(10)
 	hist.addSample(&MetricSample{Value: 1}, 50)
 	hist.addSample(&MetricSample{Value: 2}, 55)
 
@@ -39,26 +40,31 @@ func TestConfigureDefault(t *testing.T) {
 }
 
 func TestConfigure(t *testing.T) {
-	mockConfig := pkgconfigmodel.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
+	mockConfig := config.Mock(t)
+
+	aggregatesBk := config.Datadog.GetStringSlice("histogram_aggregates")
+	percentilesBk := config.Datadog.GetStringSlice("histogram_percentiles")
+	defer func() {
+		mockConfig.Set("histogram_aggregates", aggregatesBk)
+		mockConfig.Set("histogram_percentiles", percentilesBk)
+		defaultAggregates = nil
+		defaultPercentiles = nil
+	}()
 
 	defaultAggregates = nil
 	defaultPercentiles = nil
 	aggregates := []string{"max", "min", "test"}
-	mockConfig.SetWithoutSource("histogram_aggregates", aggregates)
-	mockConfig.SetWithoutSource("histogram_percentiles", []string{"0.50", "0.30", "0.98"})
+	mockConfig.Set("histogram_aggregates", aggregates)
+	mockConfig.Set("histogram_percentiles", []string{"0.50", "0.30", "0.98"})
 
-	hist := NewHistogram(10, mockConfig)
+	hist := NewHistogram(10)
 	assert.Equal(t, aggregates, hist.aggregates)
 	assert.Equal(t, []int{30, 50, 98}, hist.percentiles)
 }
 
 func TestDefaultHistogramSampling(t *testing.T) {
 	// Initialize default histogram
-	cfg := setupConfig()
-
-	defaultAggregates = nil
-	defaultPercentiles = nil
-	mHistogram := NewHistogram(10, cfg)
+	mHistogram := NewHistogram(10)
 
 	// Empty flush
 	_, err := mHistogram.flush(50)
@@ -97,8 +103,7 @@ func TestDefaultHistogramSampling(t *testing.T) {
 
 func TestCustomHistogramSampling(t *testing.T) {
 	// Initialize custom histogram, with an invalid aggregate
-	cfg := setupConfig()
-	mHistogram := NewHistogram(10, cfg)
+	mHistogram := NewHistogram(10)
 	mHistogram.configure([]string{"min", "sum", "invalid"}, []int{})
 
 	// Empty flush
@@ -143,8 +148,7 @@ func shuffle(slice []float64) {
 
 func TestHistogramPercentiles(t *testing.T) {
 	// Initialize custom histogram
-	cfg := setupConfig()
-	mHistogram := NewHistogram(10, cfg)
+	mHistogram := NewHistogram(10)
 	mHistogram.configure([]string{"max", "median", "avg", "count", "min"}, []int{95, 80})
 
 	// Empty flush
@@ -192,8 +196,7 @@ func TestHistogramPercentiles(t *testing.T) {
 }
 
 func TestHistogramSampleRate(t *testing.T) {
-	cfg := setupConfig()
-	mHistogram := NewHistogram(10, cfg)
+	mHistogram := NewHistogram(10)
 	mHistogram.configure([]string{"max", "min", "median", "avg", "sum", "count"}, []int{20, 95, 80})
 
 	mHistogram.addSample(&MetricSample{Value: 1}, 50)
@@ -233,8 +236,7 @@ func TestHistogramSampleRate(t *testing.T) {
 }
 
 func TestHistogramReset(t *testing.T) {
-	cfg := setupConfig()
-	mHistogram := NewHistogram(10, cfg)
+	mHistogram := NewHistogram(10)
 	mHistogram.configure([]string{"max", "min", "median", "avg", "sum", "count"}, []int{20, 95, 80})
 
 	mHistogram.addSample(&MetricSample{Value: 1}, 50)
@@ -279,9 +281,8 @@ func TestHistogramReset(t *testing.T) {
 //
 
 func benchHistogram(b *testing.B, number int, sampleRate float64) {
-	cfg := setupConfig()
 	for n := 0; n < b.N; n++ {
-		h := NewHistogram(1, cfg)
+		h := NewHistogram(1)
 		h.configure([]string{"max", "min", "median", "avg", "sum", "count"}, []int{20, 95, 80})
 		m := MetricSample{Value: 21, SampleRate: sampleRate}
 

@@ -8,6 +8,7 @@ package metrics
 import (
 	"sync"
 
+	"github.com/DataDog/datadog-agent/pkg/config/utils"
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 )
 
@@ -34,7 +35,7 @@ type MetricSamplePool struct {
 }
 
 // NewMetricSamplePool creates a new MetricSamplePool
-func NewMetricSamplePool(batchSize int, isTelemetryEnabled bool) *MetricSamplePool {
+func NewMetricSamplePool(batchSize int) *MetricSamplePool {
 	return &MetricSamplePool{
 		pool: &sync.Pool{
 			New: func() interface{} {
@@ -42,7 +43,7 @@ func NewMetricSamplePool(batchSize int, isTelemetryEnabled bool) *MetricSamplePo
 			},
 		},
 		// telemetry
-		tlmEnabled: isTelemetryEnabled,
+		tlmEnabled: utils.IsTelemetryEnabled(),
 	}
 }
 

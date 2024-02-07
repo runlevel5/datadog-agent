@@ -266,8 +266,8 @@ func (at *ActivityTree) isEventValid(event *model.Event, dryRun bool) (bool, err
 }
 
 // Insert inserts the event in the activity tree
-func (at *ActivityTree) Insert(event *model.Event, insertMissingProcesses bool, generationType NodeGenerationType, resolvers *resolvers.Resolvers) (bool, error) {
-	newEntry, err := at.insertEvent(event, false /* !dryRun */, insertMissingProcesses, generationType, resolvers)
+func (at *ActivityTree) Insert(event *model.Event, generationType NodeGenerationType, resolvers *resolvers.Resolvers) (bool, error) {
+	newEntry, err := at.insertEvent(event, false, generationType, resolvers)
 	if newEntry {
 		// this doesn't count the exec events which are counted separately
 		at.Stats.addedCount[event.GetEventType()][generationType].Inc()
@@ -276,13 +276,13 @@ func (at *ActivityTree) Insert(event *model.Event, insertMissingProcesses bool, 
 }
 
 // Contains looks up the event in the activity tree
-func (at *ActivityTree) Contains(event *model.Event, insertMissingProcesses bool, generationType NodeGenerationType, resolvers *resolvers.Resolvers) (bool, error) {
-	newEntry, err := at.insertEvent(event, true /* dryRun */, insertMissingProcesses, generationType, resolvers)
+func (at *ActivityTree) Contains(event *model.Event, generationType NodeGenerationType, resolvers *resolvers.Resolvers) (bool, error) {
+	newEntry, err := at.insertEvent(event, true, generationType, resolvers)
 	return !newEntry, err
 }
 
 // insert inserts the event in the activity tree, returns true if the event generated a new entry in the tree
-func (at *ActivityTree) insertEvent(event *model.Event, dryRun bool, insertMissingProcesses bool, generationType NodeGenerationType, resolvers *resolvers.Resolvers) (bool, error) {
+func (at *ActivityTree) insertEvent(event *model.Event, dryRun bool, generationType NodeGenerationType, resolvers *resolvers.Resolvers) (bool, error) {
 	// sanity check
 	if generationType == Unknown || generationType > MaxNodeGenerationType {
 		return false, fmt.Errorf("invalid generation type: %v", generationType)
@@ -293,15 +293,14 @@ func (at *ActivityTree) insertEvent(event *model.Event, dryRun bool, insertMissi
 		return false, fmt.Errorf("invalid event: %s", err)
 	}
 
-	// Next we'll call CreateProcessNode, which will retrieve the process node if already present, or create a new one (with all its lineage if needed).
-	node, newProcessNode, err := at.CreateProcessNode(event.ProcessCacheEntry, generationType, !insertMissingProcesses /*dryRun*/, resolvers)
+	node, newProcessNode, err := at.CreateProcessNode(event.ProcessCacheEntry, generationType, dryRun, resolvers)
 	if err != nil {
 		return false, err
 	}
-	if newProcessNode && !insertMissingProcesses {
-		// the event insertion can't be done because there was missing process nodes for the related event we want to insert
+	if newProcessNode && dryRun {
 		return true, nil
-	} else if node == nil {
+	}
+	if node == nil {
 		// a process node couldn't be found or created for this event, ignore it
 		return false, errors.New("a process node couldn't be found or created for this event")
 	}

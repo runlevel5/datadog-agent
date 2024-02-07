@@ -270,7 +270,7 @@ func newRCBackendOrgUUIDProvider(http api.API) uptane.OrgUUIDProvider {
 }
 
 // Start the remote configuration management service
-func (s *Service) Start(ctx context.Context) {
+func (s *Service) Start(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	s.cancel = cancel
 	go func() {
@@ -324,6 +324,7 @@ func (s *Service) Start(ctx context.Context) {
 			}
 		}
 	}()
+	return nil
 }
 
 func (s *Service) Stop() error {

@@ -10,6 +10,7 @@ package python
 import (
 	"testing"
 
+	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	checkid "github.com/DataDog/datadog-agent/pkg/collector/check/id"
@@ -21,10 +22,10 @@ import (
 import "C"
 
 func testSubmitMetric(t *testing.T) {
-	sender := mocksender.NewMockSender(checkid.ID("testID"))
-	release := scopeInitCheckContext(sender.GetSenderManager())
+	release := scopeInitCheckContext(aggregator.GetSenderManager())
 	defer release()
 
+	sender := mocksender.NewMockSender(checkid.ID("testID"))
 	sender.SetupAcceptAll()
 
 	cTags := []*C.char{C.CString("tag1"), C.CString("tag2"), nil}
@@ -96,10 +97,10 @@ func testSubmitMetric(t *testing.T) {
 }
 
 func testSubmitMetricEmptyTags(t *testing.T) {
-	sender := mocksender.NewMockSender(checkid.ID("testID"))
-	release := scopeInitCheckContext(sender.GetSenderManager())
+	release := scopeInitCheckContext(aggregator.GetSenderManager())
 	defer release()
 
+	sender := mocksender.NewMockSender(checkid.ID("testID"))
 	sender.SetupAcceptAll()
 
 	cTags := []*C.char{nil}
@@ -115,10 +116,10 @@ func testSubmitMetricEmptyTags(t *testing.T) {
 }
 
 func testSubmitMetricEmptyHostname(t *testing.T) {
-	sender := mocksender.NewMockSender(checkid.ID("testID"))
-	release := scopeInitCheckContext(sender.GetSenderManager())
+	release := scopeInitCheckContext(aggregator.GetSenderManager())
 	defer release()
 
+	sender := mocksender.NewMockSender(checkid.ID("testID"))
 	sender.SetupAcceptAll()
 
 	cTags := []*C.char{nil}
@@ -134,10 +135,10 @@ func testSubmitMetricEmptyHostname(t *testing.T) {
 }
 
 func testSubmitServiceCheck(t *testing.T) {
-	sender := mocksender.NewMockSender(checkid.ID("testID"))
-	release := scopeInitCheckContext(sender.GetSenderManager())
+	release := scopeInitCheckContext(aggregator.GetSenderManager())
 	defer release()
 
+	sender := mocksender.NewMockSender(checkid.ID("testID"))
 	sender.SetupAcceptAll()
 
 	cTags := []*C.char{C.CString("tag1"), C.CString("tag2"), nil}
@@ -152,10 +153,10 @@ func testSubmitServiceCheck(t *testing.T) {
 }
 
 func testSubmitServiceCheckEmptyTag(t *testing.T) {
-	sender := mocksender.NewMockSender(checkid.ID("testID"))
-	release := scopeInitCheckContext(sender.GetSenderManager())
+	release := scopeInitCheckContext(aggregator.GetSenderManager())
 	defer release()
 
+	sender := mocksender.NewMockSender(checkid.ID("testID"))
 	sender.SetupAcceptAll()
 
 	cTags := []*C.char{nil}
@@ -170,10 +171,10 @@ func testSubmitServiceCheckEmptyTag(t *testing.T) {
 }
 
 func testSubmitServiceCheckEmptyHostame(t *testing.T) {
-	sender := mocksender.NewMockSender(checkid.ID("testID"))
-	release := scopeInitCheckContext(sender.GetSenderManager())
+	release := scopeInitCheckContext(aggregator.GetSenderManager())
 	defer release()
 
+	sender := mocksender.NewMockSender(checkid.ID("testID"))
 	sender.SetupAcceptAll()
 
 	cTags := []*C.char{nil}
@@ -188,10 +189,10 @@ func testSubmitServiceCheckEmptyHostame(t *testing.T) {
 }
 
 func testSubmitEvent(t *testing.T) {
-	sender := mocksender.NewMockSender(checkid.ID("testID"))
-	release := scopeInitCheckContext(sender.GetSenderManager())
+	release := scopeInitCheckContext(aggregator.GetSenderManager())
 	defer release()
 
+	sender := mocksender.NewMockSender(checkid.ID("testID"))
 	sender.SetupAcceptAll()
 
 	ev := C.event_t{}
@@ -224,10 +225,10 @@ func testSubmitEvent(t *testing.T) {
 }
 
 func testSubmitHistogramBucket(t *testing.T) {
-	sender := mocksender.NewMockSender(checkid.ID("testID"))
-	release := scopeInitCheckContext(sender.GetSenderManager())
+	release := scopeInitCheckContext(aggregator.GetSenderManager())
 	defer release()
 
+	sender := mocksender.NewMockSender(checkid.ID("testID"))
 	sender.SetupAcceptAll()
 
 	cTags := []*C.char{C.CString("tag1"), C.CString("tag2"), nil}
@@ -247,10 +248,10 @@ func testSubmitHistogramBucket(t *testing.T) {
 }
 
 func testSubmitEventPlatformEvent(t *testing.T) {
-	sender := mocksender.NewMockSender("testID")
-	release := scopeInitCheckContext(sender.GetSenderManager())
+	release := scopeInitCheckContext(aggregator.GetSenderManager())
 	defer release()
 
+	sender := mocksender.NewMockSender("testID")
 	sender.SetupAcceptAll()
 	SubmitEventPlatformEvent(
 		C.CString("testID"),

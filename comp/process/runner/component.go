@@ -9,8 +9,11 @@ package runner
 import (
 	"context"
 
+	"go.uber.org/fx"
+
 	"github.com/DataDog/datadog-agent/comp/process/types"
 	"github.com/DataDog/datadog-agent/pkg/process/checks"
+	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
 // team: processes
@@ -21,3 +24,8 @@ type Component interface {
 	GetProvidedChecks() []types.CheckComponent
 	Run(ctx context.Context) error
 }
+
+// Module defines the fx options for this component.
+var Module = fxutil.Component(
+	fx.Provide(newRunner),
+)

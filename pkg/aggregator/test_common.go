@@ -8,8 +8,6 @@
 package aggregator
 
 import (
-	"errors"
-
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
@@ -20,16 +18,6 @@ import (
 // PeekSender returns a Sender with passed ID or an error if the sender is not registered
 func (s *senders) PeekSender(cid checkid.ID) (sender.Sender, error) {
 	return s.senderPool.getSender(cid)
-}
-
-// PeekSender returns a Sender with passed ID or an error if the sender is not registered
-func (d *AgentDemultiplexer) PeekSender(cid checkid.ID) (sender.Sender, error) {
-	d.m.Lock()
-	defer d.m.Unlock()
-	if d.senders == nil {
-		return nil, errors.New("demultiplexer is stopped")
-	}
-	return d.senders.PeekSender(cid)
 }
 
 func NewForwarderTest(log log.Component) defaultforwarder.Forwarder {

@@ -74,9 +74,8 @@ func (rsa *RuntimeSecurityAgent) Start(reporter common.RawReporter, endpoints *c
 func (rsa *RuntimeSecurityAgent) Stop() {
 	rsa.cancel()
 	rsa.running.Store(false)
-	rsa.client.Close()
 	rsa.wg.Wait()
-
+	rsa.client.Close()
 }
 
 // StartEventListener starts listening for new events from system-probe

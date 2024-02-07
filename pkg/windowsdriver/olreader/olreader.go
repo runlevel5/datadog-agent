@@ -113,8 +113,6 @@ func (olr *OverlappedReader) Read() error {
 					// this indicates that there was no queued completion status, this is fine
 					continue
 				}
-				// error on completion port.
-				return
 			}
 			if ol == nil {
 				// the completion port was closed.  time to go home
@@ -149,11 +147,6 @@ func (olr *OverlappedReader) Ioctl(ioControlCode uint32, inBuffer *byte, inBuffe
 }
 func (olr *OverlappedReader) initiateReads() error {
 	for _, buf := range olr.buffers {
-		if buf == nil {
-			// would only happen if `createbuffers` not called, or
-			// cleanbuffers was called.  But ensure pointer is valid
-			return fmt.Errorf("Invalid buffer for read")
-		}
 		err := windows.ReadFile(olr.h, buf.data[:], nil, &(buf.ol))
 		if err != nil && err != windows.ERROR_IO_PENDING {
 			return fmt.Errorf("Failed to initiate read %v", err)
@@ -179,8 +172,7 @@ func (olr *OverlappedReader) createBuffers() error {
 }
 
 func (olr *OverlappedReader) cleanBuffers() {
-	for idx, buf := range olr.buffers {
+	for _, buf := range olr.buffers {
 		C.free(unsafe.Pointer(buf)) //nolint:govet
-		olr.buffers[idx] = nil
 	}
 }

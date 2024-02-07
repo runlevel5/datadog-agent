@@ -6,8 +6,10 @@
 package metrics
 
 import (
+	// stdlib
 	"testing"
 
+	// 3p
 	"github.com/stretchr/testify/assert"
 )
 

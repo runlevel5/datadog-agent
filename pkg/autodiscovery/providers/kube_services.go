@@ -20,7 +20,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/common/utils"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/providers/names"
-	"github.com/DataDog/datadog-agent/pkg/autodiscovery/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/apiserver"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -33,9 +32,8 @@ const (
 
 // KubeServiceConfigProvider implements the ConfigProvider interface for the apiserver.
 type KubeServiceConfigProvider struct {
-	lister       listersv1.ServiceLister
-	upToDate     bool
-	configErrors map[string]ErrorMsgSet
+	lister   listersv1.ServiceLister
+	upToDate bool
 }
 
 // NewKubeServiceConfigProvider returns a new ConfigProvider connected to apiserver.
@@ -53,8 +51,7 @@ func NewKubeServiceConfigProvider(*config.ConfigurationProviders) (ConfigProvide
 	}
 
 	p := &KubeServiceConfigProvider{
-		lister:       servicesInformer.Lister(),
-		configErrors: make(map[string]ErrorMsgSet),
+		lister: servicesInformer.Lister(),
 	}
 
 	if _, err := servicesInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -81,7 +78,7 @@ func (k *KubeServiceConfigProvider) Collect(ctx context.Context) ([]integration.
 	}
 	k.upToDate = true
 
-	return k.parseServiceAnnotations(services)
+	return parseServiceAnnotations(services)
 }
 
 // IsUpToDate allows to cache configs as long as no changes are detected in the apiserver
@@ -149,10 +146,8 @@ func valuesDiffer(first, second map[string]string, prefix string) bool {
 	return matchingInFirst != matchingInSecond
 }
 
-func (k *KubeServiceConfigProvider) parseServiceAnnotations(services []*v1.Service) ([]integration.Config, error) {
+func parseServiceAnnotations(services []*v1.Service) ([]integration.Config, error) {
 	var configs []integration.Config
-
-	setServiceIDs := map[string]struct{}{}
 
 	for _, svc := range services {
 		if svc == nil || svc.ObjectMeta.UID == "" {
@@ -161,17 +156,9 @@ func (k *KubeServiceConfigProvider) parseServiceAnnotations(services []*v1.Servi
 		}
 
 		serviceID := apiserver.EntityForService(svc)
-		setServiceIDs[serviceID] = struct{}{}
 		svcConf, errors := utils.ExtractTemplatesFromPodAnnotations(serviceID, svc.Annotations, kubeServiceID)
-		if len(errors) > 0 {
-			errMsgSet := make(ErrorMsgSet)
-			for _, err := range errors {
-				log.Errorf("Cannot parse service template for service %s/%s: %s", svc.Namespace, svc.Name, err)
-				errMsgSet[err.Error()] = struct{}{}
-			}
-			k.configErrors[serviceID] = errMsgSet
-		} else {
-			delete(k.configErrors, serviceID)
+		for _, err := range errors {
+			log.Errorf("Cannot parse service template for service %s/%s: %s", svc.Namespace, svc.Name, err)
 		}
 
 		ignoreADTags := ignoreADTagsFromAnnotations(svc.GetAnnotations(), kubeServiceAnnotationPrefix)
@@ -186,31 +173,14 @@ func (k *KubeServiceConfigProvider) parseServiceAnnotations(services []*v1.Servi
 		configs = append(configs, svcConf...)
 	}
 
-	k.cleanErrorsOfDeletedServices(setServiceIDs)
-
-	telemetry.Errors.Set(float64(len(k.configErrors)), names.KubeServices)
-
 	return configs, nil
-}
-
-func (k *KubeServiceConfigProvider) cleanErrorsOfDeletedServices(setCurrentServiceIDs map[string]struct{}) {
-	setServiceIDsWithErrors := map[string]struct{}{}
-	for serviceID := range k.configErrors {
-		setServiceIDsWithErrors[serviceID] = struct{}{}
-	}
-
-	for serviceID := range setServiceIDsWithErrors {
-		if _, exists := setCurrentServiceIDs[serviceID]; !exists {
-			delete(k.configErrors, serviceID)
-		}
-	}
 }
 
 func init() {
 	RegisterProvider(names.KubeServicesRegisterName, NewKubeServiceConfigProvider)
 }
 
-// GetConfigErrors returns a map of configuration errors for each Kubernetes service
+// GetConfigErrors is not implemented for the KubeServiceConfigProvider
 func (k *KubeServiceConfigProvider) GetConfigErrors() map[string]ErrorMsgSet {
-	return k.configErrors
+	return make(map[string]ErrorMsgSet)
 }

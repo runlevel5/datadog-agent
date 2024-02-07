@@ -25,7 +25,7 @@ const (
 )
 
 // NewContainerCheck returns an instance of the ContainerCheck.
-func NewContainerCheck(config ddconfig.Reader) *ContainerCheck {
+func NewContainerCheck(config ddconfig.ConfigReader) *ContainerCheck {
 	return &ContainerCheck{
 		config: config,
 	}
@@ -35,7 +35,7 @@ func NewContainerCheck(config ddconfig.Reader) *ContainerCheck {
 type ContainerCheck struct {
 	sync.Mutex
 
-	config ddconfig.Reader
+	config ddconfig.ConfigReader
 
 	hostInfo          *HostInfo
 	containerProvider proccontainers.ContainerProvider
@@ -48,7 +48,7 @@ type ContainerCheck struct {
 }
 
 // Init initializes a ContainerCheck instance.
-func (c *ContainerCheck) Init(_ *SysProbeConfig, info *HostInfo, _ bool) error {
+func (c *ContainerCheck) Init(_ *SysProbeConfig, info *HostInfo) error {
 	c.containerProvider = proccontainers.GetSharedContainerProvider()
 	c.hostInfo = info
 

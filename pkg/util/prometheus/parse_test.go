@@ -27,10 +27,7 @@ func TestParseMetrics(t *testing.T) {
 	}
 
 	expectedNumberOfMetrics := 6
-	var actualNumberOfMetrics int
-	for _, fam := range parsedMetrics {
-		actualNumberOfMetrics += len(fam.Samples)
-	}
+	actualNumberOfMetrics := parsedMetrics.Len()
 
 	if actualNumberOfMetrics != expectedNumberOfMetrics {
 		t.Errorf("expected %d reported metrics, got %d reported metrics", expectedNumberOfMetrics, actualNumberOfMetrics)

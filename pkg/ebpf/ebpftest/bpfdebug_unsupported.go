@@ -10,17 +10,17 @@ package ebpftest
 import "testing"
 
 // LogTracePipe is unsupported
-func LogTracePipe(*testing.T) {
+func LogTracePipe(t *testing.T) {
 }
 
 // LogTracePipeSelf is unsupported
-func LogTracePipeSelf(*testing.T) {
+func LogTracePipeSelf(t *testing.T) {
 }
 
 // LogTracePipeProcess is unsupported
-func LogTracePipeProcess(_ *testing.T, pid uint32) { //nolint:revive // TODO fix revive unused-parameter
+func LogTracePipeProcess(t *testing.T, pid uint32) {
 }
 
 // LogTracePipeFilter is unsupported
-func LogTracePipeFilter(*testing.T, func(ev *TraceEvent) bool) {
+func LogTracePipeFilter(t *testing.T, filterFn func(ev *TraceEvent) bool) {
 }

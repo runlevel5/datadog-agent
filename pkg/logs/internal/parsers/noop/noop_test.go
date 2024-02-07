@@ -15,9 +15,11 @@ import (
 
 func TestNoopParserHandleMessages(t *testing.T) {
 	parser := New()
-	logMessage := message.NewMessage([]byte("Foo"), nil, "", 0)
-	msg, err := parser.Parse(logMessage)
+	logMessage := message.Message{
+		Content: []byte("Foo"),
+	}
+	msg, err := parser.Parse(&logMessage)
 	assert.Nil(t, err)
 	assert.False(t, logMessage.ParsingExtra.IsPartial)
-	assert.Equal(t, logMessage.GetContent(), msg.GetContent())
+	assert.Equal(t, logMessage.Content, msg.Content)
 }

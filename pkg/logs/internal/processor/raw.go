@@ -6,7 +6,6 @@
 package processor
 
 import (
-	"fmt"
 	"regexp"
 	"time"
 
@@ -19,15 +18,11 @@ var RawEncoder Encoder = &rawEncoder{}
 
 type rawEncoder struct{}
 
-func (r *rawEncoder) Encode(msg *message.Message) error {
-	rendered, err := msg.Render()
-	if err != nil {
-		return fmt.Errorf("can't render the message: %v", err)
-	}
+func (r *rawEncoder) Encode(msg *message.Message, redactedMsg []byte) ([]byte, error) {
 
 	// if the first char is '<', we can assume it's already formatted as RFC5424, thus skip this step
 	// (for instance, using tcp forwarding. We don't want to override the hostname & co)
-	if len(rendered) > 0 && !isRFC5424Formatted(rendered) {
+	if len(msg.Content) > 0 && !isRFC5424Formatted(msg.Content) {
 		// fit RFC5424
 		// <%pri%>%protocol-version% %timestamp:::date-rfc3339% %HOSTNAME% %$!new-appname% - - - %msg%\n
 		extraContent := []byte("")
@@ -66,15 +61,11 @@ func (r *rawEncoder) Encode(msg *message.Message) error {
 		}
 		extraContent = append(extraContent, ' ')
 
-		extraContent = append(extraContent, rendered...)
+		return append(extraContent, redactedMsg...), nil
 
-		msg.SetEncoded(extraContent)
 	}
 
-	// in this situation, we don't want to re-encode the data, just
-	// make sure its state is correct.
-	msg.State = message.StateEncoded
-	return nil
+	return redactedMsg, nil
 }
 
 var rfc5424Pattern, _ = regexp.Compile("<[0-9]{1,3}>[0-9] ")

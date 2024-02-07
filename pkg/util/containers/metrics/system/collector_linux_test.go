@@ -130,6 +130,7 @@ func TestBuildContainerMetrics(t *testing.T) {
 					PartialStallTime: pointer.Ptr(98000.0),
 				},
 				PID: &provider.ContainerPIDStats{
+					PIDs:        []int{4, 2},
 					ThreadCount: pointer.Ptr(10.0),
 					ThreadLimit: pointer.Ptr(20.0),
 				},

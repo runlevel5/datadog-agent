@@ -174,10 +174,6 @@ func (mr *Resolver) delete(mount *model.Mount) {
 				openQueue = append(openQueue, child)
 			}
 		}
-
-		for _, mounts := range mr.pidToMounts {
-			delete(mounts, mount.MountID)
-		}
 	}
 }
 
@@ -312,7 +308,11 @@ func (mr *Resolver) lookupByMountID(mountID uint32) *model.Mount {
 		return mount
 	}
 
-	return mr.getFromRedemption(mountID)
+	if mount = mr.getFromRedemption(mountID); mount != nil {
+		return mount
+	}
+
+	return nil
 }
 
 func (mr *Resolver) lookupByDevice(device uint32, pid uint32) *model.Mount {
