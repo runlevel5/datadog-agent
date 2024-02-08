@@ -281,6 +281,11 @@ func (j *JMXFetch) Start(manage bool) error {
 		ipcPort = j.IPCPort
 	}
 
+	// set environment + token
+	env := append(os.Environ(),
+		fmt.Sprintf("SESSION_TOKEN=%s", api.GetAuthToken()),
+	)
+
 	// checks are now enabled via IPC on JMXFetch
 	subprocessArgs = append(subprocessArgs,
 		"-classpath", classpath,
@@ -317,6 +322,16 @@ func (j *JMXFetch) Start(manage bool) error {
 		subprocessArgs = append(subprocessArgs, "--statsd_socket_timeout", fmt.Sprintf("%d", socketTimeout))
 	}
 
+	if config.Datadog.GetBool("jmx_bean_subscription_enabled") {
+		// Temporarily enable this via env var due to the jmxfetch cli parser
+		// treating unexpected arguments as a fatal error
+		// Once this feature makes it into a stable (non-snapshot) version of JMXFetch,
+		// this will be safe to enable via subprocessArgs instead of env var.
+		//
+		// subprocessArgs = append(subprocessArgs, "--enable_bean_subscription")
+		env = append(env, "DD_JMX_BEAN_SUBSCRIPTION_ENABLED=true")
+	}
+
 	if config.Datadog.GetBool("log_format_rfc3339") {
 		subprocessArgs = append(subprocessArgs, "--log_format_rfc3339")
 	}
@@ -325,11 +340,7 @@ func (j *JMXFetch) Start(manage bool) error {
 
 	j.cmd = exec.Command(j.JavaBinPath, subprocessArgs...)
 
-	// set environment + token
-	j.cmd.Env = append(
-		os.Environ(),
-		fmt.Sprintf("SESSION_TOKEN=%s", api.GetAuthToken()),
-	)
+	j.cmd.Env = env
 
 	// forward the standard output to the Agent logger
 	stdout, err := j.cmd.StdoutPipe()
