@@ -1,0 +1,22 @@
+type PIDContext struct {
+    //! Process ID of the process (also called thread group ID)
+	Pid       uint32 -> pid
+	//! Thread ID of the thread
+	Tid       uint32 -> tid
+
+	@linux
+	NetNS     uint32
+
+	//! Indicates whether the process is a kworker
+	@linux
+	IsKworker bool -> is_kworker
+
+	@linux
+	ExecInode uint64 // used to track exec and event loss
+
+	@linux
+	Namespace string
+		-> file.destination.namespace {
+			handler: ResolveXAttrNamespace,
+		}
+}
