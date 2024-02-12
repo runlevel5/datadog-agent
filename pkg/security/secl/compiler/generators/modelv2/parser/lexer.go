@@ -30,6 +30,7 @@ const (
 	StructKeyword
 	TrueKeyword
 	FalseKeyword
+	EmbedKeyword
 	DocComment
 )
 
@@ -92,6 +93,7 @@ func NewTokenizer(content string) *Tokenizer {
 			"struct": StructKeyword,
 			"true":   TrueKeyword,
 			"false":  FalseKeyword,
+			"embed":  EmbedKeyword,
 		},
 
 		index:   0,

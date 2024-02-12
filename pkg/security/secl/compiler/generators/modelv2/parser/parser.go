@@ -139,9 +139,23 @@ func (p *Parser) parseFieldNode() (FieldNode, error) {
 		return FieldNode{}, err
 	}
 
+	// handle embed struct
+	isEmbed, _, err := p.advanceIf(EmbedKeyword)
+	if err != nil {
+		return FieldNode{}, err
+	}
+
 	id, err := p.acceptToken(Identifier)
 	if err != nil {
 		return FieldNode{}, err
+	}
+
+	if isEmbed {
+		return FieldNode{
+			Doc:        doc,
+			FilterTags: filterTags,
+			Name:       id.Content,
+		}, nil
 	}
 
 	typeName, err := p.acceptToken(Identifier)

@@ -7,6 +7,8 @@ type PIDContext struct {
 	@linux
 	NetNS     uint32
 
+	embed Credentials
+
 	# Indicates whether the process is a kworker
 	@linux
 	IsKworker bool -> is_kworker
