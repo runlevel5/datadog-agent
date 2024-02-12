@@ -149,28 +149,27 @@ func (p *Parser) parseFieldNode() (FieldNode, error) {
 		return FieldNode{}, err
 	}
 
-	isArrowNext, _, err := p.advanceIf(Arrow)
-	if err != nil {
-		return FieldNode{}, err
-	}
+	var mappings []SeclMapping
+	for p.isNextTokenA(Arrow) {
+		_, err := p.acceptToken(Arrow)
+		if err != nil {
+			return FieldNode{}, err
+		}
 
-	var (
-		seclName string
-		options  DefinitionOptions
-	)
-
-	if isArrowNext {
-		seclName, err = p.parseSECLName()
+		var mapping SeclMapping
+		mapping.Name, err = p.parseSECLName()
 		if err != nil {
 			return FieldNode{}, err
 		}
 
 		if p.isNextTokenA(LeftCurlyBracket) {
-			options, err = p.parseOptions()
+			mapping.Options, err = p.parseOptions()
 			if err != nil {
 				return FieldNode{}, err
 			}
 		}
+
+		mappings = append(mappings, mapping)
 	}
 
 	return FieldNode{
@@ -179,8 +178,7 @@ func (p *Parser) parseFieldNode() (FieldNode, error) {
 		Name:       id.Content,
 		Type:       typeName.Content,
 
-		SECLName: seclName,
-		Options:  options,
+		SeclMappings: mappings,
 	}, nil
 }
 

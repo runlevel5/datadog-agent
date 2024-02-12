@@ -12,8 +12,12 @@ type FieldNode struct {
 	Name       string
 	Type       string // TODO
 
-	SECLName string
-	Options  DefinitionOptions
+	SeclMappings []SeclMapping
+}
+
+type SeclMapping struct {
+	Name    string
+	Options DefinitionOptions
 }
 
 type DefinitionOptions = map[string]string

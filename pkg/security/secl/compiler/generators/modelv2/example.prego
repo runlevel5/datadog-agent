@@ -19,4 +19,7 @@ type PIDContext struct {
 		-> file.destination.namespace {
 			handler: ResolveXAttrNamespace,
 		}
+		-> file.destination.namespace2 {
+			weight: 100,
+		}
 }
