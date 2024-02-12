@@ -257,7 +257,7 @@ func (p *Parser) parseOptions() (map[string]string, error) {
 			return nil, err
 		}
 
-		value, err := p.acceptToken(Identifier)
+		value, err := p.parseOptionValue()
 		if err != nil {
 			return nil, err
 		}
@@ -265,7 +265,7 @@ func (p *Parser) parseOptions() (map[string]string, error) {
 		if _, ok := options[field.Content]; ok {
 			return nil, fmt.Errorf("option `%s` already specified", field.Content)
 		}
-		options[field.Content] = value.Content
+		options[field.Content] = value
 
 		isCommaNext, _, err := p.advanceIf(Comma)
 		if err != nil {
@@ -284,4 +284,13 @@ func (p *Parser) parseOptions() (map[string]string, error) {
 	}
 
 	return options, nil
+}
+
+func (p *Parser) parseOptionValue() (string, error) {
+	nextTok, err := p.acceptToken(Identifier, NumberLiteral, TrueKeyword, FalseKeyword)
+	if err != nil {
+		return "", err
+	}
+
+	return nextTok.Content, nil
 }
