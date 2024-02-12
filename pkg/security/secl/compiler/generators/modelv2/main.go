@@ -14,16 +14,12 @@ func main() {
 	}
 
 	lexer := parser.NewTokenizer(string(content))
+	pars := parser.NewParser(lexer)
 
-	for {
-		tok, err := lexer.NextToken()
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println(tok)
-
-		if tok.Kind == parser.EOF {
-			break
-		}
+	tn, err := pars.ParseTypeNode()
+	if err != nil {
+		panic(err)
 	}
+
+	fmt.Printf("%+v\n", tn)
 }
