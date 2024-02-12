@@ -61,6 +61,13 @@ type http2Path struct {
 	Length             uint8
 	Finalized          bool
 }
+type http2InterestingValue struct {
+	Dynamic_table_entry uint64
+	Temporary           bool
+	Static_table_entry  uint8
+	Tuple_flipped       bool
+	Pad_cgo_0           [5]byte
+}
 type http2Stream struct {
 	Response_last_seen    uint64
 	Request_started       uint64
