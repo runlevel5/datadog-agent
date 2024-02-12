@@ -45,13 +45,8 @@ static __always_inline http2_stream_t *http2_fetch_stream(const http2_stream_key
         return http2_stream_ptr;
     }
 
-    const __u32 zero = 0;
-    http2_stream_ptr = bpf_map_lookup_elem(&http2_stream_heap, &zero);
-    if (http2_stream_ptr == NULL) {
-        return NULL;
-    }
-    bpf_memset(http2_stream_ptr, 0, sizeof(http2_stream_t));
-    bpf_map_update_elem(&http2_in_flight, http2_stream_key, http2_stream_ptr, BPF_NOEXIST);
+    http2_stream_t empty = {};
+    bpf_map_update_elem(&http2_in_flight, http2_stream_key, &empty, BPF_NOEXIST);
     return bpf_map_lookup_elem(&http2_in_flight, http2_stream_key);
 }
 
