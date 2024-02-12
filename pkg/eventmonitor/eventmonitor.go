@@ -61,7 +61,7 @@ type EventMonitor struct {
 
 var _ module.Module = &EventMonitor{}
 
-// EventConsumer defines an event consumer
+// EventConsumerInterface defines an event consumer
 type EventConsumerInterface interface {
 	// ID returns the ID of the event consumer
 	ID() string
@@ -77,9 +77,9 @@ type EventConsumerPostProbeStartHandler interface {
 	PostProbeStart() error
 }
 
-// EventHandler event consumer based handler
+// EventConsumer event consumer
 type EventConsumer interface {
-	probe.EventConsumer
+	probe.EventConsumerInterface
 }
 
 // Register the event monitoring module
