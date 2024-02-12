@@ -81,7 +81,12 @@ func (p *Parser) advanceIf(against ...TokenKind) (bool, TokenKind, error) {
 }
 
 func (p *Parser) ParseTypeNode() (TypeNode, error) {
-	_, err := p.acceptToken(TypeKeyword)
+	doc, err := p.parseDocComment()
+	if err != nil {
+		return TypeNode{}, err
+	}
+
+	_, err = p.acceptToken(TypeKeyword)
 	if err != nil {
 		return TypeNode{}, err
 	}
@@ -117,12 +122,18 @@ func (p *Parser) ParseTypeNode() (TypeNode, error) {
 	}
 
 	return TypeNode{
+		Doc:    doc,
 		Name:   id.Content,
 		Fields: fields,
 	}, nil
 }
 
 func (p *Parser) parseFieldNode() (FieldNode, error) {
+	doc, err := p.parseDocComment()
+	if err != nil {
+		return FieldNode{}, err
+	}
+
 	filterTags, err := p.parseFilterTags()
 	if err != nil {
 		return FieldNode{}, err
@@ -163,6 +174,7 @@ func (p *Parser) parseFieldNode() (FieldNode, error) {
 	}
 
 	return FieldNode{
+		Doc:        doc,
 		FilterTags: filterTags,
 		Name:       id.Content,
 		Type:       typeName.Content,
@@ -170,6 +182,17 @@ func (p *Parser) parseFieldNode() (FieldNode, error) {
 		SECLName: seclName,
 		Options:  options,
 	}, nil
+}
+
+func (p *Parser) parseDocComment() (string, error) {
+	if p.isNextTokenA(DocComment) {
+		doc, err := p.acceptToken(DocComment)
+		if err != nil {
+			return "", err
+		}
+		return doc.Content, nil
+	}
+	return "", nil
 }
 
 func (p *Parser) parseFilterTags() ([]string, error) {

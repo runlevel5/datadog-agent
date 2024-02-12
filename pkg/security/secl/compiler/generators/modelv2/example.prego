@@ -1,13 +1,13 @@
 type PIDContext struct {
-    //! Process ID of the process (also called thread group ID)
+    # Process ID of the process (also called thread group ID)
 	Pid       uint32 -> pid
-	//! Thread ID of the thread
+	# Thread ID of the thread
 	Tid       uint32 -> tid
 
 	@linux
 	NetNS     uint32
 
-	//! Indicates whether the process is a kworker
+	# Indicates whether the process is a kworker
 	@linux
 	IsKworker bool -> is_kworker
 

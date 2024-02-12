@@ -27,6 +27,7 @@ const (
 	Identifier
 	TypeKeyword
 	StructKeyword
+	DocComment
 )
 
 type Token struct {
@@ -61,6 +62,7 @@ type Tokenizer struct {
 
 func NewTokenizer(content string) *Tokenizer {
 	identifierRegexp := regexp.MustCompile(`^[a-zA-Z_][0-9a-zA-Z_]*`)
+	docRegexp := regexp.MustCompile(`^#\s*(.*)\n`)
 
 	return &Tokenizer{
 		literal: []literalTokenDefinition{
@@ -78,6 +80,7 @@ func NewTokenizer(content string) *Tokenizer {
 		},
 		regexps: []regexpTokenDefinition{
 			{Identifier, identifierRegexp, 0},
+			{DocComment, docRegexp, 1},
 		},
 		keywords: map[string]TokenKind{
 			"type":   TypeKeyword,
@@ -123,7 +126,6 @@ func (t *Tokenizer) front() string {
 
 func (t *Tokenizer) NextToken() (Token, error) {
 	t.eatWhitespaces()
-
 	for t.eatComment() {
 		t.eatWhitespaces()
 	}
