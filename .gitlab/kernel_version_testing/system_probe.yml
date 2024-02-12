@@ -301,7 +301,7 @@ upload_minimized_btfs_arm64:
     - echo "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE" > $STACK_DIR
     - pulumi login $(cat $STACK_DIR | tr -d '\n')
     - inv -e kmt.gen-config --ci --arch=$ARCH --output-file=$VMCONFIG_FILE --sets=$TEST_SETS
-    - inv -e system-probe.start-microvms --provision --vmconfig=$VMCONFIG_FILE $INSTANCE_TYPE_ARG $AMI_ID_ARG --ssh-key-name=$AWS_EC2_SSH_KEY_NAME --ssh-key-path=$AWS_EC2_SSH_KEY_FILE --infra-env=$INFRA_ENV --stack-name=kernel-matrix-testing-$ARCH-$CI_PIPELINE_ID --run-agent
+    - inv -e system-probe.start-microvms --provision --vmconfig=$VMCONFIG_FILE $INSTANCE_TYPE_ARG $AMI_ID_ARG --ssh-key-name=$AWS_EC2_SSH_KEY_NAME --ssh-key-path=$AWS_EC2_SSH_KEY_FILE --infra-env=$INFRA_ENV --stack-name=kernel-matrix-testing-$ARCH-$CI_PIPELINE_ID --run-agent --shutdown-period=180
     - jq -r '.' $CI_PROJECT_DIR/stack.output
     - pulumi logout
   after_script:
@@ -419,37 +419,37 @@ kernel_matrix_testing_run_tests_arm64:
       - TAG: ["ubuntu_18.04", "ubuntu_20.04", "ubuntu_22.04", "ubuntu_23.10", "amzn_4.14", "amzn_5.4", "amzn_5.10", "fedora_37", "fedora_38", "debian_10", "debian_11", "debian_12", "centos_79", "centos_8"]
         TEST_SET: ["no_tracersuite", "only_tracersuite"]
 
-.kernel_matrix_testing_cleanup:
-  stage: kernel_matrix_testing
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/test-infra-definitions/runner$TEST_INFRA_DEFINITIONS_BUILDIMAGES_SUFFIX:$TEST_INFRA_DEFINITIONS_BUILDIMAGES
-  when: always
-  tags: ["arch:amd64"]
-  rules:
-    !reference [ .on_system_probe_or_e2e_changes_or_manual ]
-  before_script:
-    - !reference [.kernel_matrix_testing_new_profile]
-  script:
-    - !reference [.shared_filters_and_queries]
-    - aws ec2 describe-instances --filters $FILTER_TEAM $FILTER_MANAGED $FILTER_PIPELINE $FILTER_ARCH $FILTER_INSTANCE_TYPE --output json --query $QUERY_INSTANCE_IDS | tee -a instance.json
-    - INSTANCE_ID="$(jq -r '.[0][0]' < instance.json)"
-    - echo ${INSTANCE_ID}
-    - |
-      if [[ "${INSTANCE_ID}" != "" ]] && [[ "${INSTANCE_ID}" != "null" ]]; then
-        aws ec2 terminate-instances --instance-ids "${INSTANCE_ID}"
-      fi
-
-kernel_matrix_testing_cleanup_arm64:
-  extends:
-    - .kernel_matrix_testing_cleanup
-  needs: ["kernel_matrix_testing_setup_env_arm64", "kernel_matrix_testing_run_tests_arm64"]
-  variables:
-    ARCH: arm64
-    INSTANCE_TYPE: "m6gd.metal"
-
-kernel_matrix_testing_cleanup_x64:
-  extends:
-    - .kernel_matrix_testing_cleanup
-  needs: ["kernel_matrix_testing_setup_env_x64", "kernel_matrix_testing_run_tests_x64"]
-  variables:
-    ARCH: x86_64
-    INSTANCE_TYPE: "m5d.metal"
+          #.kernel_matrix_testing_cleanup:
+          #  stage: kernel_matrix_testing
+          #  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/test-infra-definitions/runner$TEST_INFRA_DEFINITIONS_BUILDIMAGES_SUFFIX:$TEST_INFRA_DEFINITIONS_BUILDIMAGES
+          #  when: always
+          #  tags: ["arch:amd64"]
+          #  rules:
+          #    !reference [ .on_system_probe_or_e2e_changes_or_manual ]
+          #  before_script:
+          #    - !reference [.kernel_matrix_testing_new_profile]
+          #  script:
+          #    - !reference [.shared_filters_and_queries]
+          #    - aws ec2 describe-instances --filters $FILTER_TEAM $FILTER_MANAGED $FILTER_PIPELINE $FILTER_ARCH $FILTER_INSTANCE_TYPE --output json --query $QUERY_INSTANCE_IDS | tee -a instance.json
+          #    - INSTANCE_ID="$(jq -r '.[0][0]' < instance.json)"
+          #    - echo ${INSTANCE_ID}
+          #    - |
+          #      if [[ "${INSTANCE_ID}" != "" ]] && [[ "${INSTANCE_ID}" != "null" ]]; then
+          #        aws ec2 terminate-instances --instance-ids "${INSTANCE_ID}"
+          #      fi
+          #
+          #kernel_matrix_testing_cleanup_arm64:
+          #  extends:
+          #    - .kernel_matrix_testing_cleanup
+          #  needs: ["kernel_matrix_testing_setup_env_arm64", "kernel_matrix_testing_run_tests_arm64"]
+          #  variables:
+          #    ARCH: arm64
+          #    INSTANCE_TYPE: "m6gd.metal"
+          #
+          #kernel_matrix_testing_cleanup_x64:
+          #  extends:
+          #    - .kernel_matrix_testing_cleanup
+          #  needs: ["kernel_matrix_testing_setup_env_x64", "kernel_matrix_testing_run_tests_x64"]
+          #  variables:
+          #    ARCH: x86_64
+          #    INSTANCE_TYPE: "m5d.metal"
