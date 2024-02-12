@@ -1,3 +1,11 @@
+// SyscallEvent contains common fields for all the event
+type SyscallEvent struct {
+	# Return value of the syscall
+	Retval int64 -> retval {
+		constants: "Error constants",
+	}
+}
+
 type PIDContext struct {
     # Process ID of the process (also called thread group ID)
 	Pid       uint32 -> pid
