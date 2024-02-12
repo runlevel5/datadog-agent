@@ -24,9 +24,12 @@ const (
 	Dot
 	Comma
 	Colon
+	NumberLiteral
 	Identifier
 	TypeKeyword
 	StructKeyword
+	TrueKeyword
+	FalseKeyword
 	DocComment
 )
 
@@ -62,6 +65,7 @@ type Tokenizer struct {
 
 func NewTokenizer(content string) *Tokenizer {
 	identifierRegexp := regexp.MustCompile(`^[a-zA-Z_][0-9a-zA-Z_]*`)
+	numberLiteral := regexp.MustCompile(`^[0-9]+`)
 	docRegexp := regexp.MustCompile(`^#\s*(.*)\n`)
 
 	return &Tokenizer{
@@ -81,10 +85,13 @@ func NewTokenizer(content string) *Tokenizer {
 		regexps: []regexpTokenDefinition{
 			{Identifier, identifierRegexp, 0},
 			{DocComment, docRegexp, 1},
+			{NumberLiteral, numberLiteral, 0},
 		},
 		keywords: map[string]TokenKind{
 			"type":   TypeKeyword,
 			"struct": StructKeyword,
+			"true":   TrueKeyword,
+			"false":  FalseKeyword,
 		},
 
 		index:   0,

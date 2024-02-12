@@ -21,15 +21,18 @@ func _() {
 	_ = x[Dot-10]
 	_ = x[Comma-11]
 	_ = x[Colon-12]
-	_ = x[Identifier-13]
-	_ = x[TypeKeyword-14]
-	_ = x[StructKeyword-15]
-	_ = x[DocComment-16]
+	_ = x[NumberLiteral-13]
+	_ = x[Identifier-14]
+	_ = x[TypeKeyword-15]
+	_ = x[StructKeyword-16]
+	_ = x[TrueKeyword-17]
+	_ = x[FalseKeyword-18]
+	_ = x[DocComment-19]
 }
 
-const _TokenKind_name = "UndefinedEOFArrowLeftParenthesisRightParenthesisLeftSquareBracketRightSquareBracketLeftCurlyBracketRightCurlyBracketCommercialAtDotCommaColonIdentifierTypeKeywordStructKeywordDocComment"
+const _TokenKind_name = "UndefinedEOFArrowLeftParenthesisRightParenthesisLeftSquareBracketRightSquareBracketLeftCurlyBracketRightCurlyBracketCommercialAtDotCommaColonNumberLiteralIdentifierTypeKeywordStructKeywordTrueKeywordFalseKeywordDocComment"
 
-var _TokenKind_index = [...]uint8{0, 9, 12, 17, 32, 48, 65, 83, 99, 116, 128, 131, 136, 141, 151, 162, 175, 185}
+var _TokenKind_index = [...]uint8{0, 9, 12, 17, 32, 48, 65, 83, 99, 116, 128, 131, 136, 141, 154, 164, 175, 188, 199, 211, 221}
 
 func (i TokenKind) String() string {
 	if i < 0 || i >= TokenKind(len(_TokenKind_index)-1) {
