@@ -983,13 +983,15 @@ func (ns *networkState) determineConnectionIntraHost(connections slice.Chain[Con
 
 	// do not use range value here since it will create a copy of the ConnectionStats object
 	connections.Iterate(func(_ int, conn *ConnectionStats) {
-		if conn.Source == conn.Dest ||
-			(conn.Source.IsLoopback() && conn.Dest.IsLoopback()) ||
-			(conn.IPTranslation != nil && conn.IPTranslation.ReplSrcIP.IsLoopback()) {
-			conn.IntraHost = true
-		} else {
-			keyWithRAddr := newConnKey(conn, true)
-			_, conn.IntraHost = lAddrs[keyWithRAddr]
+		if !conn.IntraHost {
+			if conn.Source == conn.Dest ||
+				(conn.Source.IsLoopback() && conn.Dest.IsLoopback()) ||
+				(conn.IPTranslation != nil && conn.IPTranslation.ReplSrcIP.IsLoopback()) {
+				conn.IntraHost = true
+			} else {
+				keyWithRAddr := newConnKey(conn, true)
+				_, conn.IntraHost = lAddrs[keyWithRAddr]
+			}
 		}
 
 		switch conn.Direction {

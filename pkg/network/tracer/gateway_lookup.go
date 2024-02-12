@@ -104,7 +104,7 @@ func newGatewayLookup(config *config.Config) *gatewayLookup {
 	return gl
 }
 
-func (g *gatewayLookup) Lookup(cs *network.ConnectionStats) *network.Via {
+func (g *gatewayLookup) Lookup(cs *network.ConnectionStats) (via *network.Via, local bool) {
 	dest := cs.Dest
 	if cs.IPTranslation != nil {
 		dest = cs.IPTranslation.ReplSrcIP
@@ -112,13 +112,13 @@ func (g *gatewayLookup) Lookup(cs *network.ConnectionStats) *network.Via {
 
 	r, ok := g.routeCache.Get(cs.Source, dest, cs.NetNS)
 	if !ok {
-		return nil
+		return nil, false
 	}
 
 	// if there is no gateway, we don't need to add subnet info
 	// for gateway resolution in the backend
 	if r.Gateway.IsZero() || r.Gateway.IsUnspecified() {
-		return nil
+		return nil, true
 	}
 
 	gatewayLookupTelemetry.subnetCacheLookups.Inc()
@@ -162,7 +162,7 @@ func (g *gatewayLookup) Lookup(cs *network.ConnectionStats) *network.Via {
 		})
 
 		if err != nil {
-			return nil
+			return nil, false
 		}
 
 		via := &network.Via{Subnet: s}
@@ -170,7 +170,7 @@ func (g *gatewayLookup) Lookup(cs *network.ConnectionStats) *network.Via {
 		gatewayLookupTelemetry.subnetCacheSize.Inc()
 		v = via
 	} else if v == nil {
-		return nil
+		return nil, false
 	}
 
 	switch cv := v.(type) {
@@ -179,11 +179,11 @@ func (g *gatewayLookup) Lookup(cs *network.ConnectionStats) *network.Via {
 			g.subnetCache.Remove(r.IfIndex)
 			gatewayLookupTelemetry.subnetCacheSize.Dec()
 		}
-		return nil
+		return nil, false
 	case *network.Via:
-		return cv
+		return cv, false
 	default:
-		return nil
+		return nil, false
 	}
 }
 

@@ -778,7 +778,7 @@ func (t *Tracer) connVia(cs *network.ConnectionStats) {
 		return // gateway lookup is not enabled
 	}
 
-	cs.Via = t.gwLookup.Lookup(cs)
+	cs.Via, cs.IntraHost = t.gwLookup.Lookup(cs)
 }
 
 // DebugCachedConntrack dumps the cached NAT conntrack data
