@@ -728,7 +728,7 @@ func newTestModule(t testing.TB, macroDefs []*rules.MacroDefinition, ruleDefs []
 	}
 
 	// listen to probe event
-	if err := testMod.probe.AddFullAccessEventHandler(testMod); err != nil {
+	if err := testMod.probe.AddEventHandler(testMod); err != nil {
 		return nil, err
 	}
 
