@@ -55,7 +55,7 @@ func emitOldModel(tn parser.TypeNode) {
 		} else {
 			var fieldContent []string
 			var comment string
-			if field.EventType != "" {
+			if field.EventType != "" && field.Name != "Async" {
 				comment = field.Doc
 			}
 
@@ -73,7 +73,7 @@ func emitOldModel(tn parser.TypeNode) {
 					doc = field.Doc
 				}
 
-				if field.EventType == "" {
+				if field.EventType == "" || field.Name == "Async" {
 					comment += fmt.Sprintf("SECLDoc[%s] Definition:`%s`", mapping.Name, doc)
 					if c := mapping.Options["constants"]; c != "" {
 						comment += fmt.Sprintf(" Constants:`%s`", c)
