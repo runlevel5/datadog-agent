@@ -404,3 +404,254 @@ type SetXAttrEvent struct {
 	}
 	NameRaw [200]byte
 }
+
+// UnlinkEvent represents an unlink event
+type UnlinkEvent struct {
+	embed SyscallEvent
+	File  FileEvent -> file
+	//! Flags of the unlink syscall
+	Flags uint32 -> flags {
+		constants: "Unlink flags",
+	}
+}
+
+// UmountEvent represents an umount event
+type UmountEvent struct {
+	embed SyscallEvent
+	MountID uint32
+}
+
+// UtimesEvent represents a utime event
+type UtimesEvent struct {
+	embed SyscallEvent
+	File  FileEvent -> file
+	Atime time.Time
+	Mtime time.Time
+}
+
+// BPFEvent represents a BPF event
+type BPFEvent struct {
+	embed SyscallEvent
+
+	Map     BPFMap     -> map  // eBPF map involved in the BPF command
+	Program BPFProgram -> prog // eBPF program involved in the BPF command
+	//! BPF command name
+	Cmd     uint32     -> cmd {
+		constants: "BPF commands",
+	}
+}
+
+// BPFMap represents a BPF map
+type BPFMap struct {
+	ID   uint32 // ID of the eBPF map
+	//! Type of the eBPF map
+	Type uint32 -> type {
+		constants: "BPF map types",
+	}
+	//! Name of the eBPF map (added in 7.35)
+	Name string -> name
+}
+
+// BPFProgram represents a BPF program
+type BPFProgram struct {
+	ID         uint32  // ID of the eBPF program
+	//! Type of the eBPF program
+	Type       uint32   -> type {
+		constants: "BPF program types",
+	}
+	//! Attach type of the eBPF program
+	AttachType uint32   -> attach_type {
+		constants: "BPF attach types",
+	}
+	//! eBPF helpers used by the eBPF program (added in 7.35)
+	Helpers    []uint32 -> helpers {
+		constants: "BPF helper functions",
+	}
+	//! Name of the eBPF program (added in 7.35)
+	Name       string   -> name
+	//! Hash (sha1) of the eBPF program (added in 7.35)
+	Tag        string   -> tag
+}
+
+// PTraceEvent represents a ptrace event
+type PTraceEvent struct {
+	embed SyscallEvent
+
+	//! ptrace request
+	Request uint32 -> request {
+		constants: "Ptrace constants",
+	}
+	PID     uint32
+	Address uint64
+	Tracee  *ProcessContext -> tracee // process context of the tracee
+}
+
+// MMapEvent represents a mmap event
+type MMapEvent struct {
+	embed SyscallEvent
+
+	File       FileEvent -> file
+	Addr       uint64
+	Offset     uint64
+	Len        uint32
+	//! memory segment protection
+	Protection int -> protection {
+		constants: "Protection constants",
+	}
+	//! memory segment flags
+	Flags      int -> flags {
+		constants: "MMap flags",
+	}
+}
+
+// MProtectEvent represents a mprotect event
+type MProtectEvent struct {
+	embed SyscallEvent
+
+	VMStart       uint64
+	VMEnd         uint64
+	//! initial memory segment protection
+	VMProtection  int -> vm_protection {
+		constants: "Virtual Memory flags",
+	}
+	//! new memory segment protection
+	ReqProtection int -> req_protection {
+		constants: "Virtual Memory flags",
+	}
+}
+
+// LoadModuleEvent represents a load_module event
+type LoadModuleEvent struct {
+	embed SyscallEvent
+
+	File             FileEvent -> file // Path to the kernel module file
+	//! Indicates if the kernel module was loaded from memory
+	LoadedFromMemory bool      -> loaded_from_memory
+	//! Name of the new kernel module
+	Name             string    -> name
+	//! Parameters (as a string) of the new kernel module
+	Args             string    -> args {
+		handler: ResolveModuleArgs,
+	}
+	//! Parameters (as an array) of the new kernel module
+	Argv             []string  -> argv {
+		handler: ResolveModuleArgv,
+	}
+	//! Indicates if the arguments were truncated or not
+	ArgsTruncated    bool      -> args_truncated
+}
+
+// UnloadModuleEvent represents an unload_module event
+type UnloadModuleEvent struct {
+	embed SyscallEvent
+
+	//! Name of the kernel module that was deleted
+	Name string -> name
+}
+
+// SignalEvent represents a signal event
+type SignalEvent struct {
+	embed SyscallEvent
+
+	//! Signal type (ex: SIGHUP, SIGINT, SIGQUIT, etc)` Constants:`Signal constants
+	Type   uint32          -> "type"
+	//! Target PID
+	PID    uint32          -> pid
+	Target *ProcessContext -> target // Target process context
+}
+
+// SpliceEvent represents a splice event
+type SpliceEvent struct {
+	embed SyscallEvent
+
+	File          FileEvent -> file // File modified by the splice syscall
+	//! Entry flag of the "fd_out" pipe passed to the splice syscall
+	PipeEntryFlag uint32    -> pipe_entry_flag {
+		constants: "Pipe buffer flags",
+	}
+	//! Exit flag of the "fd_out" pipe passed to the splice syscall
+	PipeExitFlag  uint32    -> pipe_exit_flag {
+		constants: "Pipe buffer flags",
+	}
+}
+
+// CgroupTracingEvent is used to signal that a new cgroup should be traced by the activity dump manager
+type CgroupTracingEvent struct {
+	ContainerContext ContainerContext
+	Config           ActivityDumpLoadConfig
+	ConfigCookie     uint64
+}
+
+// ActivityDumpLoadConfig represents the load configuration of an activity dump
+type ActivityDumpLoadConfig struct {
+	TracedEventTypes     []EventType
+	Timeout              time.Duration
+	WaitListTimestampRaw uint64
+	StartTimestampRaw    uint64
+	EndTimestampRaw      uint64
+	Rate                 uint32 // max number of events per sec
+	Paused               uint32
+}
+
+// NetworkDeviceContext represents the network device context of a network event
+type NetworkDeviceContext struct {
+	NetNS   uint32
+	//! interface ifindex
+	IfIndex uint32 -> ifindex
+	//! interface ifname
+	IfName  string -> ifname {
+		handler: ResolveNetworkDeviceIfName,
+	}
+}
+
+// BindEvent represents a bind event
+type BindEvent struct {
+	embed SyscallEvent
+
+	Addr       IPPortContext -> addr // Bound address
+	//! Address family
+	AddrFamily uint16        -> addr.family
+}
+
+// NetDevice represents a network device
+type NetDevice struct {
+	Name        string
+	NetNS       uint32
+	IfIndex     uint32
+	PeerNetNS   uint32
+	PeerIfIndex uint32
+}
+
+// NetDeviceEvent represents a network device event
+type NetDeviceEvent struct {
+	embed SyscallEvent
+
+	Device NetDevice
+}
+
+// VethPairEvent represents a veth pair event
+type VethPairEvent struct {
+	embed SyscallEvent
+
+	HostDevice NetDevice
+	PeerDevice NetDevice
+}
+
+// SyscallsEvent represents a syscalls event
+type SyscallsEvent struct {
+	Syscalls []Syscall // 64 * 8 = 512 > 450, bytes should be enough to hold all 450 syscalls
+}
+
+// AnomalyDetectionSyscallEvent represents an anomaly detection for a syscall event
+type AnomalyDetectionSyscallEvent struct {
+	SyscallID Syscall
+}
+
+// PathKey identifies an entry in the dentry cache
+type PathKey struct {
+	//! Inode of the file
+	Inode   uint64 -> inode
+	//! Mount ID of the file
+	MountID uint32 -> mount_id
+	PathID  uint32
+}
