@@ -94,7 +94,7 @@ func makeEntity(tags []string) *workloadmeta.HostTags {
 	return &workloadmeta.HostTags{
 		EntityID: workloadmeta.EntityID{
 			Kind: workloadmeta.KindHost,
-			ID:   "host",
+			ID:   "host-tags",
 		},
 		HostTags: tags,
 	}

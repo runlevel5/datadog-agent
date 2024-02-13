@@ -14,7 +14,6 @@ import (
 
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/tagstore"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/tagset"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
@@ -27,7 +26,7 @@ func TestTagBuilder(t *testing.T) {
 		fx.Supply(workloadmeta.NewParams()),
 		workloadmeta.MockModuleV2(),
 	))
-	tagger := NewTagger(store, tagstore.NewTagStore())
+	tagger := NewTagger(store)
 	tagger.Start(context.Background())
 	defer tagger.Stop()
 

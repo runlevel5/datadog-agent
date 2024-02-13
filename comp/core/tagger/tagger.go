@@ -10,8 +10,6 @@ import (
 	"reflect"
 	"sync"
 
-	"go.uber.org/fx"
-
 	configComponent "github.com/DataDog/datadog-agent/comp/core/config"
 	logComp "github.com/DataDog/datadog-agent/comp/core/log"
 	tagger_api "github.com/DataDog/datadog-agent/comp/core/tagger/api"
@@ -31,6 +29,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/optional"
+	"go.uber.org/fx"
 )
 
 type dependencies struct {
@@ -299,7 +298,6 @@ func (t *TaggerClient) globalTagBuilder(cardinality collectors.TagCardinality, t
 		}
 	}
 	t.mux.RUnlock()
-
 	return t.defaultTagger.AccumulateTagsFor(collectors.GlobalEntityID, cardinality, tb)
 }
 

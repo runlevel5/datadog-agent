@@ -52,7 +52,6 @@ func NewTagStore() *TagStore {
 	return newTagStoreWithClock(clock.New())
 }
 
-// NewTagStoreWithClock is exported for testing
 func newTagStoreWithClock(clock clock.Clock) *TagStore {
 	return &TagStore{
 		telemetry:  make(map[string]map[string]float64),
