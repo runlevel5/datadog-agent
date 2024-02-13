@@ -359,8 +359,8 @@ func (p *Parser) parseGoType() (string, string, error) {
 			return "*" + sub, base, err
 		case LeftSquareBracket:
 			prefix := "["
-			if p.isNextTokenA(NumberLiteral) {
-				count, err := p.acceptToken(NumberLiteral)
+			if p.isNextTokenA(NumberLiteral) || p.isNextTokenA(Identifier) {
+				count, err := p.acceptToken(NumberLiteral, Identifier)
 				if err != nil {
 					return "", "", err
 				}
