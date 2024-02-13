@@ -301,7 +301,7 @@ func (p *Parser) parseOptions() (map[string]string, error) {
 }
 
 func (p *Parser) parseOptionValue() (string, error) {
-	nextTok, err := p.acceptToken(Identifier, NumberLiteral, TrueKeyword, FalseKeyword)
+	nextTok, err := p.acceptToken(Identifier, NumberLiteral, StringLiteral, TrueKeyword, FalseKeyword)
 	if err != nil {
 		return "", err
 	}

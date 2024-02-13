@@ -22,18 +22,19 @@ func _() {
 	_ = x[Comma-11]
 	_ = x[Colon-12]
 	_ = x[NumberLiteral-13]
-	_ = x[Identifier-14]
-	_ = x[TypeKeyword-15]
-	_ = x[StructKeyword-16]
-	_ = x[TrueKeyword-17]
-	_ = x[FalseKeyword-18]
-	_ = x[EmbedKeyword-19]
-	_ = x[DocComment-20]
+	_ = x[StringLiteral-14]
+	_ = x[Identifier-15]
+	_ = x[TypeKeyword-16]
+	_ = x[StructKeyword-17]
+	_ = x[TrueKeyword-18]
+	_ = x[FalseKeyword-19]
+	_ = x[EmbedKeyword-20]
+	_ = x[DocComment-21]
 }
 
-const _TokenKind_name = "UndefinedEOFArrowLeftParenthesisRightParenthesisLeftSquareBracketRightSquareBracketLeftCurlyBracketRightCurlyBracketCommercialAtDotCommaColonNumberLiteralIdentifierTypeKeywordStructKeywordTrueKeywordFalseKeywordEmbedKeywordDocComment"
+const _TokenKind_name = "UndefinedEOFArrowLeftParenthesisRightParenthesisLeftSquareBracketRightSquareBracketLeftCurlyBracketRightCurlyBracketCommercialAtDotCommaColonNumberLiteralStringLiteralIdentifierTypeKeywordStructKeywordTrueKeywordFalseKeywordEmbedKeywordDocComment"
 
-var _TokenKind_index = [...]uint8{0, 9, 12, 17, 32, 48, 65, 83, 99, 116, 128, 131, 136, 141, 154, 164, 175, 188, 199, 211, 223, 233}
+var _TokenKind_index = [...]uint8{0, 9, 12, 17, 32, 48, 65, 83, 99, 116, 128, 131, 136, 141, 154, 167, 177, 188, 201, 212, 224, 236, 246}
 
 func (i TokenKind) String() string {
 	if i < 0 || i >= TokenKind(len(_TokenKind_index)-1) {
