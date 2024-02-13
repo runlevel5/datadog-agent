@@ -1,6 +1,6 @@
 // TODO event
 
-// SyscallEvent contains common fields for all the event
+//! SyscallEvent contains common fields for all the event
 type SyscallEvent struct {
 	//! Return value of the syscall
 	Retval int64 -> retval {
@@ -8,7 +8,7 @@ type SyscallEvent struct {
 	}
 }
 
-// ChmodEvent represents a chmod event
+//! ChmodEvent represents a chmod event
 type ChmodEvent struct {
 	embed SyscallEvent
 	File FileEvent -> file
@@ -23,7 +23,7 @@ type ChmodEvent struct {
 		}
 }
 
-// ChownEvent represents a chown event
+//! ChownEvent represents a chown event
 type ChownEvent struct {
 	embed SyscallEvent
 	File  FileEvent -> file
@@ -41,7 +41,7 @@ type ChownEvent struct {
 	}
 }
 
-// SetuidEvent represents a setuid event
+//! SetuidEvent represents a setuid event
 type SetuidEvent struct {
 	//! New UID of the process
 	UID    uint32 -> uid
@@ -63,7 +63,7 @@ type SetuidEvent struct {
 	}
 }
 
-// SetgidEvent represents a setgid event
+//! SetgidEvent represents a setgid event
 type SetgidEvent struct {
 	//! New GID of the process
 	GID     uint32 -> gid
@@ -85,7 +85,7 @@ type SetgidEvent struct {
 	}
 }
 
-// CapsetEvent represents a capset event
+//! CapsetEvent represents a capset event
 type CapsetEvent struct {
 	//! Effective capability set of the process
 	CapEffective uint64 -> cap_effective {
@@ -97,7 +97,7 @@ type CapsetEvent struct {
 	}
 }
 
-// Credentials represents the kernel credentials of a process
+//! Credentials represents the kernel credentials of a process
 type Credentials struct {
 	//! UID of the process
 	UID   uint32 -> uid
@@ -139,19 +139,19 @@ type Credentials struct {
 	}
 }
 
-// LinuxBinprm contains content from the linux_binprm struct, which holds the arguments used for loading binaries
+//! LinuxBinprm contains content from the linux_binprm struct, which holds the arguments used for loading binaries
 type LinuxBinprm struct {
 	FileEvent FileEvent -> file
 }
 
 // TODO process
 
-// ExecEvent represents a exec event
+//! ExecEvent represents a exec event
 type ExecEvent struct {
 	embed *Process
 }
 
-// FileFields holds the information required to identify a file
+//! FileFields holds the information required to identify a file
 type FileFields struct {
 	//! UID of the file's owner
 	UID   uint32 -> uid
@@ -193,7 +193,7 @@ type FileFields struct {
 	Flags int32
 }
 
-// FileEvent is the common file event type
+//! FileEvent is the common file event type
 type FileEvent struct {
 	embed FileFields
 
@@ -248,26 +248,26 @@ type FileEvent struct {
 	IsBasenameStrResolved bool
 }
 
-// InvalidateDentryEvent defines a invalidate dentry event
+//! InvalidateDentryEvent defines a invalidate dentry event
 type InvalidateDentryEvent struct {
 	Inode   uint64
 	MountID uint32
 }
 
-// MountReleasedEvent defines a mount released event
+//! MountReleasedEvent defines a mount released event
 type MountReleasedEvent struct {
 	MountID uint32
 }
 
 
-// LinkEvent represents a link event
+//! LinkEvent represents a link event
 type LinkEvent struct {
 	embed SyscallEvent
 	Source FileEvent -> file
 	Target FileEvent -> file.destination
 }
 
-// MkdirEvent represents a mkdir event
+//! MkdirEvent represents a mkdir event
 type MkdirEvent struct {
 	embed SyscallEvent
 	File FileEvent -> file
@@ -282,12 +282,12 @@ type MkdirEvent struct {
 		}
 }
 
-// ArgsEnvsEvent defines a args/envs event
+//! ArgsEnvsEvent defines a args/envs event
 type ArgsEnvsEvent struct {
 	embed ArgsEnvs
 }
 
-// Mount represents a mountpoint (used by MountEvent and UnshareMountNSEvent)
+//! Mount represents a mountpoint (used by MountEvent and UnshareMountNSEvent)
 type Mount struct {
 	MountID        uint32
 	Device         uint32
@@ -301,9 +301,7 @@ type Mount struct {
 	Path           string
 }
 
-// MountEvent represents a mount event
-//
-//msgp:ignore MountEvent
+//! MountEvent represents a mount event
 type MountEvent struct {
 	embed SyscallEvent
 	embed Mount
@@ -324,18 +322,18 @@ type MountEvent struct {
 	MountRootPathResolutionError   error
 }
 
-// UnshareMountNSEvent represents a mount cloned from a newly created mount namespace
+//! UnshareMountNSEvent represents a mount cloned from a newly created mount namespace
 type UnshareMountNSEvent struct {
 	embed Mount
 }
 
-// ChdirEvent represents a chdir event
+//! ChdirEvent represents a chdir event
 type ChdirEvent struct {
 	embed SyscallEvent
 	File FileEvent -> file
 }
 
-// OpenEvent represents an open event
+//! OpenEvent represents an open event
 type OpenEvent struct {
 	embed SyscallEvent
 	File  FileEvent -> file
@@ -349,7 +347,7 @@ type OpenEvent struct {
 	}
 }
 
-// SELinuxEvent represents a selinux event
+//! SELinuxEvent represents a selinux event
 type SELinuxEvent struct {
 	File            FileEvent
 	EventKind       SELinuxEventKind
@@ -365,7 +363,7 @@ type SELinuxEvent struct {
 	EnforceStatus   string -> enforce.status
 }
 
-// PIDContext holds the process context of a kernel event
+//! PIDContext holds the process context of a kernel event
 type PIDContext struct {
 	//! Process ID of the process (also called thread group ID)
 	Pid       uint32 -> pid
@@ -377,20 +375,20 @@ type PIDContext struct {
 	ExecInode uint64  // used to track exec and event loss
 }
 
-// RenameEvent represents a rename event
+//! RenameEvent represents a rename event
 type RenameEvent struct {
 	embed SyscallEvent
 	Old FileEvent -> file
 	New FileEvent -> file.destination
 }
 
-// RmdirEvent represents a rmdir event
+//! RmdirEvent represents a rmdir event
 type RmdirEvent struct {
 	embed SyscallEvent
 	File FileEvent -> file
 }
 
-// SetXAttrEvent represents an extended attributes event
+//! SetXAttrEvent represents an extended attributes event
 type SetXAttrEvent struct {
 	embed SyscallEvent
 	File      FileEvent -> file
@@ -405,7 +403,7 @@ type SetXAttrEvent struct {
 	NameRaw [200]byte
 }
 
-// UnlinkEvent represents an unlink event
+//! UnlinkEvent represents an unlink event
 type UnlinkEvent struct {
 	embed SyscallEvent
 	File  FileEvent -> file
@@ -415,13 +413,13 @@ type UnlinkEvent struct {
 	}
 }
 
-// UmountEvent represents an umount event
+//! UmountEvent represents an umount event
 type UmountEvent struct {
 	embed SyscallEvent
 	MountID uint32
 }
 
-// UtimesEvent represents a utime event
+//! UtimesEvent represents a utime event
 type UtimesEvent struct {
 	embed SyscallEvent
 	File  FileEvent -> file
@@ -429,7 +427,7 @@ type UtimesEvent struct {
 	Mtime time.Time
 }
 
-// BPFEvent represents a BPF event
+//! BPFEvent represents a BPF event
 type BPFEvent struct {
 	embed SyscallEvent
 
@@ -441,7 +439,7 @@ type BPFEvent struct {
 	}
 }
 
-// BPFMap represents a BPF map
+//! BPFMap represents a BPF map
 type BPFMap struct {
 	ID   uint32 // ID of the eBPF map
 	//! Type of the eBPF map
@@ -452,7 +450,7 @@ type BPFMap struct {
 	Name string -> name
 }
 
-// BPFProgram represents a BPF program
+//! BPFProgram represents a BPF program
 type BPFProgram struct {
 	ID         uint32  // ID of the eBPF program
 	//! Type of the eBPF program
@@ -473,7 +471,7 @@ type BPFProgram struct {
 	Tag        string   -> tag
 }
 
-// PTraceEvent represents a ptrace event
+//! PTraceEvent represents a ptrace event
 type PTraceEvent struct {
 	embed SyscallEvent
 
@@ -486,7 +484,7 @@ type PTraceEvent struct {
 	Tracee  *ProcessContext -> tracee // process context of the tracee
 }
 
-// MMapEvent represents a mmap event
+//! MMapEvent represents a mmap event
 type MMapEvent struct {
 	embed SyscallEvent
 
@@ -504,7 +502,7 @@ type MMapEvent struct {
 	}
 }
 
-// MProtectEvent represents a mprotect event
+//! MProtectEvent represents a mprotect event
 type MProtectEvent struct {
 	embed SyscallEvent
 
@@ -520,7 +518,7 @@ type MProtectEvent struct {
 	}
 }
 
-// LoadModuleEvent represents a load_module event
+//! LoadModuleEvent represents a load_module event
 type LoadModuleEvent struct {
 	embed SyscallEvent
 
@@ -541,7 +539,7 @@ type LoadModuleEvent struct {
 	ArgsTruncated    bool      -> args_truncated
 }
 
-// UnloadModuleEvent represents an unload_module event
+//! UnloadModuleEvent represents an unload_module event
 type UnloadModuleEvent struct {
 	embed SyscallEvent
 
@@ -549,7 +547,7 @@ type UnloadModuleEvent struct {
 	Name string -> name
 }
 
-// SignalEvent represents a signal event
+//! SignalEvent represents a signal event
 type SignalEvent struct {
 	embed SyscallEvent
 
@@ -560,7 +558,7 @@ type SignalEvent struct {
 	Target *ProcessContext -> target // Target process context
 }
 
-// SpliceEvent represents a splice event
+//! SpliceEvent represents a splice event
 type SpliceEvent struct {
 	embed SyscallEvent
 
@@ -575,14 +573,14 @@ type SpliceEvent struct {
 	}
 }
 
-// CgroupTracingEvent is used to signal that a new cgroup should be traced by the activity dump manager
+//! CgroupTracingEvent is used to signal that a new cgroup should be traced by the activity dump manager
 type CgroupTracingEvent struct {
 	ContainerContext ContainerContext
 	Config           ActivityDumpLoadConfig
 	ConfigCookie     uint64
 }
 
-// ActivityDumpLoadConfig represents the load configuration of an activity dump
+//! ActivityDumpLoadConfig represents the load configuration of an activity dump
 type ActivityDumpLoadConfig struct {
 	TracedEventTypes     []EventType
 	Timeout              time.Duration
@@ -593,7 +591,7 @@ type ActivityDumpLoadConfig struct {
 	Paused               uint32
 }
 
-// NetworkDeviceContext represents the network device context of a network event
+//! NetworkDeviceContext represents the network device context of a network event
 type NetworkDeviceContext struct {
 	NetNS   uint32
 	//! interface ifindex
@@ -604,7 +602,7 @@ type NetworkDeviceContext struct {
 	}
 }
 
-// BindEvent represents a bind event
+//! BindEvent represents a bind event
 type BindEvent struct {
 	embed SyscallEvent
 
@@ -613,7 +611,7 @@ type BindEvent struct {
 	AddrFamily uint16        -> addr.family
 }
 
-// NetDevice represents a network device
+//! NetDevice represents a network device
 type NetDevice struct {
 	Name        string
 	NetNS       uint32
@@ -622,14 +620,14 @@ type NetDevice struct {
 	PeerIfIndex uint32
 }
 
-// NetDeviceEvent represents a network device event
+//! NetDeviceEvent represents a network device event
 type NetDeviceEvent struct {
 	embed SyscallEvent
 
 	Device NetDevice
 }
 
-// VethPairEvent represents a veth pair event
+//! VethPairEvent represents a veth pair event
 type VethPairEvent struct {
 	embed SyscallEvent
 
@@ -637,17 +635,17 @@ type VethPairEvent struct {
 	PeerDevice NetDevice
 }
 
-// SyscallsEvent represents a syscalls event
+//! SyscallsEvent represents a syscalls event
 type SyscallsEvent struct {
 	Syscalls []Syscall // 64 * 8 = 512 > 450, bytes should be enough to hold all 450 syscalls
 }
 
-// AnomalyDetectionSyscallEvent represents an anomaly detection for a syscall event
+//! AnomalyDetectionSyscallEvent represents an anomaly detection for a syscall event
 type AnomalyDetectionSyscallEvent struct {
 	SyscallID Syscall
 }
 
-// PathKey identifies an entry in the dentry cache
+//! PathKey identifies an entry in the dentry cache
 type PathKey struct {
 	//! Inode of the file
 	Inode   uint64 -> inode
