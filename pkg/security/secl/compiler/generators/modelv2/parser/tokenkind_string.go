@@ -18,23 +18,24 @@ func _() {
 	_ = x[LeftCurlyBracket-7]
 	_ = x[RightCurlyBracket-8]
 	_ = x[CommercialAt-9]
-	_ = x[Dot-10]
-	_ = x[Comma-11]
-	_ = x[Colon-12]
-	_ = x[NumberLiteral-13]
-	_ = x[StringLiteral-14]
-	_ = x[Identifier-15]
-	_ = x[TypeKeyword-16]
-	_ = x[StructKeyword-17]
-	_ = x[TrueKeyword-18]
-	_ = x[FalseKeyword-19]
-	_ = x[EmbedKeyword-20]
-	_ = x[DocComment-21]
+	_ = x[Star-10]
+	_ = x[Dot-11]
+	_ = x[Comma-12]
+	_ = x[Colon-13]
+	_ = x[NumberLiteral-14]
+	_ = x[StringLiteral-15]
+	_ = x[Identifier-16]
+	_ = x[TypeKeyword-17]
+	_ = x[StructKeyword-18]
+	_ = x[TrueKeyword-19]
+	_ = x[FalseKeyword-20]
+	_ = x[EmbedKeyword-21]
+	_ = x[DocComment-22]
 }
 
-const _TokenKind_name = "UndefinedEOFArrowLeftParenthesisRightParenthesisLeftSquareBracketRightSquareBracketLeftCurlyBracketRightCurlyBracketCommercialAtDotCommaColonNumberLiteralStringLiteralIdentifierTypeKeywordStructKeywordTrueKeywordFalseKeywordEmbedKeywordDocComment"
+const _TokenKind_name = "UndefinedEOFArrowLeftParenthesisRightParenthesisLeftSquareBracketRightSquareBracketLeftCurlyBracketRightCurlyBracketCommercialAtStarDotCommaColonNumberLiteralStringLiteralIdentifierTypeKeywordStructKeywordTrueKeywordFalseKeywordEmbedKeywordDocComment"
 
-var _TokenKind_index = [...]uint8{0, 9, 12, 17, 32, 48, 65, 83, 99, 116, 128, 131, 136, 141, 154, 167, 177, 188, 201, 212, 224, 236, 246}
+var _TokenKind_index = [...]uint8{0, 9, 12, 17, 32, 48, 65, 83, 99, 116, 128, 132, 135, 140, 145, 158, 171, 181, 192, 205, 216, 228, 240, 250}
 
 func (i TokenKind) String() string {
 	if i < 0 || i >= TokenKind(len(_TokenKind_index)-1) {

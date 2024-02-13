@@ -21,6 +21,7 @@ const (
 	LeftCurlyBracket
 	RightCurlyBracket
 	CommercialAt
+	Star
 	Dot
 	Comma
 	Colon
@@ -82,6 +83,7 @@ func NewTokenizer(content string) *Tokenizer {
 			{LeftCurlyBracket, "{"},
 			{RightCurlyBracket, "}"},
 			{CommercialAt, "@"},
+			{Star, "*"},
 			{Dot, "."},
 			{Comma, ","},
 			{Colon, ":"},

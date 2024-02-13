@@ -153,20 +153,26 @@ func (p *Parser) parseFieldNode() (FieldNode, error) {
 		return FieldNode{}, err
 	}
 
+	if isEmbed {
+		typeName, typeBase, err := p.parseGoType()
+		if err != nil {
+			return FieldNode{}, err
+		}
+
+		return FieldNode{
+			Doc:        doc,
+			FilterTags: filterTags,
+			Name:       typeBase,
+			Type:       typeName,
+		}, nil
+	}
+
 	id, err := p.acceptToken(Identifier)
 	if err != nil {
 		return FieldNode{}, err
 	}
 
-	if isEmbed {
-		return FieldNode{
-			Doc:        doc,
-			FilterTags: filterTags,
-			Name:       id.Content,
-		}, nil
-	}
-
-	typeName, err := p.acceptToken(Identifier)
+	typeName, _, err := p.parseGoType()
 	if err != nil {
 		return FieldNode{}, err
 	}
@@ -198,7 +204,7 @@ func (p *Parser) parseFieldNode() (FieldNode, error) {
 		Doc:        doc,
 		FilterTags: filterTags,
 		Name:       id.Content,
-		Type:       typeName.Content,
+		Type:       typeName,
 
 		SeclMappings: mappings,
 	}, nil
@@ -315,4 +321,43 @@ func (p *Parser) parseOptionValue() (string, error) {
 	}
 
 	return nextTok.Content, nil
+}
+
+func (p *Parser) parseGoType() (string, string, error) {
+	isSub, kind, err := p.advanceIf(Star, LeftSquareBracket)
+	if err != nil {
+		return "", "", err
+	}
+
+	if isSub {
+		switch kind {
+		case Star:
+			sub, base, err := p.parseGoType()
+			return "*" + sub, base, err
+		case LeftSquareBracket:
+			prefix := "["
+			if p.isNextTokenA(NumberLiteral) {
+				count, err := p.acceptToken(NumberLiteral)
+				if err != nil {
+					return "", "", err
+				}
+				prefix += count.Content
+			}
+			_, err := p.acceptToken(RightSquareBracket)
+			if err != nil {
+				return "", "", err
+			}
+			prefix += "]"
+			sub, base, err := p.parseGoType()
+			return prefix + sub, base, err
+		default:
+			panic("unreachable")
+		}
+	}
+
+	id, err := p.acceptToken(Identifier)
+	if err != nil {
+		return "", "", err
+	}
+	return id.Content, id.Content, nil
 }
