@@ -65,7 +65,11 @@ func emitOldModel(w io.Writer, tn parser.TypeNode) {
 		}
 
 		if len(field.SeclMappings) == 0 {
-			fmt.Fprintf(w, " `field:\"-\"`\n")
+			if !field.IsEmbed {
+				fmt.Fprintf(w, " `field:\"-\"`\n")
+			} else {
+				fmt.Fprintf(w, "\n")
+			}
 		} else {
 			var fieldContent []string
 			var comment string
@@ -76,7 +80,7 @@ func emitOldModel(w io.Writer, tn parser.TypeNode) {
 			for _, mapping := range field.SeclMappings {
 				fieldTag := mapping.Name
 				for k, v := range mapping.Options {
-					if k == "handler" || k == "opts" || k == "check" {
+					if k == "handler" || k == "opts" || k == "check" || k == "weight" {
 						fieldTag += fmt.Sprintf(",%s:%s", k, v)
 					}
 				}
