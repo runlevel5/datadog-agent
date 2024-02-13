@@ -45,17 +45,27 @@ func emitOldModel(tn parser.TypeNode) {
 			fmt.Fprintf(w, " `field:\"-\"`\n")
 		} else {
 			var fieldContent []string
+			var comment string
 			for _, mapping := range field.SeclMappings {
-				field := mapping.Name
+				fieldTag := mapping.Name
 				for k, v := range mapping.Options {
 					if k == "handler" || k == "opts" {
-						field += fmt.Sprintf(",%s:%s", k, v)
+						fieldTag += fmt.Sprintf(",%s:%s", k, v)
 					}
 				}
-				fieldContent = append(fieldContent, field)
+				fieldContent = append(fieldContent, fieldTag)
+
+				doc := mapping.Options["doc"]
+				if doc == "" {
+					doc = field.Doc
+				}
+				comment += fmt.Sprintf("SECLDoc[%s] Definition:`%s`", mapping.Name, doc)
+				if c := mapping.Options["constants"]; c != "" {
+					comment += fmt.Sprintf(" Constants:`%s`", c)
+				}
 			}
 
-			fmt.Fprintf(w, " `field:\"%s\"`\n", strings.Join(fieldContent, ";"))
+			fmt.Fprintf(w, " `field:\"%s\"` // %s\n", strings.Join(fieldContent, ";"), comment)
 		}
 	}
 
