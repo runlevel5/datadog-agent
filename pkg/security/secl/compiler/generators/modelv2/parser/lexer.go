@@ -25,6 +25,7 @@ const (
 	Comma
 	Colon
 	NumberLiteral
+	StringLiteral
 	Identifier
 	TypeKeyword
 	StructKeyword
@@ -67,6 +68,7 @@ type Tokenizer struct {
 func NewTokenizer(content string) *Tokenizer {
 	identifierRegexp := regexp.MustCompile(`^[a-zA-Z_][0-9a-zA-Z_]*`)
 	numberLiteral := regexp.MustCompile(`^[0-9]+`)
+	stringLiteral := regexp.MustCompile(`^"([^"]*)"`)
 	docRegexp := regexp.MustCompile(`^#\s*(.*)\n`)
 
 	return &Tokenizer{
@@ -87,6 +89,7 @@ func NewTokenizer(content string) *Tokenizer {
 			{Identifier, identifierRegexp, 0},
 			{DocComment, docRegexp, 1},
 			{NumberLiteral, numberLiteral, 0},
+			{StringLiteral, stringLiteral, 1},
 		},
 		keywords: map[string]TokenKind{
 			"type":   TypeKeyword,

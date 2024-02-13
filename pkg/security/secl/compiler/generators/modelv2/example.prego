@@ -6,30 +6,79 @@ type SyscallEvent struct {
 	}
 }
 
-type PIDContext struct {
-    # Process ID of the process (also called thread group ID)
-	Pid       uint32 -> pid
-	# Thread ID of the thread
-	Tid       uint32 -> tid
-
-	@linux
-	NetNS     uint32
-
-	embed Credentials
-
-	# Indicates whether the process is a kworker
-	@linux
-	IsKworker bool -> is_kworker
-
-	@linux
-	ExecInode uint64 // used to track exec and event loss
-
-	@linux
-	Namespace string
-		-> file.destination.namespace {
-			handler: ResolveXAttrNamespace,
+// ChmodEvent represents a chmod event
+type ChmodEvent struct {
+	embed SyscallEvent
+	File FileEvent -> file
+	Mode uint32
+		-> file.destination.mode {
+			doc: "New mode of the chmod-ed file",
+			constants: "File mode constants",
 		}
-		-> file.destination.namespace2 {
-			weight: 100,
+		-> file.destination.rights {
+			doc: "New rights of the chmod-ed file",
+			constants: "File mode constants",
 		}
+}
+
+// ChownEvent represents a chown event
+type ChownEvent struct {
+	embed SyscallEvent
+	File  FileEvent -> file
+	# New UID of the chown-ed file's owner
+	UID   int64 -> file.destination.uid
+	# New user of the chown-ed file's owner
+	User  string -> file.destination.user {
+		handler: ResolveChownUID
+	}
+	# New GID of the chown-ed file's owner
+	GID   int64 -> file.destination.gid
+	# New group of the chown-ed file's owner
+	Group string -> file.destination.group {
+		handler:ResolveChownGID
+	}
+}
+
+// SetuidEvent represents a setuid event
+type SetuidEvent struct {
+	# New UID of the process
+	UID    uint32 -> uid
+	# New user of the process
+	User   string -> user {
+		handler: ResolveSetuidUser
+	}
+	# New effective UID of the process
+	EUID   uint32 -> euid
+	# New effective user of the process
+	EUser  string -> euser {
+		handler: ResolveSetuidEUser
+	}
+	# New FileSystem UID of the process
+	FSUID  uint32 -> fsuid
+	# New FileSystem user of the process
+	FSUser string -> fsuser {
+		handler: ResolveSetuidFSUser
+	}
+}
+
+// SetgidEvent represents a setgid event
+type SetgidEvent struct {
+	# New GID of the process
+	GID     uint32 -> gid
+	# New group of the process
+	Group   string -> group {
+		handler: ResolveSetgidGroup
+	}
+	# New effective GID of the process
+	EGID    uint32 -> egid
+	# New effective group of the process
+	EGroup  string -> egroup {
+		handler: ResolveSetgidEGroup
+	}
+	# New FileSystem GID of the process
+	FSGID   uint32 -> fsgid
+	# New FileSystem group of the process
+	FSGroup string -> fsgroup {
+		handler: ResolveSetgidFSGroup
+	}
 }

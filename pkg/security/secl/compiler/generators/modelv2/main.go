@@ -16,10 +16,11 @@ func main() {
 	lexer := parser.NewTokenizer(string(content))
 	pars := parser.NewParser(lexer)
 
-	tn, err := pars.ParseTypeNode()
-	if err != nil {
-		panic(err)
+	for i := 0; i < 3; i++ {
+		tn, err := pars.ParseTypeNode()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("%+v\n", tn)
 	}
-
-	fmt.Printf("%+v\n", tn)
 }
