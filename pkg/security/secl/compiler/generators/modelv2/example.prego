@@ -1,4 +1,101 @@
-// TODO event
+//! Event represents an event sent from the kernel
+type Event struct {
+	embed BaseEvent
+
+	// globals
+
+	//! True if the syscall was asynchronous
+	Async bool => * -> event.async {
+		handler: ResolveAsync,
+	}
+
+	// context
+	SpanContext    SpanContext
+	NetworkContext NetworkContext => dns -> network
+
+	// fim events
+	//! [7.27] [File] A file’s permissions were changed
+	Chmod       ChmodEvent => chmod -> chmod
+	//! [7.27] [File] A file’s owner was changed
+	Chown       ChownEvent => chown -> chown
+	//! [7.27] [File] A file was opened
+	Open        OpenEvent => open -> open
+	//! [7.27] [File] A directory was created
+	Mkdir       MkdirEvent => mkdir -> mkdir
+	//! [7.27] [File] A directory was removed
+	Rmdir       RmdirEvent => rmdir -> rmdir
+	//! [7.27] [File] A file/directory was renamed
+	Rename      RenameEvent => rename -> rename
+	//! [7.27] [File] A file was deleted
+	Unlink      UnlinkEvent => unlink -> unlink
+	//! [7.27] [File] Change file access/modification times
+	Utimes      UtimesEvent => utimes -> utimes
+	//! [7.27] [File] Create a new name/alias for a file
+	Link        LinkEvent => link -> link
+	//! [7.27] [File] Set exteneded attributes
+	SetXAttr    SetXAttrEvent => setxattr -> setxattr
+	//! [7.27] [File] Remove extended attributes
+	RemoveXAttr SetXAttrEvent => removexattr -> removexattr
+	//! [7.36] [File] A splice command was executed
+	Splice      SpliceEvent => splice -> splice
+	//! [7.42] [File] [Experimental] A filesystem was mounted
+	Mount       MountEvent => mount -> mount
+	//! [7.52] [File] [Experimental] A process changed the current directory
+	Chdir       ChdirEvent => chdir -> chdir
+
+	// process events
+	//! [7.27] [Process] A process was executed or forked
+	Exec     ExecEvent  => exec -> exec  //
+	//! [7.27] [Process] A process changed its effective uid
+	SetUID   SetuidEvent => setuid -> setuid
+	//! [7.27] [Process] A process changed its effective gid
+	SetGID   SetgidEvent => setgid -> setgid
+	//! [7.27] [Process] A process changed its capacity set
+	Capset   CapsetEvent => capset -> capset
+	//! [7.35] [Process] A signal was sent
+	Signal   SignalEvent => signal -> signal
+	//! [7.38] [Process] A process was terminated
+	Exit     ExitEvent => exit -> exit
+	Syscalls SyscallsEvent
+
+	// anomaly detection related events
+	AnomalyDetectionSyscallEvent AnomalyDetectionSyscallEvent
+
+	// kernel events
+	//! [7.30] [Kernel] An SELinux operation was run
+	SELinux      SELinuxEvent => selinux -> selinux
+	//! [7.33] [Kernel] A BPF command was executed
+	BPF          BPFEvent => bpf -> bpf
+	//! [7.35] [Kernel] A ptrace command was executed
+	PTrace       PTraceEvent => ptrace -> ptrace
+	//! [7.35] [Kernel] A mmap command was executed
+	MMap         MMapEvent => mmap -> mmap
+	//! [7.35] [Kernel] A mprotect command was executed
+	MProtect     MProtectEvent => mprotect -> mprotect
+	//! [7.35] [Kernel] A new kernel module was loaded
+	LoadModule   LoadModuleEvent => load_module -> load_module
+	//! [7.35] [Kernel] A kernel module was deleted
+	UnloadModule UnloadModuleEvent => unload_module -> unload_module
+
+	// network events
+	//! [7.36] [Network] A DNS request was sent
+	DNS  DNSEvent => dns -> dns
+	//! [7.37] [Network] A bind was executed
+	Bind BindEvent => bind -> bind
+
+	// internal usage
+	Umount           UmountEvent
+	InvalidateDentry InvalidateDentryEvent
+	ArgsEnvs         ArgsEnvsEvent
+	MountReleased    MountReleasedEvent
+	CgroupTracing    CgroupTracingEvent
+	NetDevice        NetDeviceEvent
+	VethPair         VethPairEvent
+	UnshareMountNS   UnshareMountNSEvent
+	// used for ebpfless
+	NSID uint64
+}
+
 
 //! SyscallEvent contains common fields for all the event
 type SyscallEvent struct {
