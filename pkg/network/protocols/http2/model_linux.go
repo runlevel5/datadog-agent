@@ -15,8 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/http2/hpack"
-
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/http"
@@ -47,17 +45,6 @@ func validatePath(str string) error {
 	return nil
 }
 
-// validatePathSize validates the given path size.
-func validatePathSize(size uint8) error {
-	if size == 0 {
-		return errors.New("empty path")
-	}
-	if size > maxHTTP2Path {
-		return fmt.Errorf("path size has exceeded the maximum limit: %d", size)
-	}
-	return nil
-}
-
 // flipTuple returns a new connection tuple with the source and destination fields flipped.
 func flipTuple(t connTuple) connTuple {
 	return connTuple{
@@ -71,29 +58,6 @@ func flipTuple(t connTuple) connTuple {
 		Pid:      t.Pid,
 		Metadata: t.Metadata,
 	}
-}
-
-// decodeHTTP2Path tries to decode (Huffman) the path from the given buffer.
-// Possible errors:
-// - If the given pathSize is 0.
-// - If the given pathSize is larger than the buffer size.
-// - If the Huffman decoding fails.
-// - If the decoded path doesn't start with a '/'.
-func decodeHTTP2Path(buf [maxHTTP2Path]byte, pathSize uint8) ([]byte, error) {
-	if err := validatePathSize(pathSize); err != nil {
-		return nil, err
-	}
-
-	str, err := hpack.HuffmanDecodeToString(buf[:pathSize])
-	if err != nil {
-		return nil, err
-	}
-
-	if err = validatePath(str); err != nil {
-		return nil, err
-	}
-
-	return []byte(str), nil
 }
 
 // ebpfTXWrapper is a wrapper around the eBPF transaction.
