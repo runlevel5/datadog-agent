@@ -4,7 +4,7 @@
 // Copyright 2016-present Datadog, Inc.
 
 // Package hosttags provides access to host tags
-package hosttags
+package utils
 
 import (
 	"context"
@@ -94,12 +94,12 @@ func appendAndSplitTags(target []string, tags []string, splits map[string]string
 	return target
 }
 
-// Get the host tags, optionally looking in the cache
+// GetHostTags the host tags, optionally looking in the cache
 // There are two levels of caching:
 // - First one controlled by `cached` boolean, used for performances (cache all tags)
 // - Second one per provider, to avoid missing host tags for 30 minutes when a component fails (for instance, Cluster Agent).
 // This second layer is always on.
-func Get(ctx context.Context, cached bool, conf config.Reader) *Tags {
+func GetHostTags(ctx context.Context, cached bool, conf config.Reader) *Tags {
 	if cached {
 		if x, found := cache.Cache.Get(tagsCacheKey); found {
 			tags := x.(*Tags)
