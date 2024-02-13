@@ -17,6 +17,14 @@ func NewParser(lexer *Tokenizer) *Parser {
 	}
 }
 
+func (p *Parser) IsAtEof() bool {
+	tok, err := p.peekToken()
+	if err != nil {
+		return false
+	}
+	return tok.Kind == EOF
+}
+
 func (p *Parser) nextToken() (Token, error) {
 	if p.peekCacheFull {
 		p.peekCacheFull = false
