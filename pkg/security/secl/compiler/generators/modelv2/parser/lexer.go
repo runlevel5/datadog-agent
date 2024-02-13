@@ -14,6 +14,7 @@ const (
 	Undefined TokenKind = iota
 	EOF
 	Arrow
+	DoubleArrow
 	LeftParenthesis
 	RightParenthesis
 	LeftSquareBracket
@@ -76,6 +77,7 @@ func NewTokenizer(content string) *Tokenizer {
 	return &Tokenizer{
 		literal: []literalTokenDefinition{
 			{Arrow, "->"},
+			{DoubleArrow, "=>"},
 			{LeftParenthesis, "("},
 			{RightParenthesis, ")"},
 			{LeftSquareBracket, "["},

@@ -13,6 +13,7 @@ type FieldNode struct {
 	Name       string
 	Type       string
 
+	EventType    string
 	SeclMappings []SeclMapping
 }
 

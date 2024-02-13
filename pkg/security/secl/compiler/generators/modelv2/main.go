@@ -46,6 +46,10 @@ func emitOldModel(tn parser.TypeNode) {
 		} else {
 			var fieldContent []string
 			var comment string
+			if field.EventType != "" {
+				comment = field.Doc
+			}
+
 			for _, mapping := range field.SeclMappings {
 				fieldTag := mapping.Name
 				for k, v := range mapping.Options {
@@ -59,13 +63,24 @@ func emitOldModel(tn parser.TypeNode) {
 				if doc == "" {
 					doc = field.Doc
 				}
-				comment += fmt.Sprintf("SECLDoc[%s] Definition:`%s`", mapping.Name, doc)
-				if c := mapping.Options["constants"]; c != "" {
-					comment += fmt.Sprintf(" Constants:`%s`", c)
+
+				if field.EventType == "" {
+					comment += fmt.Sprintf("SECLDoc[%s] Definition:`%s`", mapping.Name, doc)
+					if c := mapping.Options["constants"]; c != "" {
+						comment += fmt.Sprintf(" Constants:`%s`", c)
+					}
 				}
 			}
 
-			fmt.Fprintf(w, " `field:\"%s\"` // %s\n", strings.Join(fieldContent, ";"), comment)
+			fmt.Fprintf(w, " `field:\"%s\"", strings.Join(fieldContent, ";"))
+			if field.EventType != "" {
+				fmt.Fprintf(w, " event:\"%s\"", field.EventType)
+			}
+			if comment != "" {
+				fmt.Fprintf(w, "` // %s\n", comment)
+			} else {
+				fmt.Fprintf(w, "`\n")
+			}
 		}
 	}
 

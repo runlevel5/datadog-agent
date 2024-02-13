@@ -178,6 +178,18 @@ func (p *Parser) parseFieldNode() (FieldNode, error) {
 		return FieldNode{}, err
 	}
 
+	var eventType string
+	isDoubleArrow, _, err := p.advanceIf(DoubleArrow)
+	if err != nil {
+		return FieldNode{}, err
+	}
+	if isDoubleArrow {
+		eventType, err = p.parseEventType()
+		if err != nil {
+			return FieldNode{}, err
+		}
+	}
+
 	var mappings []SeclMapping
 	for p.isNextTokenA(Arrow) {
 		_, err := p.acceptToken(Arrow)
@@ -207,6 +219,7 @@ func (p *Parser) parseFieldNode() (FieldNode, error) {
 		Name:       id.Content,
 		Type:       typeName,
 
+		EventType:    eventType,
 		SeclMappings: mappings,
 	}, nil
 }
@@ -370,4 +383,16 @@ func (p *Parser) parseGoType() (string, string, error) {
 		return "", "", err
 	}
 	return id, id, nil
+}
+
+func (p *Parser) parseEventType() (string, error) {
+	isStar, _, err := p.advanceIf(Star)
+	if err != nil {
+		return "", err
+	}
+	if isStar {
+		return "*", nil
+	}
+
+	return p.parseDottedIdentifier()
 }
