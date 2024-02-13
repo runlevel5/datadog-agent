@@ -69,7 +69,7 @@ func NewTokenizer(content string) *Tokenizer {
 	identifierRegexp := regexp.MustCompile(`^[a-zA-Z_][0-9a-zA-Z_]*`)
 	numberLiteral := regexp.MustCompile(`^[0-9]+`)
 	stringLiteral := regexp.MustCompile(`^"([^"]*)"`)
-	docRegexp := regexp.MustCompile(`^#\s*(.*)\n`)
+	docRegexp := regexp.MustCompile(`^//!\s*(.*)\n`)
 
 	return &Tokenizer{
 		literal: []literalTokenDefinition{
@@ -112,7 +112,7 @@ func (t *Tokenizer) eatWhitespaces() {
 
 func (t *Tokenizer) eatComment() bool {
 	// eat comment
-	if strings.HasPrefix(t.front(), "//") {
+	if strings.HasPrefix(t.front(), "//") && !strings.HasPrefix(t.front(), "//!") {
 		for !t.atEOF() && t.content[t.index] != '\n' {
 			t.index++
 		}

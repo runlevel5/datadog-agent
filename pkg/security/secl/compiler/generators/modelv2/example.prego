@@ -1,6 +1,6 @@
 // SyscallEvent contains common fields for all the event
 type SyscallEvent struct {
-	# Return value of the syscall
+	//! Return value of the syscall
 	Retval int64 -> retval {
 		constants: "Error constants",
 	}
@@ -25,15 +25,15 @@ type ChmodEvent struct {
 type ChownEvent struct {
 	embed SyscallEvent
 	File  FileEvent -> file
-	# New UID of the chown-ed file's owner
+	//! New UID of the chown-ed file's owner
 	UID   int64 -> file.destination.uid
-	# New user of the chown-ed file's owner
+	//! New user of the chown-ed file's owner
 	User  string -> file.destination.user {
 		handler: ResolveChownUID
 	}
-	# New GID of the chown-ed file's owner
+	//! New GID of the chown-ed file's owner
 	GID   int64 -> file.destination.gid
-	# New group of the chown-ed file's owner
+	//! New group of the chown-ed file's owner
 	Group string -> file.destination.group {
 		handler:ResolveChownGID
 	}
@@ -41,21 +41,21 @@ type ChownEvent struct {
 
 // SetuidEvent represents a setuid event
 type SetuidEvent struct {
-	# New UID of the process
+	//! New UID of the process
 	UID    uint32 -> uid
-	# New user of the process
+	//! New user of the process
 	User   string -> user {
 		handler: ResolveSetuidUser
 	}
-	# New effective UID of the process
+	//! New effective UID of the process
 	EUID   uint32 -> euid
-	# New effective user of the process
+	//! New effective user of the process
 	EUser  string -> euser {
 		handler: ResolveSetuidEUser
 	}
-	# New FileSystem UID of the process
+	//! New FileSystem UID of the process
 	FSUID  uint32 -> fsuid
-	# New FileSystem user of the process
+	//! New FileSystem user of the process
 	FSUser string -> fsuser {
 		handler: ResolveSetuidFSUser
 	}
@@ -63,21 +63,21 @@ type SetuidEvent struct {
 
 // SetgidEvent represents a setgid event
 type SetgidEvent struct {
-	# New GID of the process
+	//! New GID of the process
 	GID     uint32 -> gid
-	# New group of the process
+	//! New group of the process
 	Group   string -> group {
 		handler: ResolveSetgidGroup
 	}
-	# New effective GID of the process
+	//! New effective GID of the process
 	EGID    uint32 -> egid
-	# New effective group of the process
+	//! New effective group of the process
 	EGroup  string -> egroup {
 		handler: ResolveSetgidEGroup
 	}
-	# New FileSystem GID of the process
+	//! New FileSystem GID of the process
 	FSGID   uint32 -> fsgid
-	# New FileSystem group of the process
+	//! New FileSystem group of the process
 	FSGroup string -> fsgroup {
 		handler: ResolveSetgidFSGroup
 	}

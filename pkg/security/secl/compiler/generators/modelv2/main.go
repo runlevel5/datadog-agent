@@ -16,7 +16,7 @@ func main() {
 	lexer := parser.NewTokenizer(string(content))
 	pars := parser.NewParser(lexer)
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 5; i++ {
 		tn, err := pars.ParseTypeNode()
 		if err != nil {
 			panic(err)
