@@ -3,7 +3,9 @@ package main
 import (
 	_ "embed"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/generators/modelv2/parser"
@@ -21,20 +23,32 @@ func main() {
 	lexer := parser.NewTokenizer(string(content))
 	pars := parser.NewParser(lexer)
 
-	fmt.Fprintf(os.Stdout, header)
+	out, err := os.Create("./pkg/security/secl/model/model_unix.go")
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Fprintf(out, header)
 
 	for !pars.IsAtEof() {
 		tn, err := pars.ParseTypeNode()
 		if err != nil {
 			panic(err)
 		}
-		emitOldModel(tn)
+		emitOldModel(out, tn)
+	}
+
+	if err := out.Close(); err != nil {
+		panic(err)
+	}
+
+	cmd := exec.Command("gofmt", "-s", "-w", out.Name())
+	if err := cmd.Run(); err != nil {
+		panic(err)
 	}
 }
 
-func emitOldModel(tn parser.TypeNode) {
-	w := os.Stdout
-
+func emitOldModel(w io.Writer, tn parser.TypeNode) {
 	if tn.Doc != "" {
 		fmt.Fprintf(w, "// %s\n", tn.Doc)
 	}
