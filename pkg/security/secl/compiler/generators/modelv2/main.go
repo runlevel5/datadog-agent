@@ -53,7 +53,7 @@ func emitOldModel(tn parser.TypeNode) {
 			for _, mapping := range field.SeclMappings {
 				fieldTag := mapping.Name
 				for k, v := range mapping.Options {
-					if k == "handler" || k == "opts" {
+					if k == "handler" || k == "opts" || k == "check" {
 						fieldTag += fmt.Sprintf(",%s:%s", k, v)
 					}
 				}

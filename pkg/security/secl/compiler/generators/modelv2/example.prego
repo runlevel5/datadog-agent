@@ -241,7 +241,148 @@ type LinuxBinprm struct {
 	FileEvent FileEvent -> file
 }
 
-// TODO process
+//! Process represents a process
+type Process struct {
+	embed PIDContext
+
+	FileEvent FileEvent -> file {
+		check: IsNotKworker,
+	}
+
+	//! Container ID
+	ContainerID string -> container.id
+
+	SpanID  uint64
+	TraceID uint64
+
+	//! Name of the TTY associated with the process
+	TTYName     string      -> tty_name
+	//! Comm attribute of the process
+	Comm        string      -> comm
+	//! Script interpreter as identified by the shebang
+	LinuxBinprm LinuxBinprm -> interpreter {
+		check: HasInterpreter,
+	}
+
+	// pid_cache_t
+	ForkTime time.Time -> fork_time {
+		opts: getters_only,
+	}
+	ExitTime time.Time -> exit_time {
+		opts: getters_only,
+	}
+	ExecTime time.Time -> exec_time {
+		opts: getters_only,
+	}
+
+	// TODO: merge with ExecTime
+	//! Timestamp of the creation of the process
+	CreatedAt uint64 -> created_at {
+		handler:ResolveProcessCreatedAt
+	}
+
+	Cookie uint64
+	//! Parent process ID
+	PPid   uint32 -> ppid
+
+	// credentials_t section of pid_cache_t
+	embed Credentials
+
+	//! User Session context of this process
+	UserSession UserSessionContext -> user_session
+
+	ArgsID uint32
+	EnvsID uint32
+
+	ArgsEntry *ArgsEntry
+	EnvsEntry *EnvsEntry
+
+	// defined to generate accessors, ArgsTruncated and EnvsTruncated are used during by unmarshaller
+	//! First argument of the process
+	Argv0         string   -> argv0 {
+		handler: ResolveProcessArgv0,
+		weight: 100,
+	}
+	//! Arguments of the process (as a string, excluding argv0)
+	Args          string   -> args {
+		handler: ResolveProcessArgs,
+		weight: 500,
+		example: `exec.args == "-sV -p 22,53,110,143,4564 198.116.0-255.1-127"`,
+		description: "Matches any process with these exact arguments.",
+		// example: `exec.args =~ "* -F * http*"`,
+		// description: `Matches any process that has the "-F" argument anywhere before an argument starting with "http".`,
+	}
+	Argv          []string
+		-> argv {
+			doc: "Arguments of the process (as an array, excluding argv0)",
+			handler: ResolveProcessArgv,
+			weight: 500,
+			example: `exec.argv in ["127.0.0.1"]`,
+			description: "Matches any process that has this IP address as one of its arguments.",
+		}
+		-> args_flags {
+			doc: "Flags in the process arguments",
+			handler: ResolveProcessArgsFlags,
+			opts: helper,
+			example:`exec.args_flags in ["s"] && exec.args_flags in ["V"]`,
+			description: `Matches any process with both "-s" and "-V" flags in its arguments. Also matches "-sV".`
+		}
+		-> args_options {
+			doc: "Argument of the process as options",
+			handler: ResolveProcessArgsOptions,
+			opts: helper,
+			example: `exec.args_options in ["p=0-1024"]`,
+			description:`Matches any process that has either "-p 0-1024" or "--p=0-1024" in its arguments.`,
+		}
+	//! Indicator of arguments truncation
+	ArgsTruncated bool     -> args_truncated {
+		handler: ResolveProcessArgsTruncated,
+	}
+	//! Environment variable names of the process
+	Envs          []string -> envs {
+		handler: ResolveProcessEnvs,
+		weight: 100,
+	}
+	//! Environment variables of the process
+	Envp          []string -> envp {
+		handler: ResolveProcessEnvp,
+		weight: 100,
+	}
+	//! Indicator of environment variables truncation
+	EnvsTruncated bool     -> envs_truncated {
+		handler: ResolveProcessEnvsTruncated,
+	}
+
+	ArgsScrubbed string   -> args_scrubbed {
+		handler: ResolveProcessArgsScrubbed,
+		weight: 500,
+		opts: getters_only,
+	}
+	ArgvScrubbed []string -> argv_scrubbed {
+		handler: ResolveProcessArgvScrubbed,
+		weight: 500,
+		opts: getters_only,
+	}
+
+	// symlink to the process binary
+	SymlinkPathnameStr [MaxSymlinks]string
+	SymlinkBasenameStr string
+
+	// cache version
+	ScrubbedArgvResolved bool
+	Variables            eval.Variables
+
+	//! Indicates whether the process is considered a thread (that is, a child process that hasn't executed another program)
+	IsThread        bool -> is_thread
+	IsExecChild     bool        // Indicates whether the process is an exec child of its parent
+	IsParentMissing bool        // Indicates the direct parent is missing
+
+	Source uint64
+
+	// lineage
+	hasValidLineage *bool
+	lineageError    error
+}
 
 //! ExecEvent represents a exec event
 type ExecEvent struct {
