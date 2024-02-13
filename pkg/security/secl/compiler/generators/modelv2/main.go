@@ -73,6 +73,7 @@ func emitOldModel(w io.Writer, tn parser.TypeNode) {
 		} else {
 			var fieldContent []string
 			var comment string
+			var opOverride string
 			if field.EventType != "" && field.Name != "Async" {
 				comment = field.Doc
 			}
@@ -97,11 +98,16 @@ func emitOldModel(w io.Writer, tn parser.TypeNode) {
 						comment += fmt.Sprintf(" Constants:`%s`", c)
 					}
 				}
+
+				opOverride = mapping.Options["op_override"]
 			}
 
 			fmt.Fprintf(w, " `field:\"%s\"", strings.Join(fieldContent, ";"))
 			if field.EventType != "" {
 				fmt.Fprintf(w, " event:\"%s\"", field.EventType)
+			}
+			if opOverride != "" {
+				fmt.Fprintf(w, " op_override:\"%s\"", opOverride)
 			}
 			if comment != "" {
 				fmt.Fprintf(w, "` // %s\n", comment)
