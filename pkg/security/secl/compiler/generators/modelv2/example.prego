@@ -104,7 +104,10 @@ type Credentials struct {
 	//! GID of the process
 	GID   uint32 -> gid
 	//! User of the process
-	User  string -> user"`  // SECLDoc[user] Definition:`User of the process` Example:`process.user == "root"` Description:`Constrain an event to be triggered by a process running as the root user.`
+	User  string -> user {
+		example: `process.user == "root"`,
+		description: "Constrain an event to be triggered by a process running as the root user.",
+	}
 	//! Group of the process
 	Group string -> group
 
