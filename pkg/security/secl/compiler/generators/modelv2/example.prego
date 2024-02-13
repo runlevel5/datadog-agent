@@ -1,3 +1,5 @@
+// TODO event
+
 // SyscallEvent contains common fields for all the event
 type SyscallEvent struct {
 	//! Return value of the syscall
@@ -81,4 +83,321 @@ type SetgidEvent struct {
 	FSGroup string -> fsgroup {
 		handler: ResolveSetgidFSGroup
 	}
+}
+
+// CapsetEvent represents a capset event
+type CapsetEvent struct {
+	//! Effective capability set of the process
+	CapEffective uint64 -> cap_effective {
+		constants: "Kernel Capability constants",
+	}
+	//! Permitted capability set of the process
+	CapPermitted uint64 -> cap_permitted {
+		constants: "Kernel Capability constants",
+	}
+}
+
+// Credentials represents the kernel credentials of a process
+type Credentials struct {
+	//! UID of the process
+	UID   uint32 -> uid
+	//! GID of the process
+	GID   uint32 -> gid
+	//! User of the process
+	User  string -> user"`  // SECLDoc[user] Definition:`User of the process` Example:`process.user == "root"` Description:`Constrain an event to be triggered by a process running as the root user.`
+	//! Group of the process
+	Group string -> group
+
+	//! Effective UID of the process
+	EUID   uint32 -> euid
+	//! Effective GID of the process
+	EGID   uint32 -> egid
+	//! Effective user of the process
+	EUser  string -> euser
+	//! Effective group of the process
+	EGroup string -> egroup
+
+	//! FileSystem-uid of the process
+	FSUID   uint32 -> fsuid
+	//! FileSystem-gid of the process
+	FSGID   uint32 -> fsgid
+	//! FileSystem-user of the process
+	FSUser  string -> fsuser
+	//! FileSystem-group of the process
+	FSGroup string -> fsgroup
+
+	//! Effective capability set of the process
+	CapEffective uint64 -> cap_effective {
+		constants: "Kernel Capability constants",
+	}
+	//! Permitted capability set of the process
+	CapPermitted uint64 -> cap_permitted {
+		constants: "Kernel Capability constants",
+	}
+}
+
+// LinuxBinprm contains content from the linux_binprm struct, which holds the arguments used for loading binaries
+type LinuxBinprm struct {
+	FileEvent FileEvent -> file
+}
+
+// TODO process
+
+// ExecEvent represents a exec event
+type ExecEvent struct {
+	embed *Process
+}
+
+// FileFields holds the information required to identify a file
+type FileFields struct {
+	//! UID of the file's owner
+	UID   uint32 -> uid
+	//! User of the file's owner
+	User  string -> user {
+		handler: ResolveFileFieldsUser,
+	}
+	//! GID of the file's owner
+	GID   uint32 -> gid
+	//! Group of the file's owner
+	Group string -> group {
+		handler: ResolveFileFieldsGroup,
+	}
+	Mode  uint16
+		-> mode {
+			doc: "Mode of the file",
+			constants: "Inode mode constants",
+		}
+		-> rights {
+			doc: "Rights of the file",
+			handler: ResolveRights,
+			opts:helper,
+			constants: "File mode constants",
+		}
+	//! Change time (ctime) of the file
+	CTime uint64 -> change_time
+	//! Modification time (mtime) of the file
+	MTime uint64 -> modification_time
+
+	embed PathKey
+	Device uint32
+
+	//! Indicator of the file layer, for example, in an OverlayFS
+	InUpperLayer bool -> in_upper_layer {
+		handler: ResolveFileFieldsInUpperLayer
+	}
+
+	NLink uint32
+	Flags int32
+}
+
+// FileEvent is the common file event type
+type FileEvent struct {
+	embed FileFields
+
+	//! File's path
+	PathnameStr string -> path {
+		handler: ResolveFilePath,
+		opts: length,
+		op_override: ProcessSymlinkPathname,
+		example: `exec.file.path == "/usr/bin/apt"`,
+		description: `Matches the execution of the file located at /usr/bin/apt`,
+		// example: `open.file.path == "/etc/passwd"`
+		// description: `Matches any process opening the /etc/passwd file`,
+	}
+	//! File's basename
+	BasenameStr string -> name {
+		handler: ResolveFileBasename,
+		opts: length,
+		op_override: ProcessSymlinkBasename,
+		example: `exec.file.name == "apt"`,
+		description:`Matches the execution of any file named apt.`,
+	}
+	//! File's filesystem
+	Filesystem  string -> filesystem {
+		handler: ResolveFileFilesystem,
+	}
+
+	PathResolutionError error
+
+	//! [Experimental] Name of the package that provided this file
+	PkgName       string -> package.name {
+		handler: ResolvePackageName,
+	}
+	//! [Experimental] Full version of the package that provided this file
+	PkgVersion    string -> package.version {
+		handler: ResolvePackageVersion,
+	}
+	//! [Experimental] Full version of the source package of the package that provided this file
+	PkgSrcVersion string -> package.source_version {
+		handler: ResolvePackageSourceVersion,
+	}
+
+	HashState HashState
+	//! [Experimental] List of cryptographic hashes computed for this file
+	Hashes    []string -> hashes {
+		handler: ResolveHashesFromEvent,
+		opts: skip_ad,
+		weight: 999,
+	}
+
+	// used to mark as already resolved, can be used in case of empty path
+	IsPathnameStrResolved bool
+	IsBasenameStrResolved bool
+}
+
+// InvalidateDentryEvent defines a invalidate dentry event
+type InvalidateDentryEvent struct {
+	Inode   uint64
+	MountID uint32
+}
+
+// MountReleasedEvent defines a mount released event
+type MountReleasedEvent struct {
+	MountID uint32
+}
+
+
+// LinkEvent represents a link event
+type LinkEvent struct {
+	embed SyscallEvent
+	Source FileEvent -> file
+	Target FileEvent -> file.destination
+}
+
+// MkdirEvent represents a mkdir event
+type MkdirEvent struct {
+	embed SyscallEvent
+	File FileEvent -> file
+	Mode uint32
+		-> file.destination.mode {
+			doc: "Mode of the new directory",
+			constants: "File mode constants",
+		}
+		-> file.destination.rights {
+			doc: "Rights of the new directory",
+			constants: "File mode constants",
+		}
+}
+
+// ArgsEnvsEvent defines a args/envs event
+type ArgsEnvsEvent struct {
+	embed ArgsEnvs
+}
+
+// Mount represents a mountpoint (used by MountEvent and UnshareMountNSEvent)
+type Mount struct {
+	MountID        uint32
+	Device         uint32
+	ParentPathKey  PathKey
+	RootPathKey    PathKey
+	BindSrcMountID uint32
+	//! Type of the mounted file system
+	FSType         string -> fs_type
+	MountPointStr  string
+	RootStr        string
+	Path           string
+}
+
+// MountEvent represents a mount event
+//
+//msgp:ignore MountEvent
+type MountEvent struct {
+	embed SyscallEvent
+	embed Mount
+	//! Path of the mount point
+	MountPointPath                 string -> mountpoint.path {
+		handler: ResolveMountPointPath,
+	}
+	//! Source path of a bind mount
+	MountSourcePath                string -> source.path {
+		handler: ResolveMountSourcePath,
+	}
+	//! Root path of the mount
+	MountRootPath                  string -> root.path {
+		handler: ResolveMountRootPath,
+	}
+	MountPointPathResolutionError  error
+	MountSourcePathResolutionError error
+	MountRootPathResolutionError   error
+}
+
+// UnshareMountNSEvent represents a mount cloned from a newly created mount namespace
+type UnshareMountNSEvent struct {
+	embed Mount
+}
+
+// ChdirEvent represents a chdir event
+type ChdirEvent struct {
+	embed SyscallEvent
+	File FileEvent -> file
+}
+
+// OpenEvent represents an open event
+type OpenEvent struct {
+	embed SyscallEvent
+	File  FileEvent -> file
+	//! Flags used when opening the file
+	Flags uint32    -> flags {
+		constants: "Open flags",
+	}
+	//! Mode of the created file
+	Mode  uint32 -> file.destination.mode {
+		constants: "File mode constants"
+	}
+}
+
+// SELinuxEvent represents a selinux event
+type SELinuxEvent struct {
+	File            FileEvent
+	EventKind       SELinuxEventKind
+	//! SELinux boolean name
+	BoolName        string -> bool.name {
+		handler: ResolveSELinuxBoolName,
+	}
+	//! SELinux boolean new value
+	BoolChangeValue string -> bool.state
+	//! Indicator of a SELinux boolean commit operation
+	BoolCommitValue bool -> bool_commit.state
+	//! SELinux enforcement status (one of "enforcing", "permissive", "disabled")
+	EnforceStatus   string -> enforce.status
+}
+
+// PIDContext holds the process context of a kernel event
+type PIDContext struct {
+	//! Process ID of the process (also called thread group ID)
+	Pid       uint32 -> pid
+	//! Thread ID of the thread
+	Tid       uint32 -> tid
+	NetNS     uint32
+	//! Indicates whether the process is a kworker
+	IsKworker bool -> is_kworker
+	ExecInode uint64  // used to track exec and event loss
+}
+
+// RenameEvent represents a rename event
+type RenameEvent struct {
+	embed SyscallEvent
+	Old FileEvent -> file
+	New FileEvent -> file.destination
+}
+
+// RmdirEvent represents a rmdir event
+type RmdirEvent struct {
+	embed SyscallEvent
+	File FileEvent -> file
+}
+
+// SetXAttrEvent represents an extended attributes event
+type SetXAttrEvent struct {
+	embed SyscallEvent
+	File      FileEvent -> file
+	//! Namespace of the extended attribute
+	Namespace string    -> file.destination.namespace {
+		handler: ResolveXAttrNamespace,
+	}
+	//! Name of the extended attribute
+	Name      string    -> file.destination.name {
+		handler: ResolveXAttrName,
+	}
+	NameRaw [200]byte
 }
