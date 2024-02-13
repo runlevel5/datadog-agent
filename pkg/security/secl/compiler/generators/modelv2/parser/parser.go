@@ -244,6 +244,15 @@ func (p *Parser) parseFilterTags() ([]string, error) {
 }
 
 func (p *Parser) parseSECLName() (string, error) {
+	if p.isNextTokenA(StringLiteral) {
+		lit, err := p.acceptToken(StringLiteral)
+		return lit.Content, err
+	}
+
+	return p.parseDottedIdentifier()
+}
+
+func (p *Parser) parseDottedIdentifier() (string, error) {
 	var parts []string
 
 	for {
@@ -355,9 +364,9 @@ func (p *Parser) parseGoType() (string, string, error) {
 		}
 	}
 
-	id, err := p.acceptToken(Identifier)
+	id, err := p.parseDottedIdentifier()
 	if err != nil {
 		return "", "", err
 	}
-	return id.Content, id.Content, nil
+	return id, id, nil
 }

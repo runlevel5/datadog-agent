@@ -445,7 +445,7 @@ type BPFEvent struct {
 type BPFMap struct {
 	ID   uint32 // ID of the eBPF map
 	//! Type of the eBPF map
-	Type uint32 -> type {
+	Type uint32 -> "type" {
 		constants: "BPF map types",
 	}
 	//! Name of the eBPF map (added in 7.35)
@@ -456,7 +456,7 @@ type BPFMap struct {
 type BPFProgram struct {
 	ID         uint32  // ID of the eBPF program
 	//! Type of the eBPF program
-	Type       uint32   -> type {
+	Type       uint32   -> "type" {
 		constants: "BPF program types",
 	}
 	//! Attach type of the eBPF program
