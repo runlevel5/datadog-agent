@@ -18,7 +18,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/trace/config"
 	"github.com/DataDog/datadog-agent/pkg/trace/log"
-	"github.com/DataDog/datadog-agent/pkg/trace/metrics"
+	"github.com/DataDog/datadog-go/v5/statsd"
 )
 
 const (
@@ -81,7 +81,7 @@ func (r *HTTPReceiver) profileProxyHandler() http.Handler {
 		tag := fmt.Sprintf("orchestrator:fargate_%s", strings.ToLower(string(orch)))
 		tags = tags + "," + tag
 	}
-	return newProfileProxy(r.conf, targets, keys, tags)
+	return newProfileProxy(r.conf, targets, keys, tags, r.statsd)
 }
 
 func errorHandler(err error) http.Handler {
@@ -99,7 +99,7 @@ func errorHandler(err error) http.Handler {
 //
 // The tags will be added as a header to all proxied requests.
 // For more details please see multiTransport.
-func newProfileProxy(conf *config.AgentConfig, targets []*url.URL, keys []string, tags string) *httputil.ReverseProxy {
+func newProfileProxy(conf *config.AgentConfig, targets []*url.URL, keys []string, tags string, statsd statsd.ClientInterface) *httputil.ReverseProxy {
 	cidProvider := NewIDProvider(conf.ContainerProcRoot)
 	director := func(req *http.Request) {
 		req.Header.Set("Via", fmt.Sprintf("trace-agent %s", conf.AgentVersion))
@@ -114,7 +114,7 @@ func newProfileProxy(conf *config.AgentConfig, targets []*url.URL, keys []string
 			req.Header.Set("X-Datadog-Container-Tags", ctags)
 		}
 		req.Header.Set("X-Datadog-Additional-Tags", tags)
-		metrics.Count("datadog.trace_agent.profile", 1, nil, 1)
+		_ = statsd.Count("datadog.trace_agent.profile", 1, nil, 1)
 		// URL, Host and key are set in the transport for each outbound request
 	}
 	transport := conf.NewHTTPTransport()
