@@ -162,6 +162,7 @@ func (p *Parser) parseFieldNode() (FieldNode, error) {
 		return FieldNode{
 			Doc:        doc,
 			FilterTags: filterTags,
+			IsEmbed:    true,
 			Name:       typeBase,
 			Type:       typeName,
 		}, nil

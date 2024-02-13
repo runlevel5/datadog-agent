@@ -9,8 +9,9 @@ type TypeNode struct {
 type FieldNode struct {
 	Doc        string
 	FilterTags []string
+	IsEmbed    bool
 	Name       string
-	Type       string // TODO
+	Type       string
 
 	SeclMappings []SeclMapping
 }
