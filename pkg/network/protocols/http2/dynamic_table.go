@@ -198,13 +198,15 @@ func (dt *DynamicTable) setupDynamicTableMapCleaner(mgr *manager.Manager, cfg *c
 // Header Field Never Indexed. If the value is Huffman encoded, it is decoded before being added to the datastores.
 func (dt *DynamicTable) handleNewDynamicTableEntry(val *http2DynamicTableValue) {
 	var err error
-	dynamicValue := string(val.Buf[:val.String_len])
+	var dynamicValue string
 	if val.Is_huffman_encoded {
-		dynamicValue, err = hpack.HuffmanDecodeToString([]byte(dynamicValue))
+		dynamicValue, err = hpack.HuffmanDecodeToString(val.Buf[:val.String_len])
 		if err != nil {
 			log.Errorf("failed to decode huffman encoded string: %s", err)
 			return
 		}
+	} else {
+		dynamicValue = string(val.Buf[:val.String_len])
 	}
 
 	ds := dt.datastore
@@ -218,7 +220,7 @@ func (dt *DynamicTable) handleNewDynamicTableEntry(val *http2DynamicTableValue) 
 	dt.mux.Lock()
 	defer dt.mux.Unlock()
 	if _, ok := ds[val.Key.Tup]; !ok {
-		ds[val.Key.Tup] = NewCyclicMap[uint64, string](100, func(uint64, string) {
+		ds[val.Key.Tup] = NewCyclicMap[uint64, string](dt.userModeDynamicTableSize, func(uint64, string) {
 			dsSize.Dec()
 		})
 	}

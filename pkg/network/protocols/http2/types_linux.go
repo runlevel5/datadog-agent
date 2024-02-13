@@ -36,8 +36,7 @@ type http2InterestingValue struct {
 	Dynamic_table_entry uint64
 	Temporary           bool
 	Static_table_entry  uint8
-	Tuple_flipped       bool
-	Pad_cgo_0           [5]byte
+	Pad_cgo_0           [6]byte
 }
 type http2Stream struct {
 	Response_last_seen    uint64
@@ -46,7 +45,8 @@ type http2Stream struct {
 	Request_method        http2InterestingValue
 	Path                  http2InterestingValue
 	Request_end_of_stream bool
-	Pad_cgo_0             [7]byte
+	Conn_tuple_flipped    bool
+	Pad_cgo_0             [6]byte
 }
 type http2DynamicTableValue struct {
 	Key                HTTP2DynamicTableIndex

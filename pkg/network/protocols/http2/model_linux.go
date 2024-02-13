@@ -127,7 +127,7 @@ func (tx *ebpfTXWrapper) resolvePath() bool {
 	}
 
 	tup := tx.Tuple
-	if tx.Stream.Path.Tuple_flipped {
+	if tx.Stream.Conn_tuple_flipped {
 		tup = flipTuple(tup)
 	}
 	path, exists := tx.dynamicTable.resolveValue(tup, tx.Stream.Path.Dynamic_table_entry, tx.Stream.Path.Temporary)
@@ -228,7 +228,7 @@ func (tx *ebpfTXWrapper) resolveMethod() bool {
 	}
 
 	tup := tx.Tuple
-	if tx.Stream.Request_method.Tuple_flipped {
+	if tx.Stream.Conn_tuple_flipped {
 		tup = flipTuple(tup)
 	}
 	stringMethod, exists := tx.dynamicTable.resolveValue(tup, tx.Stream.Request_method.Dynamic_table_entry, tx.Stream.Request_method.Temporary)
@@ -278,19 +278,9 @@ func (tx *ebpfTXWrapper) resolveStatusCode() bool {
 		return !tx.statusCode.malformed
 	}
 
-	tup := tx.Tuple
-	if tx.Stream.Status_code.Tuple_flipped {
-		tup = connTuple{
-			Saddr_h:  tup.Daddr_h,
-			Saddr_l:  tup.Daddr_l,
-			Daddr_h:  tup.Saddr_h,
-			Daddr_l:  tup.Saddr_l,
-			Sport:    tup.Dport,
-			Dport:    tup.Sport,
-			Netns:    tup.Netns,
-			Pid:      tup.Pid,
-			Metadata: tup.Metadata,
-		}
+	tup := flipTuple(tx.Tuple)
+	if tx.Stream.Conn_tuple_flipped {
+		tup = tx.Tuple
 	}
 	stringStatusCode, exists := tx.dynamicTable.resolveValue(tup, tx.Stream.Status_code.Dynamic_table_entry, tx.Stream.Status_code.Temporary)
 	if !exists {

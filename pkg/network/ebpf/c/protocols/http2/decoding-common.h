@@ -39,14 +39,13 @@ static __always_inline bool is_static_table_entry(const __u64 index) {
 }
 
 // http2_fetch_stream returns the current http2 in flight stream.
-static __always_inline http2_stream_t *http2_fetch_stream(const http2_stream_key_t *http2_stream_key) {
+static __always_inline http2_stream_t *http2_fetch_stream(const http2_stream_key_t *http2_stream_key, http2_stream_t *base) {
     http2_stream_t *http2_stream_ptr = bpf_map_lookup_elem(&http2_in_flight, http2_stream_key);
     if (http2_stream_ptr != NULL) {
         return http2_stream_ptr;
     }
 
-    http2_stream_t empty = {};
-    bpf_map_update_elem(&http2_in_flight, http2_stream_key, &empty, BPF_NOEXIST);
+    bpf_map_update_elem(&http2_in_flight, http2_stream_key, base, BPF_NOEXIST);
     return bpf_map_lookup_elem(&http2_in_flight, http2_stream_key);
 }
 
@@ -58,7 +57,7 @@ static __always_inline __u64 *get_dynamic_counter(conn_tuple_t *tup) {
 }
 
 // parse_field_indexed parses fully-indexed headers.
-static __always_inline void parse_field_indexed(http2_stream_t *current_stream, dynamic_table_index_t *dynamic_index, __u8 index, __u64 global_dynamic_counter, http2_telemetry_t *http2_tel, bool flipped) {
+static __always_inline void parse_field_indexed(http2_stream_t *current_stream, dynamic_table_index_t *dynamic_index, __u8 index, __u64 global_dynamic_counter, http2_telemetry_t *http2_tel) {
     if (is_static_table_entry(index)) {
         if (is_method_index(index)) {
             current_stream->request_started = bpf_ktime_get_ns();
@@ -82,14 +81,11 @@ static __always_inline void parse_field_indexed(http2_stream_t *current_stream, 
     }
     if (is_path_index(*original_index)) {
         current_stream->path.dynamic_table_entry = dynamic_index->index;
-        current_stream->path.tuple_flipped = flipped;
     } else if (is_status_index(*original_index)) {
         current_stream->status_code.dynamic_table_entry = dynamic_index->index;
-        current_stream->status_code.tuple_flipped = flipped;
     }  else if (is_method_index(*original_index)) {
         current_stream->request_started = bpf_ktime_get_ns();
         current_stream->request_method.dynamic_table_entry = dynamic_index->index;
-        current_stream->request_method.tuple_flipped = flipped;
     }
 }
 

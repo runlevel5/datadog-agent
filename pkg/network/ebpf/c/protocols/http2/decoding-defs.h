@@ -140,7 +140,6 @@ typedef struct {
     __u64 dynamic_table_entry;
     bool temporary;
     __u8 static_table_entry;
-    bool tuple_flipped;
 } interesting_value_t;
 
 typedef struct {
@@ -151,6 +150,7 @@ typedef struct {
     interesting_value_t request_method;
     interesting_value_t path;
     bool request_end_of_stream;
+    bool conn_tuple_flipped;
 } http2_stream_t;
 
 typedef struct {
