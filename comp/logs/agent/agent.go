@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
 	flareController "github.com/DataDog/datadog-agent/comp/logs/agent/flare"
 	"github.com/DataDog/datadog-agent/comp/metadata/inventoryagent"
+	"github.com/DataDog/datadog-agent/comp/remote-config/rcclient"
 	pkgConfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/logs/auditor"
 	"github.com/DataDog/datadog-agent/pkg/logs/client"
@@ -60,7 +61,9 @@ type dependencies struct {
 	Log            logComponent.Component
 	Config         configComponent.Component
 	InventoryAgent inventoryagent.Component
-	Hostname       hostname.Component
+
+	RCClient rcclient.Component
+	Hostname hostname.Component
 }
 
 type provides struct {
@@ -77,6 +80,7 @@ type provides struct {
 type agent struct {
 	log            logComponent.Component
 	config         pkgConfig.Reader
+	rcClient       rcclient.Component
 	inventoryAgent inventoryagent.Component
 	hostname       hostname.Component
 
@@ -108,6 +112,7 @@ func newLogsAgent(deps dependencies) provides {
 			config:         deps.Config,
 			inventoryAgent: deps.InventoryAgent,
 			hostname:       deps.Hostname,
+			rcClient:       deps.RCClient,
 			started:        atomic.NewBool(false),
 
 			sources:         sources.NewLogSources(),

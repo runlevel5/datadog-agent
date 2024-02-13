@@ -60,7 +60,6 @@ func newFlare(deps dependencies) (Component, rcclient.TaskListenerProvider, erro
 	rcListener := rcclient.TaskListenerProvider{
 		Listener: f.onAgentTaskEvent,
 	}
-
 	return f, rcListener, nil
 }
 
