@@ -15,6 +15,7 @@ import (
 	"time"
 
 	model "github.com/DataDog/agent-payload/v5/process"
+
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
@@ -64,6 +65,11 @@ type CheckSubmitter struct {
 	connectionsForwarder defaultforwarder.Component
 	podForwarder         *forwarder.DefaultForwarder
 	eventForwarder       defaultforwarder.Component
+
+	// Endpoints for logging purposes
+	processAPIEndpoints       []apicfg.Endpoint
+	processEventsAPIEndpoints []apicfg.Endpoint
+	orchestratorEndpoints     []apicfg.Endpoint
 
 	orchestrator *oconfig.OrchestratorConfig
 	hostname     string
@@ -145,7 +151,6 @@ func NewSubmitter(config config.Component, log log.Component, forwarders forward
 		return nil, err
 	}
 
-	printStartMessage(log, hostname, processAPIEndpoints, processEventsAPIEndpoints, orchestrator.OrchestratorEndpoints)
 	return &CheckSubmitter{
 		log:                log,
 		processResults:     processResults,
@@ -159,6 +164,10 @@ func NewSubmitter(config config.Component, log log.Component, forwarders forward
 		connectionsForwarder: forwarders.GetConnectionsForwarder(),
 		podForwarder:         podForwarder,
 		eventForwarder:       forwarders.GetEventForwarder(),
+
+		processAPIEndpoints:       processAPIEndpoints,
+		processEventsAPIEndpoints: processEventsAPIEndpoints,
+		orchestratorEndpoints:     orchestrator.OrchestratorEndpoints,
 
 		orchestrator: orchestrator,
 		hostname:     hostname,
@@ -209,6 +218,8 @@ func (s *CheckSubmitter) Submit(start time.Time, name string, messages *types.Pa
 
 //nolint:revive // TODO(PROC) Fix revive linter
 func (s *CheckSubmitter) Start() error {
+	printStartMessage(s.log, s.hostname, s.processAPIEndpoints, s.processEventsAPIEndpoints, s.orchestratorEndpoints)
+
 	if err := s.processForwarder.Start(); err != nil {
 		return fmt.Errorf("error starting forwarder: %s", err)
 	}
