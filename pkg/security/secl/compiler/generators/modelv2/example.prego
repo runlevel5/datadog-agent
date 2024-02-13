@@ -202,8 +202,12 @@ type Credentials struct {
 	GID   uint32 -> gid
 	//! User of the process
 	User  string -> user {
-		example: `process.user == "root"`,
-		description: "Constrain an event to be triggered by a process running as the root user.",
+		// examples: [
+		// 	{
+		// 		expression: `process.user == "root"`,
+		// 		description: "Constrain an event to be triggered by a process running as the root user.",
+		// 	}
+		// ]
 	}
 	//! Group of the process
 	Group string -> group
@@ -307,32 +311,50 @@ type Process struct {
 	Args          string   -> args {
 		handler: ResolveProcessArgs,
 		weight: 500,
-		example: `exec.args == "-sV -p 22,53,110,143,4564 198.116.0-255.1-127"`,
-		description: "Matches any process with these exact arguments.",
-		// example: `exec.args =~ "* -F * http*"`,
-		// description: `Matches any process that has the "-F" argument anywhere before an argument starting with "http".`,
+		// examples: [
+		// 	{
+		// 		expression: `exec.args == "-sV -p 22,53,110,143,4564 198.116.0-255.1-127"`,
+		// 		description: "Matches any process with these exact arguments.",
+		// 	},
+		// 	{
+		// 		expression: `exec.args =~ "* -F * http*"`,
+		// 		description: `Matches any process that has the "-F" argument anywhere before an argument starting with "http".`,
+		// 	}
+		// ]
 	}
 	Argv          []string
 		-> argv {
 			doc: "Arguments of the process (as an array, excluding argv0)",
 			handler: ResolveProcessArgv,
 			weight: 500,
-			example: `exec.argv in ["127.0.0.1"]`,
-			description: "Matches any process that has this IP address as one of its arguments.",
+			// examples: [
+			// 	{
+			// 		expression: `exec.argv in ["127.0.0.1"]`,
+			// 		description: "Matches any process that has this IP address as one of its arguments.",
+			// 	}
+			// ]
 		}
 		-> args_flags {
 			doc: "Flags in the process arguments",
 			handler: ResolveProcessArgsFlags,
 			opts: helper,
-			example:`exec.args_flags in ["s"] && exec.args_flags in ["V"]`,
-			description: `Matches any process with both "-s" and "-V" flags in its arguments. Also matches "-sV".`
+			// examples: [
+			// 	{
+			// 		expression:`exec.args_flags in ["s"] && exec.args_flags in ["V"]`,
+			// 		description: `Matches any process with both "-s" and "-V" flags in its arguments. Also matches "-sV".`
+			// 	}
+			// ]
 		}
 		-> args_options {
 			doc: "Argument of the process as options",
 			handler: ResolveProcessArgsOptions,
 			opts: helper,
-			example: `exec.args_options in ["p=0-1024"]`,
-			description:`Matches any process that has either "-p 0-1024" or "--p=0-1024" in its arguments.`,
+			// examples: [
+			// 	{
+			// 		expression: `exec.args_options in ["p=0-1024"]`,
+			// 		description:`Matches any process that has either "-p 0-1024" or "--p=0-1024" in its arguments.`,
+			// 	}
+			// ]
 		}
 	//! Indicator of arguments truncation
 	ArgsTruncated bool     -> args_truncated {
@@ -440,18 +462,28 @@ type FileEvent struct {
 		handler: ResolveFilePath,
 		opts: length,
 		op_override: ProcessSymlinkPathname,
-		example: `exec.file.path == "/usr/bin/apt"`,
-		description: `Matches the execution of the file located at /usr/bin/apt`,
-		// example: `open.file.path == "/etc/passwd"`
-		// description: `Matches any process opening the /etc/passwd file`,
+		// examples: [
+		// 	{
+		// 		expression: `exec.file.path == "/usr/bin/apt"`,
+		// 		description: `Matches the execution of the file located at /usr/bin/apt`,
+		// 	},
+		// 	{
+		// 		expression: `open.file.path == "/etc/passwd"`,
+		// 		description: `Matches any process opening the /etc/passwd file`,
+		// 	}
+		// ]
 	}
 	//! File's basename
 	BasenameStr string -> name {
 		handler: ResolveFileBasename,
 		opts: length,
 		op_override: ProcessSymlinkBasename,
-		example: `exec.file.name == "apt"`,
-		description:`Matches the execution of any file named apt.`,
+		// examples: [
+		// 	{
+		// 		expression: `exec.file.name == "apt"`,
+		// 		description:`Matches the execution of any file named apt.`,
+		// 	},
+		// ]
 	}
 	//! File's filesystem
 	Filesystem  string -> filesystem {
