@@ -313,7 +313,7 @@ func (w *workloadMetaMock) GetNotifiedEvents() []CollectorEvent {
 	return events
 }
 
-// SubscribeToEvents returns a channel that recieves events
+// SubscribeToEvents returns a channel that receives events
 func (w *workloadMetaMock) SubscribeToEvents() chan CollectorEvent {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
