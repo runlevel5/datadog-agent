@@ -57,8 +57,8 @@ func TestHostCollector(t *testing.T) {
 
 	assertTags(t, (<-eventChan).Entity, expectedTags)
 
-	// Advance the clock by 11 minutes so prune will expire the tags.
 	mockClock.Add(11 * time.Minute)
+	mockClock.WaitForAllTimers()
 
 	assertTags(t, (<-eventChan).Entity, []string{})
 }

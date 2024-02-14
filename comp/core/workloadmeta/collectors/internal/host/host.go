@@ -69,12 +69,11 @@ func (c *collector) Start(ctx context.Context, store workloadmeta.Component) err
 	})
 
 	go func() {
-		timer := c.clock.Timer(duration)
 		select {
 		case <-ctx.Done():
 			return
 
-		case <-timer.C:
+		case <-c.clock.After(duration):
 			store.Notify([]workloadmeta.CollectorEvent{
 				{
 					Type:   workloadmeta.EventTypeSet,
