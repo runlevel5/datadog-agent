@@ -10,17 +10,14 @@ import (
 	"context"
 	"time"
 
+	"github.com/benbjohnson/clock"
+
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
-	hostMetadataUtils "github.com/DataDog/datadog-agent/comp/metadata/host/hostimpl/utils"
+	hostMetadataUtils "github.com/DataDog/datadog-agent/comp/metadata/host/hostimpl/hosttags"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 
 	"go.uber.org/fx"
-)
-
-const (
-	collectorID   = "host"
-	componentName = "host tag collector"
 )
 
 type dependencies struct {
@@ -30,18 +27,18 @@ type dependencies struct {
 }
 
 type collector struct {
-	id      string
 	catalog workloadmeta.AgentType
 	config  config.Component
+	clock   clock.Clock
 }
 
 // NewCollector returns a new host collector provider and an error
 func NewCollector(deps dependencies) (workloadmeta.CollectorProvider, error) {
 	return workloadmeta.CollectorProvider{
 		Collector: &collector{
-			id:      collectorID,
 			catalog: workloadmeta.NodeAgent | workloadmeta.ProcessAgent,
 			config:  deps.Config,
+			clock:   clock.New(),
 		},
 	}, nil
 }
@@ -60,7 +57,7 @@ func (c *collector) Start(ctx context.Context, store workloadmeta.Component) err
 	if duration <= time.Minute {
 		log.Debugf("Tags are checked for expiration once per minute. expected_tags_duration should be at least one minute and in minute intervals.")
 	}
-	tags := hostMetadataUtils.GetHostTags(ctx, false, c.config).System
+	tags := hostMetadataUtils.Get(ctx, false, c.config).System
 	log.Debugf("Adding host tags to metrics for %v : %v", duration, tags)
 
 	store.Notify([]workloadmeta.CollectorEvent{
@@ -72,7 +69,7 @@ func (c *collector) Start(ctx context.Context, store workloadmeta.Component) err
 	})
 
 	go func() {
-		timer := time.NewTimer(duration)
+		timer := c.clock.Timer(duration)
 		select {
 		case <-ctx.Done():
 			return
@@ -105,7 +102,7 @@ func (c *collector) Pull(_ context.Context) error {
 }
 
 func (c *collector) GetID() string {
-	return c.id
+	return "host"
 }
 
 func (c *collector) GetTargetCatalog() workloadmeta.AgentType {
