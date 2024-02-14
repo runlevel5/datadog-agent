@@ -244,3 +244,7 @@ require (
 	github.com/philhofer/fwd v1.1.2 // indirect
 	github.com/tinylib/msgp v1.1.8 // indirect
 )
+
+replace (
+		github.com/DataDog/test-infra-definitions v0.0.0-20240207172919-6ba25fcf6a61 => /Users/adelhajhassan/go/src/github.com/DataDog/test-infra-definitions
+)
