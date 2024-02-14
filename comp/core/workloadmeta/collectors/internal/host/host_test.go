@@ -45,6 +45,8 @@ func TestHostCollector(t *testing.T) {
 		workloadmeta.MockModule(),
 	))
 
+	eventChan := deps.Wml.SubscribeToEvents()
+
 	mockClock := clock.NewMock()
 	c := collector{
 		config: deps.Config,
@@ -53,17 +55,12 @@ func TestHostCollector(t *testing.T) {
 
 	c.Start(context.TODO(), deps.Wml)
 
-	assert.Equal(t, len(deps.Wml.GetNotifiedEvents()), 1)
-	assertTags(t, deps.Wml.GetNotifiedEvents()[0].Entity, expectedTags)
+	assertTags(t, (<-eventChan).Entity, expectedTags)
 
 	// Advance the clock by 11 minutes so prune will expire the tags.
 	mockClock.Add(11 * time.Minute)
 
-	assert.Eventually(t, func() bool {
-		return len(deps.Wml.GetNotifiedEvents()) == 2
-	}, 2*time.Second, 100*time.Millisecond)
-
-	assertTags(t, deps.Wml.GetNotifiedEvents()[1].Entity, []string{})
+	assertTags(t, (<-eventChan).Entity, []string{})
 }
 
 func assertTags(t *testing.T, entity workloadmeta.Entity, expectedTags []string) {
