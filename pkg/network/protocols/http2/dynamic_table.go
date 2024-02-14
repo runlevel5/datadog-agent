@@ -9,6 +9,7 @@ package http2
 
 import (
 	"fmt"
+	"github.com/cilium/ebpf"
 	"math"
 	"os"
 	"slices"
@@ -47,9 +48,11 @@ type DynamicTable struct {
 	// stopChannel is used to mark our main goroutine to stop
 	stopChannel chan struct{}
 	// perfHandler is the perf handler used to receive dynamic table entries from the kernel
-	perfHandler *ddebpf.PerfHandler
+	perfHandler           *ddebpf.PerfHandler
+	kernelDynamicTableMap *ebpf.Map
 	// dynamicTableSize is the size of the dynamic table
 	userModeDynamicTableSize int
+	kernelDynamicTableSize   int
 	// datastore is the datastore used to store the dynamic table entries
 	datastore map[netebpf.ConnTuple]*CyclicMap[uint64, string]
 	// datastoreSize is the size of the datastore
@@ -75,6 +78,7 @@ func NewDynamicTable(dynamicTableSize int) *DynamicTable {
 	// mode map, and the kernel map will be updated accordingly. Thus, keeping a small buffer in the user mode map
 	// ensures we'll never fail to insert a new entry in the kernel map.
 	return &DynamicTable{
+		kernelDynamicTableSize:   dynamicTableSize,
 		userModeDynamicTableSize: int(math.Ceil(float64(dynamicTableSize) * dynamicTableDefaultBufferFactor)),
 		perfHandler:              ddebpf.NewPerfHandler(dynamicTableSize),
 		stopChannel:              make(chan struct{}),
@@ -99,10 +103,25 @@ func (dt *DynamicTable) configureOptions(mgr *manager.Manager, opts *manager.Opt
 			},
 		})
 	}
+
+	opts.MapSpecEditors[dynamicTable] = manager.MapSpecEditor{
+		MaxEntries: uint32(dt.kernelDynamicTableSize),
+		EditorFlag: manager.EditMaxEntries,
+	}
+	opts.MapSpecEditors[dynamicTableCounter] = manager.MapSpecEditor{
+		MaxEntries: uint32(dt.kernelDynamicTableSize),
+		EditorFlag: manager.EditMaxEntries,
+	}
 }
 
 // preStart sets up the terminated connections events consumer.
 func (dt *DynamicTable) preStart(mgr *manager.Manager) (err error) {
+	dynamicTableMap, _, err := mgr.GetMap(dynamicTable)
+	if err != nil {
+		return fmt.Errorf("error getting http2 dynamic table map: %w", err)
+	}
+	dt.kernelDynamicTableMap = dynamicTableMap
+
 	dt.terminatedConnectionsEventsConsumer, err = events.NewConsumer(
 		terminatedConnectionsEventStream,
 		mgr,
@@ -118,8 +137,8 @@ func (dt *DynamicTable) preStart(mgr *manager.Manager) (err error) {
 }
 
 // postStart sets up the dynamic table map cleaner.
-func (dt *DynamicTable) postStart(mgr *manager.Manager, cfg *config.Config) error {
-	return dt.setupDynamicTableMapCleaner(mgr, cfg)
+func (dt *DynamicTable) postStart(_ *manager.Manager, cfg *config.Config) error {
+	return dt.setupDynamicTableMapCleaner(cfg)
 }
 
 // processTerminatedConnections processes the terminated connections received from the kernel.
@@ -130,13 +149,8 @@ func (dt *DynamicTable) processTerminatedConnections(events []netebpf.ConnTuple)
 }
 
 // setupDynamicTableMapCleaner sets up the map cleaner used to clear entries of terminated connections from the kernel map.
-func (dt *DynamicTable) setupDynamicTableMapCleaner(mgr *manager.Manager, cfg *config.Config) error {
-	dynamicTableMap, _, err := mgr.GetMap(dynamicTable)
-	if err != nil {
-		return fmt.Errorf("error getting http2 dynamic table map: %w", err)
-	}
-
-	mapCleaner, err := ddebpf.NewMapCleaner[HTTP2DynamicTableIndex, uint32](dynamicTableMap, defaultMapCleanerBatchSize)
+func (dt *DynamicTable) setupDynamicTableMapCleaner(cfg *config.Config) error {
+	mapCleaner, err := ddebpf.NewMapCleaner[HTTP2DynamicTableIndex, uint32](dt.kernelDynamicTableMap, defaultMapCleanerBatchSize)
 	if err != nil {
 		return fmt.Errorf("error creating a map cleaner for http2 dynamic table: %w", err)
 	}
@@ -175,17 +189,8 @@ func (dt *DynamicTable) setupDynamicTableMapCleaner(mgr *manager.Manager, cfg *c
 				return true
 			}
 			// Checking the flipped tuple as well.
-			_, ok = terminatedConnectionsMap[netebpf.ConnTuple{
-				Saddr_h:  key.Tup.Daddr_h,
-				Saddr_l:  key.Tup.Daddr_l,
-				Daddr_h:  key.Tup.Saddr_h,
-				Daddr_l:  key.Tup.Saddr_l,
-				Sport:    key.Tup.Dport,
-				Dport:    key.Tup.Sport,
-				Netns:    key.Tup.Netns,
-				Pid:      key.Tup.Pid,
-				Metadata: key.Tup.Metadata,
-			}]
+
+			_, ok = terminatedConnectionsMap[flipTuple(key.Tup)]
 			return ok
 		})
 	dt.mapCleaner = mapCleaner
@@ -220,7 +225,11 @@ func (dt *DynamicTable) handleNewDynamicTableEntry(val *http2DynamicTableValue) 
 	dt.mux.Lock()
 	defer dt.mux.Unlock()
 	if _, ok := ds[val.Key.Tup]; !ok {
-		ds[val.Key.Tup] = NewCyclicMap[uint64, string](dt.userModeDynamicTableSize, func(uint64, string) {
+		ds[val.Key.Tup] = NewCyclicMap[uint64, string](dt.userModeDynamicTableSize, func(idx uint64, _ string) {
+			_ = dt.kernelDynamicTableMap.Delete(unsafe.Pointer(&HTTP2DynamicTableIndex{
+				Index: idx,
+				Tup:   val.Key.Tup,
+			}))
 			dsSize.Dec()
 		})
 	}
@@ -241,6 +250,12 @@ func (dt *DynamicTable) handleNewDynamicTableEntry(val *http2DynamicTableValue) 
 	// This may trigger an eviction in the LRU datastore, and maybe remove the evicted entry from the kernel map.
 	ds[val.Key.Tup].Add(val.Key.Index, dynamicValue)
 	dsSize.Inc()
+	//if !val.Temporary {
+	//	dt.kernelDynamicTableMap.Update(unsafe.Pointer(&HTTP2DynamicTableIndex{
+	//		Index: idx,
+	//		Tup:   val.Key.Tup,
+	//	}))
+	//}
 }
 
 // launchPerfHandlerProcessor starts the perf handler used to receive new paths from the kernel.
