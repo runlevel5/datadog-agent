@@ -98,4 +98,12 @@ var (
 		"Number of errors on the remote workloadmeta server while streaming events",
 		commonOpts,
 	)
+
+	HandleEventsDuration = telemetry.NewGaugeWithOpts(
+		subsystem,
+		"handle_events_duration",
+		[]string{},
+		"Duration of the workloadmeta handle events",
+		commonOpts,
+	)
 )

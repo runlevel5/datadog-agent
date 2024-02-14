@@ -63,4 +63,14 @@ var (
 		prometheus.DefBuckets,
 		telemetry.Options{NoDoubleUnderscoreSep: true},
 	)
+
+	ProcessEventsDuration = telemetry.NewHistogramWithOpts(
+		subsystem,
+		"process_events_duration",
+		[]string{"listener"},
+		"Process events duration by listener (in milliseconds).",
+		// The default prometheus buckets are adapted to measure response time of network services
+		prometheus.DefBuckets,
+		telemetry.Options{NoDoubleUnderscoreSep: true},
+	)
 )

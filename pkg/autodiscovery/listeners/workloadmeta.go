@@ -10,6 +10,7 @@ package listeners
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/telemetry"
@@ -166,6 +167,11 @@ func (l *workloadmetaListenerImpl) Stop() {
 }
 
 func (l *workloadmetaListenerImpl) processEvents(evBundle workloadmeta.EventBundle) {
+	start := time.Now()
+	defer func() {
+		log.Infof("%s processed %d events in %s", l.name, len(evBundle.Events), time.Since(start))
+		telemetry.ProcessEventsDuration.Observe(float64(time.Since(start).Milliseconds()), l.name)
+	}()
 	// Acknowledge the bundle since there are no downstream
 	// collectors that depend on AD having up to date data.
 	evBundle.Acknowledge()

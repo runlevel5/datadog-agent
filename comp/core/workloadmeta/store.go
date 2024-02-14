@@ -580,6 +580,11 @@ func (w *workloadmeta) pull(ctx context.Context) {
 }
 
 func (w *workloadmeta) handleEvents(evs []CollectorEvent) {
+	start := time.Now()
+	defer func() {
+		w.log.Infof("handled %d events in %s", len(evs), time.Since(start))
+		telemetry.HandleEventsDuration.Set(float64(time.Since(start).Milliseconds()))
+	}()
 	w.storeMut.Lock()
 	w.subscribersMut.Lock()
 	defer w.subscribersMut.Unlock()
