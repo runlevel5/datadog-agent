@@ -9,16 +9,17 @@ package http2
 
 import (
 	"fmt"
-	"github.com/cilium/ebpf"
 	"math"
 	"os"
 	"slices"
 	"sync"
 	"unsafe"
 
-	manager "github.com/DataDog/ebpf-manager"
+	"github.com/cilium/ebpf"
 	"go.uber.org/atomic"
 	"golang.org/x/net/http2/hpack"
+
+	manager "github.com/DataDog/ebpf-manager"
 
 	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/config"
@@ -216,20 +217,24 @@ func (dt *DynamicTable) handleNewDynamicTableEntry(val *http2DynamicTableValue) 
 
 	ds := dt.datastore
 	dsSize := dt.datastoreSize
+	kernelCleanup := func(val *HTTP2DynamicTableIndex) {
+		_ = dt.kernelDynamicTableMap.Delete(unsafe.Pointer(val))
+	}
 
 	if val.Temporary {
 		ds = dt.temporaryDatastore
 		dsSize = dt.temporaryDatastoreSize
+		kernelCleanup = func(*HTTP2DynamicTableIndex) {}
 	}
 	// save to dynamic
 	dt.mux.Lock()
 	defer dt.mux.Unlock()
 	if _, ok := ds[val.Key.Tup]; !ok {
 		ds[val.Key.Tup] = NewCyclicMap[uint64, string](dt.userModeDynamicTableSize, func(idx uint64, _ string) {
-			_ = dt.kernelDynamicTableMap.Delete(unsafe.Pointer(&HTTP2DynamicTableIndex{
+			kernelCleanup(&HTTP2DynamicTableIndex{
 				Index: idx,
 				Tup:   val.Key.Tup,
-			}))
+			})
 			dsSize.Dec()
 		})
 	}
