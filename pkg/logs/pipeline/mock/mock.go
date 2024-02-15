@@ -31,6 +31,8 @@ func (p *mockProvider) Start() {}
 // Stop does nothing
 func (p *mockProvider) Stop() {}
 
+func (p *mockProvider) ReconfigureSDS(definitions []byte, rules []byte) {}
+
 // Flush does nothing
 //
 //nolint:revive // TODO(AML) Fix revive linter

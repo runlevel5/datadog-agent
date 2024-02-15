@@ -2,6 +2,8 @@ module github.com/DataDog/datadog-agent
 
 go 1.21
 
+replace github.com/DataDog/sds-go-bindings => ../sds-shared-library/sds-go/go
+
 // v0.8.0 was tagged long ago, and appared on pkg.go.dev.  We do not want any tagged version
 // to appear there.  The trick to accomplish this is to make a new version (in this case v0.9.0)
 // that retracts itself and the previous version.
@@ -652,6 +654,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/version v0.51.0-rc.2
 	github.com/DataDog/go-libddwaf/v2 v2.2.2
 	github.com/DataDog/opentelemetry-mapping-go/pkg/otlp/logs v0.13.3
+	github.com/DataDog/sds-go-bindings v0.0.0-00010101000000-000000000000
 	github.com/aquasecurity/trivy v0.0.0-00010101000000-000000000000
 	github.com/aws/aws-sdk-go-v2/service/kms v1.27.1
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.25.1

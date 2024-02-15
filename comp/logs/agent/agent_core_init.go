@@ -8,6 +8,8 @@
 package agent
 
 import (
+	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
@@ -24,6 +26,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/launchers/windowsevent"
 	"github.com/DataDog/datadog-agent/pkg/logs/pipeline"
 	"github.com/DataDog/datadog-agent/pkg/logs/schedulers"
+	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 )
 
@@ -42,8 +45,13 @@ func (a *agent) SetupPipeline(
 	diagnosticMessageReceiver := diagnostic.NewBufferedMessageReceiver(nil, a.hostname)
 
 	// setup the pipeline provider that provides pairs of processor and sender
-	pipelineProvider := pipeline.NewProvider(config.NumberOfPipelines, auditor, diagnosticMessageReceiver, processingRules, a.endpoints, destinationsCtx, NewStatusProvider(), a.hostname, a.config)
+	pipelineProvider := pipeline.NewProvider(config.NumberOfPipelines, auditor, diagnosticMessageReceiver, processingRules, a.endpoints, destinationsCtx, a.rcClient, NewStatusProvider(), a.hostname, a.config)
 
+	// remote configuration, subscribe to the products we need for SDS
+	a.rcClient.Subscribe(state.ProductSDSRules, a.onUpdateSDSRules)
+	a.rcClient.Subscribe(state.ProductSDSAgentConfig, a.onUpdateSDSAgentConfig)
+
+//	a.fakeRC() // XXX(remy):
 	// setup the launchers
 	lnchrs := launchers.NewLaunchers(a.sources, pipelineProvider, auditor, a.tracker)
 	lnchrs.AddLauncher(filelauncher.NewLauncher(
@@ -64,7 +72,6 @@ func (a *agent) SetupPipeline(
 	a.launchers = lnchrs
 	a.health = health
 	a.diagnosticMessageReceiver = diagnosticMessageReceiver
-
 }
 
 // buildEndpoints builds endpoints for the logs agent
@@ -74,4 +81,59 @@ func buildEndpoints(coreConfig pkgConfig.Reader) (*config.Endpoints, error) {
 		httpConnectivity = http.CheckConnectivity(endpoints.Main, coreConfig)
 	}
 	return config.BuildEndpointsWithVectorOverride(coreConfig, httpConnectivity, intakeTrackType, config.AgentJSONIntakeProtocol, config.DefaultIntakeOrigin)
+}
+
+func (a *agent) fakeRC() { // XXX(remy):
+	go func() {
+		//        for {
+		time.Sleep(5 * time.Second)
+		f := func(str string, status state.ApplyStatus) {
+			println(str)
+		}
+		conf := state.RawConfig{
+			Config: []byte(`{"rules":[
+                    {
+                        "id": "my_unique_id",
+                        "name": "my rule",
+                        "description": "my description",
+                        "pattern": "^[0-9a-z]{32}",
+                        "match_action": "Redact",
+                        "replace_placeholder": "[redacted]"
+                    }
+                ]}`),
+			Metadata: state.Metadata{},
+		}
+		m := map[string]state.RawConfig{
+			"key": conf,
+		}
+		a.onUpdateSDSRules(m, f)
+		//        }
+	}()
+
+	go func() {
+		for {
+			time.Sleep(10 * time.Second)
+			f := func(str string, status state.ApplyStatus) {
+				println(str)
+			}
+			placeholder := fmt.Sprintf("placeholder[%d]", rand.Int63n(10000))
+			conf := state.RawConfig{
+				Config: []byte(fmt.Sprintf(`{"rules":[
+                    {
+                        "id": "my_unique_id",
+                        "name": "my rule",
+                        "description": "my description",
+                        "pattern": "^[0-9a-z]{32}",
+                        "match_action": "Redact",
+                        "replace_placeholder": "%s"
+                    }
+                ]}`, placeholder)),
+				Metadata: state.Metadata{},
+			}
+			m := map[string]state.RawConfig{
+				"key": conf,
+			}
+			a.onUpdateSDSAgentConfig(m, f)
+		}
+	}()
 }

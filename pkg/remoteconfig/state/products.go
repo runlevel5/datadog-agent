@@ -18,6 +18,8 @@ var validProducts = map[string]struct{}{
 	ProductASMDD:             {},
 	ProductASMData:           {},
 	ProductAPMTracing:        {},
+	ProductSDSRules:          {},
+	ProductSDSAgentConfig:    {},
 	ProductLiveDebugging:     {},
 	ProductTesting1:          {},
 	ProductTesting2:          {},
@@ -48,6 +50,10 @@ const (
 	ProductASMData = "ASM_DATA"
 	// ProductAPMTracing is the apm tracing product
 	ProductAPMTracing = "APM_TRACING"
+	// ProductSDSRules is the SDS definitions product
+	ProductSDSRules = "SDS_RULES_DD"
+	// ProductSDSAgentConfig is the user SDS configurations product.
+	ProductSDSAgentConfig = "SDS_AGENT_CONFIG"
 	// ProductLiveDebugging is the dynamic instrumentation product
 	ProductLiveDebugging = "LIVE_DEBUGGING"
 	// ProductTesting1 is a product used for testing remote config

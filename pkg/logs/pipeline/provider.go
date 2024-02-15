@@ -7,17 +7,21 @@ package pipeline
 
 import (
 	"context"
+	"fmt"
 
 	"go.uber.org/atomic"
 
 	"github.com/DataDog/datadog-agent/comp/core/hostname/hostnameinterface"
 	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
+	"github.com/DataDog/datadog-agent/comp/remote-config/rcclient"
 	pkgconfigmodel "github.com/DataDog/datadog-agent/pkg/config/model"
 	"github.com/DataDog/datadog-agent/pkg/logs/auditor"
 	"github.com/DataDog/datadog-agent/pkg/logs/client"
 	"github.com/DataDog/datadog-agent/pkg/logs/diagnostic"
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
+	"github.com/DataDog/datadog-agent/pkg/logs/sds"
 	"github.com/DataDog/datadog-agent/pkg/logs/status/statusinterface"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/startstop"
 )
 
@@ -25,6 +29,7 @@ import (
 type Provider interface {
 	Start()
 	Stop()
+	ReconfigureSDS(definitions []byte, rules []byte) error
 	NextPipelineChan() chan *message.Message
 	// Flush flushes all pipeline contained in this Provider
 	Flush(ctx context.Context)
@@ -42,6 +47,7 @@ type provider struct {
 	pipelines            []*Pipeline
 	currentPipelineIndex *atomic.Uint32
 	destinationsContext  *client.DestinationsContext
+	rcClient             rcclient.Component
 
 	serverless bool
 
@@ -51,13 +57,13 @@ type provider struct {
 }
 
 // NewProvider returns a new Provider
-func NewProvider(numberOfPipelines int, auditor auditor.Auditor, diagnosticMessageReceiver diagnostic.MessageReceiver, processingRules []*config.ProcessingRule, endpoints *config.Endpoints, destinationsContext *client.DestinationsContext, status statusinterface.Status, hostname hostnameinterface.Component, cfg pkgconfigmodel.Reader) Provider {
-	return newProvider(numberOfPipelines, auditor, diagnosticMessageReceiver, processingRules, endpoints, destinationsContext, false, status, hostname, cfg)
+func NewProvider(numberOfPipelines int, auditor auditor.Auditor, diagnosticMessageReceiver diagnostic.MessageReceiver, processingRules []*config.ProcessingRule, endpoints *config.Endpoints, destinationsContext *client.DestinationsContext, rcClient rcclient.Component, status statusinterface.Status, hostname hostnameinterface.Component, cfg pkgconfigmodel.Reader) Provider {
+	return newProvider(numberOfPipelines, auditor, diagnosticMessageReceiver, processingRules, endpoints, destinationsContext, rcClient, false, status, hostname, cfg)
 }
 
 // NewServerlessProvider returns a new Provider in serverless mode
 func NewServerlessProvider(numberOfPipelines int, auditor auditor.Auditor, processingRules []*config.ProcessingRule, endpoints *config.Endpoints, destinationsContext *client.DestinationsContext, status statusinterface.Status, hostname hostnameinterface.Component, cfg pkgconfigmodel.Reader) Provider {
-	return newProvider(numberOfPipelines, auditor, &diagnostic.NoopMessageReceiver{}, processingRules, endpoints, destinationsContext, true, status, hostname, cfg)
+	return newProvider(numberOfPipelines, auditor, &diagnostic.NoopMessageReceiver{}, processingRules, endpoints, destinationsContext, nil, true, status, hostname, cfg)
 }
 
 // NewMockProvider creates a new provider that will not provide any pipelines.
@@ -65,7 +71,7 @@ func NewMockProvider() Provider {
 	return &provider{}
 }
 
-func newProvider(numberOfPipelines int, auditor auditor.Auditor, diagnosticMessageReceiver diagnostic.MessageReceiver, processingRules []*config.ProcessingRule, endpoints *config.Endpoints, destinationsContext *client.DestinationsContext, serverless bool, status statusinterface.Status, hostname hostnameinterface.Component, cfg pkgconfigmodel.Reader) Provider {
+func newProvider(numberOfPipelines int, auditor auditor.Auditor, diagnosticMessageReceiver diagnostic.MessageReceiver, processingRules []*config.ProcessingRule, endpoints *config.Endpoints, destinationsContext *client.DestinationsContext, rcClient rcclient.Component, serverless bool, status statusinterface.Status, hostname hostnameinterface.Component, cfg pkgconfigmodel.Reader) Provider {
 	return &provider{
 		numberOfPipelines:         numberOfPipelines,
 		auditor:                   auditor,
@@ -76,6 +82,7 @@ func newProvider(numberOfPipelines int, auditor auditor.Auditor, diagnosticMessa
 		currentPipelineIndex:      atomic.NewUint32(0),
 		destinationsContext:       destinationsContext,
 		serverless:                serverless,
+		rcClient:                  rcClient,
 		status:                    status,
 		hostname:                  hostname,
 		cfg:                       cfg,
@@ -104,6 +111,31 @@ func (p *provider) Stop() {
 	stopper.Stop()
 	p.pipelines = p.pipelines[:0]
 	p.outputChan = nil
+}
+
+func (p *provider) ReconfigureSDS(definitions []byte, rules []byte) error {
+	var order sds.ReconfigureOrder
+
+	if definitions != nil {
+		order.Type = sds.Definitions
+		order.Config = definitions
+	}
+
+	if rules != nil {
+		order.Type = sds.UserConfig
+		order.Config = rules
+	}
+
+	if order.Type == "" {
+		return fmt.Errorf("ReconfigureSDS called with no definitions or rules.")
+	}
+
+	for _, pipeline := range p.pipelines {
+		log.Debug("Sending SDS reconfiguration order:", string(order.Type))
+		pipeline.processor.ReconfigChan <- order
+	}
+
+	return nil
 }
 
 // NextPipelineChan returns the next pipeline input channel

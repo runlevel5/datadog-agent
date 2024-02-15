@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
 	flareController "github.com/DataDog/datadog-agent/comp/logs/agent/flare"
 	"github.com/DataDog/datadog-agent/comp/metadata/inventoryagent"
+	"github.com/DataDog/datadog-agent/comp/remote-config/rcclient"
 	pkgConfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/logs/auditor"
 	"github.com/DataDog/datadog-agent/pkg/logs/client"
@@ -34,8 +35,10 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/sources"
 	"github.com/DataDog/datadog-agent/pkg/logs/status"
 	"github.com/DataDog/datadog-agent/pkg/logs/tailers"
+	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 	"github.com/DataDog/datadog-agent/pkg/util"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/optional"
 	"github.com/DataDog/datadog-agent/pkg/util/startstop"
 )
@@ -60,6 +63,7 @@ type dependencies struct {
 	Log            logComponent.Component
 	Config         configComponent.Component
 	InventoryAgent inventoryagent.Component
+	RCClient       rcclient.Component
 	Hostname       hostname.Component
 }
 
@@ -78,6 +82,7 @@ type agent struct {
 	log            logComponent.Component
 	config         pkgConfig.Reader
 	inventoryAgent inventoryagent.Component
+	rcClient       rcclient.Component
 	hostname       hostname.Component
 
 	sources                   *sources.LogSources
@@ -107,6 +112,7 @@ func newLogsAgent(deps dependencies) provides {
 			log:            deps.Log,
 			config:         deps.Config,
 			inventoryAgent: deps.InventoryAgent,
+			rcClient:       deps.RCClient,
 			hostname:       deps.Hostname,
 			started:        atomic.NewBool(false),
 
@@ -277,4 +283,58 @@ func (a *agent) GetMessageReceiver() *diagnostic.BufferedMessageReceiver {
 
 func (a *agent) GetPipelineProvider() pipeline.Provider {
 	return a.pipelineProvider
+}
+
+func (a *agent) onUpdateSDSRules(updates map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)) { //nolint:revive
+	var err error
+
+	for _, config := range updates {
+		if rerr := a.pipelineProvider.ReconfigureSDS(config.Config, nil); rerr != nil {
+			err = rerr
+		}
+	}
+
+	if err != nil {
+		log.Errorf("Can't update SDS definitions: %v", err)
+	}
+
+	// Apply the new status to all configs
+	for cfgPath := range updates {
+		if err == nil {
+			applyStateCallback(cfgPath, state.ApplyStatus{State: state.ApplyStateAcknowledged})
+		} else {
+			applyStateCallback(cfgPath, state.ApplyStatus{
+				State: state.ApplyStateError,
+				Error: err.Error(),
+			})
+		}
+	}
+
+}
+
+func (a *agent) onUpdateSDSAgentConfig(updates map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)) { //nolint:revive
+	var err error
+
+	for _, config := range updates {
+		if rerr := a.pipelineProvider.ReconfigureSDS(nil, config.Config); rerr != nil {
+			err = rerr
+		}
+	}
+
+	if err != nil {
+		log.Errorf("Can't update SDS configurations: %v", err)
+	}
+
+	// Apply the new status to all configs
+	for cfgPath := range updates {
+		if err == nil {
+			applyStateCallback(cfgPath, state.ApplyStatus{State: state.ApplyStateAcknowledged})
+		} else {
+			applyStateCallback(cfgPath, state.ApplyStatus{
+				State: state.ApplyStateError,
+				Error: err.Error(),
+			})
+		}
+	}
+
 }
