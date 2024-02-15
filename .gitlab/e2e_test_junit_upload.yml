@@ -11,6 +11,7 @@
     - set +e
     - for f in junit*-e2e*.tgz; do inv -e junit-upload --tgz-path "$f"; done
 
+# E2E installer tests uploads are split because you can only have 50 needs per job
 e2e_installer_test_junit_upload_install_script:
   extends: .e2e_test_junit_template
   rules:
@@ -172,27 +173,18 @@ e2e_installer_test_junit_upload_windows:
 e2e_pre_test_junit_upload:
   extends: .e2e_test_junit_template
   rules:
-  # using the same rules as the kitchen_tests_upload job
-    - !reference [.always_on_e2e_changes_or_manual]
+    - !reference [.except_mergequeue]
+    - when: always
   stage: e2e_pre_test_junit_upload
   needs:
-    - e2e_pre_test
-
-e2e_container_test_junit_upload:
-  extends: .e2e_test_junit_template
-  rules:
-    - !reference [.always_on_container_or_e2e_changes_or_manual]
-  stage: e2e_test_junit_upload
-  needs:
-    # We need to exhaustively list all the `new-e2e-…` jobs that produce junit reports here
-    # to avoid downloading all the artifacts of all the jobs of all the previous stages.
-    - job: new-e2e-containers
+    - job: e2e_pre_test
       optional: true
 
 e2e_test_junit_upload:
   extends: .e2e_test_junit_template
-  rules: !reference [.on_main]
-  when: always
+  rules:
+    - !reference [.except_mergequeue]
+    - when: always
   stage: e2e_test_junit_upload
   needs:
     # We need to exhaustively list all the `new-e2e-…` jobs that produce junit reports here
@@ -216,4 +208,6 @@ e2e_test_junit_upload:
     - job: new-e2e-apm
       optional: true
     - job: new-e2e-remote-config
+      optional: true
+    - job: new-e2e-containers
       optional: true
