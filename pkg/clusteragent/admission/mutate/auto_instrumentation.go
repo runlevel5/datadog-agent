@@ -248,8 +248,16 @@ func (w *APMInstrumentationWebhook) injectAutoInstrumentation(pod *corev1.Pod, _
 		}
 	}
 
-	containerRegistry := config.Datadog.GetString("admission_controller.auto_instrumentation.container_registry")
-	libsToInject, autoDetected := w.extractLibInfo(pod, containerRegistry)
+	autoInstrumentationRegistry := config.Datadog.GetString("admission_controller.auto_instrumentation.container_registry")
+	globalRegistry := config.Datadog.GetString("registry")
+	if autoInstrumentationRegistry != globalRegistry {
+		log.Warnf(
+			"Global registry %s doesn't match DD_ADMISSION_CONTROLLER_AUTO_INSTRUMENTATION_CONTAINER_REGISTRY %s. Global registry will be used for fetching tracing libraries.",
+			globalRegistry,
+			autoInstrumentationRegistry,
+		)
+	}
+	libsToInject, autoDetected := w.extractLibInfo(pod, globalRegistry)
 	if len(libsToInject) == 0 {
 		return nil
 	}

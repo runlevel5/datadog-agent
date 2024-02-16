@@ -28,6 +28,18 @@ api_key:
 #
 # site: datadoghq.com
 
+## @param registry - string - optional - default: gcr.io/datadoghq
+## @env DD_REGISTRY - string - optional - default: gcr.io/datadoghq
+## Registry to use for all Datadog images.
+## Currently public Datadog Agent images are available on:
+## GCR US - use gcr.io/datadoghq.
+## GCR Europe - use eu.gcr.io/datadoghq.
+## GCR Asia - use asia.gcr.io/datadoghq.
+## AWS - use public.ecr.aws/datadog.
+## DockerHub - use docker.io/datadog.
+#
+# registry: gcr.io/datadoghq
+
 ## @param dd_url - string - optional - default: https://app.datadoghq.com
 ## @env DD_DD_URL - string - optional - default: https://app.datadoghq.com
 ## @env DD_URL - string - optional - default: https://app.datadoghq.com
