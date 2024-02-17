@@ -27,6 +27,7 @@ func getBenchmarkDB(b *testing.B) *bbolt.DB {
 	return db
 }
 
+// go test -benchmem -run="^$" -bench "^BenchmarkVerify$" github.com/DataDog/datadog-agent/pkg/config/remote/uptane -v -cpuprofile profile.out
 func BenchmarkVerify(b *testing.B) {
 	for i := 1; i < 100; i *= 2 {
 		b.Run(fmt.Sprintf("verify-%d-configs", i), func(b *testing.B) {
