@@ -6,6 +6,7 @@
 package probe
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
@@ -55,12 +56,12 @@ var (
 	recentlyAddedTimeout = uint64(2 * time.Second.Nanoseconds())
 )
 
-type onDiscarderHandler func(rs *rules.RuleSet, event *model.Event, probe *Probe, discarder Discarder) (bool, error)
+type onDiscarderHandler func(rs *rules.RuleSet, event *model.Event, probe *EBPFProbe, discarder Discarder) (bool, error)
 
 var (
 	allDiscarderHandlers   = make(map[eval.EventType][]onDiscarderHandler)
 	dentryInvalidDiscarder = []string{""}
-	eventZeroDiscarder     = model.NewDefaultEvent()
+	eventZeroDiscarder     = model.NewFakeEvent()
 )
 
 // InvalidDiscarders exposes list of values that are not discarders
@@ -79,6 +80,7 @@ var InvalidDiscarders = map[eval.Field][]string{
 	"process.file.path":            dentryInvalidDiscarder,
 	"setxattr.file.path":           dentryInvalidDiscarder,
 	"removexattr.file.path":        dentryInvalidDiscarder,
+	"chdir.file.path":              dentryInvalidDiscarder,
 }
 
 // bumpDiscardersRevision sends an eRPC request to bump the discarders revisionr
@@ -88,8 +90,8 @@ func bumpDiscardersRevision(e *erpc.ERPC) error {
 }
 
 func marshalDiscardHeader(req *erpc.Request, eventType model.EventType, timeout uint64) int {
-	model.ByteOrder.PutUint64(req.Data[0:8], uint64(eventType))
-	model.ByteOrder.PutUint64(req.Data[8:16], timeout)
+	binary.NativeEndian.PutUint64(req.Data[0:8], uint64(eventType))
+	binary.NativeEndian.PutUint64(req.Data[8:16], timeout)
 
 	return 16
 }
@@ -103,7 +105,7 @@ type pidDiscarders struct {
 func (p *pidDiscarders) discardWithTimeout(req *erpc.Request, eventType model.EventType, pid uint32, timeout int64) error {
 	req.OP = erpc.DiscardPidOp
 	offset := marshalDiscardHeader(req, eventType, uint64(timeout))
-	model.ByteOrder.PutUint32(req.Data[offset:offset+4], pid)
+	binary.NativeEndian.PutUint32(req.Data[offset:offset+4], pid)
 
 	return p.erpc.Request(req)
 }
@@ -140,10 +142,10 @@ type PidDiscarderParams struct {
 
 // DiscarderParams describes a map value
 type DiscarderParams struct {
-	EventMask  uint64                                                               `yaml:"event_mask"`
-	Timestamps [model.LastDiscarderEventType - model.FirstDiscarderEventType]uint64 `yaml:"-"`
-	ExpireAt   uint64                                                               `yaml:"expire_at"`
-	IsRetained uint32                                                               `yaml:"is_retained"`
+	EventMask  uint64                                                                   `yaml:"event_mask"`
+	Timestamps [model.LastDiscarderEventType + 1 - model.FirstDiscarderEventType]uint64 `yaml:"-"`
+	ExpireAt   uint64                                                                   `yaml:"expire_at"`
+	IsRetained uint32                                                                   `yaml:"is_retained"`
 	Revision   uint32
 }
 
@@ -211,9 +213,9 @@ func (id *inodeDiscarders) discardInode(req *erpc.Request, eventType model.Event
 	req.OP = erpc.DiscardInodeOp
 
 	offset := marshalDiscardHeader(req, eventType, 0)
-	model.ByteOrder.PutUint64(req.Data[offset:offset+8], inode)
-	model.ByteOrder.PutUint32(req.Data[offset+8:offset+12], mountID)
-	model.ByteOrder.PutUint32(req.Data[offset+12:offset+16], isLeafInt)
+	binary.NativeEndian.PutUint64(req.Data[offset:offset+8], inode)
+	binary.NativeEndian.PutUint32(req.Data[offset+8:offset+12], mountID)
+	binary.NativeEndian.PutUint32(req.Data[offset+12:offset+16], isLeafInt)
 
 	return id.erpc.Request(req)
 }
@@ -446,7 +448,7 @@ func (id *inodeDiscarders) discardParentInode(req *erpc.Request, rs *rules.RuleS
 type inodeEventGetter = func(event *model.Event) (eval.Field, *model.FileEvent, bool)
 
 func filenameDiscarderWrapper(eventType model.EventType, getter inodeEventGetter) onDiscarderHandler {
-	return func(rs *rules.RuleSet, event *model.Event, probe *Probe, discarder Discarder) (bool, error) {
+	return func(rs *rules.RuleSet, event *model.Event, probe *EBPFProbe, discarder Discarder) (bool, error) {
 		field, fileEvent, isDeleted := getter(event)
 
 		if fileEvent.PathResolutionError != nil {
@@ -538,7 +540,7 @@ type DiscardersDump struct {
 	Stats  map[string]discarder.Stats `yaml:"stats"`
 }
 
-func dumpPidDiscarders(resolver *dentry.Resolver, pidMap *ebpf.Map) ([]PidDiscarderDump, error) { //nolint:revive // TODO fix revive unused-parameter
+func dumpPidDiscarders(pidMap *ebpf.Map) ([]PidDiscarderDump, error) {
 	var dumps []PidDiscarderDump
 
 	info, err := pidMap.Info()
@@ -649,7 +651,7 @@ func dumpDiscarders(resolver *dentry.Resolver, pidMap, inodeMap, statsFB, statsB
 		Date: time.Now(),
 	}
 
-	pids, err := dumpPidDiscarders(resolver, pidMap)
+	pids, err := dumpPidDiscarders(pidMap)
 	if err != nil {
 		return dump, err
 	}
@@ -745,4 +747,10 @@ func init() {
 			return "splice.file.path", &event.Splice.File, false
 		}))
 	SupportedDiscarders["splice.file.path"] = true
+
+	allDiscarderHandlers["chdir"] = append(allDiscarderHandlers["chdir"], filenameDiscarderWrapper(model.FileOpenEventType,
+		func(event *model.Event) (eval.Field, *model.FileEvent, bool) {
+			return "chdir.file.path", &event.Open.File, false
+		}))
+	SupportedDiscarders["chdir.file.path"] = true
 }

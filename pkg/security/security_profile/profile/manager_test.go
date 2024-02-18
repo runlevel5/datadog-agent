@@ -39,7 +39,7 @@ type testIteration struct {
 }
 
 func craftFakeEvent(t0 time.Time, ti *testIteration, defaultContainerID string) *model.Event {
-	event := model.NewDefaultEvent()
+	event := model.NewFakeEvent()
 	event.Type = uint32(ti.eventType)
 	event.ContainerContext.CreatedAt = uint64(t0.Add(ti.containerCreatedAt).UnixNano())
 	event.TimestampRaw = uint64(t0.Add(ti.eventTimestampRaw).UnixNano())
@@ -55,6 +55,7 @@ func craftFakeEvent(t0 time.Time, ti *testIteration, defaultContainerID string) 
 	switch ti.eventType {
 	case model.ExecEventType:
 		event.Exec.Process = &event.ProcessCacheEntry.ProcessContext.Process
+		//nolint:gosimple // TODO(SEC) Fix gosimple linter
 		break
 	case model.DNSEventType:
 		event.DNS.Name = ti.eventDNSReq
@@ -62,6 +63,7 @@ func craftFakeEvent(t0 time.Time, ti *testIteration, defaultContainerID string) 
 		event.DNS.Class = 1 // INET
 		event.DNS.Size = uint16(len(ti.eventDNSReq))
 		event.DNS.Count = 1
+		//nolint:gosimple // TODO(SEC) Fix gosimple linter
 		break
 	}
 

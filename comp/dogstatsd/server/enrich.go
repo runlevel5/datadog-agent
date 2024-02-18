@@ -18,11 +18,12 @@ import (
 )
 
 var (
-	hostTagPrefix        = "host:"
-	entityIDTagPrefix    = "dd.internal.entity_id:"
-	entityIDIgnoreValue  = "none"
+	hostTagPrefix       = "host:"
+	entityIDTagPrefix   = "dd.internal.entity_id:"
+	entityIDIgnoreValue = "none"
+	//nolint:revive // TODO(AML) Fix revive linter
 	CardinalityTagPrefix = constants.CardinalityTagPrefix
-	jmxCheckNamePrefix   = "jmx_check_name:"
+	jmxCheckNamePrefix   = "dd.internal.jmx_check_name:"
 )
 
 // enrichConfig contains static parameters used in various enrichment

@@ -11,7 +11,10 @@ import (
 	"strings"
 	"testing"
 
+	"go.uber.org/fx"
+
 	"github.com/DataDog/datadog-agent/comp/core/log"
+	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
 	"github.com/DataDog/datadog-agent/comp/snmptraps/formatter"
 	"github.com/DataDog/datadog-agent/comp/snmptraps/oidresolver"
 	"github.com/DataDog/datadog-agent/comp/snmptraps/oidresolver/oidresolverimpl"
@@ -19,7 +22,6 @@ import (
 	"github.com/DataDog/datadog-agent/comp/snmptraps/senderhelper"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
-	"go.uber.org/fx"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/gosnmp/gosnmp"
@@ -215,10 +217,9 @@ var (
 )
 
 var testOptions = fx.Options(
-	log.MockModule,
 	senderhelper.Opts,
-	oidresolverimpl.MockModule,
-	Module,
+	oidresolverimpl.MockModule(),
+	Module(),
 )
 
 func TestFormatPacketV1Generic(t *testing.T) {
@@ -853,7 +854,7 @@ func TestIsBitEnabled(t *testing.T) {
 }
 
 func TestEnrichBits(t *testing.T) {
-	logger := fxutil.Test[log.Component](t, log.MockModule)
+	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
 	data := []struct {
 		description     string
 		variable        trapVariable

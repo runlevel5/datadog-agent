@@ -8,6 +8,7 @@ package agent
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"math"
 	"net/http"
@@ -34,17 +35,19 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/trace/stats"
 	"github.com/DataDog/datadog-agent/pkg/trace/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/trace/testutil"
+	"github.com/DataDog/datadog-agent/pkg/trace/timing"
 	"github.com/DataDog/datadog-agent/pkg/trace/traceutil"
 	"github.com/DataDog/datadog-agent/pkg/trace/writer"
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func NewTestAgent(ctx context.Context, conf *config.AgentConfig, telemetryCollector telemetry.TelemetryCollector) *Agent {
-	a := NewAgent(ctx, conf, telemetryCollector)
+	a := NewAgent(ctx, conf, telemetryCollector, &statsd.NoOpClient{})
 	a.TraceWriter.In = make(chan *writer.SampledChunks, 1000)
 	a.Concentrator.In = make(chan stats.Input, 1000)
 	return a
@@ -362,11 +365,12 @@ func TestProcess(t *testing.T) {
 	})
 
 	t.Run("aas", func(t *testing.T) {
+		t.Setenv("APPSVC_RUN_ZIP", "true")
+		t.Setenv("WEBSITE_APPSERVICEAPPLOGS_TRACE_ENABLED", "false")
 		cfg := config.New()
 		cfg.Endpoints[0].APIKey = "test"
-		cfg.InAzureAppServices = true
 		ctx, cancel := context.WithCancel(context.Background())
-		agnt := NewAgent(ctx, cfg, telemetry.NewNoopCollector())
+		agnt := NewAgent(ctx, cfg, telemetry.NewNoopCollector(), &statsd.NoOpClient{})
 		defer cancel()
 
 		tp := testutil.TracerPayloadWithChunk(testutil.RandomTraceChunk(1, 1))
@@ -384,17 +388,10 @@ func TestProcess(t *testing.T) {
 		}
 
 		for _, chunk := range tp.Chunks {
-			for i, span := range chunk.Spans {
-				if i == 0 {
-					// root span should contain all aas tags
-					for tag := range traceutil.GetAppServicesTags() {
-						assert.Contains(t, span.Meta, tag)
-					}
-				} else {
-					// other spans should only contain site name and type
-					assert.Contains(t, span.Meta, "aas.site.name")
-					assert.Contains(t, span.Meta, "aas.site.type")
-				}
+			for _, span := range chunk.Spans {
+				assert.Contains(t, span.Meta, "aas.resource.id")
+				assert.Contains(t, span.Meta, "aas.site.name")
+				assert.Contains(t, span.Meta, "aas.site.type")
 			}
 		}
 	})
@@ -1013,19 +1010,19 @@ func TestSampling(t *testing.T) {
 	configureAgent := func(ac agentConfig) *Agent {
 		cfg := &config.AgentConfig{RareSamplerEnabled: !ac.rareSamplerDisabled, RareSamplerCardinality: 200, RareSamplerTPS: 5}
 		sampledCfg := &config.AgentConfig{ExtraSampleRate: 1, TargetTPS: 5, ErrorTPS: 10, RareSamplerEnabled: !ac.rareSamplerDisabled}
-
+		statsd := &statsd.NoOpClient{}
 		a := &Agent{
-			NoPrioritySampler: sampler.NewNoPrioritySampler(cfg),
-			ErrorsSampler:     sampler.NewErrorsSampler(cfg),
-			PrioritySampler:   sampler.NewPrioritySampler(cfg, &sampler.DynamicConfig{}),
-			RareSampler:       sampler.NewRareSampler(cfg),
+			NoPrioritySampler: sampler.NewNoPrioritySampler(cfg, statsd),
+			ErrorsSampler:     sampler.NewErrorsSampler(cfg, statsd),
+			PrioritySampler:   sampler.NewPrioritySampler(cfg, &sampler.DynamicConfig{}, statsd),
+			RareSampler:       sampler.NewRareSampler(cfg, statsd),
 			conf:              cfg,
 		}
 		if ac.errorsSampled {
-			a.ErrorsSampler = sampler.NewErrorsSampler(sampledCfg)
+			a.ErrorsSampler = sampler.NewErrorsSampler(sampledCfg, statsd)
 		}
 		if ac.noPrioritySampled {
-			a.NoPrioritySampler = sampler.NewNoPrioritySampler(sampledCfg)
+			a.NoPrioritySampler = sampler.NewNoPrioritySampler(sampledCfg, statsd)
 		}
 		return a
 	}
@@ -1163,6 +1160,7 @@ func TestSample(t *testing.T) {
 		pt.TraceChunk.Priority = int32(priority)
 		return pt
 	}
+	statsd := &statsd.NoOpClient{}
 	tests := map[string]struct {
 		trace           traceutil.ProcessedTrace
 		keep            bool
@@ -1214,11 +1212,11 @@ func TestSample(t *testing.T) {
 	}
 	for name, tt := range tests {
 		a := &Agent{
-			NoPrioritySampler: sampler.NewNoPrioritySampler(cfg),
-			ErrorsSampler:     sampler.NewErrorsSampler(cfg),
-			PrioritySampler:   sampler.NewPrioritySampler(cfg, &sampler.DynamicConfig{}),
-			RareSampler:       sampler.NewRareSampler(config.New()),
-			EventProcessor:    newEventProcessor(cfg),
+			NoPrioritySampler: sampler.NewNoPrioritySampler(cfg, statsd),
+			ErrorsSampler:     sampler.NewErrorsSampler(cfg, statsd),
+			PrioritySampler:   sampler.NewPrioritySampler(cfg, &sampler.DynamicConfig{}, statsd),
+			RareSampler:       sampler.NewRareSampler(config.New(), statsd),
+			EventProcessor:    newEventProcessor(cfg, statsd),
 			conf:              cfg,
 		}
 		t.Run(name, func(t *testing.T) {
@@ -1249,13 +1247,13 @@ func TestSampleManualUserDropNoAnalyticsEvents(t *testing.T) {
 	}
 	pt := traceutil.ProcessedTrace{TraceChunk: testutil.TraceChunkWithSpan(root), Root: root}
 	pt.TraceChunk.Priority = -1
-
+	statsd := &statsd.NoOpClient{}
 	a := &Agent{
-		NoPrioritySampler: sampler.NewNoPrioritySampler(cfg),
-		ErrorsSampler:     sampler.NewErrorsSampler(cfg),
-		PrioritySampler:   sampler.NewPrioritySampler(cfg, &sampler.DynamicConfig{}),
-		RareSampler:       sampler.NewRareSampler(config.New()),
-		EventProcessor:    newEventProcessor(cfg),
+		NoPrioritySampler: sampler.NewNoPrioritySampler(cfg, statsd),
+		ErrorsSampler:     sampler.NewErrorsSampler(cfg, statsd),
+		PrioritySampler:   sampler.NewPrioritySampler(cfg, &sampler.DynamicConfig{}, statsd),
+		RareSampler:       sampler.NewRareSampler(config.New(), statsd),
+		EventProcessor:    newEventProcessor(cfg, statsd),
 		conf:              cfg,
 	}
 	keep, _ := a.sample(now, info.NewReceiverStats().GetTagStats(info.Tags{}), &pt)
@@ -1269,19 +1267,21 @@ func TestPartialSamplingFree(t *testing.T) {
 	writerChan := make(chan *writer.SampledChunks, 100)
 	dynConf := sampler.NewDynamicConfig()
 	in := make(chan *api.Payload, 1000)
+	statsd := &statsd.NoOpClient{}
 	agnt := &Agent{
-		Concentrator:      stats.NewConcentrator(cfg, statsChan, time.Now()),
+		Concentrator:      stats.NewConcentrator(cfg, statsChan, time.Now(), statsd),
 		Blacklister:       filters.NewBlacklister(cfg.Ignore["resource"]),
 		Replacer:          filters.NewReplacer(cfg.ReplaceTags),
-		NoPrioritySampler: sampler.NewNoPrioritySampler(cfg),
-		ErrorsSampler:     sampler.NewErrorsSampler(cfg),
-		PrioritySampler:   sampler.NewPrioritySampler(cfg, &sampler.DynamicConfig{}),
-		EventProcessor:    newEventProcessor(cfg),
-		RareSampler:       sampler.NewRareSampler(config.New()),
+		NoPrioritySampler: sampler.NewNoPrioritySampler(cfg, statsd),
+		ErrorsSampler:     sampler.NewErrorsSampler(cfg, statsd),
+		PrioritySampler:   sampler.NewPrioritySampler(cfg, &sampler.DynamicConfig{}, statsd),
+		EventProcessor:    newEventProcessor(cfg, statsd),
+		RareSampler:       sampler.NewRareSampler(config.New(), statsd),
 		TraceWriter:       &writer.TraceWriter{In: writerChan},
 		conf:              cfg,
+		Timing:            &timing.NoopReporter{},
 	}
-	agnt.Receiver = api.NewHTTPReceiver(cfg, dynConf, in, agnt, telemetry.NewNoopCollector())
+	agnt.Receiver = api.NewHTTPReceiver(cfg, dynConf, in, agnt, telemetry.NewNoopCollector(), statsd, &timing.NoopReporter{})
 	now := time.Now()
 	smallKeptSpan := &pb.Span{
 		TraceID:  1,
@@ -1436,7 +1436,7 @@ type eventProcessorTestCase struct {
 
 func testEventProcessorFromConf(t *testing.T, conf *config.AgentConfig, testCase eventProcessorTestCase) {
 	t.Run(testCase.name, func(t *testing.T) {
-		processor := newEventProcessor(conf)
+		processor := newEventProcessor(conf, &statsd.NoOpClient{})
 		processor.Start()
 
 		actualEPS := generateTraffic(processor, testCase.serviceName, testCase.opName, testCase.extractionRate,
@@ -2249,4 +2249,224 @@ func TestSingleSpanPlusAnalyticsEvents(t *testing.T) {
 	assert.False(t, keep) //The sampling decision was FALSE but the trace itself is marked as not dropped
 	assert.False(t, payload.TraceChunk.DroppedTrace)
 	assert.Equal(t, 1, numEvents)
+}
+
+func TestSetFirstTraceTags(t *testing.T) {
+	cfg := config.New()
+	cfg.Endpoints[0].APIKey = "test"
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	traceAgent := NewTestAgent(ctx, cfg, telemetry.NewNoopCollector())
+	root := &pb.Span{
+		Service:  "testsvc",
+		Name:     "parent",
+		TraceID:  1,
+		SpanID:   1,
+		Start:    time.Now().Add(-time.Second).UnixNano(),
+		Duration: time.Millisecond.Nanoseconds(),
+	}
+
+	t.Run("NoConfigNoAction", func(t *testing.T) {
+		traceAgent.setFirstTraceTags(root)
+		_, ok := root.Meta[tagInstallID]
+		assert.False(t, ok)
+		_, ok = root.Meta[tagInstallType]
+		assert.False(t, ok)
+		_, ok = root.Meta[tagInstallTime]
+		assert.False(t, ok)
+	})
+
+	cfg.InstallSignature.InstallID = "be7b577b-00d9-50a4-aa8d-345df57fd6f5"
+	cfg.InstallSignature.InstallType = "manual"
+	cfg.InstallSignature.InstallTime = time.Now().Unix()
+	traceAgent = NewTestAgent(ctx, cfg, telemetry.NewNoopCollector())
+	t.Run("SettingTagsFromInstallSignature", func(t *testing.T) {
+		traceAgent.setFirstTraceTags(root)
+		assert.Equal(t, cfg.InstallSignature.InstallID, root.Meta[tagInstallID])
+		assert.Equal(t, cfg.InstallSignature.InstallType, root.Meta[tagInstallType])
+		assert.Equal(t, fmt.Sprintf("%v", cfg.InstallSignature.InstallTime), root.Meta[tagInstallTime])
+
+		// Also make sure the tags are only set once per agent instance,
+		// calling setFirstTraceTags on another span by the same agent should have no effect
+		anotherRoot := &pb.Span{
+			Service:  "testsvc",
+			Name:     "parent",
+			TraceID:  1,
+			SpanID:   1,
+			Start:    time.Now().Add(-time.Second).UnixNano(),
+			Duration: time.Millisecond.Nanoseconds(),
+		}
+		traceAgent.setFirstTraceTags(anotherRoot)
+		_, ok := anotherRoot.Meta[tagInstallID]
+		assert.False(t, ok)
+		_, ok = anotherRoot.Meta[tagInstallType]
+		assert.False(t, ok)
+		_, ok = anotherRoot.Meta[tagInstallTime]
+		assert.False(t, ok)
+
+		// However, calling setFirstTraceTags on another span from a different service should set the tags again
+		differentServiceRoot := &pb.Span{
+			Service:  "discombobulator",
+			Name:     "parent",
+			TraceID:  2,
+			SpanID:   2,
+			Start:    time.Now().Add(-time.Second).UnixNano(),
+			Duration: time.Millisecond.Nanoseconds(),
+		}
+		traceAgent.setFirstTraceTags(differentServiceRoot)
+		assert.Equal(t, cfg.InstallSignature.InstallID, differentServiceRoot.Meta[tagInstallID])
+		assert.Equal(t, cfg.InstallSignature.InstallType, differentServiceRoot.Meta[tagInstallType])
+		assert.Equal(t, fmt.Sprintf("%v", cfg.InstallSignature.InstallTime), differentServiceRoot.Meta[tagInstallTime])
+	})
+
+	traceAgent = NewTestAgent(ctx, cfg, telemetry.NewNoopCollector())
+	t.Run("NotClobberingExistingTags", func(t *testing.T) {
+		timestamp := cfg.InstallSignature.InstallTime - 3600
+		// Make the root span contain some tag values that conflict with what the agent has on record
+		root = &pb.Span{
+			Service:  "testsvc",
+			Name:     "parent",
+			TraceID:  1,
+			SpanID:   1,
+			Start:    time.Now().Add(-time.Second).UnixNano(),
+			Duration: time.Millisecond.Nanoseconds(),
+			Meta: map[string]string{
+				tagInstallType: "k8s_single_step",
+				tagInstallTime: strconv.FormatInt(timestamp, 10),
+			},
+		}
+
+		traceAgent.setFirstTraceTags(root)
+		assert.Equal(t, cfg.InstallSignature.InstallID, root.Meta[tagInstallID])
+		assert.Equal(t, "k8s_single_step", root.Meta[tagInstallType])
+		assert.Equal(t, strconv.FormatInt(timestamp, 10), root.Meta[tagInstallTime])
+	})
+}
+
+func TestProcessedTrace(t *testing.T) {
+	t.Run("all version tags set", func(t *testing.T) {
+		root := &pb.Span{
+			Service:  "testsvc",
+			Name:     "parent",
+			TraceID:  1,
+			SpanID:   1,
+			Start:    time.Now().Add(-time.Second).UnixNano(),
+			Duration: time.Millisecond.Nanoseconds(),
+			Meta:     map[string]string{"env": "test", "version": "v1.0.1"},
+		}
+		chunk := testutil.TraceChunkWithSpan(root)
+		cfg := config.New()
+		cfg.ContainerTags = func(cid string) ([]string, error) {
+			if cid == "1" {
+				return []string{"image_tag:abc", "git.commit.sha:abc123"}, nil
+			}
+			return nil, nil
+		}
+		// Only fill out the relevant fields for processedTrace().
+		apiPayload := &api.Payload{
+			TracerPayload: &pb.TracerPayload{
+				Env:         "test",
+				Hostname:    "test-host",
+				ContainerID: "1",
+				Chunks:      []*pb.TraceChunk{chunk},
+				AppVersion:  "v1.0.1",
+			},
+			ClientDroppedP0s: 1,
+		}
+		pt := processedTrace(apiPayload, chunk, root, "1", cfg)
+		expectedPt := &traceutil.ProcessedTrace{
+			TraceChunk:             chunk,
+			Root:                   root,
+			TracerEnv:              "test",
+			TracerHostname:         "test-host",
+			AppVersion:             "v1.0.1",
+			GitCommitSha:           "abc123",
+			ImageTag:               "abc",
+			ClientDroppedP0sWeight: 1,
+		}
+		assert.Equal(t, expectedPt, pt)
+	})
+
+	t.Run("git commit sha from trace overrides container tag", func(t *testing.T) {
+		root := &pb.Span{
+			Service:  "testsvc",
+			Name:     "parent",
+			TraceID:  1,
+			SpanID:   1,
+			Start:    time.Now().Add(-time.Second).UnixNano(),
+			Duration: time.Millisecond.Nanoseconds(),
+			Meta:     map[string]string{"env": "test", "version": "v1.0.1", "_dd.git.commit.sha": "abc123"},
+		}
+		chunk := testutil.TraceChunkWithSpan(root)
+		cfg := config.New()
+		cfg.ContainerTags = func(cid string) ([]string, error) {
+			if cid == "1" {
+				return []string{"image_tag:abc", "git.commit.sha:def456"}, nil
+			}
+			return nil, nil
+		}
+		// Only fill out the relevant fields for processedTrace().
+		apiPayload := &api.Payload{
+			TracerPayload: &pb.TracerPayload{
+				Env:         "test",
+				Hostname:    "test-host",
+				ContainerID: "1",
+				Chunks:      []*pb.TraceChunk{chunk},
+				AppVersion:  "v1.0.1",
+			},
+			ClientDroppedP0s: 1,
+		}
+		pt := processedTrace(apiPayload, chunk, root, "1", cfg)
+		expectedPt := &traceutil.ProcessedTrace{
+			TraceChunk:             chunk,
+			Root:                   root,
+			TracerEnv:              "test",
+			TracerHostname:         "test-host",
+			AppVersion:             "v1.0.1",
+			GitCommitSha:           "abc123",
+			ImageTag:               "abc",
+			ClientDroppedP0sWeight: 1,
+		}
+		assert.Equal(t, expectedPt, pt)
+	})
+
+	t.Run("no results from container lookup", func(t *testing.T) {
+		root := &pb.Span{
+			Service:  "testsvc",
+			Name:     "parent",
+			TraceID:  1,
+			SpanID:   1,
+			Start:    time.Now().Add(-time.Second).UnixNano(),
+			Duration: time.Millisecond.Nanoseconds(),
+			Meta:     map[string]string{"env": "test", "version": "v1.0.1", "_dd.git.commit.sha": "abc123"},
+		}
+		chunk := testutil.TraceChunkWithSpan(root)
+		cfg := config.New()
+		cfg.ContainerTags = func(cid string) ([]string, error) {
+			return nil, nil
+		}
+		// Only fill out the relevant fields for processedTrace().
+		apiPayload := &api.Payload{
+			TracerPayload: &pb.TracerPayload{
+				Env:         "test",
+				Hostname:    "test-host",
+				ContainerID: "1",
+				Chunks:      []*pb.TraceChunk{chunk},
+				AppVersion:  "v1.0.1",
+			},
+			ClientDroppedP0s: 1,
+		}
+		pt := processedTrace(apiPayload, chunk, root, "1", cfg)
+		expectedPt := &traceutil.ProcessedTrace{
+			TraceChunk:             chunk,
+			Root:                   root,
+			TracerEnv:              "test",
+			TracerHostname:         "test-host",
+			AppVersion:             "v1.0.1",
+			GitCommitSha:           "abc123",
+			ImageTag:               "",
+			ClientDroppedP0sWeight: 1,
+		}
+		assert.Equal(t, expectedPt, pt)
+	})
 }

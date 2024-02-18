@@ -30,8 +30,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/DataDog/datadog-agent/comp/core/log"
+	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
+	"github.com/DataDog/datadog-agent/comp/forwarder/eventplatform/eventplatformimpl"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
-	"github.com/DataDog/datadog-agent/pkg/epforwarder"
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	ddlog "github.com/DataDog/datadog-agent/pkg/util/log"
@@ -85,58 +86,58 @@ func TestAggregator(t *testing.T) {
 		TCPFlags:       19,
 		EtherType:      uint32(0x0800),
 	}
-	epForwarder := epforwarder.NewMockEventPlatformForwarder(gomock.NewController(t))
+	epForwarder := eventplatformimpl.NewMockEventPlatformForwarder(gomock.NewController(t))
 
 	// language=json
 	event := []byte(`
 {
-  "flush_timestamp": 1550505606000,
-  "type": "netflow9",
-  "sampling_rate": 0,
-  "direction": "ingress",
-  "start": 1234568,
-  "end": 1234569,
   "bytes": 20,
-  "packets": 4,
-  "ether_type": "IPv4",
-  "ip_protocol": "TCP",
-  "device": {
-    "namespace": "my-ns"
-  },
-  "exporter": {
-    "ip": "127.0.0.1"
-  },
-  "source": {
-    "ip": "10.10.10.10",
-    "port": "2000",
-    "mac": "00:00:00:00:00:00",
-    "mask": "0.0.0.0/0"
-  },
   "destination": {
     "ip": "10.10.10.20",
     "port": "80",
     "mac": "00:00:00:00:00:00",
     "mask": "0.0.0.0/0"
   },
-  "ingress": {
-    "interface": {
-      "index": 0
-    }
+  "device": {
+    "namespace": "my-ns"
   },
+  "direction": "ingress",
   "egress": {
     "interface": {
       "index": 0
     }
   },
+  "end": 1234569,
+  "ether_type": "IPv4",
+  "exporter": {
+    "ip": "127.0.0.1"
+  },
+  "flush_timestamp": 1550505606000,
   "host": "my-hostname",
+  "ingress": {
+    "interface": {
+      "index": 0
+    }
+  },
+  "ip_protocol": "TCP",
+  "next_hop": {
+    "ip": ""
+  },
+  "packets": 4,
+  "sampling_rate": 0,
+  "source": {
+    "ip": "10.10.10.10",
+    "port": "2000",
+    "mac": "00:00:00:00:00:00",
+    "mask": "0.0.0.0/0"
+  },
+  "start": 1234568,
   "tcp_flags": [
     "FIN",
     "SYN",
     "ACK"
   ],
-  "next_hop": {
-    "ip": ""
-  }
+  "type": "netflow9"
 }
 `)
 	compactEvent := new(bytes.Buffer)
@@ -163,7 +164,7 @@ func TestAggregator(t *testing.T) {
 
 	epForwarder.EXPECT().SendEventPlatformEventBlocking(message.NewMessage(compactEvent.Bytes(), nil, "", 0), "network-devices-netflow").Return(nil).Times(1)
 	epForwarder.EXPECT().SendEventPlatformEventBlocking(message.NewMessage(compactMetadataEvent.Bytes(), nil, "", 0), "network-devices-metadata").Return(nil).Times(1)
-	logger := fxutil.Test[log.Component](t, log.MockModule)
+	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
 
 	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
 	aggregator.FlushFlowsToSendInterval = 1 * time.Second
@@ -241,7 +242,7 @@ func TestAggregator_withMockPayload(t *testing.T) {
 		},
 	}
 	ctrl := gomock.NewController(t)
-	epForwarder := epforwarder.NewMockEventPlatformForwarder(ctrl)
+	epForwarder := eventplatformimpl.NewMockEventPlatformForwarder(ctrl)
 
 	testutil.ExpectNetflow5Payloads(t, epForwarder)
 
@@ -265,7 +266,7 @@ func TestAggregator_withMockPayload(t *testing.T) {
 
 	epForwarder.EXPECT().SendEventPlatformEventBlocking(message.NewMessage(compactMetadataEvent.Bytes(), nil, "", 0), "network-devices-metadata").Return(nil).Times(1)
 
-	logger := fxutil.Test[log.Component](t, log.MockModule)
+	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
 	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
 	aggregator.FlushFlowsToSendInterval = 1 * time.Second
 	aggregator.TimeNowFunction = func() time.Time {
@@ -287,7 +288,7 @@ func TestAggregator_withMockPayload(t *testing.T) {
 	listenerErr := atomic.NewString("")
 	listenerFlowCount := atomic.NewInt64(0)
 
-	flowState, err := goflowlib.StartFlowRoutine(common.TypeNetFlow5, "127.0.0.1", port, 1, "default", aggregator.GetFlowInChan(), logger, listenerErr, listenerFlowCount)
+	flowState, err := goflowlib.StartFlowRoutine(common.TypeNetFlow5, "127.0.0.1", port, 1, "default", nil, aggregator.GetFlowInChan(), logger, listenerErr, listenerFlowCount)
 	assert.NoError(t, err)
 
 	time.Sleep(100 * time.Millisecond) // wait to make sure goflow listener is started before sending
@@ -325,7 +326,7 @@ func TestAggregator_withMockPayload(t *testing.T) {
 
 func TestFlowAggregator_flush_submitCollectorMetrics_error(t *testing.T) {
 	// 1/ Arrange
-	logger := fxutil.Test[log.Component](t, log.MockModule)
+	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
 	var b bytes.Buffer
 	w := bufio.NewWriter(&b)
 
@@ -356,7 +357,7 @@ func TestFlowAggregator_flush_submitCollectorMetrics_error(t *testing.T) {
 	}
 
 	ctrl := gomock.NewController(t)
-	epForwarder := epforwarder.NewMockEventPlatformForwarder(ctrl)
+	epForwarder := eventplatformimpl.NewMockEventPlatformForwarder(ctrl)
 
 	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
 	aggregator.goflowPrometheusGatherer = prometheus.GathererFunc(func() ([]*promClient.MetricFamily, error) {
@@ -395,8 +396,8 @@ func TestFlowAggregator_submitCollectorMetrics(t *testing.T) {
 	}
 
 	ctrl := gomock.NewController(t)
-	epForwarder := epforwarder.NewMockEventPlatformForwarder(ctrl)
-	logger := fxutil.Test[log.Component](t, log.MockModule)
+	epForwarder := eventplatformimpl.NewMockEventPlatformForwarder(ctrl)
+	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
 
 	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
 	aggregator.goflowPrometheusGatherer = prometheus.GathererFunc(func() ([]*promClient.MetricFamily, error) {
@@ -471,8 +472,8 @@ func TestFlowAggregator_submitCollectorMetrics_error(t *testing.T) {
 	}
 
 	ctrl := gomock.NewController(t)
-	epForwarder := epforwarder.NewMockEventPlatformForwarder(ctrl)
-	logger := fxutil.Test[log.Component](t, log.MockModule)
+	epForwarder := eventplatformimpl.NewMockEventPlatformForwarder(ctrl)
+	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
 
 	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
 	aggregator.goflowPrometheusGatherer = prometheus.GathererFunc(func() ([]*promClient.MetricFamily, error) {
@@ -505,8 +506,8 @@ func TestFlowAggregator_sendExporterMetadata_multiplePayloads(t *testing.T) {
 	}
 
 	ctrl := gomock.NewController(t)
-	epForwarder := epforwarder.NewMockEventPlatformForwarder(ctrl)
-	logger := fxutil.Test[log.Component](t, log.MockModule)
+	epForwarder := eventplatformimpl.NewMockEventPlatformForwarder(ctrl)
+	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
 
 	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
 
@@ -589,8 +590,8 @@ func TestFlowAggregator_sendExporterMetadata_noPayloads(t *testing.T) {
 	}
 
 	ctrl := gomock.NewController(t)
-	epForwarder := epforwarder.NewMockEventPlatformForwarder(ctrl)
-	logger := fxutil.Test[log.Component](t, log.MockModule)
+	epForwarder := eventplatformimpl.NewMockEventPlatformForwarder(ctrl)
+	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
 
 	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
 
@@ -621,9 +622,9 @@ func TestFlowAggregator_sendExporterMetadata_invalidIPIgnored(t *testing.T) {
 	}
 
 	ctrl := gomock.NewController(t)
-	epForwarder := epforwarder.NewMockEventPlatformForwarder(ctrl)
+	epForwarder := eventplatformimpl.NewMockEventPlatformForwarder(ctrl)
 
-	logger := fxutil.Test[log.Component](t, log.MockModule)
+	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
 	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
 
 	now := time.Unix(1681295467, 0)
@@ -705,9 +706,9 @@ func TestFlowAggregator_sendExporterMetadata_multipleNamespaces(t *testing.T) {
 	}
 
 	ctrl := gomock.NewController(t)
-	epForwarder := epforwarder.NewMockEventPlatformForwarder(ctrl)
+	epForwarder := eventplatformimpl.NewMockEventPlatformForwarder(ctrl)
 
-	logger := fxutil.Test[log.Component](t, log.MockModule)
+	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
 	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
 
 	now := time.Unix(1681295467, 0)
@@ -808,8 +809,8 @@ func TestFlowAggregator_sendExporterMetadata_singleExporterIpWithMultipleFlowTyp
 	}
 
 	ctrl := gomock.NewController(t)
-	epForwarder := epforwarder.NewMockEventPlatformForwarder(ctrl)
-	logger := fxutil.Test[log.Component](t, log.MockModule)
+	epForwarder := eventplatformimpl.NewMockEventPlatformForwarder(ctrl)
+	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
 
 	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
 
@@ -878,7 +879,7 @@ func TestFlowAggregator_sendExporterMetadata_singleExporterIpWithMultipleFlowTyp
 }
 
 func TestFlowAggregator_getSequenceDelta(t *testing.T) {
-	logger := fxutil.Test[log.Component](t, log.MockModule)
+	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
 	type round struct {
 		flowsToFlush          []*common.Flow
 		expectedSequenceDelta map[sequenceDeltaKey]sequenceDeltaValue

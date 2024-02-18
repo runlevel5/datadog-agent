@@ -27,9 +27,11 @@ import (
 )
 
 // Module defines the fx options for this component.
-var Module = fxutil.Component(
-	fx.Provide(newResolver),
-)
+func Module() fxutil.Module {
+	return fxutil.Component(
+		fx.Provide(newResolver),
+	)
+}
 
 const ddTrapDBFileNamePrefix string = "dd_traps_db"
 
@@ -69,7 +71,7 @@ func newMultiFilesOIDResolver(confdPath string, logger log.Component) (*multiFil
 	trapsDBRoot := filepath.Join(confdPath, "snmp.d", "traps_db")
 	files, err := os.ReadDir(trapsDBRoot)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read dir `%s`: %v", trapsDBRoot, err)
+		return nil, fmt.Errorf("failed to read dir `%s`: %w", trapsDBRoot, err)
 	}
 	if len(files) == 0 {
 		return nil, fmt.Errorf("dir `%s` does not contain any trap db file", trapsDBRoot)

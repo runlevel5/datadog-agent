@@ -8,23 +8,29 @@
 // Package events holds events related files
 package events
 
-import "github.com/DataDog/datadog-agent/pkg/security/secl/rules"
+import (
+	"encoding/json"
+
+	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
+	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
+)
 
 // AgentContext serializes the agent context to JSON
 // easyjson:json
 type AgentContext struct {
-	RuleID        string `json:"rule_id"`
-	RuleVersion   string `json:"rule_version,omitempty"`
-	PolicyName    string `json:"policy_name,omitempty"`
-	PolicyVersion string `json:"policy_version,omitempty"`
-	Version       string `json:"version,omitempty"`
-	OS            string `json:"os,omitempty"`
-	Arch          string `json:"arch,omitempty"`
+	RuleID        string                       `json:"rule_id"`
+	RuleVersion   string                       `json:"rule_version,omitempty"`
+	RuleActions   map[string][]json.RawMessage `json:"rule_actions,omitempty"`
+	PolicyName    string                       `json:"policy_name,omitempty"`
+	PolicyVersion string                       `json:"policy_version,omitempty"`
+	Version       string                       `json:"version,omitempty"`
+	OS            string                       `json:"os,omitempty"`
+	Arch          string                       `json:"arch,omitempty"`
 }
 
-// Signal - Rule event wrapper used to send an event to the backend
+// BackendEvent - Rule event wrapper used to send an event to the backend
 // easyjson:json
-type Signal struct {
+type BackendEvent struct {
 	AgentContext `json:"agent"`
 	Title        string `json:"title"`
 }
@@ -34,6 +40,7 @@ type Event interface {
 	GetWorkloadID() string
 	GetTags() []string
 	GetType() string
+	GetActionReports() []model.ActionReport
 }
 
 // EventSender defines an event sender

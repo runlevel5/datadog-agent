@@ -14,13 +14,16 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/DataDog/datadog-agent/comp/aggregator/diagnosesendermanager"
+	"github.com/DataDog/datadog-agent/comp/collector/collector"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/flare/helpers"
 	"github.com/DataDog/datadog-agent/comp/core/flare/types"
 	"github.com/DataDog/datadog-agent/comp/core/log"
+	"github.com/DataDog/datadog-agent/comp/metadata/inventoryagent"
 	"github.com/DataDog/datadog-agent/comp/remote-config/rcclient"
 	"github.com/DataDog/datadog-agent/pkg/config/utils"
 	pkgFlare "github.com/DataDog/datadog-agent/pkg/flare"
+	"github.com/DataDog/datadog-agent/pkg/util/optional"
 )
 
 // ProfileData maps (pprof) profile names to the profile data.
@@ -32,16 +35,20 @@ type dependencies struct {
 	Log                   log.Component
 	Config                config.Component
 	Diagnosesendermanager diagnosesendermanager.Component
+	InvAgent              inventoryagent.Component // TODO: (components) - Temporary dependencies until the status page is a Component and we don't need to call it in 'CompleteFlare'.
 	Params                Params
 	Providers             []types.FlareCallback `group:"flare"`
+	Collector             optional.Option[collector.Component]
 }
 
 type flare struct {
 	log                   log.Component
 	config                config.Component
 	diagnosesendermanager diagnosesendermanager.Component
+	invAgent              inventoryagent.Component
 	params                Params
 	providers             []types.FlareCallback
+	collector             optional.Option[collector.Component]
 }
 
 func newFlare(deps dependencies) (Component, rcclient.TaskListenerProvider, error) {
@@ -51,6 +58,8 @@ func newFlare(deps dependencies) (Component, rcclient.TaskListenerProvider, erro
 		params:                deps.Params,
 		providers:             deps.Providers,
 		diagnosesendermanager: deps.Diagnosesendermanager,
+		invAgent:              deps.InvAgent,
+		collector:             deps.Collector,
 	}
 
 	rcListener := rcclient.TaskListenerProvider{
@@ -116,7 +125,7 @@ func (f *flare) Create(pdata ProfileData, ipcError error) (string, error) {
 	providers := append(
 		f.providers,
 		func(fb types.FlareBuilder) error {
-			return pkgFlare.CompleteFlare(fb, f.diagnosesendermanager)
+			return pkgFlare.CompleteFlare(fb, f.diagnosesendermanager, f.invAgent, f.collector)
 		},
 		f.collectLogsFiles,
 		f.collectConfigFiles,

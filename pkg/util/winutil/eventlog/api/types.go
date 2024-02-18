@@ -2,6 +2,7 @@
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2023-present Datadog, Inc.
+
 //go:build windows
 
 // Package evtapi defines the interface and common types for interacting with the Windows Event Log API from Golang
@@ -109,7 +110,19 @@ const (
 	EvtFormatMessageXml
 )
 
+// EVT_RPC_LOGIN_FLAGS
+// https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_rpc_login_flags
+const (
+	EvtRpcLoginAuthDefault = iota
+	EvtRpcLoginAuthNegotiate
+	EvtRpcLoginAuthKerberos
+	EvtRpcLoginAuthNTLM
+)
+
 //revive:enable:var-naming
+
+// EventSessionHandle is a typed windows.Handle returned from EvtOpenSession
+type EventSessionHandle windows.Handle
 
 // EventResultSetHandle is a typed windows.Handle returned from EvtQuery and EvtSubscribe
 type EventResultSetHandle windows.Handle
@@ -136,6 +149,7 @@ type WaitEventHandle windows.Handle
 // https://learn.microsoft.com/en-us/windows/win32/wes/windows-event-log-functions
 type API interface {
 	EvtSubscribe(
+		Session EventSessionHandle,
 		SignalEvent WaitEventHandle,
 		ChannelPath string,
 		Query string,
@@ -173,6 +187,14 @@ type API interface {
 		MessageID uint,
 		Values EvtVariantValues,
 		Flags uint) (string, error)
+
+	EvtOpenSession(
+		Server string,
+		User string,
+		Domain string,
+		Password string,
+		Flags uint,
+	) (EventSessionHandle, error)
 
 	// Windows Event Logging methods
 	RegisterEventSource(SourceName string) (EventSourceHandle, error)
@@ -228,6 +250,11 @@ type EvtVariantValues interface {
 //
 // Helpful wrappers for custom types
 //
+
+// EvtCloseSession closes EventSessionHandle
+func EvtCloseSession(api API, h EventSessionHandle) {
+	api.EvtClose(windows.Handle(h))
+}
 
 // EvtCloseResultSet closes EventResultSetHandle
 func EvtCloseResultSet(api API, h EventResultSetHandle) {

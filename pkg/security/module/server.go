@@ -16,12 +16,10 @@ import (
 	"sync"
 	"time"
 
-	pconfig "github.com/DataDog/datadog-agent/pkg/security/probe/config"
-	"github.com/DataDog/datadog-agent/pkg/security/probe/kfilters"
-
 	"github.com/DataDog/datadog-go/v5/statsd"
-	easyjson "github.com/mailru/easyjson"
+	"github.com/mailru/easyjson"
 	"go.uber.org/atomic"
+	"golang.org/x/exp/slices"
 
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/security/common"
@@ -29,53 +27,85 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/events"
 	"github.com/DataDog/datadog-agent/pkg/security/metrics"
 	sprobe "github.com/DataDog/datadog-agent/pkg/security/probe"
+	pconfig "github.com/DataDog/datadog-agent/pkg/security/probe/config"
+	"github.com/DataDog/datadog-agent/pkg/security/probe/kfilters"
 	"github.com/DataDog/datadog-agent/pkg/security/probe/selftests"
 	"github.com/DataDog/datadog-agent/pkg/security/proto/api"
 	"github.com/DataDog/datadog-agent/pkg/security/reporter"
+	"github.com/DataDog/datadog-agent/pkg/security/rules/monitor"
+	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
 	"github.com/DataDog/datadog-agent/pkg/security/serializers"
+	"github.com/DataDog/datadog-agent/pkg/security/utils"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/startstop"
 	"github.com/DataDog/datadog-agent/pkg/version"
 )
 
 type pendingMsg struct {
-	ruleID    string
-	data      []byte
-	tags      []string
-	service   string
-	extTagsCb func() []string
-	sendAfter time.Time
+	ruleID        string
+	backendEvent  events.BackendEvent
+	eventJSON     []byte
+	tags          []string
+	actionReports []model.ActionReport
+	service       string
+	extTagsCb     func() []string
+	sendAfter     time.Time
+}
+
+func (p *pendingMsg) ToJSON() ([]byte, error) {
+	if len(p.actionReports) > 0 {
+		p.backendEvent.RuleActions = make(map[string][]json.RawMessage)
+	}
+	for _, report := range p.actionReports {
+		data, err := report.ToJSON()
+		if err != nil {
+			return nil, err
+		}
+		actionType := report.Type()
+		p.backendEvent.RuleActions[actionType] = append(p.backendEvent.RuleActions[actionType], data)
+	}
+
+	backendEventJSON, err := easyjson.Marshal(p.backendEvent)
+	if err != nil {
+		return nil, err
+	}
+
+	data := append(p.eventJSON[:len(p.eventJSON)-1], ',')
+	data = append(data, backendEventJSON[1:]...)
+
+	return data, nil
 }
 
 // APIServer represents a gRPC server in charge of receiving events sent by
 // the runtime security system-probe module and forwards them to Datadog
 type APIServer struct {
 	api.UnimplementedSecurityModuleServer
-	msgs              chan *api.SecurityEventMessage
-	directReporter    common.RawReporter
-	activityDumps     chan *api.ActivityDumpStreamMessage
-	expiredEventsLock sync.RWMutex
-	expiredEvents     map[rules.RuleID]*atomic.Int64
-	expiredDumps      *atomic.Int64
-	limiter           *events.StdLimiter
-	statsdClient      statsd.ClientInterface
-	probe             *sprobe.Probe
-	queueLock         sync.Mutex
-	queue             []*pendingMsg
-	retention         time.Duration
-	cfg               *config.RuntimeSecurityConfig
-	selfTester        *selftests.SelfTester
-	cwsConsumer       *CWSConsumer
+	msgs               chan *api.SecurityEventMessage
+	directReporter     common.RawReporter
+	activityDumps      chan *api.ActivityDumpStreamMessage
+	expiredEventsLock  sync.RWMutex
+	expiredEvents      map[rules.RuleID]*atomic.Int64
+	expiredDumps       *atomic.Int64
+	statsdClient       statsd.ClientInterface
+	probe              *sprobe.Probe
+	queueLock          sync.Mutex
+	queue              []*pendingMsg
+	retention          time.Duration
+	cfg                *config.RuntimeSecurityConfig
+	selfTester         *selftests.SelfTester
+	cwsConsumer        *CWSConsumer
+	policiesStatusLock sync.RWMutex
+	policiesStatus     []*api.PolicyStatus
 
 	stopChan chan struct{}
 	stopper  startstop.Stopper
 }
 
 // GetActivityDumpStream waits for activity dumps and forwards them to the stream
-func (a *APIServer) GetActivityDumpStream(params *api.ActivityDumpStreamParams, stream api.SecurityModule_GetActivityDumpStreamServer) error {
+func (a *APIServer) GetActivityDumpStream(_ *api.ActivityDumpStreamParams, stream api.SecurityModule_GetActivityDumpStreamServer) error {
 	for {
 		select {
 		case <-stream.Context().Done():
@@ -114,7 +144,7 @@ func (a *APIServer) SendActivityDump(dump *api.ActivityDumpStreamMessage) {
 }
 
 // GetEvents waits for security events
-func (a *APIServer) GetEvents(params *api.GetEventParams, stream api.SecurityModule_GetEventsServer) error {
+func (a *APIServer) GetEvents(_ *api.GetEventParams, stream api.SecurityModule_GetEventsServer) error {
 	for {
 		select {
 		case <-stream.Context().Done():
@@ -127,12 +157,6 @@ func (a *APIServer) GetEvents(params *api.GetEventParams, stream api.SecurityMod
 			}
 		}
 	}
-}
-
-// RuleEvent is a wrapper used to send an event to the backend
-type RuleEvent struct {
-	RuleID string       `json:"rule_id"`
-	Event  events.Event `json:"event"`
 }
 
 func (a *APIServer) enqueue(msg *pendingMsg) {
@@ -174,7 +198,12 @@ func (a *APIServer) start(ctx context.Context) {
 		case now := <-ticker.C:
 			a.dequeue(now, func(msg *pendingMsg) {
 				if msg.extTagsCb != nil {
-					msg.tags = append(msg.tags, msg.extTagsCb()...)
+					// dedup
+					for _, tag := range msg.extTagsCb() {
+						if !slices.Contains(msg.tags, tag) {
+							msg.tags = append(msg.tags, tag)
+						}
+					}
 				}
 
 				// recopy tags
@@ -189,9 +218,17 @@ func (a *APIServer) start(ctx context.Context) {
 					}
 				}
 
+				data, err := msg.ToJSON()
+				if err != nil {
+					seclog.Errorf("failed to marshal event context: %v", err)
+					return
+				}
+
+				seclog.Tracef("Sending event message for rule `%s` to security-agent `%s`", msg.ruleID, string(data))
+
 				m := &api.SecurityEventMessage{
 					RuleID:  msg.ruleID,
-					Data:    msg.data,
+					Data:    data,
 					Service: msg.service,
 					Tags:    msg.tags,
 				}
@@ -245,7 +282,7 @@ func (a *APIServer) Start(ctx context.Context) {
 }
 
 // GetConfig returns config of the runtime security module required by the security agent
-func (a *APIServer) GetConfig(ctx context.Context, params *api.GetConfigParams) (*api.SecurityConfigMessage, error) {
+func (a *APIServer) GetConfig(_ context.Context, _ *api.GetConfigParams) (*api.SecurityConfigMessage, error) {
 	if a.cfg != nil {
 		return &api.SecurityConfigMessage{
 			FIMEnabled:          a.cfg.FIMEnabled,
@@ -256,61 +293,50 @@ func (a *APIServer) GetConfig(ctx context.Context, params *api.GetConfigParams) 
 	return &api.SecurityConfigMessage{}, nil
 }
 
-func runtimeArch() string {
-	switch runtime.GOARCH {
-	case "amd64":
-		return "x64"
-	case "arm64":
-		return "arm64"
-	default:
-		return runtime.GOARCH
-	}
-}
-
 // SendEvent forwards events sent by the runtime security module to Datadog
 func (a *APIServer) SendEvent(rule *rules.Rule, e events.Event, extTagsCb func() []string, service string) {
-	agentContext := events.AgentContext{
-		RuleID:      rule.Definition.ID,
-		RuleVersion: rule.Definition.Version,
-		Version:     version.AgentVersion,
-		OS:          runtime.GOOS,
-		Arch:        runtimeArch(),
-	}
-
-	ruleEvent := &events.Signal{
-		Title:        rule.Definition.Description,
-		AgentContext: agentContext,
+	backendEvent := events.BackendEvent{
+		Title: rule.Definition.Description,
+		AgentContext: events.AgentContext{
+			RuleID:      rule.Definition.ID,
+			RuleVersion: rule.Definition.Version,
+			Version:     version.AgentVersion,
+			OS:          runtime.GOOS,
+			Arch:        utils.RuntimeArch(),
+		},
 	}
 
 	if policy := rule.Definition.Policy; policy != nil {
-		ruleEvent.AgentContext.PolicyName = policy.Name
-		ruleEvent.AgentContext.PolicyVersion = policy.Version
+		backendEvent.AgentContext.PolicyName = policy.Name
+		backendEvent.AgentContext.PolicyVersion = policy.Version
 	}
 
-	probeJSON, err := marshalEvent(e, a.probe)
+	eventJSON, err := marshalEvent(e, rule.Opts)
 	if err != nil {
 		seclog.Errorf("failed to marshal event: %v", err)
 		return
 	}
 
-	ruleEventJSON, err := easyjson.Marshal(ruleEvent)
-	if err != nil {
-		seclog.Errorf("failed to marshal event context: %v", err)
-		return
+	seclog.Tracef("Prepare event message for rule `%s` : `%s`", rule.ID, string(eventJSON))
+
+	// no retention if there is no ext tags to resolve
+	retention := a.retention
+	if extTagsCb == nil {
+		retention = 0
 	}
 
-	data := append(probeJSON[:len(probeJSON)-1], ',')
-	data = append(data, ruleEventJSON[1:]...)
-	seclog.Tracef("Sending event message for rule `%s` to security-agent `%s`", rule.ID, string(data))
-
+	// get type tags + container tags if already resolved, see ResolveContainerTags
 	eventTags := e.GetTags()
+
 	msg := &pendingMsg{
-		ruleID:    rule.Definition.ID,
-		data:      data,
-		extTagsCb: extTagsCb,
-		service:   service,
-		sendAfter: time.Now().Add(a.retention),
-		tags:      make([]string, 0, 1+len(rule.Tags)+len(eventTags)+1),
+		ruleID:        rule.Definition.ID,
+		backendEvent:  backendEvent,
+		eventJSON:     eventJSON,
+		extTagsCb:     extTagsCb,
+		service:       service,
+		sendAfter:     time.Now().Add(retention),
+		tags:          make([]string, 0, 1+len(rule.Tags)+len(eventTags)+1),
+		actionReports: e.GetActionReports(),
 	}
 
 	msg.tags = append(msg.tags, "rule_id:"+rule.Definition.ID)
@@ -321,9 +347,9 @@ func (a *APIServer) SendEvent(rule *rules.Rule, e events.Event, extTagsCb func()
 	a.enqueue(msg)
 }
 
-func marshalEvent(event events.Event, probe *sprobe.Probe) ([]byte, error) {
+func marshalEvent(event events.Event, opts *eval.Opts) ([]byte, error) {
 	if ev, ok := event.(*model.Event); ok {
-		return serializers.MarshalEvent(ev, probe.GetResolvers())
+		return serializers.MarshalEvent(ev, opts)
 	}
 
 	if ev, ok := event.(events.EventMarshaler); ok {
@@ -380,7 +406,7 @@ func (a *APIServer) SendStats() error {
 }
 
 // ReloadPolicies reloads the policies
-func (a *APIServer) ReloadPolicies(ctx context.Context, params *api.ReloadPoliciesParams) (*api.ReloadPoliciesResultMessage, error) {
+func (a *APIServer) ReloadPolicies(_ context.Context, _ *api.ReloadPoliciesParams) (*api.ReloadPoliciesResultMessage, error) {
 	if a.cwsConsumer == nil || a.cwsConsumer.ruleEngine == nil {
 		return nil, errors.New("no rule engine")
 	}
@@ -392,7 +418,7 @@ func (a *APIServer) ReloadPolicies(ctx context.Context, params *api.ReloadPolici
 }
 
 // GetRuleSetReport reports the ruleset loaded
-func (a *APIServer) GetRuleSetReport(ctx context.Context, params *api.GetRuleSetReportParams) (*api.GetRuleSetReportResultMessage, error) {
+func (a *APIServer) GetRuleSetReport(_ context.Context, _ *api.GetRuleSetReportParams) (*api.GetRuleSetReportResultMessage, error) {
 	if a.cwsConsumer == nil || a.cwsConsumer.ruleEngine == nil {
 		return nil, errors.New("no rule engine")
 	}
@@ -419,14 +445,38 @@ func (a *APIServer) GetRuleSetReport(ctx context.Context, params *api.GetRuleSet
 	}, nil
 }
 
-// Apply a rule set
-func (a *APIServer) Apply(ruleIDs []rules.RuleID) {
+// ApplyRuleIDs the rule ids
+func (a *APIServer) ApplyRuleIDs(ruleIDs []rules.RuleID) {
 	a.expiredEventsLock.Lock()
 	defer a.expiredEventsLock.Unlock()
 
 	a.expiredEvents = make(map[rules.RuleID]*atomic.Int64)
 	for _, id := range ruleIDs {
 		a.expiredEvents[id] = atomic.NewInt64(0)
+	}
+}
+
+// ApplyPolicyStates the policy states
+func (a *APIServer) ApplyPolicyStates(policies []*monitor.PolicyState) {
+	a.policiesStatusLock.Lock()
+	defer a.policiesStatusLock.Unlock()
+
+	a.policiesStatus = []*api.PolicyStatus{}
+	for _, policy := range policies {
+		entry := api.PolicyStatus{
+			Name:   policy.Name,
+			Source: policy.Source,
+		}
+
+		for _, rule := range policy.Rules {
+			entry.Status = append(entry.Status, &api.RuleStatus{
+				ID:     rule.ID,
+				Status: rule.Status,
+				Error:  rule.Message,
+			})
+		}
+
+		a.policiesStatus = append(a.policiesStatus, &entry)
 	}
 }
 
@@ -484,7 +534,9 @@ func newDirectReporter(stopper startstop.Stopper) (common.RawReporter, error) {
 		log.Info(status)
 	}
 
-	reporter, err := reporter.NewCWSReporter(runPath, stopper, endpoints, destinationsCtx)
+	// we set the hostname to the empty string to take advantage of the out of the box message hostname
+	// resolution
+	reporter, err := reporter.NewCWSReporter("", runPath, stopper, endpoints, destinationsCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create direct reporter: %w", err)
 	}

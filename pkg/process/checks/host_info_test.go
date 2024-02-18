@@ -21,6 +21,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config"
 	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	pbmocks "github.com/DataDog/datadog-agent/pkg/proto/pbgo/mocks/core"
+	"github.com/DataDog/datadog-agent/pkg/util/flavor"
 )
 
 func TestGetHostname(t *testing.T) {
@@ -46,7 +47,7 @@ func TestGetHostnameFromGRPC(t *testing.T) {
 	).Return(&pb.HostnameReply{Hostname: "unit-test-hostname"}, nil)
 
 	t.Run("hostname returns from grpc", func(t *testing.T) {
-		hostname, err := getHostnameFromGRPC(ctx, func(ctx context.Context, opts ...grpc.DialOption) (pb.AgentClient, error) {
+		hostname, err := getHostnameFromGRPC(ctx, func(ctx context.Context, address, cmdPort string, opts ...grpc.DialOption) (pb.AgentClient, error) {
 			return mockClient, nil
 		}, config.DefaultGRPCConnectionTimeoutSecs*time.Second)
 
@@ -56,7 +57,7 @@ func TestGetHostnameFromGRPC(t *testing.T) {
 
 	t.Run("grpc client is unavailable", func(t *testing.T) {
 		grpcErr := errors.New("no grpc client")
-		hostname, err := getHostnameFromGRPC(ctx, func(ctx context.Context, opts ...grpc.DialOption) (pb.AgentClient, error) {
+		hostname, err := getHostnameFromGRPC(ctx, func(ctx context.Context, address, cmdPort string, opts ...grpc.DialOption) (pb.AgentClient, error) {
 			return nil, grpcErr
 		}, config.DefaultGRPCConnectionTimeoutSecs*time.Second)
 
@@ -81,6 +82,11 @@ func TestGetHostnameFromCmd(t *testing.T) {
 }
 
 func TestInvalidHostname(t *testing.T) {
+	oldFlavor := flavor.GetFlavor()
+	defer flavor.SetFlavor(oldFlavor)
+
+	flavor.SetFlavor(flavor.ProcessAgent)
+
 	cfg := config.Mock(t)
 
 	// Lower the GRPC timeout, otherwise the test will time out in CI

@@ -8,21 +8,28 @@ package metadata
 import (
 	"testing"
 
+	"go.uber.org/fx"
+
+	"github.com/DataDog/datadog-agent/comp/collector/collector/collectorimpl"
 	"github.com/DataDog/datadog-agent/comp/core"
+	"github.com/DataDog/datadog-agent/comp/logs/agent"
 	"github.com/DataDog/datadog-agent/comp/metadata/runner/runnerimpl"
 	"github.com/DataDog/datadog-agent/pkg/serializer"
-	"github.com/DataDog/datadog-agent/pkg/util"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
-	"go.uber.org/fx"
+	"github.com/DataDog/datadog-agent/pkg/util/optional"
 )
 
 func TestBundleDependencies(t *testing.T) {
-	fxutil.TestBundle(t, Bundle, core.MockBundle,
-		fx.Supply(util.NewNoneOptional[runnerimpl.MetadataProvider]()),
+	fxutil.TestBundle(t, Bundle(), core.MockBundle(),
+		fx.Supply(optional.NewNoneOption[runnerimpl.MetadataProvider]()),
 		fx.Provide(func() serializer.MetricSerializer { return nil }),
+		collectorimpl.MockModule(),
+		fx.Provide(func() optional.Option[agent.Component] {
+			return optional.NewNoneOption[agent.Component]()
+		}),
 	)
 }
 
 func TestMockBundleDependencies(t *testing.T) {
-	fxutil.TestBundle(t, MockBundle)
+	fxutil.TestBundle(t, MockBundle())
 }

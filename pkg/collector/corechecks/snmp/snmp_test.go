@@ -12,16 +12,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/snmp/internal/report"
+
 	"github.com/gosnmp/gosnmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/atomic"
 	"go.uber.org/fx"
 
-	"github.com/DataDog/datadog-agent/comp/core/config"
-	"github.com/DataDog/datadog-agent/comp/core/log"
+	"github.com/DataDog/datadog-agent/comp/aggregator/demultiplexer"
+	"github.com/DataDog/datadog-agent/comp/aggregator/demultiplexer/demultiplexerimpl"
+	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
-	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	coreconfig "github.com/DataDog/datadog-agent/pkg/config"
@@ -41,21 +43,13 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/snmp/gosnmplib"
 )
 
-func demuxOpts() aggregator.AgentDemultiplexerOptions {
-	opts := aggregator.DefaultAgentDemultiplexerOptions()
-	opts.FlushInterval = 1 * time.Hour
-	opts.DontStartForwarders = true
-	return opts
-}
-
 type deps struct {
 	fx.In
-	Log       log.Component
-	Forwarder defaultforwarder.Component
+	Demultiplexer demultiplexer.Mock
 }
 
 func createDeps(t *testing.T) deps {
-	return fxutil.Test[deps](t, defaultforwarder.MockModule, config.MockModule, log.MockModule)
+	return fxutil.Test[deps](t, demultiplexerimpl.MockModule(), defaultforwarder.MockModule(), core.MockBundle())
 }
 
 func Test_Run_simpleCase(t *testing.T) {
@@ -66,7 +60,7 @@ func Test_Run_simpleCase(t *testing.T) {
 		return sess, nil
 	}
 	chk := Check{sessionFactory: sessionFactory}
-	senderManager := aggregator.InitAndStartAgentDemultiplexer(deps.Log, deps.Forwarder, demuxOpts(), "")
+	senderManager := deps.Demultiplexer
 
 	// language=yaml
 	rawInstanceConfig := []byte(`
@@ -338,15 +332,17 @@ tags:
 }
 
 func Test_Run_customIfSpeed(t *testing.T) {
+	report.TimeNow = common.MockTimeNow
 	deps := createDeps(t)
 	profile.SetConfdPathAndCleanProfiles()
 	sess := session.CreateMockSession()
 	sessionFactory := func(*checkconfig.CheckConfig) (session.Session, error) {
 		return sess, nil
 	}
+
 	chk := Check{sessionFactory: sessionFactory}
 
-	senderManager := aggregator.InitAndStartAgentDemultiplexer(deps.Log, deps.Forwarder, demuxOpts(), "")
+	senderManager := deps.Demultiplexer
 
 	// language=yaml
 	rawInstanceConfig := []byte(`
@@ -388,6 +384,7 @@ metrics:
 
 	err := chk.Configure(senderManager, integration.FakeConfigHash, rawInstanceConfig, []byte(``), "test")
 	assert.Nil(t, err)
+	chk.singleDeviceCk.SetInterfaceBandwidthState(report.MockInterfaceRateMap("1", 50_000_000, 40_000_000, 20, 10, int64(946684785000000000)))
 
 	sender := mocksender.NewMockSenderWithSenderManager(chk.ID(), senderManager)
 	sender.SetupAcceptAll()
@@ -468,10 +465,12 @@ metrics:
 
 	// ((2000000 * 8) / (50 * 1000000)) * 100 = 32
 	//   ^ifHCInOctets   ^custom in_speed
-	sender.AssertMetric(t, "Rate", "snmp.ifBandwidthInUsage.rate", float64(32), "", tags)
+	// previous: 20
+	sender.AssertMetric(t, "Gauge", "snmp.ifBandwidthInUsage.rate", float64(12.0/15.0), "", tags)
 	// ((1000000 * 8) / (40 * 1000000)) * 100 = 20
 	//   ^ifHCOutOctets   ^custom out_speed
-	sender.AssertMetric(t, "Rate", "snmp.ifBandwidthOutUsage.rate", float64(20), "", tags)
+	// previous: 10
+	sender.AssertMetric(t, "Gauge", "snmp.ifBandwidthOutUsage.rate", float64(10.0/15.0), "", tags)
 
 	chk.Cancel()
 }
@@ -553,7 +552,7 @@ func TestProfile(t *testing.T) {
 	timeNow = common.MockTimeNow
 
 	deps := createDeps(t)
-	senderManager := aggregator.InitAndStartAgentDemultiplexer(deps.Log, deps.Forwarder, demuxOpts(), "")
+	senderManager := deps.Demultiplexer
 
 	profile.SetConfdPathAndCleanProfiles()
 
@@ -881,7 +880,8 @@ profiles:
       "profile": "f5-big-ip",
       "vendor": "f5",
       "subnet": "127.0.0.0/30",
-      "serial_number": "a-serial-num"
+      "serial_number": "a-serial-num",
+	  "device_type": "load_balancer"
     }
   ],
   "interfaces": [
@@ -977,10 +977,10 @@ community_string: public
 
 func TestCheckID(t *testing.T) {
 	profile.SetConfdPathAndCleanProfiles()
-	check1 := snmpFactory()
-	check2 := snmpFactory()
-	check3 := snmpFactory()
-	checkSubnet := snmpFactory()
+	check1 := newCheck()
+	check2 := newCheck()
+	check3 := newCheck()
+	checkSubnet := newCheck()
 	// language=yaml
 	rawInstanceConfig1 := []byte(`
 ip_address: 1.1.1.1
@@ -1203,7 +1203,7 @@ community_string: public
 namespace: '%s'
 `, tt.name))
 			deps := createDeps(t)
-			senderManager := aggregator.InitAndStartAgentDemultiplexer(deps.Log, deps.Forwarder, demuxOpts(), "")
+			senderManager := deps.Demultiplexer
 
 			err := chk.Configure(senderManager, integration.FakeConfigHash, rawInstanceConfig, []byte(``), "test")
 			assert.Nil(t, err)
@@ -1284,7 +1284,7 @@ func TestReportDeviceMetadataEvenOnProfileError(t *testing.T) {
 	timeNow = common.MockTimeNow
 
 	deps := createDeps(t)
-	senderManager := aggregator.InitAndStartAgentDemultiplexer(deps.Log, deps.Forwarder, demuxOpts(), "")
+	senderManager := deps.Demultiplexer
 	profile.SetConfdPathAndCleanProfiles()
 
 	sess := session.CreateMockSession()
@@ -1522,7 +1522,8 @@ tags:
       "name": "foo_sys_name",
       "description": "my_desc",
       "sys_object_id": "1.2.3.4",
-      "subnet": "127.0.0.0/30"
+      "subnet": "127.0.0.0/30",
+	  "device_type": "other"
     }
   ],
   "interfaces": [
@@ -1589,7 +1590,7 @@ tags:
 func TestReportDeviceMetadataWithFetchError(t *testing.T) {
 	timeNow = common.MockTimeNow
 	deps := createDeps(t)
-	senderManager := aggregator.InitAndStartAgentDemultiplexer(deps.Log, deps.Forwarder, demuxOpts(), "")
+	senderManager := deps.Demultiplexer
 
 	profile.SetConfdPathAndCleanProfiles()
 
@@ -1661,7 +1662,8 @@ tags:
       ],
       "ip_address": "1.2.3.5",
       "status": 2,
-      "subnet": "127.0.0.0/30"
+      "subnet": "127.0.0.0/30",
+	  "device_type": "other"
     }
   ],
   "diagnoses": [
@@ -1703,7 +1705,7 @@ func TestDiscovery(t *testing.T) {
 		return sess, nil
 	}
 	chk := Check{sessionFactory: sessionFactory}
-	senderManager := aggregator.InitAndStartAgentDemultiplexer(deps.Log, deps.Forwarder, demuxOpts(), "")
+	senderManager := deps.Demultiplexer
 
 	// language=yaml
 	rawInstanceConfig := []byte(`
@@ -1972,7 +1974,8 @@ metric_tags:
       "ip_address": "%s",
       "status": 1,
       "name": "foo_sys_name",
-      "subnet": "10.10.0.0/30"
+      "subnet": "10.10.0.0/30",
+	  "device_type": "other"
     }
   ],
   "interfaces": [
@@ -2043,7 +2046,7 @@ func TestDiscovery_CheckError(t *testing.T) {
 		return sess, nil
 	}
 	chk := Check{sessionFactory: sessionFactory, workerRunDeviceCheckErrors: atomic.NewUint64(0)}
-	senderManager := aggregator.InitAndStartAgentDemultiplexer(deps.Log, deps.Forwarder, demuxOpts(), "")
+	senderManager := deps.Demultiplexer
 
 	// language=yaml
 	rawInstanceConfig := []byte(`
@@ -2121,7 +2124,7 @@ func TestDeviceIDAsHostname(t *testing.T) {
 	chk := Check{sessionFactory: sessionFactory}
 	coreconfig.Datadog.SetWithoutSource("hostname", "test-hostname")
 	coreconfig.Datadog.SetWithoutSource("tags", []string{"agent_tag1:val1", "agent_tag2:val2"})
-	senderManager := aggregator.InitAndStartAgentDemultiplexer(deps.Log, deps.Forwarder, demuxOpts(), "")
+	senderManager := deps.Demultiplexer
 
 	// language=yaml
 	rawInstanceConfig := []byte(`
@@ -2312,7 +2315,7 @@ func TestDiscoveryDeviceIDAsHostname(t *testing.T) {
 	chk := Check{sessionFactory: sessionFactory}
 
 	coreconfig.Datadog.SetWithoutSource("hostname", "my-hostname")
-	senderManager := aggregator.InitAndStartAgentDemultiplexer(deps.Log, deps.Forwarder, demuxOpts(), "")
+	senderManager := deps.Demultiplexer
 
 	// language=yaml
 	rawInstanceConfig := []byte(`
@@ -2516,7 +2519,7 @@ func TestCheckCancel(t *testing.T) {
 	}
 	chk := Check{sessionFactory: sessionFactory}
 
-	senderManager := aggregator.InitAndStartAgentDemultiplexer(deps.Log, deps.Forwarder, demuxOpts(), "")
+	senderManager := deps.Demultiplexer
 
 	// language=yaml
 	rawInstanceConfig := []byte(`

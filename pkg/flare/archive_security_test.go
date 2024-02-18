@@ -17,10 +17,11 @@ import (
 
 	// Required to initialize the "dogstatsd" expvar
 	_ "github.com/DataDog/datadog-agent/comp/dogstatsd/server"
+	_ "github.com/DataDog/datadog-agent/pkg/collector/runner/expvars"
 )
 
 func TestCreateSecurityAgentArchive(t *testing.T) {
-	common.SetupConfigWithWarnings("./test", "")
+	common.SetupConfigForTest("./test")
 	mockConfig := config.Mock(t)
 	mockConfig.SetWithoutSource("compliance_config.dir", "./test/compliance.d")
 	logFilePath := "./test/logs/agent.log"

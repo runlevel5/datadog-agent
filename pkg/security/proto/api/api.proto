@@ -93,9 +93,22 @@ message SelfTestsStatus {
     repeated string Fails = 3;
 }
 
+message RuleStatus {
+    string ID = 1;
+    string Status = 2;
+    string Error = 3;
+}
+
+message PolicyStatus {
+    string name = 1;
+    string source = 2;
+    repeated RuleStatus Status = 3;
+}
+
 message Status {
     EnvironmentStatus Environment = 1;
     SelfTestsStatus SelfTests = 2;
+    repeated PolicyStatus PoliciesStatus = 3;
 }
 
 message ConstantFetcherStatus {
@@ -236,7 +249,7 @@ message SecurityProfileMessage {
     string LoadedInKernelTimestamp = 2;
     WorkloadSelectorMessage Selector = 3;
     uint64 ProfileCookie = 4;
-    repeated string AnomalyDetectionEvents = 5;
+    repeated string EventTypes = 5;
     repeated LastAnomalyTimestampMessage LastAnomalies = 6;
     repeated InstanceMessage Instances = 7;
     string Status = 8;

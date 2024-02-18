@@ -13,10 +13,11 @@ import (
 	"net"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
-	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/gosnmp/gosnmp"
 	"go.uber.org/fx"
+
+	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
+	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 
 	"github.com/DataDog/datadog-agent/comp/aggregator/demultiplexer"
 	"github.com/DataDog/datadog-agent/comp/core/log"
@@ -27,9 +28,11 @@ import (
 )
 
 // Module defines the fx options for this component.
-var Module = fxutil.Component(
-	fx.Provide(newTrapListener),
-)
+func Module() fxutil.Module {
+	return fxutil.Component(
+		fx.Provide(newTrapListener),
+	)
+}
 
 // trapListener opens an UDP socket and put all received traps in a channel
 type trapListener struct {
@@ -147,7 +150,7 @@ func (t *trapListener) receiveTrap(p *gosnmp.SnmpPacket, u *net.UDPAddr) {
 
 	if err := validatePacket(p, t.config); err != nil {
 		t.logger.Debugf("Invalid credentials from %s on listener %s, dropping traps", u.String(), t.config.Addr())
-		t.status.AddTrapsPacketsAuthErrors(1)
+		t.status.AddTrapsPacketsUnknownCommunityString(1)
 		t.sender.Count("datadog.snmp_traps.invalid_packet", 1, "", append(tags, "reason:unknown_community_string"))
 		return
 	}

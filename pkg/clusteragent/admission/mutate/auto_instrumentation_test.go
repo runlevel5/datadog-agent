@@ -9,11 +9,19 @@ package mutate
 
 import (
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/languagedetection/util"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic/fake"
 )
@@ -226,7 +234,10 @@ func TestInjectAutoInstruConfig(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := injectAutoInstruConfig(tt.pod, tt.libsToInject)
+			apmInstrumentation, err := newAPMInstrumentationWebhook()
+			require.NoError(t, err)
+
+			err = apmInstrumentation.injectAutoInstruConfig(tt.pod, tt.libsToInject, false, "")
 			require.False(t, (err != nil) != tt.wantErr)
 			if err != nil {
 				return
@@ -513,22 +524,6 @@ func TestExtractLibInfo(t *testing.T) {
 					lang:  "java",
 					image: "registry/dd-lib-java-init:v1.20.0",
 				},
-				{
-					lang:  "js",
-					image: "registry/dd-lib-js-init:latest",
-				},
-				{
-					lang:  "python",
-					image: "registry/dd-lib-python-init:latest",
-				},
-				{
-					lang:  "dotnet",
-					image: "registry/dd-lib-dotnet-init:latest",
-				},
-				{
-					lang:  "ruby",
-					image: "registry/dd-lib-ruby-init:latest",
-				},
 			},
 			setupConfig: func() {
 				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true)
@@ -545,20 +540,8 @@ func TestExtractLibInfo(t *testing.T) {
 					image: "registry/dd-lib-java-init:v1.20.0",
 				},
 				{
-					lang:  "js",
-					image: "registry/dd-lib-js-init:latest",
-				},
-				{
 					lang:  "python",
 					image: "registry/dd-lib-python-init:v1.19.0",
-				},
-				{
-					lang:  "dotnet",
-					image: "registry/dd-lib-dotnet-init:latest",
-				},
-				{
-					lang:  "ruby",
-					image: "registry/dd-lib-ruby-init:latest",
 				},
 			},
 			setupConfig: func() {
@@ -575,22 +558,6 @@ func TestExtractLibInfo(t *testing.T) {
 					lang:  "java",
 					image: "registry/dd-lib-java-init:v1",
 				},
-				{
-					lang:  "js",
-					image: "registry/dd-lib-js-init:latest",
-				},
-				{
-					lang:  "python",
-					image: "registry/dd-lib-python-init:latest",
-				},
-				{
-					lang:  "dotnet",
-					image: "registry/dd-lib-dotnet-init:latest",
-				},
-				{
-					lang:  "ruby",
-					image: "registry/dd-lib-ruby-init:latest",
-				},
 			},
 			setupConfig: func() {
 				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true)
@@ -606,7 +573,15 @@ func TestExtractLibInfo(t *testing.T) {
 			if tt.setupConfig != nil {
 				tt.setupConfig()
 			}
-			libsToInject := extractLibInfo(tt.pod, tt.containerRegistry)
+
+			// reset pinned libraries between test runs
+			pinnedLibs.once = new(sync.Once)
+			pinnedLibs.libraries = []libInfo{}
+
+			apmInstrumentation, err := newAPMInstrumentationWebhook()
+			require.NoError(t, err)
+
+			libsToInject, _ := apmInstrumentation.extractLibInfo(tt.pod, tt.containerRegistry)
 			require.ElementsMatch(t, tt.expectedLibsToInject, libsToInject)
 		})
 	}
@@ -692,6 +667,8 @@ func TestInjectLibInitContainer(t *testing.T) {
 		image   string
 		lang    language
 		wantErr bool
+		wantCPU string
+		wantMem string
 	}{
 		{
 			name:    "no resources",
@@ -699,6 +676,8 @@ func TestInjectLibInitContainer(t *testing.T) {
 			image:   "gcr.io/datadoghq/dd-lib-java-init:v1",
 			lang:    java,
 			wantErr: false,
+			wantCPU: "50m",
+			wantMem: "20Mi",
 		},
 		{
 			name:    "with resources",
@@ -708,6 +687,8 @@ func TestInjectLibInitContainer(t *testing.T) {
 			image:   "gcr.io/datadoghq/dd-lib-java-init:v1",
 			lang:    java,
 			wantErr: false,
+			wantCPU: "100m",
+			wantMem: "500",
 		},
 		{
 			name:    "cpu only",
@@ -716,6 +697,8 @@ func TestInjectLibInitContainer(t *testing.T) {
 			image:   "gcr.io/datadoghq/dd-lib-java-init:v1",
 			lang:    java,
 			wantErr: false,
+			wantCPU: "200m",
+			wantMem: "20Mi",
 		},
 		{
 			name:    "memory only",
@@ -724,6 +707,8 @@ func TestInjectLibInitContainer(t *testing.T) {
 			image:   "gcr.io/datadoghq/dd-lib-java-init:v1",
 			lang:    java,
 			wantErr: false,
+			wantCPU: "50m",
+			wantMem: "512Mi",
 		},
 		{
 			name:    "with invalid resources",
@@ -732,6 +717,8 @@ func TestInjectLibInitContainer(t *testing.T) {
 			image:   "gcr.io/datadoghq/dd-lib-java-init:v1",
 			lang:    java,
 			wantErr: true,
+			wantCPU: "50m",
+			wantMem: "20Mi",
 		},
 	}
 	for _, tt := range tests {
@@ -751,32 +738,24 @@ func TestInjectLibInitContainer(t *testing.T) {
 				return
 			}
 			require.Len(t, tt.pod.Spec.InitContainers, 1)
-			if tt.cpu != "" {
-				req := tt.pod.Spec.InitContainers[0].Resources.Requests[corev1.ResourceCPU]
-				lim := tt.pod.Spec.InitContainers[0].Resources.Limits[corev1.ResourceCPU]
-				require.Equal(t, tt.cpu, req.String())
-				require.Equal(t, tt.cpu, lim.String())
-			}
-			if tt.mem != "" {
-				req := tt.pod.Spec.InitContainers[0].Resources.Requests[corev1.ResourceMemory]
-				lim := tt.pod.Spec.InitContainers[0].Resources.Limits[corev1.ResourceMemory]
-				require.Equal(t, tt.mem, req.String())
-				require.Equal(t, tt.mem, lim.String())
-			}
+
+			req := tt.pod.Spec.InitContainers[0].Resources.Requests[corev1.ResourceCPU]
+			lim := tt.pod.Spec.InitContainers[0].Resources.Limits[corev1.ResourceCPU]
+			wantCPUQuantity := resource.MustParse(tt.wantCPU)
+			require.Zero(t, wantCPUQuantity.Cmp(req)) // Cmp returns 0 if equal
+			require.Zero(t, wantCPUQuantity.Cmp(lim))
+
+			req = tt.pod.Spec.InitContainers[0].Resources.Requests[corev1.ResourceMemory]
+			lim = tt.pod.Spec.InitContainers[0].Resources.Limits[corev1.ResourceMemory]
+			wantMemQuantity := resource.MustParse(tt.wantMem)
+			require.Zero(t, wantMemQuantity.Cmp(req))
+			require.Zero(t, wantMemQuantity.Cmp(lim))
 		})
 	}
 }
 
 func expBasicConfig() []corev1.EnvVar {
 	return []corev1.EnvVar{
-		{
-			Name:  "DD_TRACE_RATE_LIMIT",
-			Value: "100",
-		},
-		{
-			Name:  "DD_TRACE_SAMPLE_RATE",
-			Value: "1.00",
-		},
 		{
 			Name:  "DD_RUNTIME_METRICS_ENABLED",
 			Value: "true",
@@ -793,54 +772,6 @@ func expBasicConfig() []corev1.EnvVar {
 			Name:  "DD_LOGS_INJECTION",
 			Value: "true",
 		},
-	}
-}
-
-func TestInjectAll(t *testing.T) {
-	wantAll := map[string]libInfo{
-		"java":   {lang: java, image: "gcr.io/datadoghq/dd-lib-java-init:latest"},
-		"js":     {lang: js, image: "gcr.io/datadoghq/dd-lib-js-init:latest"},
-		"python": {lang: python, image: "gcr.io/datadoghq/dd-lib-python-init:latest"},
-		"dotnet": {lang: dotnet, image: "gcr.io/datadoghq/dd-lib-dotnet-init:latest"},
-		"ruby":   {lang: ruby, image: "gcr.io/datadoghq/dd-lib-ruby-init:latest"},
-	}
-	tests := []struct {
-		name             string
-		ns               string
-		targetNamespaces []string
-		want             map[string]libInfo
-	}{
-		{
-			name:             "nominal",
-			ns:               "targeted",
-			targetNamespaces: []string{"targeted"},
-			want:             wantAll,
-		},
-		{
-			name:             "many",
-			ns:               "targeted",
-			targetNamespaces: []string{"targeted", "foo", "bar"},
-			want:             wantAll,
-		},
-		{
-			name:             "no match",
-			ns:               "not-targeted",
-			targetNamespaces: []string{"foo", "bar"},
-			want:             map[string]libInfo{},
-		},
-		{
-			name:             "empty target",
-			ns:               "targeted",
-			targetNamespaces: []string{},
-			want:             map[string]libInfo{},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			targetNamespaces = tt.targetNamespaces
-			got := getAllLibsToInject(tt.ns, "gcr.io/datadoghq")
-			require.EqualValues(t, tt.want, got)
-		})
 	}
 }
 
@@ -891,12 +822,18 @@ func injectAllEnvs() []corev1.EnvVar {
 
 func TestInjectAutoInstrumentation(t *testing.T) {
 	var mockConfig *config.MockConfig
+	uuid := uuid.New().String()
+	installTime := strconv.FormatInt(time.Now().Unix(), 10)
+	t.Setenv("DD_INSTRUMENTATION_INSTALL_ID", uuid)
+	t.Setenv("DD_INSTRUMENTATION_INSTALL_TIME", installTime)
 	tests := []struct {
-		name         string
-		pod          *corev1.Pod
-		expectedEnvs []corev1.EnvVar
-		wantErr      bool
-		setupConfig  func()
+		name                      string
+		pod                       *corev1.Pod
+		expectedEnvs              []corev1.EnvVar
+		expectedInjectedLibraries map[string]string
+		langDetectionDeployments  []mockDeployment
+		wantErr                   bool
+		setupConfig               func()
 	}{
 		{
 			name: "inject all",
@@ -914,6 +851,18 @@ func TestInjectAutoInstrumentation(t *testing.T) {
 				"deployment-1234",
 			),
 			expectedEnvs: []corev1.EnvVar{
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
+					Value: "k8s_lib_injection",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
 				{
 					Name:  "DD_RUNTIME_METRICS_ENABLED",
 					Value: "true",
@@ -967,51 +916,15 @@ func TestInjectAutoInstrumentation(t *testing.T) {
 					Value: "/datadog-lib/continuousprofiler/Datadog.Linux.ApiWrapper.x64.so",
 				},
 			},
+			expectedInjectedLibraries: map[string]string{
+				"java":   "latest",
+				"python": "latest",
+				"ruby":   "latest",
+				"dotnet": "latest",
+				"js":     "latest",
+			},
 			wantErr:     false,
 			setupConfig: func() {},
-		},
-		{
-			name: "inject java",
-			pod: fakePodWithParent(
-				"ns",
-				map[string]string{
-					"admission.datadoghq.com/java-lib.version":   "latest",
-					"admission.datadoghq.com/java-lib.config.v1": `{"version":1,"tracing_sampling_rate":0.3}`,
-				},
-				map[string]string{
-					"admission.datadoghq.com/enabled": "true",
-				},
-				[]corev1.EnvVar{},
-				"replicaset",
-				"deployment-1234",
-			),
-			expectedEnvs: []corev1.EnvVar{
-				{
-					Name:  "DD_TRACE_SAMPLE_RATE",
-					Value: "0.30",
-				},
-				{
-					Name:  "JAVA_TOOL_OPTIONS",
-					Value: " -javaagent:/datadog-lib/dd-java-agent.jar -XX:OnError=/datadog-lib/continuousprofiler/tmp/dd_crash_uploader.sh -XX:ErrorFile=/datadog-lib/continuousprofiler/tmp/hs_err_pid_%p.log",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name:         "inject python",
-			pod:          fakePodWithParent("ns", map[string]string{"admission.datadoghq.com/python-lib.version": "latest", "admission.datadoghq.com/python-lib.config.v1": `{"version":1,"tracing_sampling_rate":0.3}`}, map[string]string{"admission.datadoghq.com/enabled": "true"}, []corev1.EnvVar{}, "", ""),
-			expectedEnvs: []corev1.EnvVar{{Name: "DD_TRACE_SAMPLE_RATE", Value: "0.30"}, {Name: "PYTHONPATH", Value: "/datadog-lib/"}},
-			wantErr:      false,
-			setupConfig: func() {
-			},
-		},
-		{
-			name:         "inject node",
-			pod:          fakePodWithParent("ns", map[string]string{"admission.datadoghq.com/js-lib.version": "latest", "admission.datadoghq.com/js-lib.config.v1": `{"version":1,"tracing_sampling_rate":0.3}`}, map[string]string{"admission.datadoghq.com/enabled": "true"}, []corev1.EnvVar{}, "", ""),
-			expectedEnvs: []corev1.EnvVar{{Name: "DD_TRACE_SAMPLE_RATE", Value: "0.30"}, {Name: "NODE_OPTIONS", Value: " --require=/datadog-lib/node_modules/dd-trace/init"}},
-			wantErr:      false,
-			setupConfig: func() {
-			},
 		},
 		{
 			name: "inject library and all",
@@ -1047,8 +960,21 @@ func TestInjectAutoInstrumentation(t *testing.T) {
 					Name:  "NODE_OPTIONS",
 					Value: " --require=/datadog-lib/node_modules/dd-trace/init",
 				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
+					Value: "k8s_lib_injection",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
 			},
-			wantErr: false,
+			expectedInjectedLibraries: map[string]string{"js": "v1.10"},
+			wantErr:                   false,
 		},
 		{
 			name: "inject library and all no library version",
@@ -1067,6 +993,18 @@ func TestInjectAutoInstrumentation(t *testing.T) {
 				"",
 			),
 			expectedEnvs: []corev1.EnvVar{
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
+					Value: "k8s_lib_injection",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
 				{
 					Name:  "DD_RUNTIME_METRICS_ENABLED",
 					Value: "true",
@@ -1120,6 +1058,13 @@ func TestInjectAutoInstrumentation(t *testing.T) {
 					Value: "0.40",
 				},
 			},
+			expectedInjectedLibraries: map[string]string{
+				"java":   "latest",
+				"python": "latest",
+				"ruby":   "latest",
+				"dotnet": "latest",
+				"js":     "latest",
+			},
 			wantErr: false,
 		},
 		{
@@ -1139,6 +1084,18 @@ func TestInjectAutoInstrumentation(t *testing.T) {
 				"",
 			),
 			expectedEnvs: []corev1.EnvVar{
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
+					Value: "k8s_lib_injection",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
 				{
 					Name:  "PYTHONPATH",
 					Value: "/datadog-lib/",
@@ -1180,7 +1137,114 @@ func TestInjectAutoInstrumentation(t *testing.T) {
 					Value: "/datadog-lib/continuousprofiler/Datadog.Linux.ApiWrapper.x64.so",
 				},
 			},
+			expectedInjectedLibraries: map[string]string{
+				"java":   "latest",
+				"python": "latest",
+				"ruby":   "latest",
+				"dotnet": "latest",
+				"js":     "latest",
+			},
 			wantErr: true,
+		},
+		{
+			name: "inject java",
+			pod: fakePodWithParent(
+				"ns",
+				map[string]string{
+					"admission.datadoghq.com/java-lib.version":   "latest",
+					"admission.datadoghq.com/java-lib.config.v1": `{"version":1,"tracing_sampling_rate":0.3}`,
+				},
+				map[string]string{
+					"admission.datadoghq.com/enabled": "true",
+				},
+				[]corev1.EnvVar{},
+				"replicaset",
+				"deployment-1234",
+			),
+			expectedEnvs: []corev1.EnvVar{
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
+					Value: "k8s_lib_injection",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
+				{
+					Name:  "DD_TRACE_SAMPLE_RATE",
+					Value: "0.30",
+				},
+				{
+					Name:  "JAVA_TOOL_OPTIONS",
+					Value: " -javaagent:/datadog-lib/dd-java-agent.jar -XX:OnError=/datadog-lib/continuousprofiler/tmp/dd_crash_uploader.sh -XX:ErrorFile=/datadog-lib/continuousprofiler/tmp/hs_err_pid_%p.log",
+				},
+			},
+			expectedInjectedLibraries: map[string]string{"java": "latest"},
+			wantErr:                   false,
+		},
+		{
+			name: "inject python",
+			pod:  fakePodWithParent("ns", map[string]string{"admission.datadoghq.com/python-lib.version": "latest", "admission.datadoghq.com/python-lib.config.v1": `{"version":1,"tracing_sampling_rate":0.3}`}, map[string]string{"admission.datadoghq.com/enabled": "true"}, []corev1.EnvVar{}, "", ""),
+			expectedEnvs: []corev1.EnvVar{
+				{
+					Name:  "DD_TRACE_SAMPLE_RATE",
+					Value: "0.30",
+				},
+				{
+					Name:  "PYTHONPATH",
+					Value: "/datadog-lib/",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
+					Value: "k8s_lib_injection",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
+			},
+			expectedInjectedLibraries: map[string]string{"python": "latest"},
+			wantErr:                   false,
+			setupConfig: func() {
+			},
+		},
+		{
+			name: "inject node",
+			pod:  fakePodWithParent("ns", map[string]string{"admission.datadoghq.com/js-lib.version": "latest", "admission.datadoghq.com/js-lib.config.v1": `{"version":1,"tracing_sampling_rate":0.3}`}, map[string]string{"admission.datadoghq.com/enabled": "true"}, []corev1.EnvVar{}, "", ""),
+			expectedEnvs: []corev1.EnvVar{
+				{
+					Name:  "DD_TRACE_SAMPLE_RATE",
+					Value: "0.30",
+				},
+				{
+					Name:  "NODE_OPTIONS",
+					Value: " --require=/datadog-lib/node_modules/dd-trace/init",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
+					Value: "k8s_lib_injection",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
+			},
+			expectedInjectedLibraries: map[string]string{"js": "latest"},
+			wantErr:                   false,
+			setupConfig: func() {
+			},
 		},
 		{
 			name: "inject java bad json",
@@ -1199,11 +1263,24 @@ func TestInjectAutoInstrumentation(t *testing.T) {
 			),
 			expectedEnvs: []corev1.EnvVar{
 				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
+					Value: "k8s_lib_injection",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
+				{
 					Name:  "JAVA_TOOL_OPTIONS",
 					Value: " -javaagent:/datadog-lib/dd-java-agent.jar -XX:OnError=/datadog-lib/continuousprofiler/tmp/dd_crash_uploader.sh -XX:ErrorFile=/datadog-lib/continuousprofiler/tmp/hs_err_pid_%p.log",
 				},
 			},
-			wantErr: true,
+			expectedInjectedLibraries: map[string]string{"java": "latest"},
+			wantErr:                   true,
 		},
 		{
 			name: "inject with enabled false",
@@ -1220,8 +1297,18 @@ func TestInjectAutoInstrumentation(t *testing.T) {
 				"",
 				"",
 			),
-			expectedEnvs: []corev1.EnvVar{},
-			wantErr:      false,
+			expectedEnvs: []corev1.EnvVar{
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
+			},
+			expectedInjectedLibraries: map[string]string{},
+			wantErr:                   false,
 		},
 		{
 			name: "Single Step Instrumentation: user configuration is respected",
@@ -1257,6 +1344,18 @@ func TestInjectAutoInstrumentation(t *testing.T) {
 			}, "replicaset", "test-deployment-123"),
 			expectedEnvs: append(injectAllEnvs(), []corev1.EnvVar{
 				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
+					Value: "k8s_single_step",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
+				{
 					Name:  "DD_SERVICE",
 					Value: "user-deployment",
 				},
@@ -1285,8 +1384,9 @@ func TestInjectAutoInstrumentation(t *testing.T) {
 					Value: "false",
 				},
 			}...),
-			wantErr:     false,
-			setupConfig: func() { mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true) },
+			expectedInjectedLibraries: map[string]string{"java": "latest", "python": "latest", "js": "latest", "ruby": "latest", "dotnet": "latest"},
+			wantErr:                   false,
+			setupConfig:               func() { mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true) },
 		},
 		{
 			name: "Single Step Instrumentation: disable with label",
@@ -1295,42 +1395,114 @@ func TestInjectAutoInstrumentation(t *testing.T) {
 				map[string]string{}, map[string]string{
 					"admission.datadoghq.com/enabled": "false",
 				}, []corev1.EnvVar{}, "replicaset", "test-deployment-123"),
-			expectedEnvs: []corev1.EnvVar{},
-			wantErr:      false,
-			setupConfig:  func() { mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true) },
+			expectedEnvs: []corev1.EnvVar{
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
+			},
+			expectedInjectedLibraries: map[string]string{},
+			wantErr:                   false,
+			setupConfig:               func() { mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true) },
 		},
 		{
 			name: "Single Step Instrumentation: default service name for ReplicaSet",
-			pod:  fakePodWithParent("ns", map[string]string{}, map[string]string{}, []corev1.EnvVar{}, "replicaset", "test-deployment-123"),
+			pod: fakePodWithParent(
+				"ns",
+				map[string]string{},
+				map[string]string{},
+				[]corev1.EnvVar{},
+				"replicaset",
+				"test-deployment-123",
+			),
 			expectedEnvs: append(append(injectAllEnvs(), expBasicConfig()...), corev1.EnvVar{
 				Name:  "DD_SERVICE",
 				Value: "test-deployment",
-			}),
-			wantErr:     false,
-			setupConfig: func() { mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true) },
+			},
+				corev1.EnvVar{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
+					Value: "k8s_single_step",
+				},
+				corev1.EnvVar{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				corev1.EnvVar{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
+			),
+			expectedInjectedLibraries: map[string]string{"java": "latest", "python": "latest", "js": "latest", "ruby": "latest", "dotnet": "latest"},
+			wantErr:                   false,
+			setupConfig:               func() { mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true) },
 		},
 		{
 			name: "Single Step Instrumentation: default service name for StatefulSet",
-			pod:  fakePodWithParent("ns", map[string]string{}, map[string]string{}, []corev1.EnvVar{}, "statefulset", "test-statefulset-123"),
+			pod: fakePodWithParent(
+				"ns",
+				map[string]string{},
+				map[string]string{},
+				[]corev1.EnvVar{},
+				"statefulset",
+				"test-statefulset-123",
+			),
 			expectedEnvs: append(append(injectAllEnvs(), expBasicConfig()...), corev1.EnvVar{
 				Name:  "DD_SERVICE",
 				Value: "test-statefulset-123",
-			}),
-			wantErr:     false,
-			setupConfig: func() { mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true) },
+			},
+				corev1.EnvVar{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
+					Value: "k8s_single_step",
+				},
+				corev1.EnvVar{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				corev1.EnvVar{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
+			),
+			expectedInjectedLibraries: map[string]string{"java": "latest", "python": "latest", "js": "latest", "ruby": "latest", "dotnet": "latest"},
+			wantErr:                   false,
+			setupConfig:               func() { mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true) },
 		},
 		{
-			name:         "Single Step Instrumentation: default service name (disabled)",
-			pod:          fakePodWithParent("ns", map[string]string{}, map[string]string{}, []corev1.EnvVar{}, "replicaset", "test-deployment-123"),
-			expectedEnvs: []corev1.EnvVar{},
-			wantErr:      false,
-			setupConfig:  func() { mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", false) },
+			name: "Single Step Instrumentation: default service name (disabled)",
+			pod:  fakePodWithParent("ns", map[string]string{}, map[string]string{}, []corev1.EnvVar{}, "replicaset", "test-deployment-123"),
+			expectedEnvs: []corev1.EnvVar{
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
+			},
+			expectedInjectedLibraries: map[string]string{},
+			wantErr:                   false,
+			setupConfig:               func() { mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", false) },
 		},
 		{
-			name:         "Single Step Instrumentation: disabled namespaces should not be instrumented",
-			pod:          fakePodWithParent("ns", map[string]string{}, map[string]string{}, []corev1.EnvVar{}, "replicaset", "test-app-123"),
-			expectedEnvs: []corev1.EnvVar{},
-			wantErr:      false,
+			name: "Single Step Instrumentation: disabled namespaces should not be instrumented",
+			pod:  fakePodWithParent("ns", map[string]string{}, map[string]string{}, []corev1.EnvVar{}, "replicaset", "test-app-123"),
+			expectedEnvs: []corev1.EnvVar{
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
+			},
+			expectedInjectedLibraries: map[string]string{},
+			wantErr:                   false,
 			setupConfig: func() {
 				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true)
 				mockConfig.SetWithoutSource("apm_config.instrumentation.disabled_namespaces", []string{"ns"})
@@ -1338,15 +1510,331 @@ func TestInjectAutoInstrumentation(t *testing.T) {
 		},
 		{
 			name: "Single Step Instrumentation: enabled namespaces should be instrumented",
-			pod:  fakePodWithParent("ns", map[string]string{}, map[string]string{}, []corev1.EnvVar{}, "replicaset", "test-app-123"),
+			pod: fakePodWithParent(
+				"ns",
+				map[string]string{},
+				map[string]string{},
+				[]corev1.EnvVar{{Name: "DD_INSTRUMENTATION_INSTALL_TYPE", Value: "k8s_single_step"}},
+				"replicaset", "test-app-123",
+			),
 			expectedEnvs: append(append(injectAllEnvs(), expBasicConfig()...), corev1.EnvVar{
 				Name:  "DD_SERVICE",
 				Value: "test-app",
-			}),
+			},
+				corev1.EnvVar{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
+					Value: "k8s_single_step",
+				},
+				corev1.EnvVar{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				corev1.EnvVar{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
+			),
+			expectedInjectedLibraries: map[string]string{"java": "latest", "python": "latest", "js": "latest", "ruby": "latest", "dotnet": "latest"},
+			wantErr:                   false,
+			setupConfig: func() {
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true)
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled_namespaces", []string{"ns"})
+			},
+		},
+		{
+			name: "Single Step Instrumentation enabled and language annotation provided",
+			pod: fakePodWithParent(
+				"ns",
+				map[string]string{
+					"admission.datadoghq.com/js-lib.version":   "v1.10",
+					"admission.datadoghq.com/js-lib.config.v1": `{"version":1,"tracing_sampling_rate":0.4}`,
+				},
+				map[string]string{},
+				[]corev1.EnvVar{},
+				"",
+				"",
+			),
+			expectedEnvs: []corev1.EnvVar{
+				{
+					Name:  "DD_RUNTIME_METRICS_ENABLED",
+					Value: "true",
+				},
+				{
+					Name:  "DD_TRACE_SAMPLE_RATE",
+					Value: "0.40",
+				},
+				{
+					Name:  "DD_TRACE_HEALTH_METRICS_ENABLED",
+					Value: "true",
+				},
+				{
+					Name:  "DD_LOGS_INJECTION",
+					Value: "true",
+				},
+				{
+					Name:  "DD_TRACE_ENABLED",
+					Value: "true",
+				},
+				{
+					Name:  "NODE_OPTIONS",
+					Value: " --require=/datadog-lib/node_modules/dd-trace/init",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
+					Value: "k8s_single_step",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
+			},
+			expectedInjectedLibraries: map[string]string{"js": "v1.10"},
+			wantErr:                   false,
+			setupConfig: func() {
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true)
+			},
+		},
+		{
+			name: "Single Step Instrumentation enabled with libVersions set",
+			pod: fakePodWithParent(
+				"ns",
+				map[string]string{},
+				map[string]string{},
+				[]corev1.EnvVar{},
+				"",
+				"",
+			),
+			expectedEnvs: []corev1.EnvVar{
+				{
+					Name:  "DD_RUNTIME_METRICS_ENABLED",
+					Value: "true",
+				},
+				{
+					Name:  "DD_TRACE_HEALTH_METRICS_ENABLED",
+					Value: "true",
+				},
+				{
+					Name:  "DD_LOGS_INJECTION",
+					Value: "true",
+				},
+				{
+					Name:  "DD_TRACE_ENABLED",
+					Value: "true",
+				},
+				{
+					Name:  "JAVA_TOOL_OPTIONS",
+					Value: " -javaagent:/datadog-lib/dd-java-agent.jar -XX:OnError=/datadog-lib/continuousprofiler/tmp/dd_crash_uploader.sh -XX:ErrorFile=/datadog-lib/continuousprofiler/tmp/hs_err_pid_%p.log",
+				},
+				{
+					Name:  "PYTHONPATH",
+					Value: "/datadog-lib/",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
+					Value: "k8s_single_step",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
+			},
+			expectedInjectedLibraries: map[string]string{"java": "v1.28.0", "python": "v2.5.1"},
+			wantErr:                   false,
+			setupConfig: func() {
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true)
+				mockConfig.SetWithoutSource("apm_config.instrumentation.lib_versions", map[string]string{"java": "v1.28.0", "python": "v2.5.1"})
+			},
+		},
+		{
+			name: "Single Step Instrumentation enabled, with language annotation and libVersions set",
+			pod: fakePodWithParent(
+				"ns",
+				map[string]string{
+					"admission.datadoghq.com/js-lib.version": "v1.10",
+				},
+				map[string]string{},
+				[]corev1.EnvVar{},
+				"",
+				"",
+			),
+			expectedEnvs: []corev1.EnvVar{
+				{
+					Name:  "DD_RUNTIME_METRICS_ENABLED",
+					Value: "true",
+				},
+				{
+					Name:  "DD_TRACE_HEALTH_METRICS_ENABLED",
+					Value: "true",
+				},
+				{
+					Name:  "DD_LOGS_INJECTION",
+					Value: "true",
+				},
+				{
+					Name:  "DD_TRACE_ENABLED",
+					Value: "true",
+				},
+				{
+					Name:  "NODE_OPTIONS",
+					Value: " --require=/datadog-lib/node_modules/dd-trace/init",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
+					Value: "k8s_single_step",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
+			},
+			expectedInjectedLibraries: map[string]string{"js": "v1.10"},
+			wantErr:                   false,
+			setupConfig: func() {
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true)
+				mockConfig.SetWithoutSource("apm_config.instrumentation.lib_versions", map[string]string{"java": "v1.28.0", "python": "v2.5.1"})
+			},
+		},
+		{
+			name: "Single Step Instrumentation enabled and language detection",
+			pod: fakePodWithParent(
+				"ns",
+				map[string]string{},
+				map[string]string{},
+				[]corev1.EnvVar{},
+				"replicaset",
+				"test-app-689695b6cc",
+			),
+			expectedEnvs: []corev1.EnvVar{
+				{
+					Name:  "DD_SERVICE",
+					Value: "test-app",
+				},
+				{
+					Name:  "DD_RUNTIME_METRICS_ENABLED",
+					Value: "true",
+				},
+				{
+					Name:  "DD_TRACE_HEALTH_METRICS_ENABLED",
+					Value: "true",
+				},
+				{
+					Name:  "DD_LOGS_INJECTION",
+					Value: "true",
+				},
+				{
+					Name:  "DD_TRACE_ENABLED",
+					Value: "true",
+				},
+				{
+					Name:  "JAVA_TOOL_OPTIONS",
+					Value: " -javaagent:/datadog-lib/dd-java-agent.jar -XX:OnError=/datadog-lib/continuousprofiler/tmp/dd_crash_uploader.sh -XX:ErrorFile=/datadog-lib/continuousprofiler/tmp/hs_err_pid_%p.log",
+				},
+				{
+					Name:  "PYTHONPATH",
+					Value: "/datadog-lib/",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
+					Value: "k8s_single_step",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
+			},
+			expectedInjectedLibraries: map[string]string{"python": "latest", "java": "latest"},
+			langDetectionDeployments: []mockDeployment{
+				{
+					containerName:  "pod",
+					deploymentName: "test-app",
+					namespace:      "ns",
+					languages:      util.LanguageSet{util.Language("python"): struct{}{}, util.Language("java"): struct{}{}},
+				},
+			},
 			wantErr: false,
 			setupConfig: func() {
-				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", false)
-				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled_namespaces", []string{"ns"})
+				mockConfig.SetWithoutSource("admission_controller.inject_auto_detected_libraries", true)
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true)
+			},
+		},
+		{
+			name: "Library annotation, Single Step Instrumentation with library pinned and language detection",
+			pod: fakePodWithParent(
+				"ns",
+				map[string]string{"admission.datadoghq.com/js-lib.version": "v1.10"},
+				map[string]string{},
+				[]corev1.EnvVar{},
+				"replicaset",
+				"test-app-689695b6cc",
+			),
+			expectedEnvs: []corev1.EnvVar{
+				{
+					Name:  "DD_SERVICE",
+					Value: "test-app",
+				},
+				{
+					Name:  "DD_RUNTIME_METRICS_ENABLED",
+					Value: "true",
+				},
+				{
+					Name:  "DD_TRACE_HEALTH_METRICS_ENABLED",
+					Value: "true",
+				},
+				{
+					Name:  "DD_LOGS_INJECTION",
+					Value: "true",
+				},
+				{
+					Name:  "DD_TRACE_ENABLED",
+					Value: "true",
+				},
+				{
+					Name:  "NODE_OPTIONS",
+					Value: " --require=/datadog-lib/node_modules/dd-trace/init",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
+					Value: "k8s_single_step",
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+					Value: installTime,
+				},
+				{
+					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+					Value: uuid,
+				},
+			},
+			expectedInjectedLibraries: map[string]string{"js": "v1.10"},
+			langDetectionDeployments: []mockDeployment{
+				{
+					containerName:  "pod",
+					deploymentName: "test-app",
+					namespace:      "ns",
+					languages:      util.LanguageSet{util.Language("python"): struct{}{}, util.Language("java"): struct{}{}},
+				},
+			},
+			wantErr: false,
+			setupConfig: func() {
+				mockConfig.SetWithoutSource("admission_controller.inject_auto_detected_libraries", true)
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true)
+				mockConfig.SetWithoutSource("apm_config.instrumentation.lib_versions", map[string]string{"ruby": "v1.2.3"})
 			},
 		},
 	}
@@ -1356,7 +1844,17 @@ func TestInjectAutoInstrumentation(t *testing.T) {
 			if tt.setupConfig != nil {
 				tt.setupConfig()
 			}
-			err := injectAutoInstrumentation(tt.pod, "", fake.NewSimpleDynamicClient(scheme))
+
+			fakeStoreWithDeployment(t, tt.langDetectionDeployments)
+
+			// reset pinned libraries between test runs
+			pinnedLibs.once = new(sync.Once)
+			pinnedLibs.libraries = []libInfo{}
+
+			apmInstrumentation, err := newAPMInstrumentationWebhook()
+			require.NoError(t, err)
+
+			err = apmInstrumentation.injectAutoInstrumentation(tt.pod, "", fake.NewSimpleDynamicClient(scheme))
 			require.False(t, (err != nil) != tt.wantErr)
 
 			container := tt.pod.Spec.Containers[0]
@@ -1396,6 +1894,172 @@ func TestInjectAutoInstrumentation(t *testing.T) {
 				}
 			}
 			require.Equal(t, len(tt.expectedEnvs), envCount)
+		})
+
+		initContainers := tt.pod.Spec.InitContainers
+		require.Equal(t, len(tt.expectedInjectedLibraries), len(initContainers))
+		for _, c := range initContainers {
+			language := getLanguageFromInitContainerName(c.Name)
+			require.Contains(t, tt.expectedInjectedLibraries, language)
+			require.Equal(t, tt.expectedInjectedLibraries[language], strings.Split(c.Image, ":")[1])
+		}
+
+		t.Cleanup(func() {
+			os.Unsetenv("DD_INSTRUMENTATION_INSTALL_ID")
+			os.Unsetenv("DD_INSTRUMENTATION_INSTALL_TIME")
+		})
+	}
+}
+
+func getLanguageFromInitContainerName(initContainerName string) string {
+	trimmedSuffix := strings.TrimSuffix(initContainerName, "-init")
+	return strings.TrimPrefix(trimmedSuffix, "datadog-lib-")
+}
+
+func TestShouldInject(t *testing.T) {
+	var mockConfig *config.MockConfig
+	tests := []struct {
+		name        string
+		pod         *corev1.Pod
+		setupConfig func()
+		want        bool
+	}{
+		{
+			name:        "instrumentation on, no label",
+			pod:         fakePodWithNamespaceAndLabel("ns", "", ""),
+			setupConfig: func() { mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true) },
+			want:        true,
+		},
+		{
+			name:        "instrumentation on, label disabled",
+			pod:         fakePodWithNamespaceAndLabel("ns", "admission.datadoghq.com/enabled", "false"),
+			setupConfig: func() { mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true) },
+			want:        false,
+		},
+		{
+			name: "instrumentation on with disabled namespace, no label",
+			pod:  fakePodWithNamespaceAndLabel("ns", "", ""),
+			setupConfig: func() {
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true)
+				mockConfig.SetWithoutSource("apm_config.instrumentation.disabled_namespaces", []string{"ns"})
+			},
+			want: false,
+		},
+		{
+			name: "instrumentation on with disabled namespace, no label",
+			pod:  fakePodWithNamespaceAndLabel("ns", "", ""),
+			setupConfig: func() {
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true)
+				mockConfig.SetWithoutSource("apm_config.instrumentation.disabled_namespaces", []string{"ns2"})
+			},
+			want: true,
+		},
+		{
+			name: "instrumentation on with disabled namespace, disabled label",
+			pod:  fakePodWithNamespaceAndLabel("ns", "admission.datadoghq.com/enabled", "false"),
+			setupConfig: func() {
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true)
+				mockConfig.SetWithoutSource("apm_config.instrumentation.disabled_namespaces", []string{"ns"})
+			},
+			want: false,
+		},
+		{
+			name: "instrumentation on with disabled namespace, label enabled",
+			pod:  fakePodWithNamespaceAndLabel("ns", "admission.datadoghq.com/enabled", "true"),
+			setupConfig: func() {
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true)
+				mockConfig.SetWithoutSource("apm_config.instrumentation.disabled_namespaces", []string{"ns"})
+			},
+			want: true,
+		},
+		{
+			name:        "instrumentation off, label enabled",
+			pod:         fakePodWithNamespaceAndLabel("ns", "admission.datadoghq.com/enabled", "true"),
+			setupConfig: func() { mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", false) },
+			want:        true,
+		},
+		{
+			name:        "instrumentation off, no label",
+			pod:         fakePodWithNamespaceAndLabel("ns", "", ""),
+			setupConfig: func() { mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", false) },
+			want:        false,
+		},
+		{
+			name: "instrumentation off with enabled namespace, label enabled",
+			pod:  fakePodWithNamespaceAndLabel("ns", "admission.datadoghq.com/enabled", "true"),
+			setupConfig: func() {
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true)
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled_namespaces", []string{"ns"})
+			},
+			want: true,
+		},
+		{
+			name: "instrumentation off with enabled namespace, label disabled",
+			pod:  fakePodWithNamespaceAndLabel("ns", "admission.datadoghq.com/enabled", "false"),
+			setupConfig: func() {
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", false)
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled_namespaces", []string{"ns"})
+			},
+			want: false,
+		},
+		{
+			name: "instrumentation off with enabled namespace, no label",
+			pod:  fakePodWithNamespaceAndLabel("ns", "", ""),
+			setupConfig: func() {
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", false)
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled_namespaces", []string{"ns"})
+			},
+			want: false,
+		},
+		{
+			name: "instrumentation on with enabled namespace, no label",
+			pod:  fakePodWithNamespaceAndLabel("ns", "", ""),
+			setupConfig: func() {
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true)
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled_namespaces", []string{"ns"})
+			},
+			want: true,
+		},
+		{
+			name: "instrumentation on with enabled other namespace, no label",
+			pod:  fakePodWithNamespaceAndLabel("ns", "", ""),
+			setupConfig: func() {
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true)
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled_namespaces", []string{"n2s"})
+			},
+			want: false,
+		},
+		{
+			name: "instrumentation on in kube-system namespace, no label",
+			pod:  fakePodWithNamespaceAndLabel("kube-system", "", ""),
+			setupConfig: func() {
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true)
+			},
+			want: false,
+		},
+		{
+			name: "instrumentation on in default (datadog) namespace, no label",
+			pod:  fakePodWithNamespaceAndLabel("default", "", ""),
+			setupConfig: func() {
+				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true)
+				mockConfig.SetWithoutSource("kube_resources_namespace", "default")
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockConfig = config.Mock(nil)
+			tt.setupConfig()
+
+			// Need to create a new instance of the webhook to take into account
+			// the config changes.
+			apmInstrumentationWebhook, errInitAPMInstrumentation = newAPMInstrumentationWebhook()
+
+			if got := shouldInject(tt.pod); got != tt.want {
+				t.Errorf("shouldInject() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

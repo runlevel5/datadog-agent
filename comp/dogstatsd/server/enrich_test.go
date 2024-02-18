@@ -10,10 +10,10 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-agent/comp/core/config"
+	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
 	"github.com/DataDog/datadog-agent/pkg/metrics/event"
 	"github.com/DataDog/datadog-agent/pkg/metrics/servicecheck"
-	"github.com/DataDog/datadog-agent/pkg/tagger/collectors"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 
 	"github.com/stretchr/testify/assert"
@@ -32,7 +32,7 @@ var (
 )
 
 func parseAndEnrichSingleMetricMessage(t *testing.T, message []byte, conf enrichConfig) (metrics.MetricSample, error) {
-	cfg := fxutil.Test[config.Component](t, config.MockModule)
+	cfg := fxutil.Test[config.Component](t, config.MockModule())
 	parser := newParser(cfg, newFloat64ListPool(), 1)
 	parsed, err := parser.parseMetricSample(message)
 	if err != nil {
@@ -48,7 +48,7 @@ func parseAndEnrichSingleMetricMessage(t *testing.T, message []byte, conf enrich
 }
 
 func parseAndEnrichMultipleMetricMessage(t *testing.T, message []byte, conf enrichConfig) ([]metrics.MetricSample, error) {
-	cfg := fxutil.Test[config.Component](t, config.MockModule)
+	cfg := fxutil.Test[config.Component](t, config.MockModule())
 	parser := newParser(cfg, newFloat64ListPool(), 1)
 	parsed, err := parser.parseMetricSample(message)
 	if err != nil {
@@ -60,7 +60,7 @@ func parseAndEnrichMultipleMetricMessage(t *testing.T, message []byte, conf enri
 }
 
 func parseAndEnrichServiceCheckMessage(t *testing.T, message []byte, conf enrichConfig) (*servicecheck.ServiceCheck, error) {
-	cfg := fxutil.Test[config.Component](t, config.MockModule)
+	cfg := fxutil.Test[config.Component](t, config.MockModule())
 	parser := newParser(cfg, newFloat64ListPool(), 1)
 	parsed, err := parser.parseServiceCheck(message)
 	if err != nil {
@@ -70,7 +70,7 @@ func parseAndEnrichServiceCheckMessage(t *testing.T, message []byte, conf enrich
 }
 
 func parseAndEnrichEventMessage(t *testing.T, message []byte, conf enrichConfig) (*event.Event, error) {
-	cfg := fxutil.Test[config.Component](t, config.MockModule)
+	cfg := fxutil.Test[config.Component](t, config.MockModule())
 	parser := newParser(cfg, newFloat64ListPool(), 1)
 	parsed, err := parser.parseEvent(message)
 	if err != nil {
@@ -343,6 +343,7 @@ func TestConvertParseMetricError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+//nolint:revive // TODO(AML) Fix revive linter
 func TestConvertParseMonokeyBatching(t *testing.T) {
 	// TODO: not implemented
 	// parsed, err := parseAndEnrichSingleMetricMessage(t, []byte("test_gauge:1.5|g|#tag1:one,tag2:two:2.3|g|#tag3:three:3|g"), "default-hostname")
@@ -958,7 +959,7 @@ func TestMetricBlocklistShouldBlock(t *testing.T) {
 		defaultHostname: "default",
 	}
 
-	cfg := fxutil.Test[config.Component](t, config.MockModule)
+	cfg := fxutil.Test[config.Component](t, config.MockModule())
 	parser := newParser(cfg, newFloat64ListPool(), 1)
 	parsed, err := parser.parseMetricSample(message)
 	assert.NoError(t, err)
@@ -975,7 +976,7 @@ func TestServerlessModeShouldSetEmptyHostname(t *testing.T) {
 	}
 
 	message := []byte("custom.metric.a:21|ms")
-	cfg := fxutil.Test[config.Component](t, config.MockModule)
+	cfg := fxutil.Test[config.Component](t, config.MockModule())
 	parser := newParser(cfg, newFloat64ListPool(), 1)
 	parsed, err := parser.parseMetricSample(message)
 	assert.NoError(t, err)
@@ -995,7 +996,7 @@ func TestMetricBlocklistShouldNotBlock(t *testing.T) {
 		}, false),
 		defaultHostname: "default",
 	}
-	cfg := fxutil.Test[config.Component](t, config.MockModule)
+	cfg := fxutil.Test[config.Component](t, config.MockModule())
 	parser := newParser(cfg, newFloat64ListPool(), 1)
 	parsed, err := parser.parseMetricSample(message)
 	assert.NoError(t, err)
@@ -1317,7 +1318,7 @@ func TestEnrichTags(t *testing.T) {
 		{
 			name: "opt-out, entity id present, uds origin present",
 			args: args{
-				tags:          []string{"env:prod", "dd.internal.entity_id:pod-uid", "dd.internal.card:none", "host:", "jmx_domain:org.apache", "jmx_check_name:customcheck"},
+				tags:          []string{"env:prod", "dd.internal.entity_id:pod-uid", "dd.internal.card:none", "host:", "jmx_domain:org.apache", "dd.internal.jmx_check_name:customcheck"},
 				originFromUDS: "originID",
 				originFromMsg: []byte("none"),
 				conf: enrichConfig{
@@ -1369,30 +1370,30 @@ func TestEnrichTagsWithJMXCheckName(t *testing.T) {
 		wantedMetricSource metrics.MetricSource
 	}{
 		{
-			name:               "jmx_check_name:kafka, should give MetricSourceKafka",
-			jmxCheckName:       "jmx_check_name:kafka",
-			tags:               []string{"env:prod", "jmx_check_name:kafka"},
+			name:               "dd.internal.jmx_check_name:kafka, should give MetricSourceKafka",
+			jmxCheckName:       "dd.internal.jmx_check_name:kafka",
+			tags:               []string{"env:prod", "dd.internal.jmx_check_name:kafka"},
 			wantedTags:         []string{"env:prod"},
 			wantedMetricSource: metrics.MetricSourceKafka,
 		},
 		{
-			name:               "jmx_check_name:cassandra, should give MetricSourceCassandra",
-			jmxCheckName:       "jmx_check_name:cassandra",
-			tags:               []string{"foo", "jmx_check_name:cassandra"},
+			name:               "dd.internal.jmx_check_name:cassandra, should give MetricSourceCassandra",
+			jmxCheckName:       "dd.internal.jmx_check_name:cassandra",
+			tags:               []string{"foo", "dd.internal.jmx_check_name:cassandra"},
 			wantedTags:         []string{"foo"},
 			wantedMetricSource: metrics.MetricSourceCassandra,
 		},
 		{
-			name:               "jmx_check_name:tomcat, with jmx_domain tag should still set MetricSource",
-			jmxCheckName:       "jmx_check_name:tomcat",
-			tags:               []string{"foo", "jmx_domain:testdomain", "jmx_check_name:tomcat"},
+			name:               "dd.internal.jmx_check_name:tomcat, with jmx_domain tag should still set MetricSource",
+			jmxCheckName:       "dd.internal.jmx_check_name:tomcat",
+			tags:               []string{"foo", "jmx_domain:testdomain", "dd.internal.jmx_check_name:tomcat"},
 			wantedTags:         []string{"foo", "jmx_domain:testdomain"},
 			wantedMetricSource: metrics.MetricSourceTomcat,
 		},
 		{
-			name:               "jmx_check_name:thisisacustomcheck, should give MetricSourceJmxCustom",
-			jmxCheckName:       "jmx_check_name:thisisacustomcheck",
-			tags:               []string{"env:prod", "jmx_check_name:thisisacustomcheck"},
+			name:               "dd.internal.jmx_check_name:thisisacustomcheck, should give MetricSourceJmxCustom",
+			jmxCheckName:       "dd.internal.jmx_check_name:thisisacustomcheck",
+			tags:               []string{"env:prod", "dd.internal.jmx_check_name:thisisacustomcheck"},
 			wantedTags:         []string{"env:prod"},
 			wantedMetricSource: metrics.MetricSourceJmxCustom,
 		},

@@ -23,9 +23,10 @@ import (
 )
 
 // Module defines the fx options for this component.
-var Module = fxutil.Component(
-	fx.Provide(newRunner),
-)
+func Module() fxutil.Module {
+	return fxutil.Component(
+		fx.Provide(newRunner))
+}
 
 // runner implements the Component.
 type runnerImpl struct {
@@ -35,7 +36,6 @@ type runnerImpl struct {
 
 type dependencies struct {
 	fx.In
-	Lc fx.Lifecycle
 
 	Submitter  submitter.Component
 	RTNotifier <-chan types.RTResponse `optional:"true"`
@@ -53,17 +53,10 @@ func newRunner(deps dependencies) (runner.Component, error) {
 	}
 	c.Submitter = deps.Submitter
 
-	runner := &runnerImpl{
+	return &runnerImpl{
 		checkRunner:    c,
 		providedChecks: deps.Checks,
-	}
-
-	deps.Lc.Append(fx.Hook{
-		OnStart: runner.Run,
-		OnStop:  runner.Stop,
-	})
-
-	return runner, nil
+	}, nil
 }
 
 func (r *runnerImpl) Run(context.Context) error {

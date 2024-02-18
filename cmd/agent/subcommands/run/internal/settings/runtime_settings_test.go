@@ -8,18 +8,18 @@ package settings
 import (
 	"testing"
 
-	global "github.com/DataDog/datadog-agent/cmd/agent/dogstatsd"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/fx"
+
 	"github.com/DataDog/datadog-agent/comp/aggregator/demultiplexer"
+	"github.com/DataDog/datadog-agent/comp/aggregator/demultiplexer/demultiplexerimpl"
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/dogstatsd"
 	"github.com/DataDog/datadog-agent/comp/dogstatsd/server"
 	serverdebug "github.com/DataDog/datadog-agent/comp/dogstatsd/serverDebug"
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/fx"
 
-	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/config/model"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
@@ -35,21 +35,18 @@ func TestDogstatsdMetricsStats(t *testing.T) {
 	assert := assert.New(t)
 	var err error
 
-	opts := aggregator.DefaultAgentDemultiplexerOptions()
-	opts.DontStartForwarders = true
 	deps := fxutil.Test[testDeps](t, fx.Options(
-		core.MockBundle,
+		core.MockBundle(),
 		fx.Supply(core.BundleParams{}),
 		fx.Supply(server.Params{
 			Serverless: false,
 		}),
-		dogstatsd.Bundle,
-		defaultforwarder.MockModule,
-		demultiplexer.MockModule,
+		dogstatsd.Bundle(),
+		defaultforwarder.MockModule(),
+		demultiplexerimpl.MockModule(),
 	))
 
 	demux := deps.Demultiplexer
-	global.DSD = deps.Server
 	deps.Server.Start(demux)
 
 	require.Nil(t, err)

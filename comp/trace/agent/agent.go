@@ -10,21 +10,30 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"runtime"
 	"runtime/pprof"
+	"strconv"
 	"sync"
 	"syscall"
 
-	"github.com/DataDog/datadog-agent/pkg/trace/watchdog"
 	"go.uber.org/fx"
 
+	"github.com/DataDog/datadog-agent/comp/core/tagger"
+	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
+	"github.com/DataDog/datadog-agent/comp/dogstatsd/statsd"
 	"github.com/DataDog/datadog-agent/comp/trace/config"
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
 	pkgagent "github.com/DataDog/datadog-agent/pkg/trace/agent"
+	tracecfg "github.com/DataDog/datadog-agent/pkg/trace/config"
 	"github.com/DataDog/datadog-agent/pkg/trace/telemetry"
+	"github.com/DataDog/datadog-agent/pkg/trace/watchdog"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/version"
+
+	ddgostatsd "github.com/DataDog/datadog-go/v5/statsd"
 )
 
 const messageAgentDisabled = `trace-agent not enabled. Set the environment variable
@@ -44,6 +53,9 @@ type dependencies struct {
 	Context            context.Context
 	Params             *Params
 	TelemetryCollector telemetry.TelemetryCollector
+	Workloadmeta       workloadmeta.Component
+	Statsd             statsd.Component
+	Tagger             tagger.Component
 }
 
 type component struct{}
@@ -56,7 +68,10 @@ type agent struct {
 	ctx                context.Context
 	params             *Params
 	shutdowner         fx.Shutdowner
+	tagger             tagger.Component
 	telemetryCollector telemetry.TelemetryCollector
+	statsd             statsd.Component
+	workloadmeta       workloadmeta.Component
 	wg                 sync.WaitGroup
 }
 
@@ -72,19 +87,18 @@ func newAgent(deps dependencies) Component {
 	}
 	ctx, cancel := context.WithCancel(deps.Context) // Several related non-components require a shared context to gracefully stop.
 	ag := &agent{
-		Agent: pkgagent.NewAgent(
-			ctx,
-			deps.Config.Object(),
-			deps.TelemetryCollector,
-		),
 		cancel:             cancel,
 		config:             deps.Config,
+		statsd:             deps.Statsd,
 		ctx:                ctx,
 		params:             deps.Params,
 		shutdowner:         deps.Shutdowner,
+		workloadmeta:       deps.Workloadmeta,
 		telemetryCollector: deps.TelemetryCollector,
+		tagger:             deps.Tagger,
 		wg:                 sync.WaitGroup{},
 	}
+
 	deps.Lc.Append(fx.Hook{
 		// Provided contexts have a timeout, so it can't be used for gracefully stopping long-running components.
 		// These contexts are cancelled on a deadline, so they would have side effects on the agent.
@@ -94,7 +108,6 @@ func newAgent(deps dependencies) Component {
 }
 
 func start(ag *agent) error {
-	setupShutdown(ag.ctx, ag.shutdowner)
 	if ag.params.CPUProfile != "" {
 		f, err := os.Create(ag.params.CPUProfile)
 		if err != nil {
@@ -113,7 +126,19 @@ func start(ag *agent) error {
 
 		log.Infof("PID '%d' written to PID file '%s'", os.Getpid(), ag.params.PIDFilePath)
 	}
-	if err := runAgentSidekicks(ag.ctx, ag.config, ag.telemetryCollector); err != nil {
+
+	statsdCl, err := setupMetrics(ag.statsd, ag.config, ag.telemetryCollector)
+	if err != nil {
+		return err
+	}
+	setupShutdown(ag.ctx, ag.shutdowner, statsdCl)
+	ag.Agent = pkgagent.NewAgent(
+		ag.ctx,
+		ag.config.Object(),
+		ag.telemetryCollector,
+		statsdCl,
+	)
+	if err := runAgentSidekicks(ag); err != nil {
 		return err
 	}
 	ag.wg.Add(1)
@@ -124,10 +149,30 @@ func start(ag *agent) error {
 	return nil
 }
 
+func setupMetrics(statsd statsd.Component, cfg config.Component, telemetryCollector telemetry.TelemetryCollector) (ddgostatsd.ClientInterface, error) {
+	addr, err := findAddr(cfg.Object())
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Try to use statsd.Get() everywhere instead in the long run.
+	client, err := statsd.CreateForAddr(addr, ddgostatsd.WithTags([]string{"version:" + version.AgentVersion}))
+	if err != nil {
+		telemetryCollector.SendStartupError(telemetry.CantConfigureDogstatsd, err)
+		return nil, fmt.Errorf("cannot configure dogstatsd: %v", err)
+	}
+
+	_ = client.Count("datadog.trace_agent.started", 1, nil, 1)
+	return client, nil
+}
+
 func stop(ag *agent) error {
 	ag.cancel()
 	ag.wg.Wait()
-	stopAgentSidekicks(ag.config)
+	if err := ag.Statsd.Flush(); err != nil {
+		log.Error("Could not flush statsd: ", err)
+	}
+	stopAgentSidekicks(ag.config, ag.Statsd)
 	if ag.params.CPUProfile != "" {
 		pprof.StopCPUProfile()
 	}
@@ -155,8 +200,8 @@ func stop(ag *agent) error {
 }
 
 // handleSignal closes a channel to exit cleanly from routines
-func handleSignal(shutdowner fx.Shutdowner) {
-	defer watchdog.LogOnPanic()
+func handleSignal(shutdowner fx.Shutdowner, statsd ddgostatsd.ClientInterface) {
+	defer watchdog.LogOnPanic(statsd)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGPIPE)
@@ -174,4 +219,21 @@ func handleSignal(shutdowner fx.Shutdowner) {
 			log.Warnf("Unhandled signal %d (%v)", signo, signo)
 		}
 	}
+}
+
+// findAddr finds the correct address to connect to the Dogstatsd server.
+func findAddr(conf *tracecfg.AgentConfig) (string, error) {
+	if conf.StatsdPort > 0 {
+		// UDP enabled
+		return net.JoinHostPort(conf.StatsdHost, strconv.Itoa(conf.StatsdPort)), nil
+	}
+	if conf.StatsdPipeName != "" {
+		// Windows Pipes can be used
+		return `\\.\pipe\` + conf.StatsdPipeName, nil
+	}
+	if conf.StatsdSocket != "" {
+		// Unix sockets can be used
+		return `unix://` + conf.StatsdSocket, nil
+	}
+	return "", errors.New("dogstatsd_port is set to 0 and no alternative is available")
 }

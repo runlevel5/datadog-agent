@@ -6,11 +6,14 @@
 package runnerimpl
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/fx"
+
+	model "github.com/DataDog/agent-payload/v5/process"
 
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
@@ -27,11 +30,11 @@ func TestRunnerLifecycle(t *testing.T) {
 	_ = fxutil.Test[runner.Component](t, fx.Options(
 		fx.Supply(core.BundleParams{}),
 
-		Module,
-		submitterimpl.MockModule,
-		processcheckimpl.Module,
-		hostinfoimpl.MockModule,
-		core.MockBundle,
+		Module(),
+		submitterimpl.MockModule(),
+		processcheckimpl.Module(),
+		hostinfoimpl.MockModule(),
+		core.MockBundle(),
 	))
 }
 
@@ -51,14 +54,20 @@ func TestRunnerRealtime(t *testing.T) {
 				"process_config.disable_realtime_checks": false,
 			}}),
 
-			Module,
-			submitterimpl.MockModule,
-			processcheckimpl.Module,
-			hostinfoimpl.MockModule,
-			core.MockBundle,
-		))
+			Module(),
+			submitterimpl.MockModule(),
+			processcheckimpl.Module(),
+			hostinfoimpl.MockModule(),
+			core.MockBundle(),
+
+			// starts the check runner
+			fx.Invoke(func(r runner.Component) error {
+				return r.Run(context.Background())
+			},
+			)))
+
 		rtChan <- types.RTResponse{
-			{
+			&model.CollectorStatus{
 				ActiveClients: 1,
 				Interval:      10,
 			},
@@ -84,15 +93,20 @@ func TestRunnerRealtime(t *testing.T) {
 				func() <-chan types.RTResponse { return rtChan },
 			),
 
-			Module,
-			submitterimpl.MockModule,
-			processcheckimpl.Module,
-			hostinfoimpl.MockModule,
-			core.MockBundle,
-		))
+			Module(),
+			submitterimpl.MockModule(),
+			processcheckimpl.Module(),
+			hostinfoimpl.MockModule(),
+			core.MockBundle(),
+
+			// starts the check runner
+			fx.Invoke(func(r runner.Component) error {
+				return r.Run(context.Background())
+			},
+			)))
 
 		rtChan <- types.RTResponse{
-			{
+			&model.CollectorStatus{
 				ActiveClients: 1,
 				Interval:      10,
 			},
@@ -109,15 +123,15 @@ func TestProvidedChecks(t *testing.T) {
 			core.BundleParams{},
 		),
 
-		Module,
-		submitterimpl.MockModule,
-		hostinfoimpl.MockModule,
+		Module(),
+		submitterimpl.MockModule(),
+		hostinfoimpl.MockModule(),
 
 		// Checks
-		processcheckimpl.MockModule,
-		containercheckimpl.MockModule,
+		processcheckimpl.MockModule(),
+		containercheckimpl.MockModule(),
 
-		core.MockBundle,
+		core.MockBundle(),
 	))
 	providedChecks := r.GetProvidedChecks()
 

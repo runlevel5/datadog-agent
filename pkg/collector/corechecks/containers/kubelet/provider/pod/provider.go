@@ -17,31 +17,31 @@ import (
 	"time"
 
 	"golang.org/x/exp/slices"
-	"k8s.io/apimachinery/pkg/api/resource"
 
+	"github.com/DataDog/datadog-agent/comp/core/tagger"
+	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	"github.com/DataDog/datadog-agent/comp/core/tagger/utils"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/kubelet/common"
-	"github.com/DataDog/datadog-agent/pkg/tagger"
-	"github.com/DataDog/datadog-agent/pkg/tagger/collectors"
-	"github.com/DataDog/datadog-agent/pkg/tagger/utils"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/kubelet"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-var (
-	includeContainerStateReason = map[string][]string{
-		"waiting": {
-			"errimagepull",
-			"imagepullbackoff",
-			"crashloopbackoff",
-			"containercreating",
-			"createcontainererror",
-			"invalidimagename",
-		},
-		"terminated": {"oomkilled", "containercannotrun", "error"},
-	}
-)
+var includeContainerStateReason = map[string][]string{
+	"waiting": {
+		"errimagepull",
+		"imagepullbackoff",
+		"crashloopbackoff",
+		"containercreating",
+		"createcontainererror",
+		"invalidimagename",
+		"createcontainerconfigerror",
+	},
+	"terminated": {"oomkilled", "containercannotrun", "error"},
+}
+
+const kubeNamespaceTag = "kube_namespace"
 
 // Provider provides the metrics related to data collected from the `/pods` Kubelet endpoint
 type Provider struct {
@@ -89,7 +89,7 @@ func (p *Provider) Provide(kc kubelet.KubeUtilInterface, sender sender.Sender) e
 			}
 
 			var container kubelet.ContainerSpec
-			//for _, status := range pod.Status.Containers {
+			// for _, status := range pod.Status.Containers {
 			for _, c := range pod.Spec.Containers {
 				if cStatus.Name == c.Name {
 					container = c
@@ -119,20 +119,17 @@ func (p *Provider) generateContainerSpecMetrics(sender sender.Sender, pod *kubel
 	}
 
 	tags, _ := tagger.Tag(containerID, collectors.HighCardinality)
-	if len(tags) == 0 {
+	// Skip recording containers without kubelet information in tagger or if there are no tags
+	if !isTagKeyPresent(kubeNamespaceTag, tags) || len(tags) == 0 {
 		return
 	}
 	tags = utils.ConcatenateTags(tags, p.config.Tags)
 
 	for r, value := range container.Resources.Requests {
-		if v, err := resource.ParseQuantity(value); err == nil {
-			sender.Gauge(common.KubeletMetricsPrefix+r+".requests", v.AsApproximateFloat64(), "", tags)
-		}
+		sender.Gauge(common.KubeletMetricsPrefix+string(r)+".requests", value.AsApproximateFloat64(), "", tags)
 	}
 	for r, value := range container.Resources.Limits {
-		if v, err := resource.ParseQuantity(value); err == nil {
-			sender.Gauge(common.KubeletMetricsPrefix+r+".limits", v.AsApproximateFloat64(), "", tags)
-		}
+		sender.Gauge(common.KubeletMetricsPrefix+string(r)+".limits", value.AsApproximateFloat64(), "", tags)
 	}
 }
 
@@ -142,7 +139,8 @@ func (p *Provider) generateContainerStatusMetrics(sender sender.Sender, pod *kub
 	}
 
 	tags, _ := tagger.Tag(containerID, collectors.OrchestratorCardinality)
-	if len(tags) == 0 {
+	// Skip recording containers without kubelet information in tagger or if there are no tags
+	if !isTagKeyPresent(kubeNamespaceTag, tags) || len(tags) == 0 {
 		return
 	}
 	tags = utils.ConcatenateTags(tags, p.config.Tags)
@@ -185,7 +183,8 @@ func (r *runningAggregator) recordContainer(p *Provider, pod *kubelet.Pod, cStat
 	}
 	r.podHasRunningContainers[pod.Metadata.UID] = true
 	tags, _ := tagger.Tag(containerID, collectors.LowCardinality)
-	if len(tags) == 0 {
+	// Skip recording containers without kubelet information in tagger or if there are no tags
+	if !isTagKeyPresent(kubeNamespaceTag, tags) || len(tags) == 0 {
 		return
 	}
 	hashTags := generateTagHash(tags)
@@ -235,4 +234,13 @@ func generateTagHash(tags []string) string {
 	copy(sortedTags, tags)
 	sort.Strings(sortedTags)
 	return strings.Join(sortedTags, ",")
+}
+
+func isTagKeyPresent(key string, tags []string) bool {
+	for _, tag := range tags {
+		if strings.HasPrefix(tag, key+":") {
+			return true
+		}
+	}
+	return false
 }

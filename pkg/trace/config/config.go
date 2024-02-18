@@ -15,9 +15,12 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/DataDog/opentelemetry-mapping-go/pkg/otlp/attributes"
+
 	"github.com/DataDog/datadog-agent/pkg/obfuscate"
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"github.com/DataDog/datadog-agent/pkg/trace/log"
+	"github.com/DataDog/datadog-agent/pkg/trace/traceutil"
 )
 
 // ServiceName specifies the service name used in the operating system.
@@ -38,10 +41,6 @@ type Endpoint struct {
 
 // TelemetryEndpointPrefix specifies the prefix of the telemetry endpoint URL.
 const TelemetryEndpointPrefix = "https://instrumentation-telemetry-intake."
-
-// App Services env vars
-const RunZip = "APPSVC_RUN_ZIP"
-const AppLogsTrace = "WEBSITE_APPSERVICEAPPLOGS_TRACE_ENABLED"
 
 // OTLP holds the configuration for the OpenTelemetry receiver.
 type OTLP struct {
@@ -75,6 +74,9 @@ type OTLP struct {
 	// If spans have the "sampling.priority" attribute set, probabilistic sampling is skipped and the user's
 	// decision is followed.
 	ProbabilisticSampling float64
+
+	// AttributesTranslator specifies an OTLP to Datadog attributes translator.
+	AttributesTranslator *attributes.Translator `mapstructure:"-"`
 }
 
 // ObfuscationConfig holds the configuration for obfuscating sensitive data
@@ -229,6 +231,15 @@ type EVPProxy struct {
 	AdditionalEndpoints map[string][]string
 	// MaxPayloadSize indicates the size at which payloads will be rejected, in bytes.
 	MaxPayloadSize int64
+}
+
+// InstallSignatureConfig contains the information on how the agent was installed
+// and a unique identifier that distinguishes this agent from others.
+type InstallSignatureConfig struct {
+	Found       bool   `json:"-"`
+	InstallID   string `json:"install_id"`
+	InstallType string `json:"install_type"`
+	InstallTime int64  `json:"install_time"`
 }
 
 // DebuggerProxyConfig ...
@@ -422,11 +433,14 @@ type AgentConfig struct {
 	// ContainerProcRoot is the root dir for `proc` info
 	ContainerProcRoot string
 
-	// Azure App Services
-	InAzureAppServices bool
-
 	// DebugServerPort defines the port used by the debug server
 	DebugServerPort int
+
+	// Install Signature
+	InstallSignature InstallSignatureConfig
+
+	// Lambda function name
+	LambdaFunctionName string
 }
 
 // RemoteClient client is used to APM Sampling Updates from a remote source.
@@ -487,7 +501,8 @@ func New() *AgentConfig {
 		StatsdPort:    8125,
 		StatsdEnabled: true,
 
-		LogThrottling: true,
+		LogThrottling:      true,
+		LambdaFunctionName: os.Getenv("AWS_LAMBDA_FUNCTION_NAME"),
 
 		MaxMemory:        5e8, // 500 Mb, should rarely go above 50 Mb
 		MaxCPU:           0.5, // 50%, well behaving agents keep below 5%
@@ -499,7 +514,7 @@ func New() *AgentConfig {
 		Obfuscation:                 &ObfuscationConfig{},
 		MaxResourceLen:              5000,
 
-		GlobalTags: make(map[string]string),
+		GlobalTags: computeGlobalTags(),
 
 		Proxy:         http.ProxyFromEnvironment,
 		OTLPReceiver:  &OTLP{},
@@ -512,10 +527,15 @@ func New() *AgentConfig {
 			MaxPayloadSize: 5 * 1024 * 1024,
 		},
 
-		InAzureAppServices: InAzureAppServices(),
-
 		Features: make(map[string]struct{}),
 	}
+}
+
+func computeGlobalTags() map[string]string {
+	if inAzureAppServices() {
+		return traceutil.GetAppServicesTags()
+	}
+	return make(map[string]string)
 }
 
 func noopContainerTagsFunc(_ string) ([]string, error) {
@@ -561,11 +581,13 @@ func (c *AgentConfig) NewHTTPTransport() *http.Transport {
 	return transport
 }
 
+//nolint:revive // TODO(APM) Fix revive linter
 func (c *AgentConfig) HasFeature(feat string) bool {
 	_, ok := c.Features[feat]
 	return ok
 }
 
+//nolint:revive // TODO(APM) Fix revive linter
 func (c *AgentConfig) AllFeatures() []string {
 	feats := []string{}
 	for feat := range c.Features {
@@ -574,8 +596,9 @@ func (c *AgentConfig) AllFeatures() []string {
 	return feats
 }
 
-func InAzureAppServices() bool {
-	_, existsLinux := os.LookupEnv(RunZip)
-	_, existsWin := os.LookupEnv(AppLogsTrace)
+//nolint:revive // TODO(APM) Fix revive linter
+func inAzureAppServices() bool {
+	_, existsLinux := os.LookupEnv("APPSVC_RUN_ZIP")
+	_, existsWin := os.LookupEnv("WEBSITE_APPSERVICEAPPLOGS_TRACE_ENABLED")
 	return existsLinux || existsWin
 }

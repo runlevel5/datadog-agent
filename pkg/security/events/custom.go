@@ -137,6 +137,11 @@ func (ce *CustomEvent) GetType() string {
 	return ce.eventType.String()
 }
 
+// GetActionReports returns reports of the action triggered
+func (ce *CustomEvent) GetActionReports() []model.ActionReport {
+	return nil
+}
+
 // GetWorkloadID returns the workload id
 func (ce *CustomEvent) GetWorkloadID() string {
 	return ""

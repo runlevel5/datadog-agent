@@ -3,6 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
+//nolint:revive // TODO(APM) Fix revive linter
 package stats
 
 import (
@@ -42,10 +43,12 @@ type BucketsAggregationKey struct {
 
 // PayloadAggregationKey specifies the key by which a payload is aggregated.
 type PayloadAggregationKey struct {
-	Env         string
-	Hostname    string
-	Version     string
-	ContainerID string
+	Env          string
+	Hostname     string
+	Version      string
+	ContainerID  string
+	GitCommitSha string
+	ImageTag     string
 }
 
 func getStatusCode(s *pb.Span) uint32 {

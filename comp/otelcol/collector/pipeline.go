@@ -14,12 +14,13 @@ import (
 
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	corelog "github.com/DataDog/datadog-agent/comp/core/log"
+	"github.com/DataDog/datadog-agent/comp/core/status"
 	logsagent "github.com/DataDog/datadog-agent/comp/logs/agent"
 	"github.com/DataDog/datadog-agent/comp/metadata/inventoryagent"
 	"github.com/DataDog/datadog-agent/comp/otelcol/otlp"
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
 	"github.com/DataDog/datadog-agent/pkg/serializer"
-	"github.com/DataDog/datadog-agent/pkg/util"
+	"github.com/DataDog/datadog-agent/pkg/util/optional"
 )
 
 const (
@@ -46,10 +47,17 @@ type dependencies struct {
 	Serializer serializer.MetricSerializer
 
 	// LogsAgent specifies a logs agent
-	LogsAgent util.Optional[logsagent.Component]
+	LogsAgent optional.Option[logsagent.Component]
 
 	// InventoryAgent require the inventory metadata payload, allowing otelcol to add data to it.
 	InventoryAgent inventoryagent.Component
+}
+
+type provides struct {
+	fx.Out
+
+	Comp           Component
+	StatusProvider status.InformationProvider
 }
 
 type collector struct {
@@ -101,6 +109,11 @@ func (c *collector) Status() otlp.CollectorStatus {
 }
 
 // newPipeline creates a new Component for this module and returns any errors on failure.
-func newPipeline(deps dependencies) (Component, error) {
-	return &collector{deps: deps}, nil
+func newPipeline(deps dependencies) (provides, error) {
+	collector := &collector{deps: deps}
+
+	return provides{
+		Comp:           collector,
+		StatusProvider: status.NewInformationProvider(collector),
+	}, nil
 }

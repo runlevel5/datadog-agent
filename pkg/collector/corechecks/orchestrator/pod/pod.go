@@ -25,19 +25,18 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/hostname"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/clustername"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/kubelet"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/util/optional"
 )
 
-const checkName = "orchestrator_pod"
+// CheckName is the name of the check
+const CheckName = "orchestrator_pod"
 
 var groupID atomic.Int32
 
 func nextGroupID() int32 {
 	groupID.Add(1)
 	return groupID.Load()
-}
-
-func init() {
-	core.RegisterCheck(checkName, PodFactory)
 }
 
 // Check doesn't need additional fields
@@ -50,10 +49,14 @@ type Check struct {
 	config    *oconfig.OrchestratorConfig
 }
 
-// PodFactory returns a new Pod.Check
-func PodFactory() check.Check {
+// Factory creates a new check factory
+func Factory() optional.Option[func() check.Check] {
+	return optional.NewOption(newCheck)
+}
+
+func newCheck() check.Check {
 	return &Check{
-		CheckBase: core.NewCheckBase(checkName),
+		CheckBase: core.NewCheckBase(CheckName),
 		config:    oconfig.NewDefaultOrchestratorConfig(),
 	}
 }
@@ -78,12 +81,9 @@ func (c *Check) Configure(
 	if err != nil {
 		return err
 	}
-
 	if !c.config.OrchestrationCollectionEnabled {
-		return errors.New("orchestrator check is configured but the feature is disabled")
-	}
-	if !c.config.CoreCheck {
-		return errors.New("the corecheck version for pods is currently disabled")
+		log.Warn("orchestrator pod check is configured but the feature is disabled")
+		return nil
 	}
 	if c.config.KubeClusterName == "" {
 		return errors.New("orchestrator check is configured but the cluster name is empty")

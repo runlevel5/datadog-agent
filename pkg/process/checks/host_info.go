@@ -20,7 +20,9 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config"
 	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/DataDog/datadog-agent/pkg/util/fargate"
+	"github.com/DataDog/datadog-agent/pkg/util/flavor"
 	ddgrpc "github.com/DataDog/datadog-agent/pkg/util/grpc"
+	"github.com/DataDog/datadog-agent/pkg/util/hostname"
 	"github.com/DataDog/datadog-agent/pkg/util/hostname/validate"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -63,6 +65,15 @@ func resolveHostName(config config.Reader) (string, error) {
 		agentBin := config.GetString("process_config.dd_agent_bin")
 		connectionTimeout := config.GetDuration("process_config.grpc_connection_timeout_secs") * time.Second
 		var err error
+		// TODO: We should migrate to the common hostname component
+		if flavor.GetFlavor() == flavor.DefaultAgent {
+			hostName, err = hostname.Get(context.TODO())
+			if err != nil {
+				return "", fmt.Errorf("error while getting hostname: %v", err)
+			}
+			return hostName, nil
+		}
+
 		hostName, err = getHostname(context.Background(), agentBin, connectionTimeout)
 		if err != nil {
 			return "", log.Errorf("cannot get hostname: %v", err)
@@ -129,11 +140,16 @@ func getHostnameFromCmd(ddAgentBin string, cmdFn cmdFunc) (string, error) {
 }
 
 // getHostnameFromGRPC retrieves the hostname from the main datadog agent via GRPC
-func getHostnameFromGRPC(ctx context.Context, grpcClientFn func(ctx context.Context, opts ...grpc.DialOption) (pb.AgentClient, error), grpcConnectionTimeout time.Duration) (string, error) {
+func getHostnameFromGRPC(ctx context.Context, grpcClientFn func(ctx context.Context, address, port string, opts ...grpc.DialOption) (pb.AgentClient, error), grpcConnectionTimeout time.Duration) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, grpcConnectionTimeout)
 	defer cancel()
 
-	ddAgentClient, err := grpcClientFn(ctx)
+	ipcAddress, err := config.GetIPCAddress()
+	if err != nil {
+		return "", err
+	}
+
+	ddAgentClient, err := grpcClientFn(ctx, ipcAddress, config.GetIPCPort())
 	if err != nil {
 		return "", fmt.Errorf("cannot connect to datadog agent via grpc: %w", err)
 	}

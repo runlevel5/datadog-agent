@@ -8,15 +8,18 @@ package statusimpl
 import (
 	"sync"
 
+	"go.uber.org/fx"
+
 	"github.com/DataDog/datadog-agent/comp/snmptraps/status"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
-	"go.uber.org/fx"
 )
 
 // MockModule defines a fake Component
-var MockModule = fxutil.Component(
-	fx.Provide(newMock),
-)
+func MockModule() fxutil.Module {
+	return fxutil.Component(
+		fx.Provide(newMock),
+	)
+}
 
 // newMock returns a Component that uses plain internal values instead of expvars
 func newMock() status.Component {
@@ -25,8 +28,9 @@ func newMock() status.Component {
 
 // mockManager mocks a manager using plain values (not expvars)
 type mockManager struct {
-	trapsPackets, trapsPacketsAuthErrors int64
-	lock                                 sync.Mutex
+	trapsPackets, trapsPacketsUnknownCommunityString int64
+	lock                                             sync.Mutex
+	err                                              error
 }
 
 func (s *mockManager) AddTrapsPackets(i int64) {
@@ -35,10 +39,10 @@ func (s *mockManager) AddTrapsPackets(i int64) {
 	s.trapsPackets += i
 }
 
-func (s *mockManager) AddTrapsPacketsAuthErrors(i int64) {
+func (s *mockManager) AddTrapsPacketsUnknownCommunityString(i int64) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	s.trapsPacketsAuthErrors += i
+	s.trapsPacketsUnknownCommunityString += i
 }
 
 func (s *mockManager) GetTrapsPackets() int64 {
@@ -47,8 +51,20 @@ func (s *mockManager) GetTrapsPackets() int64 {
 	return s.trapsPackets
 }
 
-func (s *mockManager) GetTrapsPacketsAuthErrors() int64 {
+func (s *mockManager) GetTrapsPacketsUnknownCommunityString() int64 {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	return s.trapsPacketsAuthErrors
+	return s.trapsPacketsUnknownCommunityString
+}
+
+func (s *mockManager) SetStartError(err error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	s.err = err
+}
+
+func (s *mockManager) GetStartError() error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	return s.err
 }

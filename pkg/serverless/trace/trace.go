@@ -19,6 +19,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/trace/config"
 	"github.com/DataDog/datadog-agent/pkg/trace/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+
+	"github.com/DataDog/datadog-go/v5/statsd"
 )
 
 // ServerlessTraceAgent represents a trace agent in a serverless context
@@ -79,6 +81,8 @@ func (l *LoadConfig) Load() (*config.AgentConfig, error) {
 }
 
 // Start starts the agent
+//
+//nolint:revive // TODO(SERV) Fix revive linter
 func (s *ServerlessTraceAgent) Start(enabled bool, loadConfig Load, lambdaSpanChan chan<- *pb.Span, coldStartSpanId uint64) {
 	if enabled {
 		// Set the serverless config option which will be used to determine if
@@ -93,7 +97,7 @@ func (s *ServerlessTraceAgent) Start(enabled bool, loadConfig Load, lambdaSpanCh
 			context, cancel := context.WithCancel(context.Background())
 			tc.Hostname = ""
 			tc.SynchronousFlushing = true
-			s.ta = agent.NewAgent(context, tc, telemetry.NewNoopCollector())
+			s.ta = agent.NewAgent(context, tc, telemetry.NewNoopCollector(), &statsd.NoOpClient{})
 			s.spanModifier = &spanModifier{
 				coldStartSpanId: coldStartSpanId,
 				lambdaSpanChan:  lambdaSpanChan,
@@ -136,6 +140,7 @@ func (s *ServerlessTraceAgent) Stop() {
 	}
 }
 
+//nolint:revive // TODO(SERV) Fix revive linter
 func (s *ServerlessTraceAgent) SetSpanModifier(fn func(*pb.TraceChunk, *pb.Span)) {
 	s.ta.ModifySpan = fn
 }

@@ -11,6 +11,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"runtime"
 	"sync"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 
 // RuntimeSecurityAgent represents the main wrapper for the Runtime Security product
 type RuntimeSecurityAgent struct {
+	//nolint:unused // TODO(SEC) Fix unused linter
 	hostname             string
 	reporter             common.RawReporter
 	client               *RuntimeSecurityClient
@@ -61,8 +63,11 @@ func (rsa *RuntimeSecurityAgent) Start(reporter common.RawReporter, endpoints *c
 	rsa.running.Store(true)
 	// Start the system-probe events listener
 	go rsa.StartEventListener()
-	// Start activity dumps listener
-	go rsa.StartActivityDumpListener()
+
+	if runtime.GOOS == "linux" {
+		// Start activity dumps listener
+		go rsa.StartActivityDumpListener()
+	}
 
 	if rsa.telemetry != nil {
 		// Send Runtime Security Agent telemetry
@@ -74,8 +79,9 @@ func (rsa *RuntimeSecurityAgent) Start(reporter common.RawReporter, endpoints *c
 func (rsa *RuntimeSecurityAgent) Stop() {
 	rsa.cancel()
 	rsa.running.Store(false)
-	rsa.wg.Wait()
 	rsa.client.Close()
+	rsa.wg.Wait()
+
 }
 
 // StartEventListener starts listening for new events from system-probe
@@ -229,6 +235,7 @@ func (rsa *RuntimeSecurityAgent) GetStatus() map[string]interface{} {
 				}
 				base["selfTests"] = selfTests
 			}
+			base["policiesStatus"] = cfStatus.PoliciesStatus
 		}
 	}
 

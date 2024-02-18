@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
-	"github.com/DataDog/datadog-agent/pkg/metadata/inventories"
 	httputils "github.com/DataDog/datadog-agent/pkg/util/http"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -24,15 +23,6 @@ var (
 	imdsIPv4        = "/public-ipv4"
 	imdsNetworkMacs = "/network/interfaces/macs"
 )
-
-func registerCloudProviderHostnameID(ctx context.Context) {
-	instanceID, err := getMetadataItemWithMaxLength(ctx, imdsInstanceID, true)
-	log.Debugf("instanceID from IMDSv2 '%s' (error: %v)", instanceID, err)
-
-	if err == nil {
-		inventories.SetHostMetadata(inventories.HostCloudProviderHostID, instanceID)
-	}
-}
 
 func getToken(ctx context.Context) (string, time.Time, error) {
 	tokenLifetime := time.Duration(config.Datadog.GetInt("ec2_metadata_token_lifetime")) * time.Second
@@ -75,10 +65,15 @@ func getMetadataItem(ctx context.Context, endpoint string, forceIMDSv2 bool) (st
 	return doHTTPRequest(ctx, metadataURL+endpoint, forceIMDSv2)
 }
 
+// UseIMDSv2 returns true if the agent should use IMDSv2
+func UseIMDSv2(forceIMDSv2 bool) bool {
+	return config.Datadog.GetBool("ec2_prefer_imdsv2") || forceIMDSv2
+}
+
 func doHTTPRequest(ctx context.Context, url string, forceIMDSv2 bool) (string, error) {
 	source := metadataSourceIMDSv1
 	headers := map[string]string{}
-	if config.Datadog.GetBool("ec2_prefer_imdsv2") || forceIMDSv2 {
+	if UseIMDSv2(forceIMDSv2) {
 		tokenValue, err := token.Get(ctx)
 		if err != nil {
 			if forceIMDSv2 {

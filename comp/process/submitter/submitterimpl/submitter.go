@@ -8,7 +8,6 @@
 package submitterimpl
 
 import (
-	"context"
 	"time"
 
 	"go.uber.org/fx"
@@ -24,9 +23,10 @@ import (
 )
 
 // Module defines the fx options for this component.
-var Module = fxutil.Component(
-	fx.Provide(newSubmitter),
-)
+func Module() fxutil.Module {
+	return fxutil.Component(
+		fx.Provide(newSubmitter))
+}
 
 // submitter implements the Component.
 type submitterImpl struct {
@@ -56,15 +56,6 @@ func newSubmitter(deps dependencies) (result, error) {
 		return result{}, err
 	}
 
-	deps.Lc.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			return s.Start()
-		},
-		OnStop: func(context.Context) error {
-			s.Stop()
-			return nil
-		},
-	})
 	return result{
 		Submitter: &submitterImpl{
 			s: s,

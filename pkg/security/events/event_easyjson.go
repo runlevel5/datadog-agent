@@ -17,7 +17,7 @@ var (
 	_ easyjson.Marshaler
 )
 
-func easyjsonF642ad3eDecodeGithubComDataDogDatadogAgentPkgSecurityEvents(in *jlexer.Lexer, out *Signal) {
+func easyjsonF642ad3eDecodeGithubComDataDogDatadogAgentPkgSecurityEvents(in *jlexer.Lexer, out *BackendEvent) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -50,7 +50,7 @@ func easyjsonF642ad3eDecodeGithubComDataDogDatadogAgentPkgSecurityEvents(in *jle
 		in.Consumed()
 	}
 }
-func easyjsonF642ad3eEncodeGithubComDataDogDatadogAgentPkgSecurityEvents(out *jwriter.Writer, in Signal) {
+func easyjsonF642ad3eEncodeGithubComDataDogDatadogAgentPkgSecurityEvents(out *jwriter.Writer, in BackendEvent) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -68,12 +68,12 @@ func easyjsonF642ad3eEncodeGithubComDataDogDatadogAgentPkgSecurityEvents(out *jw
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
-func (v Signal) MarshalEasyJSON(w *jwriter.Writer) {
+func (v BackendEvent) MarshalEasyJSON(w *jwriter.Writer) {
 	easyjsonF642ad3eEncodeGithubComDataDogDatadogAgentPkgSecurityEvents(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
-func (v *Signal) UnmarshalEasyJSON(l *jlexer.Lexer) {
+func (v *BackendEvent) UnmarshalEasyJSON(l *jlexer.Lexer) {
 	easyjsonF642ad3eDecodeGithubComDataDogDatadogAgentPkgSecurityEvents(l, v)
 }
 func easyjsonF642ad3eDecodeGithubComDataDogDatadogAgentPkgSecurityEvents1(in *jlexer.Lexer, out *AgentContext) {
@@ -99,6 +99,49 @@ func easyjsonF642ad3eDecodeGithubComDataDogDatadogAgentPkgSecurityEvents1(in *jl
 			out.RuleID = string(in.String())
 		case "rule_version":
 			out.RuleVersion = string(in.String())
+		case "rule_actions":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				in.Delim('{')
+				if !in.IsDelim('}') {
+					out.RuleActions = make(map[string][]json.RawMessage)
+				} else {
+					out.RuleActions = nil
+				}
+				for !in.IsDelim('}') {
+					key := string(in.String())
+					in.WantColon()
+					var v1 []json.RawMessage
+					if in.IsNull() {
+						in.Skip()
+						v1 = nil
+					} else {
+						in.Delim('[')
+						if v1 == nil {
+							if !in.IsDelim(']') {
+								v1 = make([]json.RawMessage, 0, 2)
+							} else {
+								v1 = []json.RawMessage{}
+							}
+						} else {
+							v1 = (v1)[:0]
+						}
+						for !in.IsDelim(']') {
+							var v2 json.RawMessage
+							if data := in.Raw(); in.Ok() {
+								in.AddError((v2).UnmarshalJSON(data))
+							}
+							v1 = append(v1, v2)
+							in.WantComma()
+						}
+						in.Delim(']')
+					}
+					(out.RuleActions)[key] = v1
+					in.WantComma()
+				}
+				in.Delim('}')
+			}
 		case "policy_name":
 			out.PolicyName = string(in.String())
 		case "policy_version":
@@ -132,6 +175,36 @@ func easyjsonF642ad3eEncodeGithubComDataDogDatadogAgentPkgSecurityEvents1(out *j
 		const prefix string = ",\"rule_version\":"
 		out.RawString(prefix)
 		out.String(string(in.RuleVersion))
+	}
+	if len(in.RuleActions) != 0 {
+		const prefix string = ",\"rule_actions\":"
+		out.RawString(prefix)
+		{
+			out.RawByte('{')
+			v3First := true
+			for v3Name, v3Value := range in.RuleActions {
+				if v3First {
+					v3First = false
+				} else {
+					out.RawByte(',')
+				}
+				out.String(string(v3Name))
+				out.RawByte(':')
+				if v3Value == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
+					out.RawString("null")
+				} else {
+					out.RawByte('[')
+					for v4, v5 := range v3Value {
+						if v4 > 0 {
+							out.RawByte(',')
+						}
+						out.Raw((v5).MarshalJSON())
+					}
+					out.RawByte(']')
+				}
+			}
+			out.RawByte('}')
+		}
 	}
 	if in.PolicyName != "" {
 		const prefix string = ",\"policy_name\":"

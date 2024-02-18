@@ -2,6 +2,7 @@
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2023-present Datadog, Inc.
+
 //go:build windows
 
 // Package fakeevtapi is a fake implementation of the Windows Event Log API intended to be used in tests.
@@ -26,6 +27,7 @@ import (
 // EvtSubscribe fake
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtsubscribe
 func (api *API) EvtSubscribe(
+	Session evtapi.EventSessionHandle,
 	SignalEvent evtapi.WaitEventHandle,
 	ChannelPath string,
 	Query string,
@@ -34,6 +36,10 @@ func (api *API) EvtSubscribe(
 
 	if Query != "" && Query != "*" {
 		return evtapi.EventResultSetHandle(0), fmt.Errorf("Fake API does not support query syntax")
+	}
+
+	if Session != evtapi.EventSessionHandle(0) {
+		return evtapi.EventResultSetHandle(0), fmt.Errorf("Fake API does not support remote sessions")
 	}
 
 	// ensure channel exists
@@ -366,4 +372,17 @@ func (api *API) EvtFormatMessage(
 	Values evtapi.EvtVariantValues, //nolint:revive // TODO fix revive unused-parameter
 	Flags uint) (string, error) { //nolint:revive // TODO fix revive unused-parameter
 	return "", fmt.Errorf("not implemented")
+}
+
+// EvtOpenSession fake
+// not implemented.
+// https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtformatmessage
+func (api *API) EvtOpenSession(
+	Server string, //nolint:revive // TODO fix revive unused-parameter
+	User string, //nolint:revive // TODO fix revive unused-parameter
+	Domain string, //nolint:revive // TODO fix revive unused-parameter
+	Password string, //nolint:revive // TODO fix revive unused-parameter
+	Flags uint, //nolint:revive // TODO fix revive unused-parameter
+) (evtapi.EventSessionHandle, error) {
+	return evtapi.EventSessionHandle(0), fmt.Errorf("not implemented")
 }

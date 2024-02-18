@@ -23,10 +23,10 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/trace/config"
 	"github.com/DataDog/datadog-agent/pkg/trace/info"
 	"github.com/DataDog/datadog-agent/pkg/trace/log"
-	"github.com/DataDog/datadog-agent/pkg/trace/metrics"
-	"github.com/DataDog/datadog-agent/pkg/trace/metrics/timing"
 	"github.com/DataDog/datadog-agent/pkg/trace/sampler"
+	"github.com/DataDog/datadog-agent/pkg/trace/timing"
 	"github.com/DataDog/datadog-agent/pkg/trace/traceutil"
+	"github.com/DataDog/datadog-go/v5/statsd"
 
 	"github.com/DataDog/opentelemetry-mapping-go/pkg/otlp/attributes"
 	"github.com/DataDog/opentelemetry-mapping-go/pkg/otlp/attributes/source"
@@ -35,6 +35,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace/ptraceotlp"
 	semconv117 "go.opentelemetry.io/collector/semconv/v1.17.0"
 	semconv "go.opentelemetry.io/collector/semconv/v1.6.1"
+	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -42,6 +43,10 @@ import (
 // keyStatsComputed specifies the resource attribute key which indicates if stats have been
 // computed for the resource spans.
 const keyStatsComputed = "_dd.stats_computed"
+
+var (
+	signalTypeSet = attribute.NewSet(attribute.String("signal", "traces"))
+)
 
 var _ (ptraceotlp.GRPCServer) = (*OTLPReceiver)(nil)
 
@@ -54,11 +59,13 @@ type OTLPReceiver struct {
 	out         chan<- *Payload     // the outgoing payload channel
 	conf        *config.AgentConfig // receiver config
 	cidProvider IDProvider          // container ID provider
+	statsd      statsd.ClientInterface
+	timing      timing.Reporter
 }
 
 // NewOTLPReceiver returns a new OTLPReceiver which sends any incoming traces down the out channel.
-func NewOTLPReceiver(out chan<- *Payload, cfg *config.AgentConfig) *OTLPReceiver {
-	return &OTLPReceiver{out: out, conf: cfg, cidProvider: NewIDProvider(cfg.ContainerProcRoot)}
+func NewOTLPReceiver(out chan<- *Payload, cfg *config.AgentConfig, statsd statsd.ClientInterface, timing timing.Reporter) *OTLPReceiver {
+	return &OTLPReceiver{out: out, conf: cfg, cidProvider: NewIDProvider(cfg.ContainerProcRoot), statsd: statsd, timing: timing}
 }
 
 // Start starts the OTLPReceiver, if any of the servers were configured as active.
@@ -93,9 +100,9 @@ func (o *OTLPReceiver) Stop() {
 
 // Export implements ptraceotlp.Server
 func (o *OTLPReceiver) Export(ctx context.Context, in ptraceotlp.ExportRequest) (ptraceotlp.ExportResponse, error) {
-	defer timing.Since("datadog.trace_agent.otlp.process_grpc_request_ms", time.Now())
+	defer o.timing.Since("datadog.trace_agent.otlp.process_grpc_request_ms", time.Now())
 	md, _ := metadata.FromIncomingContext(ctx)
-	metrics.Count("datadog.trace_agent.otlp.payload", 1, tagsFromHeaders(http.Header(md)), 1)
+	_ = o.statsd.Count("datadog.trace_agent.otlp.payload", 1, tagsFromHeaders(http.Header(md)), 1)
 	o.processRequest(ctx, http.Header(md), in)
 	return ptraceotlp.NewExportResponse(), nil
 }
@@ -175,13 +182,7 @@ func (o *OTLPReceiver) sample(tid uint64) sampler.SamplingPriority {
 func (o *OTLPReceiver) ReceiveResourceSpans(ctx context.Context, rspans ptrace.ResourceSpans, httpHeader http.Header) source.Source {
 	// each rspans is coming from a different resource and should be considered
 	// a separate payload; typically there is only one item in this slice
-	attr := rspans.Resource().Attributes()
-	rattr := make(map[string]string, attr.Len())
-	attr.Range(func(k string, v pcommon.Value) bool {
-		rattr[k] = v.AsString()
-		return true
-	})
-	src, srcok := attributes.SourceFromAttrs(attr)
+	src, srcok := o.conf.OTLPReceiver.AttributesTranslator.ResourceToSource(ctx, rspans.Resource(), signalTypeSet)
 	hostFromMap := func(m map[string]string, key string) {
 		// hostFromMap sets the hostname to m[key] if it is set.
 		if v, ok := m[key]; ok {
@@ -189,6 +190,13 @@ func (o *OTLPReceiver) ReceiveResourceSpans(ctx context.Context, rspans ptrace.R
 			srcok = true
 		}
 	}
+
+	attr := rspans.Resource().Attributes()
+	rattr := make(map[string]string, attr.Len())
+	attr.Range(func(k string, v pcommon.Value) bool {
+		rattr[k] = v.AsString()
+		return true
+	})
 	if !srcok {
 		hostFromMap(rattr, "_dd.hostname")
 	}
@@ -214,7 +222,6 @@ func (o *OTLPReceiver) ReceiveResourceSpans(ctx context.Context, rspans ptrace.R
 	}
 	tracesByID := make(map[uint64]pb.Trace)
 	priorityByID := make(map[uint64]sampler.SamplingPriority)
-	ctags := make(map[string]string)
 	var spancount int64
 	for i := 0; i < rspans.ScopeSpans().Len(); i++ {
 		libspans := rspans.ScopeSpans().At(i)
@@ -226,7 +233,7 @@ func (o *OTLPReceiver) ReceiveResourceSpans(ctx context.Context, rspans ptrace.R
 			if tracesByID[traceID] == nil {
 				tracesByID[traceID] = pb.Trace{}
 			}
-			ddspan := o.convertSpan(rattr, lib, span, ctags)
+			ddspan := o.convertSpan(rattr, lib, span)
 			if !srcok {
 				// if we didn't find a hostname at the resource level
 				// try and see if the span has a hostname set
@@ -249,8 +256,8 @@ func (o *OTLPReceiver) ReceiveResourceSpans(ctx context.Context, rspans ptrace.R
 		}
 	}
 	tags := tagstats.AsTags()
-	metrics.Count("datadog.trace_agent.otlp.spans", spancount, tags, 1)
-	metrics.Count("datadog.trace_agent.otlp.traces", int64(len(tracesByID)), tags, 1)
+	_ = o.statsd.Count("datadog.trace_agent.otlp.spans", spancount, tags, 1)
+	_ = o.statsd.Count("datadog.trace_agent.otlp.traces", int64(len(tracesByID)), tags, 1)
 	p := Payload{
 		Source:                 tagstats,
 		ClientComputedStats:    rattr[keyStatsComputed] != "" || httpHeader.Get(header.ComputedStats) != "",
@@ -284,6 +291,7 @@ func (o *OTLPReceiver) ReceiveResourceSpans(ctx context.Context, rspans ptrace.R
 		LanguageVersion: tagstats.LangVersion,
 		TracerVersion:   tagstats.TracerVersion,
 	}
+	ctags := attributes.ContainerTagsFromResourceAttributes(attr)
 	payloadTags := flatten(ctags)
 	if tags := getContainerTags(o.conf.ContainerTags, containerID); tags != "" {
 		appendTags(payloadTags, tags)
@@ -499,9 +507,7 @@ func setMetricOTLP(s *pb.Span, k string, v float64) {
 
 // convertSpan converts the span in to a Datadog span, and uses the rattr resource tags and the lib instrumentation
 // library attributes to further augment it.
-//
-// ctags will be used to write container tags to. Existing ones are not overridden.
-func (o *OTLPReceiver) convertSpan(rattr map[string]string, lib pcommon.InstrumentationScope, in ptrace.Span, ctags map[string]string) *pb.Span {
+func (o *OTLPReceiver) convertSpan(rattr map[string]string, lib pcommon.InstrumentationScope, in ptrace.Span) *pb.Span {
 	traceID := [16]byte(in.TraceID())
 	span := &pb.Span{
 		TraceID:  traceIDToUint64(traceID),
@@ -539,15 +545,6 @@ func (o *OTLPReceiver) convertSpan(rattr map[string]string, lib pcommon.Instrume
 		}
 		return true
 	})
-	for k, v := range attributes.ContainerTagFromAttributes(span.Meta) {
-		if _, ok := span.Meta[k]; !ok {
-			// overwrite only if it does not exist
-			setMetaOTLP(span, k, v)
-		}
-		if _, ok := ctags[k]; !ok {
-			ctags[k] = v
-		}
-	}
 	if _, ok := span.Meta["env"]; !ok {
 		if env := span.Meta[string(semconv.AttributeDeploymentEnvironment)]; env != "" {
 			setMetaOTLP(span, "env", traceutil.NormalizeTag(env))

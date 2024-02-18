@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
-	"github.com/DataDog/datadog-agent/comp/core/log"
+	"github.com/DataDog/datadog-agent/comp/forwarder/eventplatform"
 	"github.com/DataDog/datadog-agent/comp/snmptraps/config/configimpl"
 	"github.com/DataDog/datadog-agent/comp/snmptraps/formatter"
 	"github.com/DataDog/datadog-agent/comp/snmptraps/formatter/formatterimpl"
@@ -24,7 +24,6 @@ import (
 	"github.com/DataDog/datadog-agent/comp/snmptraps/packet"
 	"github.com/DataDog/datadog-agent/comp/snmptraps/senderhelper"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
-	"github.com/DataDog/datadog-agent/pkg/epforwarder"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
@@ -41,12 +40,11 @@ type services struct {
 func setUp(t *testing.T) *services {
 	t.Helper()
 	s := fxutil.Test[services](t,
-		configimpl.MockModule,
-		log.MockModule,
+		configimpl.MockModule(),
 		senderhelper.Opts,
-		formatterimpl.MockModule,
-		listenerimpl.MockModule,
-		Module,
+		formatterimpl.MockModule(),
+		listenerimpl.MockModule(),
+		Module(),
 	)
 	return &s
 }
@@ -72,7 +70,7 @@ func TestV1GenericTrapAreForwarder(t *testing.T) {
 	require.NoError(t, err)
 	s.Listener.Send(packet)
 	time.Sleep(100 * time.Millisecond)
-	s.Sender.AssertEventPlatformEvent(t, rawEvent, epforwarder.EventTypeSnmpTraps)
+	s.Sender.AssertEventPlatformEvent(t, rawEvent, eventplatform.EventTypeSnmpTraps)
 }
 
 func TestV1SpecificTrapAreForwarder(t *testing.T) {
@@ -82,7 +80,7 @@ func TestV1SpecificTrapAreForwarder(t *testing.T) {
 	require.NoError(t, err)
 	s.Listener.Send(packet)
 	time.Sleep(100 * time.Millisecond)
-	s.Sender.AssertEventPlatformEvent(t, rawEvent, epforwarder.EventTypeSnmpTraps)
+	s.Sender.AssertEventPlatformEvent(t, rawEvent, eventplatform.EventTypeSnmpTraps)
 }
 func TestV2TrapAreForwarder(t *testing.T) {
 	s := setUp(t)
@@ -91,7 +89,7 @@ func TestV2TrapAreForwarder(t *testing.T) {
 	require.NoError(t, err)
 	s.Listener.Send(packet)
 	time.Sleep(100 * time.Millisecond)
-	s.Sender.AssertEventPlatformEvent(t, rawEvent, epforwarder.EventTypeSnmpTraps)
+	s.Sender.AssertEventPlatformEvent(t, rawEvent, eventplatform.EventTypeSnmpTraps)
 }
 
 func TestForwarderTelemetry(t *testing.T) {
