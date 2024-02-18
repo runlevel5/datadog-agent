@@ -68,6 +68,17 @@ var (
 		commonOpts,
 	)
 
+	// HandleEventsDuration measures the time that it takes to handle events from the
+	// workloadmeta collectors.
+	HandleEventsDuration = telemetry.NewHistogramWithOpts(
+		subsystem,
+		"handle_events_duration",
+		[]string{},
+		"The time it takes to handle events from the collectors (in milliseconds)",
+		[]float64{0.25, 0.5, 0.75, 1, 2, 5, 10, 15, 30, 45, 60},
+		commonOpts,
+	)
+
 	// NotificationsSent tracks the number of notifications sent from the
 	// workloadmeta store to its subscribers. Note that each notification can
 	// include multiple events.
