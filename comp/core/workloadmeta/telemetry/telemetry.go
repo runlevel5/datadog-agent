@@ -86,7 +86,7 @@ var (
 		"notify_duration",
 		[]string{},
 		"The time it takes to notify events to the workloadmeta collector event channel (in seconds)",
-		[]float64{0.25, 0.5, 0.75, 1, 2, 5, 10, 15, 30, 45, 60},
+		[]float64{0.1, 0.25, 0.5, 1, 3, 5, 10},
 		commonOpts,
 	)
 
