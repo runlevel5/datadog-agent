@@ -373,6 +373,10 @@ func (w *workloadmeta) GetImage(id string) (*ContainerImageMetadata, error) {
 
 // Notify implements Store#Notify
 func (w *workloadmeta) Notify(events []CollectorEvent) {
+	start := time.Now()
+	defer func() {
+		telemetry.NotifyDuration.Observe(time.Since(start).Seconds())
+	}()
 	if len(events) > 0 {
 		w.eventCh <- events
 	}
@@ -551,6 +555,10 @@ func (w *workloadmeta) pull(ctx context.Context) {
 }
 
 func (w *workloadmeta) handleEvents(evs []CollectorEvent) {
+	start := time.Now()
+	defer func() {
+		telemetry.HandleEventsDuration.Observe(time.Since(start).Seconds())
+	}()
 	w.storeMut.Lock()
 	w.subscribersMut.Lock()
 	defer w.subscribersMut.Unlock()
