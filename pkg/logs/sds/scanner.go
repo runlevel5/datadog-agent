@@ -54,6 +54,9 @@ type Scanner struct {
 	definitions RulesConfig
 	// rawConfig is the raw config previously received through RC.
 	rawConfig []byte // XXX(remy): type
+	// configuredRules are stored on configuration to retrieve rules
+	// information on match. Use this read-only.
+	configuredRules []RuleConfig
 }
 
 // CreateScanner creates an SDS scanner with the given raw config.
@@ -170,6 +173,7 @@ func (s *Scanner) reconfigureRules(rawConfig []byte) error {
 			s.Scanner.Delete()
 			s.Scanner = nil
 			s.rawConfig = rawConfig
+			s.configuredRules = nil
 			return nil
 		}
 	}
@@ -204,6 +208,7 @@ func (s *Scanner) reconfigureRules(rawConfig []byte) error {
 	// store the raw configuration for a later refresh
 	// if we receive new definitions
 	s.rawConfig = rawConfig
+	s.configuredRules = config.Rules
 
 	log.Info("Created an SDS scanner with", len(scanner.Rules), "rules")
 	s.Scanner = scanner
@@ -227,11 +232,23 @@ func (s *Scanner) Scan(event []byte) ([]byte, []sds.RuleMatch, error) {
 	return s.Scanner.Scan(event)
 }
 
+func (s *Scanner) GetRuleByIdx(idx uint32) (RuleConfig, error) {
+	if s.Scanner == nil {
+		return RuleConfig{}, fmt.Errorf("scanner not configured")
+	}
+	if uint32(len(s.configuredRules)) <= idx {
+		return RuleConfig{}, fmt.Errorf("scanner not containing enough rules")
+	}
+	return s.configuredRules[idx], nil
+}
+
 // Delete deallocates the internal SDS scanner.
 // This method is NOT thread safe, caller has to ensure the thread safety.
 func (s *Scanner) Delete() {
 	if s.Scanner != nil {
 		s.Scanner.Delete()
+		s.rawConfig = nil
+		s.configuredRules = nil
 	}
 	s.Scanner = nil
 }

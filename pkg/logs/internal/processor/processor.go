@@ -183,7 +183,14 @@ func (p *Processor) applyRedactingRules(msg *message.Message) bool {
 		if rv, rulesMatch, err := p.sds.Scan(content); err != nil {
 			log.Error("while using SDS to scan the log:", err)
 		} else {
-			if len(rulesMatch) > 0 { // TODO(remy): validate the rule type
+			if len(rulesMatch) > 0 {
+				for _, match := range rulesMatch {
+					if rc, err := p.sds.GetRuleByIdx(match.RuleIdx); err != nil {
+						log.Warnf("can't apply rule tags: %v", err)
+					} else {
+						msg.ProcessingTags = append(msg.ProcessingTags, rc.Tags...)
+					}
+				}
 				content = rv
 			}
 		}
