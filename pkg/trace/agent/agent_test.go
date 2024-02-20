@@ -1276,7 +1276,7 @@ func TestPartialSamplingFree(t *testing.T) {
 		TraceWriter:       &writer.TraceWriter{In: writerChan},
 		conf:              cfg,
 	}
-	agnt.Receiver = api.NewHTTPReceiver(cfg, dynConf, in, agnt, telemetry.NewNoopCollector())
+	agnt.Receiver = api.NewHTTPReceiver(cfg, dynConf, in, agnt, agnt, telemetry.NewNoopCollector())
 	now := time.Now()
 	smallKeptSpan := &pb.Span{
 		TraceID:  1,
