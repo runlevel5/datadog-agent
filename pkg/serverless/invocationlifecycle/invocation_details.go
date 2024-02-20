@@ -8,8 +8,6 @@ package invocationlifecycle
 import (
 	"net/http"
 	"time"
-
-	"github.com/DataDog/datadog-agent/pkg/serverless/trace/inferredspan"
 )
 
 // InvocationStartDetails stores information about the start of an invocation.
@@ -19,7 +17,6 @@ type InvocationStartDetails struct {
 	InvokeEventRawPayload []byte
 	InvokeEventHeaders    http.Header
 	InvokedFunctionARN    string
-	InferredSpan          inferredspan.InferredSpan
 }
 
 // InvocationEndDetails stores information about the end of an invocation.

@@ -10,7 +10,6 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -19,12 +18,9 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/model"
 	configUtils "github.com/DataDog/datadog-agent/pkg/config/utils"
-	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
 	"github.com/DataDog/datadog-agent/pkg/serverless"
 	"github.com/DataDog/datadog-agent/pkg/serverless/apikey"
 	"github.com/DataDog/datadog-agent/pkg/serverless/appsec"
-	appsecConfig "github.com/DataDog/datadog-agent/pkg/serverless/appsec/config"
-	"github.com/DataDog/datadog-agent/pkg/serverless/appsec/httpsec"
 	"github.com/DataDog/datadog-agent/pkg/serverless/daemon"
 	"github.com/DataDog/datadog-agent/pkg/serverless/debug"
 	"github.com/DataDog/datadog-agent/pkg/serverless/flush"
@@ -32,11 +28,7 @@ import (
 	serverlessLogs "github.com/DataDog/datadog-agent/pkg/serverless/logs"
 	"github.com/DataDog/datadog-agent/pkg/serverless/metrics"
 	"github.com/DataDog/datadog-agent/pkg/serverless/otlp"
-	"github.com/DataDog/datadog-agent/pkg/serverless/proxy"
-	"github.com/DataDog/datadog-agent/pkg/serverless/random"
 	"github.com/DataDog/datadog-agent/pkg/serverless/registration"
-	"github.com/DataDog/datadog-agent/pkg/serverless/trace"
-	"github.com/DataDog/datadog-agent/pkg/serverless/trace/inferredspan"
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -179,10 +171,8 @@ func runAgent() {
 
 	logChannel := make(chan *logConfig.ChannelMessage)
 	// Channels for ColdStartCreator
-	lambdaSpanChan := make(chan *pb.Span)
 	lambdaInitMetricChan := make(chan *serverlessLogs.LambdaInitMetric)
 	//nolint:revive // TODO(SERV) Fix revive linter
-	coldStartSpanId := random.Random.Uint64()
 	metricAgent := &metrics.ServerlessMetricAgent{
 		SketchesBucketOffset: time.Second * 10,
 	}
@@ -192,15 +182,6 @@ func runAgent() {
 
 	// Concurrently start heavyweight features
 	var wg sync.WaitGroup
-
-	// starts trace agent
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		traceAgent := &trace.ServerlessTraceAgent{}
-		traceAgent.Start(config.Datadog.GetBool("apm_config.enabled"), &trace.LoadConfig{Path: datadogConfigPath}, lambdaSpanChan, coldStartSpanId)
-		serverlessDaemon.SetTraceAgent(traceAgent)
-	}()
 
 	// starts otlp agent
 	wg.Add(1)
@@ -249,13 +230,11 @@ func runAgent() {
 		}
 	}()
 
-	// start appsec
-	var appsecProxyProcessor *httpsec.ProxyLifecycleProcessor
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		var err error
-		appsecProxyProcessor, err = appsec.New(serverlessDaemon.MetricAgent.Demux)
+		_, err = appsec.New(serverlessDaemon.MetricAgent.Demux)
 		if err != nil {
 			log.Error("appsec: could not start: ", err)
 		}
@@ -263,55 +242,12 @@ func runAgent() {
 
 	wg.Wait()
 
-	coldStartSpanCreator := &trace.ColdStartSpanCreator{
-		LambdaSpanChan:       lambdaSpanChan,
-		LambdaInitMetricChan: lambdaInitMetricChan,
-		TraceAgent:           serverlessDaemon.TraceAgent,
-		StopChan:             make(chan struct{}),
-		ColdStartSpanId:      coldStartSpanId,
-	}
-
-	log.Debug("Starting ColdStartSpanCreator")
-	coldStartSpanCreator.Run()
-	log.Debug("Setting ColdStartSpanCreator on Daemon")
-	serverlessDaemon.SetColdStartSpanCreator(coldStartSpanCreator)
-
-	ta := serverlessDaemon.TraceAgent.Get()
-	if ta == nil {
-		log.Error("Unexpected nil instance of the trace-agent")
-		return
-	}
-
 	// set up invocation processor in the serverless Daemon to be used for the proxy and/or lifecycle API
 	serverlessDaemon.InvocationProcessor = &invocationlifecycle.LifecycleProcessor{
 		ExtraTags:            serverlessDaemon.ExtraTags,
 		Demux:                serverlessDaemon.MetricAgent.Demux,
-		ProcessTrace:         ta.Process,
 		DetectLambdaLibrary:  func() bool { return serverlessDaemon.LambdaLibraryDetected },
-		InferredSpansEnabled: inferredspan.IsInferredSpansEnabled(),
-	}
-
-	if appsecProxyProcessor != nil {
-		// AppSec runs as a Runtime API proxy. The reverse proxy was already
-		// started by appsec.New(). A span modifier needs to be added in order
-		// to detect the finished request spans and run the complete AppSec
-		// monitoring logic, and ultimately adding the AppSec events to them.
-		ta.ModifySpan = appsecProxyProcessor.WrapSpanModifier(serverlessDaemon.ExecutionContext, ta.ModifySpan)
-		// Set the default rate limiting to approach 1 trace/min in live circumstances to limit non ASM related traces as much as possible.
-		// This limit is decided in the Standalone ASM Billing RFC and ensures reducing non ASM-related trace throughput
-		// while keeping billing and service catalog running correctly.
-		// In case of ASM event, the trace priority will be set to manual keep
-		if appsecConfig.IsStandalone() {
-			ta.PrioritySampler.UpdateTargetTPS(1. / 120)
-		}
-	} else if enabled, _ := strconv.ParseBool(os.Getenv("DD_EXPERIMENTAL_ENABLE_PROXY")); enabled {
-		// start the experimental proxy if enabled
-		log.Debug("Starting the experimental runtime api proxy")
-		proxy.Start(
-			"127.0.0.1:9000",
-			"127.0.0.1:9001",
-			serverlessDaemon.InvocationProcessor,
-		)
+		InferredSpansEnabled: false,
 	}
 
 	serverlessDaemon.ComputeGlobalTags(configUtils.GetConfiguredTags(config.Datadog, true))

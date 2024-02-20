@@ -74,7 +74,7 @@ func (s *StartInvocation) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else {
 		log.Debug("a context has been found, sending the context to the tracer")
 		w.Header().Set(invocationlifecycle.TraceIDHeader, fmt.Sprintf("%v", s.daemon.InvocationProcessor.GetExecutionInfo().TraceID))
-		w.Header().Set(invocationlifecycle.SamplingPriorityHeader, fmt.Sprintf("%v", s.daemon.InvocationProcessor.GetExecutionInfo().SamplingPriority))
+		//w.Header().Set(invocationlifecycle.SamplingPriorityHeader, fmt.Sprintf("%v", s.daemon.InvocationProcessor.GetExecutionInfo().SamplingPriority))
 	}
 }
 
@@ -139,5 +139,5 @@ func (tc *TraceContext) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Debug("Hit on the serverless.TraceContext route.")
 	w.Header().Set(invocationlifecycle.TraceIDHeader, fmt.Sprintf("%v", executionInfo.TraceID))
 	w.Header().Set(invocationlifecycle.SpanIDHeader, fmt.Sprintf("%v", executionInfo.SpanID))
-	w.Header().Set(invocationlifecycle.SamplingPriorityHeader, fmt.Sprintf("%v", executionInfo.SamplingPriority))
+	//w.Header().Set(invocationlifecycle.SamplingPriorityHeader, fmt.Sprintf("%v", executionInfo.SamplingPriority))
 }

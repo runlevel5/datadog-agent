@@ -6,17 +6,6 @@
 package logimpl
 
 import (
-	"context"
-	"errors"
-	"fmt"
-
-	"go.uber.org/fx"
-
-	"github.com/DataDog/datadog-agent/comp/core/config"
-	"github.com/DataDog/datadog-agent/comp/core/log"
-	pkgconfiglogs "github.com/DataDog/datadog-agent/pkg/config/logs"
-	tracelog "github.com/DataDog/datadog-agent/pkg/trace/log"
-	"github.com/DataDog/datadog-agent/pkg/trace/telemetry"
 	pkglog "github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
@@ -85,37 +74,3 @@ func (*tracelogger) Criticalf(format string, params ...interface{}) error {
 
 // Flush implements Component#Flush.
 func (*tracelogger) Flush() { pkglog.Flush() }
-
-func newTraceLogger(lc fx.Lifecycle, params Params, config config.Component, telemetryCollector telemetry.TelemetryCollector) (log.Component, error) {
-	return NewTraceLogger(lc, params, config, telemetryCollector)
-}
-
-// NewTraceLogger creates a pkglog.Component using the provided config.LogConfig
-func NewTraceLogger(lc fx.Lifecycle, params Params, config config.LogConfig, telemetryCollector telemetry.TelemetryCollector) (log.Component, error) {
-	if params.logLevelFn == nil {
-		return nil, errors.New("must call one of core.BundleParams.ForOneShot or ForDaemon")
-	}
-
-	err := pkgconfiglogs.SetupLogger(
-		pkgconfiglogs.LoggerName(params.loggerName),
-		params.logLevelFn(config),
-		params.logFileFn(config),
-		params.logSyslogURIFn(config),
-		params.logSyslogRFCFn(config),
-		params.logToConsoleFn(config),
-		params.logFormatJSONFn(config),
-		config)
-	if err != nil {
-		telemetryCollector.SendStartupError(telemetry.CantCreateLogger, err)
-		return nil, fmt.Errorf("Cannot create logger: %v", err)
-	}
-
-	l := &tracelogger{}
-	tracelog.SetLogger(l)
-	lc.Append(fx.Hook{OnStop: func(context.Context) error {
-		l.Flush()
-		return nil
-	}})
-
-	return l, nil
-}

@@ -8,33 +8,25 @@ package invocationlifecycle
 import (
 	"bytes"
 	"os"
-	"strings"
 	"time"
 
 	json "github.com/json-iterator/go"
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
-	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
 	serverlessLog "github.com/DataDog/datadog-agent/pkg/serverless/logs"
 	serverlessMetrics "github.com/DataDog/datadog-agent/pkg/serverless/metrics"
-	"github.com/DataDog/datadog-agent/pkg/serverless/trace/inferredspan"
-	"github.com/DataDog/datadog-agent/pkg/serverless/trace/propagation"
 	"github.com/DataDog/datadog-agent/pkg/serverless/trigger"
 	"github.com/DataDog/datadog-agent/pkg/serverless/trigger/events"
-	"github.com/DataDog/datadog-agent/pkg/trace/api"
-	"github.com/DataDog/datadog-agent/pkg/trace/sampler"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 // LifecycleProcessor is a InvocationProcessor implementation
 type LifecycleProcessor struct {
 	ExtraTags            *serverlessLog.Tags
-	ProcessTrace         func(p *api.Payload)
 	Demux                aggregator.Demultiplexer
 	DetectLambdaLibrary  func() bool
 	InferredSpansEnabled bool
 	SubProcessor         InvocationSubProcessor
-	Extractor            propagation.Extractor
 
 	requestHandler *RequestHandler
 	serviceName    string
@@ -46,7 +38,6 @@ type LifecycleProcessor struct {
 type RequestHandler struct {
 	executionInfo  *ExecutionStartInfo
 	event          interface{}
-	inferredSpans  [2]*inferredspan.InferredSpan
 	triggerTags    map[string]string
 	triggerMetrics map[string]float64
 }
@@ -72,11 +63,6 @@ func (r *RequestHandler) SetMetricsTag(tag string, value float64) {
 // github.com/aws/aws-lambda-go/events
 func (r *RequestHandler) Event() interface{} {
 	return r.event
-}
-
-// SetSamplingPriority sets the trace priority
-func (r *RequestHandler) SetSamplingPriority(priority sampler.SamplingPriority) {
-	r.executionInfo.SamplingPriority = priority
 }
 
 // OnInvokeStart is the hook triggered when an invocation has started
@@ -266,46 +252,6 @@ func (lp *LifecycleProcessor) OnInvokeEnd(endDetails *InvocationEndDetails) {
 		lp.SubProcessor.OnInvokeEnd(endDetails, lp.requestHandler)
 	}
 
-	if !lp.DetectLambdaLibrary() {
-		log.Debug("Creating and sending function execution span for invocation")
-
-		if len(statusCode) == 3 && strings.HasPrefix(statusCode, "5") {
-			serverlessMetrics.SendErrorsEnhancedMetric(
-				lp.ExtraTags.Tags, endDetails.EndTime, lp.Demux,
-			)
-			endDetails.IsError = true
-		}
-
-		spans := make([]*pb.Span, 0, 3)
-		span := lp.endExecutionSpan(endDetails)
-		spans = append(spans, span)
-
-		if lp.InferredSpansEnabled {
-			log.Debug("[lifecycle] Attempting to complete the inferred span")
-			log.Debugf("[lifecycle] Inferred span context: %+v", lp.GetInferredSpan().Span)
-			if lp.GetInferredSpan().Span.Start != 0 {
-				span0, span1 := lp.requestHandler.inferredSpans[0], lp.requestHandler.inferredSpans[1]
-				if span1 != nil {
-					log.Debug("[lifecycle] Completing a secondary inferred span")
-					lp.setParentIDForMultipleInferredSpans()
-					span1.AddTagToInferredSpan("http.status_code", statusCode)
-					span1.AddTagToInferredSpan("peer.service", lp.GetServiceName())
-					span := lp.completeInferredSpan(span1, lp.getInferredSpanStart(), endDetails.IsError)
-					spans = append(spans, span)
-					log.Debug("[lifecycle] The secondary inferred span attributes are %v", lp.requestHandler.inferredSpans[1])
-				}
-				span0.AddTagToInferredSpan("http.status_code", statusCode)
-				span0.AddTagToInferredSpan("peer.service", lp.GetServiceName())
-				span := lp.completeInferredSpan(span0, endDetails.EndTime, endDetails.IsError)
-				spans = append(spans, span)
-				log.Debugf("[lifecycle] The inferred span attributes are: %v", lp.GetInferredSpan())
-			} else {
-				log.Debug("[lifecyle] Failed to complete inferred span due to a missing start time. Please check that the event payload was received with the appropriate data")
-			}
-		}
-		lp.processTrace(spans)
-	}
-
 	if endDetails.IsError {
 		serverlessMetrics.SendErrorsEnhancedMetric(
 			lp.ExtraTags.Tags, endDetails.EndTime, lp.Demux,
@@ -326,13 +272,6 @@ func (lp *LifecycleProcessor) GetExecutionInfo() *ExecutionStartInfo {
 
 // GetInferredSpan returns the generated inferred span of the
 // currently executing lambda function
-func (lp *LifecycleProcessor) GetInferredSpan() *inferredspan.InferredSpan {
-	return lp.requestHandler.inferredSpans[0]
-}
-
-func (lp *LifecycleProcessor) getInferredSpanStart() time.Time {
-	return time.Unix(lp.GetInferredSpan().Span.Start, 0)
-}
 
 // GetServiceName returns the value stored in the environment variable
 // DD_SERVICE. Also assigned into `lp.serviceName` if not previously set
@@ -355,12 +294,7 @@ func (lp *LifecycleProcessor) newRequest(lambdaPayloadString []byte, startTime t
 		requestPayload: lambdaPayloadString,
 		startTime:      startTime,
 	}
-	lp.requestHandler.inferredSpans[0] = &inferredspan.InferredSpan{
-		CurrentInvocationStartTime: startTime,
-		Span: &pb.Span{
-			SpanID: inferredspan.GenerateSpanId(),
-		},
-	}
+
 	lp.requestHandler.triggerTags = make(map[string]string)
 	lp.requestHandler.triggerMetrics = make(map[string]float64)
 }
@@ -382,6 +316,4 @@ func (lp *LifecycleProcessor) addTag(key string, value string) {
 // Inferred spans of index 1 are generally sent inside of inferred span index 0.
 // Like an SNS event inside an SQS message, and the parenting order is essential.
 func (lp *LifecycleProcessor) setParentIDForMultipleInferredSpans() {
-	lp.requestHandler.inferredSpans[1].Span.ParentID = lp.requestHandler.inferredSpans[0].Span.ParentID
-	lp.requestHandler.inferredSpans[0].Span.ParentID = lp.requestHandler.inferredSpans[1].Span.SpanID
 }

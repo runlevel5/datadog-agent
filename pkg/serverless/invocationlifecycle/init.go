@@ -8,12 +8,9 @@ package invocationlifecycle
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	json "github.com/json-iterator/go"
 
-	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
-	"github.com/DataDog/datadog-agent/pkg/serverless/trace/inferredspan"
 	"github.com/DataDog/datadog-agent/pkg/serverless/trigger"
 	"github.com/DataDog/datadog-agent/pkg/serverless/trigger/events"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -25,9 +22,6 @@ const (
 )
 
 func (lp *LifecycleProcessor) initFromAPIGatewayEvent(event events.APIGatewayProxyRequest, region string) {
-	if !lp.DetectLambdaLibrary() && lp.InferredSpansEnabled {
-		lp.GetInferredSpan().EnrichInferredSpanWithAPIGatewayRESTEvent(event)
-	}
 
 	lp.requestHandler.event = event
 	lp.addTag(tagFunctionTriggerEventSource, apiGateway)
@@ -36,9 +30,6 @@ func (lp *LifecycleProcessor) initFromAPIGatewayEvent(event events.APIGatewayPro
 }
 
 func (lp *LifecycleProcessor) initFromAPIGatewayV2Event(event events.APIGatewayV2HTTPRequest, region string) {
-	if !lp.DetectLambdaLibrary() && lp.InferredSpansEnabled {
-		lp.GetInferredSpan().EnrichInferredSpanWithAPIGatewayHTTPEvent(event)
-	}
 
 	lp.requestHandler.event = event
 	lp.addTag(tagFunctionTriggerEventSource, apiGateway)
@@ -47,9 +38,6 @@ func (lp *LifecycleProcessor) initFromAPIGatewayV2Event(event events.APIGatewayV
 }
 
 func (lp *LifecycleProcessor) initFromAPIGatewayWebsocketEvent(event events.APIGatewayWebsocketProxyRequest, region string) {
-	if !lp.DetectLambdaLibrary() && lp.InferredSpansEnabled {
-		lp.GetInferredSpan().EnrichInferredSpanWithAPIGatewayWebsocketEvent(event)
-	}
 
 	lp.requestHandler.event = event
 	lp.addTag(tagFunctionTriggerEventSource, apiGateway)
@@ -96,9 +84,6 @@ func (lp *LifecycleProcessor) initFromCloudWatchLogsEvent(event events.Cloudwatc
 }
 
 func (lp *LifecycleProcessor) initFromDynamoDBStreamEvent(event events.DynamoDBEvent) {
-	if !lp.DetectLambdaLibrary() && lp.InferredSpansEnabled {
-		lp.GetInferredSpan().EnrichInferredSpanWithDynamoDBEvent(event)
-	}
 
 	lp.requestHandler.event = event
 	lp.addTag(tagFunctionTriggerEventSource, dynamoDB)
@@ -112,9 +97,6 @@ func (lp *LifecycleProcessor) initFromEventBridgeEvent(event events.EventBridgeE
 }
 
 func (lp *LifecycleProcessor) initFromKinesisStreamEvent(event events.KinesisEvent) {
-	if !lp.DetectLambdaLibrary() && lp.InferredSpansEnabled {
-		lp.GetInferredSpan().EnrichInferredSpanWithKinesisEvent(event)
-	}
 
 	lp.requestHandler.event = event
 	lp.addTag(tagFunctionTriggerEventSource, kinesis)
@@ -122,9 +104,6 @@ func (lp *LifecycleProcessor) initFromKinesisStreamEvent(event events.KinesisEve
 }
 
 func (lp *LifecycleProcessor) initFromS3Event(event events.S3Event) {
-	if !lp.DetectLambdaLibrary() && lp.InferredSpansEnabled {
-		lp.GetInferredSpan().EnrichInferredSpanWithS3Event(event)
-	}
 
 	lp.requestHandler.event = event
 	lp.addTag(tagFunctionTriggerEventSource, s3)
@@ -132,9 +111,6 @@ func (lp *LifecycleProcessor) initFromS3Event(event events.S3Event) {
 }
 
 func (lp *LifecycleProcessor) initFromSNSEvent(event events.SNSEvent) {
-	if !lp.DetectLambdaLibrary() && lp.InferredSpansEnabled {
-		lp.GetInferredSpan().EnrichInferredSpanWithSNSEvent(event)
-	}
 
 	lp.requestHandler.event = event
 	lp.addTag(tagFunctionTriggerEventSource, sns)
@@ -142,9 +118,6 @@ func (lp *LifecycleProcessor) initFromSNSEvent(event events.SNSEvent) {
 }
 
 func (lp *LifecycleProcessor) initFromSQSEvent(event events.SQSEvent) {
-	if !lp.DetectLambdaLibrary() && lp.InferredSpansEnabled {
-		lp.GetInferredSpan().EnrichInferredSpanWithSQSEvent(event)
-	}
 
 	lp.requestHandler.event = event
 	lp.addTag(tagFunctionTriggerEventSource, sqs)
@@ -162,29 +135,15 @@ func (lp *LifecycleProcessor) initFromSQSEvent(event events.SQSEvent) {
 		return
 	}
 
-	// sns span
-	lp.requestHandler.inferredSpans[1] = &inferredspan.InferredSpan{
-		CurrentInvocationStartTime: time.Unix(lp.requestHandler.inferredSpans[0].Span.Start, 0),
-		Span: &pb.Span{
-			SpanID: inferredspan.GenerateSpanId(),
-		},
-	}
-
 	var snsEvent events.SNSEvent
 	snsEvent.Records = make([]events.SNSEventRecord, 1)
 	snsEvent.Records[0].SNS = snsEntity
-
-	lp.requestHandler.inferredSpans[1].EnrichInferredSpanWithSNSEvent(snsEvent)
-
-	lp.requestHandler.inferredSpans[1].Span.Duration = lp.GetInferredSpan().Span.Start - lp.requestHandler.inferredSpans[1].Span.Start
 
 }
 
 func (lp *LifecycleProcessor) initFromLambdaFunctionURLEvent(event events.LambdaFunctionURLRequest, region string, accountID string, functionName string) {
 	lp.requestHandler.event = event
-	if !lp.DetectLambdaLibrary() && lp.InferredSpansEnabled {
-		lp.GetInferredSpan().EnrichInferredSpanWithLambdaFunctionURLEvent(event)
-	}
+
 	lp.addTag(tagFunctionTriggerEventSource, functionURL)
 	lp.addTag(tagFunctionTriggerEventSourceArn, fmt.Sprintf("arn:aws:lambda:%v:%v:url:%v", region, accountID, functionName))
 	lp.addTags(trigger.GetTagsFromLambdaFunctionURLRequest(event))

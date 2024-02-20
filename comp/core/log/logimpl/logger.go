@@ -33,11 +33,6 @@ func Module() fxutil.Module {
 // TODO(components): move this comp/trace; that component shall implement the
 //
 //	log.Component interface.
-func TraceModule() fxutil.Module {
-	return fxutil.Component(
-		fx.Provide(newTraceLogger),
-	)
-}
 
 // logger implements the component
 type logger struct {

@@ -21,7 +21,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/serverless/metrics"
 	"github.com/DataDog/datadog-agent/pkg/serverless/otlp"
 	"github.com/DataDog/datadog-agent/pkg/serverless/tags"
-	"github.com/DataDog/datadog-agent/pkg/serverless/trace"
+
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
@@ -41,10 +41,6 @@ type Daemon struct {
 	MetricAgent *metrics.ServerlessMetricAgent
 
 	LogsAgent logsAgent.ServerlessLogsAgent
-
-	TraceAgent *trace.ServerlessTraceAgent
-
-	ColdStartCreator *trace.ColdStartSpanCreator
 
 	OTLPAgent *otlp.ServerlessOTLPAgent
 
@@ -204,19 +200,9 @@ func (d *Daemon) SetLogsAgent(logsAgent logsAgent.ServerlessLogsAgent) {
 	d.LogsAgent = logsAgent
 }
 
-// SetTraceAgent sets the Agent instance for submitting traces
-func (d *Daemon) SetTraceAgent(traceAgent *trace.ServerlessTraceAgent) {
-	d.TraceAgent = traceAgent
-}
-
 //nolint:revive // TODO(SERV) Fix revive linter
 func (d *Daemon) SetOTLPAgent(otlpAgent *otlp.ServerlessOTLPAgent) {
 	d.OTLPAgent = otlpAgent
-}
-
-//nolint:revive // TODO(SERV) Fix revive linter
-func (d *Daemon) SetColdStartSpanCreator(creator *trace.ColdStartSpanCreator) {
-	d.ColdStartCreator = creator
 }
 
 // SetFlushStrategy sets the flush strategy to use.
@@ -283,9 +269,7 @@ func (d *Daemon) flushTraces(wg *sync.WaitGroup) {
 	d.tracesFlushMutex.Lock()
 	flushStartTime := time.Now().Unix()
 	log.Debugf("Beginning traces flush at time %d", flushStartTime)
-	if d.TraceAgent != nil && d.TraceAgent.Get() != nil {
-		d.TraceAgent.Get().FlushSync()
-	}
+
 	log.Debugf("Finished traces flush that was started at time %d", flushStartTime)
 	wg.Done()
 	d.tracesFlushMutex.Unlock()
@@ -339,16 +323,8 @@ func (d *Daemon) Stop() {
 
 	log.Debug("Shutting down agents")
 
-	if d.TraceAgent != nil {
-		d.TraceAgent.Stop()
-	}
-
 	if d.MetricAgent != nil {
 		d.MetricAgent.Stop()
-	}
-
-	if d.ColdStartCreator != nil {
-		d.ColdStartCreator.Stop()
 	}
 
 	if d.OTLPAgent != nil {
@@ -429,9 +405,6 @@ func (d *Daemon) StartLogCollection() {
 // setTraceTags tries to set extra tags to the Trace agent.
 // setTraceTags returns a boolean which indicate whether or not the operation succeed for testing purpose.
 func (d *Daemon) setTraceTags(tagMap map[string]string) bool {
-	if d.TraceAgent != nil && d.TraceAgent.Get() != nil {
-		d.TraceAgent.SetTags(tags.BuildTracerTags(tagMap))
-		return true
-	}
+
 	return false
 }
