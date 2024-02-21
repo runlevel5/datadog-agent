@@ -18,7 +18,7 @@ import (
 
 const (
 	// mediaTypeImageLayerGz is the media type for an OCI image layer in gz format
-	mediaTypeImageLayerGz = "application/vnd.oci.image.layer.v1.tar+gz"
+	mediaTypeImageLayerGz = "application/vnd.oci.image.layer.v1.tar+gzip"
 )
 
 // extractOCI extracts the OCI archive at `ociArchivePath`

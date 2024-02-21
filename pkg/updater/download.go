@@ -106,7 +106,12 @@ func (d *downloader) Download(ctx context.Context, pkg Package, destinationPath 
 	if err := os.Mkdir(extractedOCIPath, 0755); err != nil {
 		return fmt.Errorf("could not create OCI extraction directory: %w", err)
 	}
-	err = extractTarGz(archivePath, extractedArchivePath)
+	f, err := os.Open(archivePath)
+	if err != nil {
+		return fmt.Errorf("could not open archive: %w", err)
+	}
+	defer f.Close()
+	err = extractTar(f, extractedArchivePath)
 	if err != nil {
 		return fmt.Errorf("could not extract archive: %w", err)
 	}
@@ -120,6 +125,7 @@ func (d *downloader) Download(ctx context.Context, pkg Package, destinationPath 
 	packageDir := filepath.Join(extractedOCIPath, defaultRepositoryPath, pkg.Name, pkg.Version)
 	err = os.Rename(packageDir, destinationPath)
 	if err != nil {
+		panic(fmt.Errorf("could not move package directory: %w", err))
 		return fmt.Errorf("could not move package directory: %w", err)
 	}
 
@@ -147,7 +153,17 @@ func extractTarGz(archivePath string, destinationPath string) error {
 	}
 	defer gzr.Close()
 
-	tr := tar.NewReader(io.LimitReader(gzr, maxArchiveDecompressedSize))
+	err = extractTar(gzr, destinationPath)
+	if err != nil {
+		return fmt.Errorf("could not extract tar: %w", err)
+	}
+	log.Debugf("Successfully extracted archive %s to %s", archivePath, destinationPath)
+	return nil
+}
+
+// extractTar extracts a tar archive to the given destination path
+func extractTar(reader io.Reader, destinationPath string) error {
+	tr := tar.NewReader(io.LimitReader(reader, maxArchiveDecompressedSize))
 	for {
 		header, err := tr.Next()
 		if err == io.EOF {
@@ -162,12 +178,10 @@ func extractTarGz(archivePath string, destinationPath string) error {
 
 		target := filepath.Join(destinationPath, header.Name)
 
-		// Check for directory traversal. Note that this is more of a sanity check than a security measure.
 		if !strings.HasPrefix(target, filepath.Clean(destinationPath)+string(os.PathSeparator)) {
 			return fmt.Errorf("tar entry %s is trying to escape the destination directory", header.Name)
 		}
 
-		// Extract element depending on its type
 		switch header.Typeflag {
 		case tar.TypeDir:
 			err = os.MkdirAll(target, 0755)
@@ -177,7 +191,7 @@ func extractTarGz(archivePath string, destinationPath string) error {
 		case tar.TypeReg:
 			err = extractTarFile(target, tr)
 			if err != nil {
-				return err // already wrapped
+				return err
 			}
 		case tar.TypeSymlink:
 			err = os.Symlink(header.Linkname, target)
@@ -188,8 +202,6 @@ func extractTarGz(archivePath string, destinationPath string) error {
 			log.Warnf("Unsupported tar entry type %d for %s", header.Typeflag, header.Name)
 		}
 	}
-
-	log.Debugf("Successfully extracted archive %s to %s", archivePath, destinationPath)
 	return nil
 }
 

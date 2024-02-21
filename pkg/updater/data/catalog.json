@@ -1,0 +1,44 @@
+{
+    "packages": [
+        {
+            "name": "datadog-agent",
+            "package": "datadog-agent",
+            "version": "7.52.0-rc.1.git.13.82c0985.pipeline.28635226",
+            "platform": "linux",
+            "arch": "amd64",
+            "url": "https://d34l0745r4hrvf.cloudfront.net/oci/testing/datadog-agent_7.52.0-rc.1.git.13.82c0985.pipeline.28635226-1_oci_amd64.tar",
+            "sha256": "30055294d300475a582b397141ce370deb85920a6ac11d6c483e968878f467fe",
+            "size": 373053440
+        },
+        {
+            "name": "datadog-agent",
+            "package": "datadog-agent",
+            "version": "7.52.0-rc.1.git.13.82c0985.pipeline.28635226",
+            "platform": "linux",
+            "arch": "arm64",
+            "url": "https://d34l0745r4hrvf.cloudfront.net/oci/testing/datadog-agent_7.52.0-rc.1.git.13.82c0985.pipeline.28635226-1_oci_arm64.tar",
+            "sha256": "38218d2f76885c92b9cc41019ac9f5f31b1faaecba85cf7f067b33e8d6b5b4bf",
+            "size": 320890880
+        },
+        {
+            "name": "datadog-agent",
+            "package": "datadog-agent",
+            "version": "7.52.0~rc.1.git.13.82c0985.pipeline.28635332-1",
+            "platform": "linux",
+            "arch": "amd64",
+            "url": "https://d34l0745r4hrvf.cloudfront.net/oci/testing/datadog-agent_7.52.0-rc.1.git.13.82c0985.pipeline.28635332-1_oci_amd64.tar",
+            "sha256": "2d7633ffa5459cc36bbe50323b3c048171696757d5085a9f4304b8a26b41eaa1",
+            "size": 372992000
+        },
+        {
+            "name": "datadog-agent",
+            "package": "datadog-agent",
+            "version": "7.52.0~rc.1.git.13.82c0985.pipeline.28635332-1",
+            "platform": "linux",
+            "arch": "arm64",
+            "url": "https://d34l0745r4hrvf.cloudfront.net/oci/testing/datadog-agent_7.52.0-rc.1.git.13.82c0985.pipeline.28635332-1_oci_arm64.tar",
+            "sha256": "3296a28fcf16da449a783532d8621aa421440110405a548a85f8c58fba499e5c",
+            "size": 320931840
+        }
+    ]
+}

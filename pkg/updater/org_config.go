@@ -10,7 +10,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"runtime"
 	"sync"
 
 	"github.com/DataDog/datadog-agent/pkg/config/remote/client"
@@ -20,6 +19,9 @@ import (
 
 //go:embed data/defaults.json
 var rawDefaults []byte
+
+//go:embed data/catalog.json
+var rawCatalog []byte
 
 // orgConfig represents the (remote) configuration of an organization.
 // More precisely it hides away the RC details to obtain:
@@ -70,13 +72,11 @@ func (c *orgConfig) GetPackage(ctx context.Context, pkg string, version string) 
 	defer c.m.Unlock()
 	for _, p := range c.catalog.Packages {
 		if p.Name == pkg &&
-			p.Version == version &&
-			(p.Arch == "" || p.Arch == runtime.GOARCH) &&
-			(p.Platform == "" || p.Platform == runtime.GOOS) {
+			p.Version == version {
 			return p, nil
 		}
 	}
-	return Package{}, fmt.Errorf("package %s version %s not found", pkg, version)
+	return Package{}, fmt.Errorf("package %s version %s not found %v", pkg, version, c.catalog.Packages)
 }
 
 // GetDefaultPackage returns the default version for the given package.
@@ -102,6 +102,10 @@ func (c *orgConfig) waitForCatalog(ctx context.Context) error {
 
 func (c *orgConfig) onCatalogUpdate(catalogConfigs map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)) {
 	var mergedCatalog catalog
+	err := json.Unmarshal(rawCatalog, &mergedCatalog)
+	if err != nil {
+		log.Errorf("could not unmarshal default catalog: %s", err)
+	}
 	for configPath, config := range catalogConfigs {
 		var catalog catalog
 		err := json.Unmarshal(config.Config, &catalog)
