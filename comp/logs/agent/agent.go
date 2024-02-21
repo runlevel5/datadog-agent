@@ -63,7 +63,6 @@ type dependencies struct {
 	Log            logComponent.Component
 	Config         configComponent.Component
 	InventoryAgent inventoryagent.Component
-	RCClient       rcclient.Component
 	Hostname       hostname.Component
 }
 
@@ -73,6 +72,7 @@ type provides struct {
 	Comp           optional.Option[Component]
 	FlareProvider  flaretypes.Provider
 	StatusProvider statusComponent.InformationProvider
+	RCListener     rcclient.ListenerProvider
 }
 
 // agent represents the data pipeline that collects, decodes,
@@ -112,7 +112,6 @@ func newLogsAgent(deps dependencies) provides {
 			log:            deps.Log,
 			config:         deps.Config,
 			inventoryAgent: deps.InventoryAgent,
-			rcClient:       deps.RCClient,
 			hostname:       deps.Hostname,
 			started:        atomic.NewBool(false),
 
@@ -126,10 +125,18 @@ func newLogsAgent(deps dependencies) provides {
 			OnStop:  logsAgent.stop,
 		})
 
+		rcListener := rcclient.ListenerProvider{
+			ListenerProvider: rcclient.RCListener{
+				state.ProductSDSAgentConfig: logsAgent.onUpdateSDSAgentConfig,
+				state.ProductSDSRules:       logsAgent.onUpdateSDSRules,
+			},
+		}
+
 		return provides{
 			Comp:           optional.NewOption[Component](logsAgent),
 			StatusProvider: statusComponent.NewInformationProvider(NewStatusProvider()),
 			FlareProvider:  flaretypes.NewProvider(logsAgent.flarecontroller.FillFlare),
+			RCListener:     rcListener,
 		}
 	}
 
@@ -137,6 +144,7 @@ func newLogsAgent(deps dependencies) provides {
 	return provides{
 		Comp:           optional.NewNoneOption[Component](),
 		StatusProvider: statusComponent.NewInformationProvider(NewStatusProvider()),
+		// TODO(remy): RCListener:
 	}
 }
 

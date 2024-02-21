@@ -45,13 +45,9 @@ func (a *agent) SetupPipeline(
 	diagnosticMessageReceiver := diagnostic.NewBufferedMessageReceiver(nil, a.hostname)
 
 	// setup the pipeline provider that provides pairs of processor and sender
-	pipelineProvider := pipeline.NewProvider(config.NumberOfPipelines, auditor, diagnosticMessageReceiver, processingRules, a.endpoints, destinationsCtx, a.rcClient, NewStatusProvider(), a.hostname, a.config)
+	pipelineProvider := pipeline.NewProvider(config.NumberOfPipelines, auditor, diagnosticMessageReceiver, processingRules, a.endpoints, destinationsCtx, NewStatusProvider(), a.hostname, a.config)
 
-	// remote configuration, subscribe to the products we need for SDS
-	a.rcClient.Subscribe(state.ProductSDSRules, a.onUpdateSDSRules)
-	a.rcClient.Subscribe(state.ProductSDSAgentConfig, a.onUpdateSDSAgentConfig)
-
-//	a.fakeRC() // XXX(remy):
+	//	a.fakeRC() // XXX(remy):
 	// setup the launchers
 	lnchrs := launchers.NewLaunchers(a.sources, pipelineProvider, auditor, a.tracker)
 	lnchrs.AddLauncher(filelauncher.NewLauncher(

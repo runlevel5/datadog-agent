@@ -55,7 +55,7 @@ func newReporter(hostname string, runPath string, stopper startstop.Stopper, sou
 	stopper.Add(auditor)
 
 	// setup the pipeline provider that provides pairs of processor and sender
-	pipelineProvider := pipeline.NewProvider(logsconfig.NumberOfPipelines, auditor, &diagnostic.NoopMessageReceiver{}, nil, endpoints, context, nil, agent.NewStatusProvider(), hostnameimpl.NewHostnameService(), pkgconfig.Datadog)
+	pipelineProvider := pipeline.NewProvider(logsconfig.NumberOfPipelines, auditor, &diagnostic.NoopMessageReceiver{}, nil, endpoints, context, agent.NewStatusProvider(), hostnameimpl.NewHostnameService(), pkgconfig.Datadog)
 	pipelineProvider.Start()
 	stopper.Add(pipelineProvider)
 
