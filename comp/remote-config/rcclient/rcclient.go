@@ -8,6 +8,7 @@
 package rcclient
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -69,6 +70,8 @@ type provides struct {
 }
 
 func newRemoteConfigClient(deps dependencies) (provides, error) {
+	fmt.Printf("============== constructing RcClient ==========\n")
+
 	ipcAddress, err := config.GetIPCAddress()
 	if err != nil {
 		return provides{}, err

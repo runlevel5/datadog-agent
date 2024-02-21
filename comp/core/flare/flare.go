@@ -48,6 +48,8 @@ type flare struct {
 }
 
 func newFlare(deps dependencies) (Component, rcclient.TaskListenerProvider, error) {
+	fmt.Printf("============== constructing Flare.Component ==========\n")
+
 	f := &flare{
 		log:                   deps.Log,
 		config:                deps.Config,
