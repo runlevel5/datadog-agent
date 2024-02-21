@@ -10,15 +10,12 @@ import (
 	"fmt"
 	"strings"
 
-	compcorecfg "github.com/DataDog/datadog-agent/comp/core/config"
-	comptracecfg "github.com/DataDog/datadog-agent/comp/trace/config"
 	ddConfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/model"
 	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
 	"github.com/DataDog/datadog-agent/pkg/serverless/plugin"
 	"github.com/DataDog/datadog-agent/pkg/serverless/trace/types"
 	"github.com/DataDog/datadog-agent/pkg/trace/agent"
-	"github.com/DataDog/datadog-agent/pkg/trace/config"
 	"github.com/DataDog/datadog-agent/pkg/trace/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 
@@ -30,11 +27,6 @@ type ServerlessTraceAgent struct {
 	ta           *agent.Agent
 	spanModifier *spanModifier
 	cancel       context.CancelFunc
-}
-
-// LoadConfig is implementing Load to retrieve the config
-type LoadConfig struct {
-	Path string
 }
 
 // httpURLMetaKey is the key of the span meta containing the HTTP URL
@@ -65,17 +57,6 @@ const dnsNonRoutableAddressURLPrefix = "0.0.0.0"
 const dnsLocalHostAddressURLPrefix = "127.0.0.1"
 
 const invocationSpanResource = "dd-tracer-serverless-span"
-
-// Load loads the config from a file path
-func (l *LoadConfig) Load() (*config.AgentConfig, error) {
-	c, err := compcorecfg.NewServerlessConfig(l.Path)
-	if err != nil {
-		return nil, err
-	} else if c == nil {
-		return nil, fmt.Errorf("No error, but no configuration component was produced - bailing out")
-	}
-	return comptracecfg.LoadConfigFile(l.Path, c)
-}
 
 // NewAgent returns a ServerlessTraceAgent
 func Build() plugin.Plugin {

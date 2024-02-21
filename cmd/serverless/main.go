@@ -37,7 +37,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/serverless/proxy"
 	"github.com/DataDog/datadog-agent/pkg/serverless/random"
 	"github.com/DataDog/datadog-agent/pkg/serverless/registration"
-	"github.com/DataDog/datadog-agent/pkg/serverless/trace"
+	tracecfg "github.com/DataDog/datadog-agent/pkg/serverless/trace/config"
 	"github.com/DataDog/datadog-agent/pkg/serverless/trace/inferredspan"
 	tracetypes "github.com/DataDog/datadog-agent/pkg/serverless/trace/types"
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
@@ -218,7 +218,7 @@ func runAgent() {
 
 			traceAgent := buildTA.(func() serverlessPlugin.Plugin)()
 			args := tracetypes.Args{
-				LoadConfig:      &trace.LoadConfig{Path: datadogConfigPath},
+				LoadConfig:      &tracecfg.LoadConfig{Path: datadogConfigPath},
 				LambdaSpanChan:  lambdaSpanChan,
 				ColdStartSpanId: coldStartSpanId,
 			}
