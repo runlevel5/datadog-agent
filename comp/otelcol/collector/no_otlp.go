@@ -9,8 +9,10 @@
 package collector
 
 import (
-	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"go.uber.org/fx"
+
+	"github.com/DataDog/datadog-agent/comp/core/status"
+	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
 // Component represents the no-op Component interface.
@@ -25,8 +27,18 @@ func Module() fxutil.Module {
 		fx.Provide(newPipeline))
 }
 
-func newPipeline() (Component, error) {
-	return noOpComp{}, nil
+type provides struct {
+	fx.Out
+
+	Comp           Component
+	StatusProvider status.InformationProvider
+}
+
+func newPipeline() provides {
+	return provides{
+		Comp:           noOpComp{},
+		StatusProvider: status.NoopInformationProvider(),
+	}
 }
 
 type noOpComp struct{}
