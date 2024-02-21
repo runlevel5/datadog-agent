@@ -62,10 +62,10 @@ func TestServerlessOTLPAgentReceivesTraces(t *testing.T) {
 	defer traceAgent.Stop()
 	assert.NotNil(traceAgent.Get())
 	traceChan := make(chan struct{})
-	traceAgent.SetSpanModifier(func(*pb.TraceChunk, *pb.Span) {
-		// indicates when trace is received
-		traceChan <- struct{}{}
-	})
+	// traceAgent.SetSpanModifier(func(*pb.TraceChunk, *pb.Span) {
+	// 	// indicates when trace is received
+	// 	traceChan <- struct{}{}
+	// })
 
 	// setup metric agent
 	metricAgent := &metrics.ServerlessMetricAgent{

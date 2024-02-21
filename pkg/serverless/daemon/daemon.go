@@ -20,6 +20,7 @@ import (
 	serverlessLog "github.com/DataDog/datadog-agent/pkg/serverless/logs"
 	"github.com/DataDog/datadog-agent/pkg/serverless/metrics"
 	"github.com/DataDog/datadog-agent/pkg/serverless/otlp"
+	"github.com/DataDog/datadog-agent/pkg/serverless/plugin"
 	"github.com/DataDog/datadog-agent/pkg/serverless/tags"
 	"github.com/DataDog/datadog-agent/pkg/serverless/trace"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -205,8 +206,12 @@ func (d *Daemon) SetLogsAgent(logsAgent logsAgent.ServerlessLogsAgent) {
 }
 
 // SetTraceAgent sets the Agent instance for submitting traces
-func (d *Daemon) SetTraceAgent(traceAgent *trace.ServerlessTraceAgent) {
-	d.TraceAgent = traceAgent
+func (d *Daemon) SetTraceAgent(traceAgent plugin.Plugin) {
+	t, ok := traceAgent.(*trace.ServerlessTraceAgent)
+	if !ok {
+		panic("unexpected type set for trace-agent!")
+	}
+	d.TraceAgent = t
 }
 
 //nolint:revive // TODO(SERV) Fix revive linter
@@ -215,8 +220,12 @@ func (d *Daemon) SetOTLPAgent(otlpAgent *otlp.ServerlessOTLPAgent) {
 }
 
 //nolint:revive // TODO(SERV) Fix revive linter
-func (d *Daemon) SetColdStartSpanCreator(creator *trace.ColdStartSpanCreator) {
-	d.ColdStartCreator = creator
+func (d *Daemon) SetColdStartSpanCreator(creator plugin.Plugin) {
+	c, ok := creator.(*trace.ColdStartSpanCreator)
+	if !ok {
+		panic("unexpected type set for trace-agent!")
+	}
+	d.ColdStartCreator = c
 }
 
 // SetFlushStrategy sets the flush strategy to use.

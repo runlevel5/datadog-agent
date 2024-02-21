@@ -15,6 +15,8 @@ import (
 	ddConfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/model"
 	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
+	"github.com/DataDog/datadog-agent/pkg/serverless/plugin"
+	"github.com/DataDog/datadog-agent/pkg/serverless/trace/types"
 	"github.com/DataDog/datadog-agent/pkg/trace/agent"
 	"github.com/DataDog/datadog-agent/pkg/trace/config"
 	"github.com/DataDog/datadog-agent/pkg/trace/telemetry"
@@ -28,11 +30,6 @@ type ServerlessTraceAgent struct {
 	ta           *agent.Agent
 	spanModifier *spanModifier
 	cancel       context.CancelFunc
-}
-
-// Load abstracts the file configuration loading
-type Load interface {
-	Load() (*config.AgentConfig, error)
 }
 
 // LoadConfig is implementing Load to retrieve the config
@@ -80,35 +77,49 @@ func (l *LoadConfig) Load() (*config.AgentConfig, error) {
 	return comptracecfg.LoadConfigFile(l.Path, c)
 }
 
+// NewAgent returns a ServerlessTraceAgent
+func Build() plugin.Plugin {
+	return &ServerlessTraceAgent{}
+}
+
 // Start starts the agent
 //
 //nolint:revive // TODO(SERV) Fix revive linter
-func (s *ServerlessTraceAgent) Start(enabled bool, loadConfig Load, lambdaSpanChan chan<- *pb.Span, coldStartSpanId uint64) {
-	if enabled {
-		// Set the serverless config option which will be used to determine if
-		// hostname should be resolved. Skipping hostname resolution saves >1s
-		// in load time between gRPC calls and agent commands.
-		ddConfig.Datadog.Set("serverless.enabled", true, model.SourceAgentRuntime)
+func (s *ServerlessTraceAgent) Start(args interface{}) error {
 
-		tc, confErr := loadConfig.Load()
-		if confErr != nil {
-			log.Errorf("Unable to load trace agent config: %s", confErr)
-		} else {
-			context, cancel := context.WithCancel(context.Background())
-			tc.Hostname = ""
-			tc.SynchronousFlushing = true
-			s.ta = agent.NewAgent(context, tc, telemetry.NewNoopCollector(), &statsd.NoOpClient{})
-			s.spanModifier = &spanModifier{
-				coldStartSpanId: coldStartSpanId,
-				lambdaSpanChan:  lambdaSpanChan,
-			}
-
-			s.ta.ModifySpan = s.spanModifier.ModifySpan
-			s.ta.DiscardSpan = filterSpanFromLambdaLibraryOrRuntime
-			s.cancel = cancel
-			go s.ta.Run()
-		}
+	sArgs, ok := args.(*types.Args)
+	if !ok {
+		log.Errorf("Arguments passed are of unexpected type")
+		return fmt.Errorf("Arguments passed are of unexpected type")
 	}
+
+	// Set the serverless config option which will be used to determine if
+	// hostname should be resolved. Skipping hostname resolution saves >1s
+	// in load time between gRPC calls and agent commands.
+	ddConfig.Datadog.Set("serverless.enabled", true, model.SourceAgentRuntime)
+
+	tc, confErr := sArgs.LoadConfig.Load()
+	if confErr != nil {
+		log.Errorf("Unable to load trace agent config: %s", confErr)
+		return confErr
+	} else {
+		context, cancel := context.WithCancel(context.Background())
+		tc.Hostname = ""
+		tc.SynchronousFlushing = true
+		s.ta = agent.NewAgent(context, tc, telemetry.NewNoopCollector())
+		s.ta = agent.NewAgent(context, tc, telemetry.NewNoopCollector(), &statsd.NoOpClient{})
+		s.spanModifier = &spanModifier{
+			coldStartSpanId: sArgs.ColdStartSpanId,
+			lambdaSpanChan:  sArgs.LambdaSpanChan,
+		}
+
+		s.ta.ModifySpan = s.spanModifier.ModifySpan
+		s.ta.DiscardSpan = filterSpanFromLambdaLibraryOrRuntime
+		s.cancel = cancel
+		go s.ta.Run()
+	}
+
+	return nil
 }
 
 // Flush performs a synchronous flushing in the trace agent
@@ -134,10 +145,11 @@ func (s *ServerlessTraceAgent) SetTags(tagMap map[string]string) {
 }
 
 // Stop stops the trace agent
-func (s *ServerlessTraceAgent) Stop() {
+func (s *ServerlessTraceAgent) Stop() error {
 	if s.cancel != nil {
 		s.cancel()
 	}
+	return nil
 }
 
 //nolint:revive // TODO(SERV) Fix revive linter

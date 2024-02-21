@@ -7,12 +7,15 @@
 package trace
 
 import (
+	"fmt"
 	"os"
 	"sync"
 	"time"
 
 	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
 	serverlessLog "github.com/DataDog/datadog-agent/pkg/serverless/logs"
+	"github.com/DataDog/datadog-agent/pkg/serverless/plugin"
+	"github.com/DataDog/datadog-agent/pkg/serverless/trace/types"
 	"github.com/DataDog/datadog-agent/pkg/trace/api"
 	"github.com/DataDog/datadog-agent/pkg/trace/info"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -48,8 +51,33 @@ type ColdStartSpanCreator struct {
 	initStartTime         time.Time
 }
 
+// NewAgent returns a ServerlessTraceAgent
+func BuildColdStartSpanCreator() plugin.Plugin {
+	return &ColdStartSpanCreator{}
+}
+
 //nolint:revive // TODO(SERV) Fix revive linter
-func (c *ColdStartSpanCreator) Run() {
+func (c *ColdStartSpanCreator) Start(args interface{}) error {
+
+	cArgs, ok := args.(*types.ColdStartSpanArgs)
+	if !ok {
+		log.Errorf("Arguments passed are of unexpected type")
+		return fmt.Errorf("Arguments passed are of unexpected type")
+	}
+
+	ta, ok := cArgs.TraceAgent.(*ServerlessTraceAgent)
+	if !ok {
+		log.Errorf("Arguments passed are of unexpected type")
+		return fmt.Errorf("Arguments passed are of unexpected type")
+	}
+
+	// setup properties from args
+	c.TraceAgent = ta
+	c.LambdaSpanChan = cArgs.LambdaSpanChan
+	c.LambdaInitMetricChan = cArgs.LambdaInitMetricChan
+	c.ColdStartSpanId = cArgs.ColdStartSpanId
+	c.StopChan = make(chan struct{})
+
 	go func() {
 		for {
 			select {
@@ -64,12 +92,15 @@ func (c *ColdStartSpanCreator) Run() {
 			}
 		}
 	}()
+
+	return nil
 }
 
 //nolint:revive // TODO(SERV) Fix revive linter
-func (c *ColdStartSpanCreator) Stop() {
+func (c *ColdStartSpanCreator) Stop() error {
 	log.Debugf("[ColdStartCreator] - sending shutdown msg")
 	c.StopChan <- struct{}{}
+	return nil
 }
 
 func (c *ColdStartSpanCreator) handleLambdaSpan(traceAgentSpan *pb.Span) {

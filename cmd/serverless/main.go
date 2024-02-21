@@ -10,6 +10,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"plugin"
 	"strconv"
 	"sync"
 	"syscall"
@@ -32,11 +33,13 @@ import (
 	serverlessLogs "github.com/DataDog/datadog-agent/pkg/serverless/logs"
 	"github.com/DataDog/datadog-agent/pkg/serverless/metrics"
 	"github.com/DataDog/datadog-agent/pkg/serverless/otlp"
+	serverlessPlugin "github.com/DataDog/datadog-agent/pkg/serverless/plugin"
 	"github.com/DataDog/datadog-agent/pkg/serverless/proxy"
 	"github.com/DataDog/datadog-agent/pkg/serverless/random"
 	"github.com/DataDog/datadog-agent/pkg/serverless/registration"
 	"github.com/DataDog/datadog-agent/pkg/serverless/trace"
 	"github.com/DataDog/datadog-agent/pkg/serverless/trace/inferredspan"
+	tracetypes "github.com/DataDog/datadog-agent/pkg/serverless/trace/types"
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -195,12 +198,37 @@ func runAgent() {
 
 	// starts trace agent
 	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		traceAgent := &trace.ServerlessTraceAgent{}
-		traceAgent.Start(config.Datadog.GetBool("apm_config.enabled"), &trace.LoadConfig{Path: datadogConfigPath}, lambdaSpanChan, coldStartSpanId)
-		serverlessDaemon.SetTraceAgent(traceAgent)
-	}()
+
+	var p *plugin.Plugin
+	if config.Datadog.GetBool("apm_config.enabled") {
+		go func() {
+			defer wg.Done()
+
+			p, err = plugin.Open("trace_agent.so")
+			if err != nil {
+				log.Error("Unable to load trace-agent plugin. The trace agent will be unavailable.")
+				return
+			}
+
+			buildTA, err := p.Lookup("Build")
+			if err != nil {
+				log.Error("Unable to load trace-agent Instantiate symbol. The trace agent will be unavailable.")
+				return
+			}
+
+			traceAgent := buildTA.(func() serverlessPlugin.Plugin)()
+			args := tracetypes.Args{
+				LoadConfig:      &trace.LoadConfig{Path: datadogConfigPath},
+				LambdaSpanChan:  lambdaSpanChan,
+				ColdStartSpanId: coldStartSpanId,
+			}
+			if err = traceAgent.Start(args); err != nil {
+				log.Errorf("Unable to start trace-agent: %v. The trace agent will be unavailable.", err)
+				return
+			}
+			serverlessDaemon.SetTraceAgent(traceAgent)
+		}()
+	}
 
 	// starts otlp agent
 	wg.Add(1)
@@ -263,23 +291,37 @@ func runAgent() {
 
 	wg.Wait()
 
-	coldStartSpanCreator := &trace.ColdStartSpanCreator{
-		LambdaSpanChan:       lambdaSpanChan,
-		LambdaInitMetricChan: lambdaInitMetricChan,
-		TraceAgent:           serverlessDaemon.TraceAgent,
-		StopChan:             make(chan struct{}),
-		ColdStartSpanId:      coldStartSpanId,
-	}
+	if config.Datadog.GetBool("apm_config.enabled") {
 
-	log.Debug("Starting ColdStartSpanCreator")
-	coldStartSpanCreator.Run()
-	log.Debug("Setting ColdStartSpanCreator on Daemon")
-	serverlessDaemon.SetColdStartSpanCreator(coldStartSpanCreator)
+		buildCSSC, err := p.Lookup("BuildColdStartSpanCreator")
+		if err != nil {
+			log.Error("Unable to load trace-agent Instantiate symbol. The trace agent will be unavailable.")
+			return
+		}
 
-	ta := serverlessDaemon.TraceAgent.Get()
-	if ta == nil {
-		log.Error("Unexpected nil instance of the trace-agent")
-		return
+		coldStartSpanCreator := buildCSSC.(func() serverlessPlugin.Plugin)()
+		args := tracetypes.ColdStartSpanArgs{
+			LambdaSpanChan:       lambdaSpanChan,
+			LambdaInitMetricChan: lambdaInitMetricChan,
+			TraceAgent:           serverlessDaemon.TraceAgent,
+			StopChan:             make(chan struct{}),
+			ColdStartSpanId:      coldStartSpanId,
+		}
+		if err = coldStartSpanCreator.Start(args); err != nil {
+			log.Errorf("Unable to start trace-agent: %v. The trace agent will be unavailable.", err)
+			return
+		}
+
+		log.Debug("Starting ColdStartSpanCreator")
+		coldStartSpanCreator.Start(args)
+		log.Debug("Setting ColdStartSpanCreator on Daemon")
+		serverlessDaemon.SetColdStartSpanCreator(coldStartSpanCreator)
+
+		ta := serverlessDaemon.TraceAgent.Get()
+		if ta == nil {
+			log.Error("Unexpected nil instance of the trace-agent")
+			return
+		}
 	}
 
 	// set up invocation processor in the serverless Daemon to be used for the proxy and/or lifecycle API
