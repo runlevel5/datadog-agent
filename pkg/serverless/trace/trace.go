@@ -13,7 +13,6 @@ import (
 	ddConfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/model"
 	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
-	"github.com/DataDog/datadog-agent/pkg/serverless/plugin"
 	"github.com/DataDog/datadog-agent/pkg/serverless/trace/types"
 	"github.com/DataDog/datadog-agent/pkg/trace/agent"
 	"github.com/DataDog/datadog-agent/pkg/trace/telemetry"
@@ -57,11 +56,6 @@ const dnsNonRoutableAddressURLPrefix = "0.0.0.0"
 const dnsLocalHostAddressURLPrefix = "127.0.0.1"
 
 const invocationSpanResource = "dd-tracer-serverless-span"
-
-// NewAgent returns a ServerlessTraceAgent
-func Build() plugin.Plugin {
-	return &ServerlessTraceAgent{}
-}
 
 // Start starts the agent
 //

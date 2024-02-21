@@ -14,7 +14,6 @@ import (
 
 	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
 	serverlessLog "github.com/DataDog/datadog-agent/pkg/serverless/logs"
-	"github.com/DataDog/datadog-agent/pkg/serverless/plugin"
 	"github.com/DataDog/datadog-agent/pkg/serverless/trace/types"
 	"github.com/DataDog/datadog-agent/pkg/trace/api"
 	"github.com/DataDog/datadog-agent/pkg/trace/info"
@@ -49,11 +48,6 @@ type ColdStartSpanCreator struct {
 	initDuration          float64
 	StopChan              chan struct{}
 	initStartTime         time.Time
-}
-
-// NewAgent returns a ServerlessTraceAgent
-func BuildColdStartSpanCreator() plugin.Plugin {
-	return &ColdStartSpanCreator{}
 }
 
 //nolint:revive // TODO(SERV) Fix revive linter
