@@ -13,9 +13,9 @@ type Load interface {
 }
 
 type ColdStartSpanArgs struct {
-	LambdaSpanChan       chan<- *pb.Span
+	LambdaSpanChan       <-chan *pb.Span
 	LambdaInitMetricChan chan *serverlessLogs.LambdaInitMetric
-	TraceAgent           plugin.Plugin
+	TraceAgent           plugin.Plugin // keeping this generic to avoid deps
 	StopChan             chan struct{}
 	ColdStartSpanId      uint64
 }

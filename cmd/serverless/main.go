@@ -322,38 +322,38 @@ func runAgent() {
 			log.Error("Unexpected nil instance of the trace-agent")
 			return
 		}
-	}
 
-	// set up invocation processor in the serverless Daemon to be used for the proxy and/or lifecycle API
-	serverlessDaemon.InvocationProcessor = &invocationlifecycle.LifecycleProcessor{
-		ExtraTags:            serverlessDaemon.ExtraTags,
-		Demux:                serverlessDaemon.MetricAgent.Demux,
-		ProcessTrace:         ta.Process,
-		DetectLambdaLibrary:  func() bool { return serverlessDaemon.LambdaLibraryDetected },
-		InferredSpansEnabled: inferredspan.IsInferredSpansEnabled(),
-	}
-
-	if appsecProxyProcessor != nil {
-		// AppSec runs as a Runtime API proxy. The reverse proxy was already
-		// started by appsec.New(). A span modifier needs to be added in order
-		// to detect the finished request spans and run the complete AppSec
-		// monitoring logic, and ultimately adding the AppSec events to them.
-		ta.ModifySpan = appsecProxyProcessor.WrapSpanModifier(serverlessDaemon.ExecutionContext, ta.ModifySpan)
-		// Set the default rate limiting to approach 1 trace/min in live circumstances to limit non ASM related traces as much as possible.
-		// This limit is decided in the Standalone ASM Billing RFC and ensures reducing non ASM-related trace throughput
-		// while keeping billing and service catalog running correctly.
-		// In case of ASM event, the trace priority will be set to manual keep
-		if appsecConfig.IsStandalone() {
-			ta.PrioritySampler.UpdateTargetTPS(1. / 120)
+		// set up invocation processor in the serverless Daemon to be used for the proxy and/or lifecycle API
+		serverlessDaemon.InvocationProcessor = &invocationlifecycle.LifecycleProcessor{
+			ExtraTags:            serverlessDaemon.ExtraTags,
+			Demux:                serverlessDaemon.MetricAgent.Demux,
+			ProcessTrace:         ta.Process,
+			DetectLambdaLibrary:  func() bool { return serverlessDaemon.LambdaLibraryDetected },
+			InferredSpansEnabled: inferredspan.IsInferredSpansEnabled(),
 		}
-	} else if enabled, _ := strconv.ParseBool(os.Getenv("DD_EXPERIMENTAL_ENABLE_PROXY")); enabled {
-		// start the experimental proxy if enabled
-		log.Debug("Starting the experimental runtime api proxy")
-		proxy.Start(
-			"127.0.0.1:9000",
-			"127.0.0.1:9001",
-			serverlessDaemon.InvocationProcessor,
-		)
+
+		if appsecProxyProcessor != nil {
+			// AppSec runs as a Runtime API proxy. The reverse proxy was already
+			// started by appsec.New(). A span modifier needs to be added in order
+			// to detect the finished request spans and run the complete AppSec
+			// monitoring logic, and ultimately adding the AppSec events to them.
+			ta.ModifySpan = appsecProxyProcessor.WrapSpanModifier(serverlessDaemon.ExecutionContext, ta.ModifySpan)
+			// Set the default rate limiting to approach 1 trace/min in live circumstances to limit non ASM related traces as much as possible.
+			// This limit is decided in the Standalone ASM Billing RFC and ensures reducing non ASM-related trace throughput
+			// while keeping billing and service catalog running correctly.
+			// In case of ASM event, the trace priority will be set to manual keep
+			if appsecConfig.IsStandalone() {
+				ta.PrioritySampler.UpdateTargetTPS(1. / 120)
+			}
+		} else if enabled, _ := strconv.ParseBool(os.Getenv("DD_EXPERIMENTAL_ENABLE_PROXY")); enabled {
+			// start the experimental proxy if enabled
+			log.Debug("Starting the experimental runtime api proxy")
+			proxy.Start(
+				"127.0.0.1:9000",
+				"127.0.0.1:9001",
+				serverlessDaemon.InvocationProcessor,
+			)
+		}
 	}
 
 	serverlessDaemon.ComputeGlobalTags(configUtils.GetConfiguredTags(config.Datadog, true))
