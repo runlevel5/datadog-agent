@@ -9,12 +9,12 @@ package config
 
 import (
 	"github.com/DataDog/datadog-agent/comp/core/tagger"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/pkg/trace/config"
 )
 
 func containerTagsFunc(cid string) ([]string, error) {
-	return tagger.Tag("container_id://"+cid, collectors.HighCardinality)
+	return tagger.Tag("container_id://"+cid, types.HighCardinality)
 }
 
 func containerSetup(cfg *config.AgentConfig, procRoot string) {

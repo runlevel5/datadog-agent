@@ -11,7 +11,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/DataDog/datadog-agent/comp/otelcol/otlp/internal/logsagentexporter"
+	otlpmetrics "github.com/DataDog/opentelemetry-mapping-go/pkg/otlp/metrics"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/collector/exporter/loggingexporter"
@@ -29,8 +29,9 @@ import (
 
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/tagger"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	collectorstypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/otelcol/otlp/components/exporter/serializerexporter"
+	"github.com/DataDog/datadog-agent/comp/otelcol/otlp/internal/logsagentexporter"
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
 	"github.com/DataDog/datadog-agent/pkg/serializer"
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
@@ -38,17 +39,16 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	zapAgent "github.com/DataDog/datadog-agent/pkg/util/log/zap"
 	"github.com/DataDog/datadog-agent/pkg/version"
-	otlpmetrics "github.com/DataDog/opentelemetry-mapping-go/pkg/otlp/metrics"
 )
 
 var pipelineError = atomic.NewError(nil)
 
 type tagEnricher struct {
-	cardinality collectors.TagCardinality
+	cardinality collectorstypes.TagCardinality
 }
 
 func (t *tagEnricher) SetCardinality(cardinality string) (err error) {
-	t.cardinality, err = collectors.StringToTagCardinality(cardinality)
+	t.cardinality, err = collectorstypes.StringToTagCardinality(cardinality)
 	if err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func getComponents(s serializer.MetricSerializer, logsAgentChannel chan *message
 
 	exporterFactories := []exporter.Factory{
 		otlpexporter.NewFactory(),
-		serializerexporter.NewFactory(s, &tagEnricher{cardinality: collectors.LowCardinality}, hostname.Get),
+		serializerexporter.NewFactory(s, &tagEnricher{cardinality: collectorstypes.LowCardinality}, hostname.Get),
 		loggingexporter.NewFactory(),
 	}
 

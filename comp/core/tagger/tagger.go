@@ -10,10 +10,13 @@ import (
 	"reflect"
 	"sync"
 
+	"go.uber.org/fx"
+
 	configComponent "github.com/DataDog/datadog-agent/comp/core/config"
 	logComp "github.com/DataDog/datadog-agent/comp/core/log"
 	tagger_api "github.com/DataDog/datadog-agent/comp/core/tagger/api"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	collectorstypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/local"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/remote"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/replay"
@@ -29,7 +32,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/optional"
-	"go.uber.org/fx"
 )
 
 type dependencies struct {
@@ -67,11 +69,11 @@ type TaggerClient struct {
 var (
 	// ChecksCardinality defines the cardinality of tags we should send for check metrics
 	// this can still be overridden when calling get_tags in python checks.
-	ChecksCardinality collectors.TagCardinality
+	ChecksCardinality collectorstypes.TagCardinality
 
 	// DogstatsdCardinality defines the cardinality of tags we should send for metrics from
 	// dogstatsd.
-	DogstatsdCardinality collectors.TagCardinality
+	DogstatsdCardinality collectorstypes.TagCardinality
 
 	// we use to pull tagger metrics in dogstatsd. Pulling it later in the
 	// pipeline improve memory allocation. We kept the old name to be
@@ -135,16 +137,16 @@ func newTaggerClient(deps dependencies) Component {
 		var err error
 		checkCard := deps.Config.GetString("checks_tag_cardinality")
 		dsdCard := deps.Config.GetString("dogstatsd_tag_cardinality")
-		ChecksCardinality, err = collectors.StringToTagCardinality(checkCard)
+		ChecksCardinality, err = collectorstypes.StringToTagCardinality(checkCard)
 		if err != nil {
 			deps.Log.Warnf("failed to parse check tag cardinality, defaulting to low. Error: %s", err)
-			ChecksCardinality = collectors.LowCardinality
+			ChecksCardinality = collectorstypes.LowCardinality
 		}
 
-		DogstatsdCardinality, err = collectors.StringToTagCardinality(dsdCard)
+		DogstatsdCardinality, err = collectorstypes.StringToTagCardinality(dsdCard)
 		if err != nil {
 			deps.Log.Warnf("failed to parse dogstatsd tag cardinality, defaulting to low. Error: %s", err)
-			DogstatsdCardinality = collectors.LowCardinality
+			DogstatsdCardinality = collectorstypes.LowCardinality
 		}
 		// Main context passed to components, consistent with the one used in the workloadmeta component
 		mainCtx, _ := common.GetMainCtxCancel()
@@ -196,7 +198,7 @@ func (t *TaggerClient) GetEntity(entityID string) (*types.Entity, error) {
 // Tag queries the captureTagger (for replay scenarios) or the defaultTagger.
 // It can return tags at high cardinality (with tags about individual containers),
 // or at orchestrator cardinality (pod/task level).
-func (t *TaggerClient) Tag(entity string, cardinality collectors.TagCardinality) ([]string, error) {
+func (t *TaggerClient) Tag(entity string, cardinality collectorstypes.TagCardinality) ([]string, error) {
 	// TODO: defer unlock once performance overhead of defer is negligible
 	t.mux.RLock()
 	if t.captureTagger != nil {
@@ -214,7 +216,7 @@ func (t *TaggerClient) Tag(entity string, cardinality collectors.TagCardinality)
 // sources and appends them to the TagsAccumulator.  It can return tags at high
 // cardinality (with tags about individual containers), or at orchestrator
 // cardinality (pod/task level).
-func (t *TaggerClient) AccumulateTagsFor(entity string, cardinality collectors.TagCardinality, tb tagset.TagsAccumulator) error {
+func (t *TaggerClient) AccumulateTagsFor(entity string, cardinality collectorstypes.TagCardinality, tb tagset.TagsAccumulator) error {
 	// TODO: defer unlock once performance overhead of defer is negligible
 	t.mux.RLock()
 	if t.captureTagger != nil {
@@ -230,7 +232,7 @@ func (t *TaggerClient) AccumulateTagsFor(entity string, cardinality collectors.T
 
 // GetEntityHash returns the hash for the tags associated with the given entity
 // Returns an empty string if the tags lookup fails
-func (t *TaggerClient) GetEntityHash(entity string, cardinality collectors.TagCardinality) string {
+func (t *TaggerClient) GetEntityHash(entity string, cardinality collectorstypes.TagCardinality) string {
 	tags, err := t.Tag(entity, cardinality)
 	if err != nil {
 		return ""
@@ -256,7 +258,7 @@ func (t *TaggerClient) Standard(entity string) ([]string, error) {
 
 // AgentTags returns the agent tags
 // It relies on the container provider utils to get the Agent container ID
-func (t *TaggerClient) AgentTags(cardinality collectors.TagCardinality) ([]string, error) {
+func (t *TaggerClient) AgentTags(cardinality collectorstypes.TagCardinality) ([]string, error) {
 	ctrID, err := metrics.GetProvider().GetMetaCollector().GetSelfContainerID()
 	if err != nil {
 		return nil, err
@@ -272,7 +274,7 @@ func (t *TaggerClient) AgentTags(cardinality collectors.TagCardinality) ([]strin
 
 // GlobalTags queries global tags that should apply to all data coming from the
 // agent.
-func (t *TaggerClient) GlobalTags(cardinality collectors.TagCardinality) ([]string, error) {
+func (t *TaggerClient) GlobalTags(cardinality collectorstypes.TagCardinality) ([]string, error) {
 	t.mux.RLock()
 	if t.captureTagger != nil {
 		tags, err := t.captureTagger.Tag(collectors.GlobalEntityID, cardinality)
@@ -287,7 +289,7 @@ func (t *TaggerClient) GlobalTags(cardinality collectors.TagCardinality) ([]stri
 
 // globalTagBuilder queries global tags that should apply to all data coming
 // from the agent and appends them to the TagsAccumulator
-func (t *TaggerClient) globalTagBuilder(cardinality collectors.TagCardinality, tb tagset.TagsAccumulator) error {
+func (t *TaggerClient) globalTagBuilder(cardinality collectorstypes.TagCardinality, tb tagset.TagsAccumulator) error {
 	t.mux.RLock()
 	if t.captureTagger != nil {
 		err := t.captureTagger.AccumulateTagsFor(collectors.GlobalEntityID, cardinality, tb)
@@ -302,7 +304,7 @@ func (t *TaggerClient) globalTagBuilder(cardinality collectors.TagCardinality, t
 }
 
 // List the content of the defaulTagger
-func (t *TaggerClient) List(cardinality collectors.TagCardinality) tagger_api.TaggerListResponse {
+func (t *TaggerClient) List(cardinality collectorstypes.TagCardinality) tagger_api.TaggerListResponse {
 	return t.defaultTagger.List(cardinality)
 }
 
@@ -345,14 +347,14 @@ func (t *TaggerClient) EnrichTags(tb tagset.TagsAccumulator, udsOrigin string, c
 	}
 }
 
-// taggerCardinality converts tagger cardinality string to collectors.TagCardinality
+// taggerCardinality converts tagger cardinality string to collectorstypes.TagCardinality
 // It defaults to DogstatsdCardinality if the string is empty or unknown
-func taggerCardinality(cardinality string) collectors.TagCardinality {
+func taggerCardinality(cardinality string) collectorstypes.TagCardinality {
 	if cardinality == "" {
 		return DogstatsdCardinality
 	}
 
-	taggerCardinality, err := collectors.StringToTagCardinality(cardinality)
+	taggerCardinality, err := collectorstypes.StringToTagCardinality(cardinality)
 	if err != nil {
 		log.Tracef("Couldn't convert cardinality tag: %v", err)
 		return DogstatsdCardinality
@@ -362,7 +364,7 @@ func taggerCardinality(cardinality string) collectors.TagCardinality {
 }
 
 // Subscribe calls defaultTagger.Subscribe
-func (t *TaggerClient) Subscribe(cardinality collectors.TagCardinality) chan []types.EntityEvent {
+func (t *TaggerClient) Subscribe(cardinality collectorstypes.TagCardinality) chan []types.EntityEvent {
 	return t.defaultTagger.Subscribe(cardinality)
 }
 

@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	collectorstypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/types"
 )
 
@@ -36,14 +36,14 @@ func TestSubscriber(t *testing.T) {
 
 	s := NewSubscriber()
 
-	prevCh := s.Subscribe(collectors.LowCardinality, nil)
+	prevCh := s.Subscribe(collectorstypes.LowCardinality, nil)
 
 	s.Notify([]types.EntityEvent{
 		events["added"],
 		events["modified"],
 	})
 
-	newCh := s.Subscribe(collectors.LowCardinality, []types.EntityEvent{
+	newCh := s.Subscribe(collectorstypes.LowCardinality, []types.EntityEvent{
 		events["added"],
 	})
 

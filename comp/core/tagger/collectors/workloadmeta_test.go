@@ -11,13 +11,15 @@ import (
 	"sort"
 	"testing"
 
+	"go.uber.org/fx"
+
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
+	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/utils"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes"
-	"go.uber.org/fx"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -99,7 +101,7 @@ func TestHandleKubePod(t *testing.T) {
 		annotationsAsTags map[string]string
 		nsLabelsAsTags    map[string]string
 		pod               workloadmeta.KubernetesPod
-		expected          []*TagInfo
+		expected          []*types.TagInfo
 	}{
 		{
 			name: "fully formed pod (no containers)",
@@ -177,7 +179,7 @@ func TestHandleKubePod(t *testing.T) {
 				// Phase tags
 				Phase: "Running",
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source: podSource,
 					Entity: podTaggerEntityID,
@@ -229,7 +231,7 @@ func TestHandleKubePod(t *testing.T) {
 					},
 				},
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source:       podSource,
 					Entity:       podTaggerEntityID,
@@ -284,7 +286,7 @@ func TestHandleKubePod(t *testing.T) {
 					},
 				},
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source:       podSource,
 					Entity:       podTaggerEntityID,
@@ -329,7 +331,7 @@ func TestHandleKubePod(t *testing.T) {
 					},
 				},
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source:       podSource,
 					Entity:       podTaggerEntityID,
@@ -359,7 +361,7 @@ func TestHandleKubePod(t *testing.T) {
 					},
 				},
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source:       podSource,
 					Entity:       podTaggerEntityID,
@@ -388,7 +390,7 @@ func TestHandleKubePod(t *testing.T) {
 					Namespace: podNamespace,
 				},
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source:       podSource,
 					Entity:       podTaggerEntityID,
@@ -418,7 +420,7 @@ func TestHandleKubePod(t *testing.T) {
 				// kube_service tags
 				KubeServices: []string{"service1", "service2"},
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source:       podSource,
 					Entity:       podTaggerEntityID,
@@ -488,7 +490,7 @@ func TestHandleECSTask(t *testing.T) {
 	tests := []struct {
 		name     string
 		task     workloadmeta.ECSTask
-		expected []*TagInfo
+		expected []*types.TagInfo
 	}{
 		{
 			name: "basic ECS EC2 task",
@@ -516,7 +518,7 @@ func TestHandleECSTask(t *testing.T) {
 					},
 				},
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source:       taskSource,
 					Entity:       taggerEntityID,
@@ -557,7 +559,7 @@ func TestHandleECSTask(t *testing.T) {
 				},
 				AvailabilityZone: "us-east-1c",
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source:       taskSource,
 					Entity:       taggerEntityID,
@@ -645,7 +647,7 @@ func TestHandleContainer(t *testing.T) {
 		labelsAsTags map[string]string
 		envAsTags    map[string]string
 		container    workloadmeta.Container
-		expected     []*TagInfo
+		expected     []*types.TagInfo
 	}{
 		{
 			name: "fully formed container",
@@ -668,7 +670,7 @@ func TestHandleContainer(t *testing.T) {
 					Tag:       "latest",
 				},
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source: containerSource,
 					Entity: taggerEntityID,
@@ -709,7 +711,7 @@ func TestHandleContainer(t *testing.T) {
 			envAsTags: map[string]string{
 				"team": "owner_team",
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source: containerSource,
 					Entity: taggerEntityID,
@@ -744,7 +746,7 @@ func TestHandleContainer(t *testing.T) {
 			labelsAsTags: map[string]string{
 				"team": "owner_team",
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source: containerSource,
 					Entity: taggerEntityID,
@@ -781,7 +783,7 @@ func TestHandleContainer(t *testing.T) {
 			envAsTags: map[string]string{
 				"*": "custom_env_prefix_%%env%%",
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source: containerSource,
 					Entity: taggerEntityID,
@@ -815,7 +817,7 @@ func TestHandleContainer(t *testing.T) {
 					Tag:       "",
 				},
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source: containerSource,
 					Entity: taggerEntityID,
@@ -848,7 +850,7 @@ func TestHandleContainer(t *testing.T) {
 					"NOMAD_DC":         "test-dc",
 				},
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source: containerSource,
 					Entity: taggerEntityID,
@@ -882,7 +884,7 @@ func TestHandleContainer(t *testing.T) {
 					"MESOS_TASK_ID":     "system_dd-agent.dcc75b42-4b87-11e7-9a62-70b3d5800001",
 				},
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source: containerSource,
 					Entity: taggerEntityID,
@@ -926,7 +928,7 @@ func TestHandleContainer(t *testing.T) {
 					},
 				},
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source: containerSource,
 					Entity: taggerEntityID,
@@ -961,7 +963,7 @@ func TestHandleContainer(t *testing.T) {
 					},
 				},
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source: containerSource,
 					Entity: taggerEntityID,
@@ -990,7 +992,7 @@ func TestHandleContainer(t *testing.T) {
 					},
 				},
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source: containerSource,
 					Entity: taggerEntityID,
@@ -1018,7 +1020,7 @@ func TestHandleContainer(t *testing.T) {
 					Name: containerName,
 				},
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source: containerSource,
 					Entity: taggerEntityID,
@@ -1064,7 +1066,7 @@ func TestHandleContainerImage(t *testing.T) {
 	tests := []struct {
 		name     string
 		image    workloadmeta.ContainerImageMetadata
-		expected []*TagInfo
+		expected []*types.TagInfo
 	}{
 		{
 			name: "basic",
@@ -1094,7 +1096,7 @@ func TestHandleContainerImage(t *testing.T) {
 				OSVersion:    "6.22",
 				Architecture: "80486DX",
 			},
-			expected: []*TagInfo{
+			expected: []*types.TagInfo{
 				{
 					Source:               containerImageSource,
 					Entity:               taggerEntityID,
@@ -1192,7 +1194,7 @@ func TestHandleDelete(t *testing.T) {
 		Entity: pod,
 	})
 
-	expected := []*TagInfo{
+	expected := []*types.TagInfo{
 		{
 			Source:       podSource,
 			Entity:       podTaggerEntityID,
@@ -1215,10 +1217,10 @@ func TestHandleDelete(t *testing.T) {
 }
 
 type fakeProcessor struct {
-	ch chan []*TagInfo
+	ch chan []*types.TagInfo
 }
 
-func (p *fakeProcessor) ProcessTagInfo(tagInfos []*TagInfo) {
+func (p *fakeProcessor) ProcessTagInfo(tagInfos []*types.TagInfo) {
 	p.ch <- tagInfos
 }
 
@@ -1242,7 +1244,7 @@ func TestHandlePodWithDeletedContainer(t *testing.T) {
 	}
 	podTaggerEntityID := fmt.Sprintf("kubernetes_pod_uid://%s", pod.ID)
 
-	collectorCh := make(chan []*TagInfo, 10)
+	collectorCh := make(chan []*types.TagInfo, 10)
 
 	collector := &WorkloadMetaCollector{
 		store: fxutil.Test[workloadmeta.Mock](t, fx.Options(
@@ -1274,7 +1276,7 @@ func TestHandlePodWithDeletedContainer(t *testing.T) {
 	collector.processEvents(eventBundle)
 	close(collectorCh)
 
-	expected := &TagInfo{
+	expected := &types.TagInfo{
 		Source:       podSource,
 		Entity:       containerToBeDeletedTaggerEntityID,
 		DeleteEntity: true,
@@ -1405,7 +1407,7 @@ func Test_mergeMaps(t *testing.T) {
 	}
 }
 
-func assertTagInfoEqual(t *testing.T, expected *TagInfo, item *TagInfo) bool {
+func assertTagInfoEqual(t *testing.T, expected *types.TagInfo, item *types.TagInfo) bool {
 	t.Helper()
 	sort.Strings(expected.LowCardTags)
 	sort.Strings(item.LowCardTags)
@@ -1422,7 +1424,7 @@ func assertTagInfoEqual(t *testing.T, expected *TagInfo, item *TagInfo) bool {
 	return assert.Equal(t, expected, item)
 }
 
-func assertTagInfoListEqual(t *testing.T, expectedUpdates []*TagInfo, updates []*TagInfo) {
+func assertTagInfoListEqual(t *testing.T, expectedUpdates []*types.TagInfo, updates []*types.TagInfo) {
 	t.Helper()
 	assert.Equal(t, len(expectedUpdates), len(updates))
 	for i := 0; i < len(expectedUpdates); i++ {

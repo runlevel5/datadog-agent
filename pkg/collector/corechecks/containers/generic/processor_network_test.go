@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-agent/comp/core/tagger"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	collectorstypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics"
@@ -139,15 +139,15 @@ func TestNetworkProcessorExtension(t *testing.T) {
 	// Running them through the ProcessorExtension
 	networkProcessor.PreProcess(MockSendMetric, mockSender)
 
-	container1Tags, _ := fakeTagger.Tag("container_id://1", collectors.HighCardinality)
+	container1Tags, _ := fakeTagger.Tag("container_id://1", collectorstypes.HighCardinality)
 	networkProcessor.Process(container1Tags, container1, mockCollector, 0)
-	container2Tags, _ := fakeTagger.Tag("container_id://2", collectors.HighCardinality)
+	container2Tags, _ := fakeTagger.Tag("container_id://2", collectorstypes.HighCardinality)
 	networkProcessor.Process(container2Tags, container2, mockCollector, 0)
-	container3Tags, _ := fakeTagger.Tag("container_id://3", collectors.HighCardinality)
+	container3Tags, _ := fakeTagger.Tag("container_id://3", collectorstypes.HighCardinality)
 	networkProcessor.Process(container3Tags, container3, mockCollector, 0)
-	container4Tags, _ := fakeTagger.Tag("container_id://4", collectors.HighCardinality)
+	container4Tags, _ := fakeTagger.Tag("container_id://4", collectorstypes.HighCardinality)
 	networkProcessor.Process(container4Tags, container4, mockCollector, 0)
-	container5Tags, _ := fakeTagger.Tag("container_id://5", collectors.HighCardinality)
+	container5Tags, _ := fakeTagger.Tag("container_id://5", collectorstypes.HighCardinality)
 	networkProcessor.Process(container5Tags, container5, mockCollector, 0)
 
 	networkProcessor.PostProcess()

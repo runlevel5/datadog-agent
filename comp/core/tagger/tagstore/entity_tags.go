@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	collectorstypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/types"
 	"github.com/DataDog/datadog-agent/pkg/tagset"
 )
@@ -42,16 +43,16 @@ func (e *EntityTags) getStandard() []string {
 	return tags
 }
 
-func (e *EntityTags) get(cardinality collectors.TagCardinality) []string {
+func (e *EntityTags) get(cardinality collectorstypes.TagCardinality) []string {
 	return e.getHashedTags(cardinality).Get()
 }
 
-func (e *EntityTags) getHashedTags(cardinality collectors.TagCardinality) tagset.HashedTags {
+func (e *EntityTags) getHashedTags(cardinality collectorstypes.TagCardinality) tagset.HashedTags {
 	e.computeCache()
 
-	if cardinality == collectors.HighCardinality {
+	if cardinality == collectorstypes.HighCardinality {
 		return e.cachedAll
-	} else if cardinality == collectors.OrchestratorCardinality {
+	} else if cardinality == collectorstypes.OrchestratorCardinality {
 		return e.cachedOrchestrator
 	}
 	return e.cachedLow
@@ -80,8 +81,8 @@ func (e *EntityTags) computeCache() {
 		return
 	}
 
-	tagList := make(map[collectors.TagCardinality][]string)
-	tagMap := make(map[string]collectors.CollectorPriority)
+	tagList := make(map[collectorstypes.TagCardinality][]string)
+	tagMap := make(map[string]collectorstypes.CollectorPriority)
 
 	var sources []string
 	for source := range e.sourceTags {
@@ -102,7 +103,7 @@ func (e *EntityTags) computeCache() {
 	// reports. we don't want two collectors running with the same priority
 	// in the first place, so this code does not check for duplicates in
 	// that case to keep code simpler.
-	insertWithPriority := func(source string, tags []string, cardinality collectors.TagCardinality) {
+	insertWithPriority := func(source string, tags []string, cardinality collectorstypes.TagCardinality) {
 		prio := collectors.CollectorPriorities[source]
 		for _, t := range tags {
 			tagName := strings.SplitN(t, ":", 2)[0]
@@ -118,18 +119,18 @@ func (e *EntityTags) computeCache() {
 
 	for _, source := range sources {
 		tags := e.sourceTags[source]
-		insertWithPriority(source, tags.lowCardTags, collectors.LowCardinality)
-		insertWithPriority(source, tags.orchestratorCardTags, collectors.OrchestratorCardinality)
-		insertWithPriority(source, tags.highCardTags, collectors.HighCardinality)
+		insertWithPriority(source, tags.lowCardTags, collectorstypes.LowCardinality)
+		insertWithPriority(source, tags.orchestratorCardTags, collectorstypes.OrchestratorCardinality)
+		insertWithPriority(source, tags.highCardTags, collectorstypes.HighCardinality)
 	}
 
-	tags := append(tagList[collectors.LowCardinality], tagList[collectors.OrchestratorCardinality]...)
-	tags = append(tags, tagList[collectors.HighCardinality]...)
+	tags := append(tagList[collectorstypes.LowCardinality], tagList[collectorstypes.OrchestratorCardinality]...)
+	tags = append(tags, tagList[collectorstypes.HighCardinality]...)
 
 	cached := tagset.NewHashedTagsFromSlice(tags)
 
-	lowCardTags := len(tagList[collectors.LowCardinality])
-	orchCardTags := len(tagList[collectors.OrchestratorCardinality])
+	lowCardTags := len(tagList[collectorstypes.LowCardinality])
+	orchCardTags := len(tagList[collectorstypes.OrchestratorCardinality])
 
 	// Write cache
 	e.cacheValid = true

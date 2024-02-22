@@ -13,7 +13,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/DataDog/datadog-agent/comp/core"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/tagset"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
@@ -30,7 +30,7 @@ func TestTagBuilder(t *testing.T) {
 	tagger.Start(context.Background())
 	defer tagger.Stop()
 
-	tagger.tagStore.ProcessTagInfo([]*collectors.TagInfo{
+	tagger.tagStore.ProcessTagInfo([]*types.TagInfo{
 		{
 			Entity:       "entity_name",
 			Source:       "stream",
@@ -45,7 +45,7 @@ func TestTagBuilder(t *testing.T) {
 	})
 
 	tb := tagset.NewHashlessTagsAccumulator()
-	err := tagger.AccumulateTagsFor("entity_name", collectors.HighCardinality, tb)
+	err := tagger.AccumulateTagsFor("entity_name", types.HighCardinality, tb)
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, []string{"high", "low1", "low2"}, tb.Get())
 }

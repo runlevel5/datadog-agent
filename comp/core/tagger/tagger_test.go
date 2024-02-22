@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	collectortypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/pkg/tagset"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
@@ -19,27 +19,27 @@ func Test_taggerCardinality(t *testing.T) {
 	tests := []struct {
 		name        string
 		cardinality string
-		want        collectors.TagCardinality
+		want        collectortypes.TagCardinality
 	}{
 		{
 			name:        "high",
 			cardinality: "high",
-			want:        collectors.HighCardinality,
+			want:        collectortypes.HighCardinality,
 		},
 		{
 			name:        "orchestrator",
 			cardinality: "orchestrator",
-			want:        collectors.OrchestratorCardinality,
+			want:        collectortypes.OrchestratorCardinality,
 		},
 		{
 			name:        "orch",
 			cardinality: "orch",
-			want:        collectors.OrchestratorCardinality,
+			want:        collectortypes.OrchestratorCardinality,
 		},
 		{
 			name:        "low",
 			cardinality: "low",
-			want:        collectors.LowCardinality,
+			want:        collectortypes.LowCardinality,
 		},
 		{
 			name:        "empty",

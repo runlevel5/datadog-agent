@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-agent/comp/core/tagger"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
 	taggerUtils "github.com/DataDog/datadog-agent/comp/core/tagger/utils"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
+	collectorstypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics"
@@ -73,7 +73,7 @@ func (p *Processor) Run(sender sender.Sender, cacheValidity time.Duration) error
 		}
 
 		entityID := containers.BuildTaggerEntityName(container.ID)
-		tags, err := tagger.Tag(entityID, collectors.HighCardinality)
+		tags, err := tagger.Tag(entityID, collectorstypes.HighCardinality)
 		if err != nil {
 			log.Errorf("Could not collect tags for container %q, err: %v", container.ID[:12], err)
 			continue

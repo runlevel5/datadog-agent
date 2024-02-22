@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	tagger_api "github.com/DataDog/datadog-agent/comp/core/tagger/api"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	collectorstypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/tagstore"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/types"
 	"github.com/DataDog/datadog-agent/pkg/tagset"
@@ -36,7 +36,7 @@ func NewFakeTagger() *FakeTagger {
 
 // SetTags allows to set tags in store for a given source, entity
 func (f *FakeTagger) SetTags(entity, source string, low, orch, high, std []string) {
-	f.store.ProcessTagInfo([]*collectors.TagInfo{
+	f.store.ProcessTagInfo([]*collectorstypes.TagInfo{
 		{
 			Source:               source,
 			Entity:               entity,
@@ -49,13 +49,13 @@ func (f *FakeTagger) SetTags(entity, source string, low, orch, high, std []strin
 }
 
 // SetTagsFromInfo allows to set tags from list of TagInfo
-func (f *FakeTagger) SetTagsFromInfo(tags []*collectors.TagInfo) {
+func (f *FakeTagger) SetTagsFromInfo(tags []*collectorstypes.TagInfo) {
 	f.store.ProcessTagInfo(tags)
 }
 
 // SetError allows to set an error to be returned when `Tag` or `AccumulateTagsFor` is called
 // for this entity and cardinality
-func (f *FakeTagger) SetError(entity string, cardinality collectors.TagCardinality, err error) {
+func (f *FakeTagger) SetError(entity string, cardinality collectorstypes.TagCardinality, err error) {
 	f.Lock()
 	defer f.Unlock()
 
@@ -75,7 +75,7 @@ func (f *FakeTagger) Stop() error {
 }
 
 // Tag fake implementation
-func (f *FakeTagger) Tag(entity string, cardinality collectors.TagCardinality) ([]string, error) {
+func (f *FakeTagger) Tag(entity string, cardinality collectorstypes.TagCardinality) ([]string, error) {
 	tags := f.store.Lookup(entity, cardinality)
 
 	key := f.getKey(entity, cardinality)
@@ -87,7 +87,7 @@ func (f *FakeTagger) Tag(entity string, cardinality collectors.TagCardinality) (
 }
 
 // AccumulateTagsFor fake implementation
-func (f *FakeTagger) AccumulateTagsFor(entity string, cardinality collectors.TagCardinality, tb tagset.TagsAccumulator) error {
+func (f *FakeTagger) AccumulateTagsFor(entity string, cardinality collectorstypes.TagCardinality, tb tagset.TagsAccumulator) error {
 	tags, err := f.Tag(entity, cardinality)
 	if err != nil {
 		return err
@@ -110,12 +110,12 @@ func (f *FakeTagger) GetEntity(entityID string) (*types.Entity, error) {
 // List fake implementation
 //
 //nolint:revive // TODO(CINT) Fix revive linter
-func (f *FakeTagger) List(cardinality collectors.TagCardinality) tagger_api.TaggerListResponse {
+func (f *FakeTagger) List(cardinality collectorstypes.TagCardinality) tagger_api.TaggerListResponse {
 	return f.store.List()
 }
 
 // Subscribe fake implementation
-func (f *FakeTagger) Subscribe(cardinality collectors.TagCardinality) chan []types.EntityEvent {
+func (f *FakeTagger) Subscribe(cardinality collectorstypes.TagCardinality) chan []types.EntityEvent {
 	return f.store.Subscribe(cardinality)
 }
 
@@ -125,6 +125,6 @@ func (f *FakeTagger) Unsubscribe(ch chan []types.EntityEvent) {
 }
 
 // Fake internals
-func (f *FakeTagger) getKey(entity string, cardinality collectors.TagCardinality) string {
+func (f *FakeTagger) getKey(entity string, cardinality collectorstypes.TagCardinality) string {
 	return entity + strconv.FormatInt(int64(cardinality), 10)
 }

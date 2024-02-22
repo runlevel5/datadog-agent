@@ -11,7 +11,7 @@ import (
 	"time"
 
 	tagger_api "github.com/DataDog/datadog-agent/comp/core/tagger/api"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	collectorstypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/tagstore"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/telemetry"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/types"
@@ -68,13 +68,13 @@ func (t *Tagger) Stop() error {
 }
 
 // Tag returns tags for a given entity at the desired cardinality.
-func (t *Tagger) Tag(entityID string, cardinality collectors.TagCardinality) ([]string, error) {
+func (t *Tagger) Tag(entityID string, cardinality collectorstypes.TagCardinality) ([]string, error) {
 	tags := t.store.Lookup(entityID, cardinality)
 	return tags, nil
 }
 
 // AccumulateTagsFor returns tags for a given entity at the desired cardinality.
-func (t *Tagger) AccumulateTagsFor(entityID string, cardinality collectors.TagCardinality, tb tagset.TagsAccumulator) error {
+func (t *Tagger) AccumulateTagsFor(entityID string, cardinality collectorstypes.TagCardinality, tb tagset.TagsAccumulator) error {
 	tags := t.store.LookupHashed(entityID, cardinality)
 
 	if tags.Len() == 0 {
@@ -101,14 +101,14 @@ func (t *Tagger) Standard(entityID string) ([]string, error) {
 // List returns all the entities currently stored by the tagger.
 //
 //nolint:revive // TODO(CINT) Fix revive linter
-func (t *Tagger) List(cardinality collectors.TagCardinality) tagger_api.TaggerListResponse {
+func (t *Tagger) List(cardinality collectorstypes.TagCardinality) tagger_api.TaggerListResponse {
 	return t.store.List()
 }
 
 // Subscribe does nothing in the replay tagger this tagger does not respond to events.
 //
 //nolint:revive // TODO(CINT) Fix revive linter
-func (t *Tagger) Subscribe(cardinality collectors.TagCardinality) chan []types.EntityEvent {
+func (t *Tagger) Subscribe(cardinality collectorstypes.TagCardinality) chan []types.EntityEvent {
 	// NOP
 	return nil
 }
@@ -134,7 +134,7 @@ func (t *Tagger) LoadState(state map[string]*pb.Entity) {
 			continue
 		}
 
-		t.store.ProcessTagInfo([]*collectors.TagInfo{{
+		t.store.ProcessTagInfo([]*collectorstypes.TagInfo{{
 			Source:               "replay",
 			Entity:               entityID,
 			HighCardTags:         entity.HighCardinalityTags,

@@ -15,7 +15,7 @@ import (
 	"time"
 
 	tagger_api "github.com/DataDog/datadog-agent/comp/core/tagger/api"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	collectorstypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/subscriber"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/telemetry"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/types"
@@ -87,7 +87,7 @@ func (s *TagStore) Run(ctx context.Context) {
 }
 
 // ProcessTagInfo updates tagger store with tags fetched by collectors.
-func (s *TagStore) ProcessTagInfo(tagInfos []*collectors.TagInfo) {
+func (s *TagStore) ProcessTagInfo(tagInfos []*collectorstypes.TagInfo) {
 	events := []types.EntityEvent{}
 
 	s.Lock()
@@ -188,7 +188,7 @@ func (s *TagStore) collectTelemetry() {
 // Subscribe returns a channel that receives a slice of events whenever an entity is
 // added, modified or deleted. It can send an initial burst of events only to the new
 // subscriber, without notifying all of the others.
-func (s *TagStore) Subscribe(cardinality collectors.TagCardinality) chan []types.EntityEvent {
+func (s *TagStore) Subscribe(cardinality collectorstypes.TagCardinality) chan []types.EntityEvent {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -266,7 +266,7 @@ func (s *TagStore) Prune() {
 // LookupHashed gets tags from the store and returns them as a HashedTags instance. It
 // returns the source names in the second slice to allow the client to trigger manual
 // lookups on missing sources.
-func (s *TagStore) LookupHashed(entity string, cardinality collectors.TagCardinality) tagset.HashedTags {
+func (s *TagStore) LookupHashed(entity string, cardinality collectorstypes.TagCardinality) tagset.HashedTags {
 	s.RLock()
 	defer s.RUnlock()
 	storedTags, present := s.store[entity]
@@ -280,7 +280,7 @@ func (s *TagStore) LookupHashed(entity string, cardinality collectors.TagCardina
 // Lookup gets tags from the store and returns them concatenated in a string slice. It
 // returns the source names in the second slice to allow the client to trigger manual
 // lookups on missing sources.
-func (s *TagStore) Lookup(entity string, cardinality collectors.TagCardinality) []string {
+func (s *TagStore) Lookup(entity string, cardinality collectorstypes.TagCardinality) []string {
 	return s.LookupHashed(entity, cardinality).Get()
 }
 

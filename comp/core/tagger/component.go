@@ -15,7 +15,7 @@ import (
 	"context"
 
 	tagger_api "github.com/DataDog/datadog-agent/comp/core/tagger/api"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	collectorstypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/types"
 	"github.com/DataDog/datadog-agent/pkg/tagset"
 )
@@ -27,11 +27,11 @@ type Component interface {
 	// TODO(component): Start method should be removed or migrated to an internal function in favour of fx.Lifecyle.
 	Start(ctx context.Context) error
 	Stop() error
-	Tag(entity string, cardinality collectors.TagCardinality) ([]string, error)
-	AccumulateTagsFor(entity string, cardinality collectors.TagCardinality, tb tagset.TagsAccumulator) error
+	Tag(entity string, cardinality collectorstypes.TagCardinality) ([]string, error)
+	AccumulateTagsFor(entity string, cardinality collectorstypes.TagCardinality, tb tagset.TagsAccumulator) error
 	Standard(entity string) ([]string, error)
-	List(cardinality collectors.TagCardinality) tagger_api.TaggerListResponse
+	List(cardinality collectorstypes.TagCardinality) tagger_api.TaggerListResponse
 	GetEntity(entityID string) (*types.Entity, error)
-	Subscribe(cardinality collectors.TagCardinality) chan []types.EntityEvent
+	Subscribe(cardinality collectorstypes.TagCardinality) chan []types.EntityEvent
 	Unsubscribe(ch chan []types.EntityEvent)
 }

@@ -19,7 +19,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/DataDog/datadog-agent/comp/core/tagger"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	collectorstypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/utils"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/containers/kubelet/common"
@@ -118,7 +118,7 @@ func (p *Provider) generateContainerSpecMetrics(sender sender.Sender, pod *kubel
 		return
 	}
 
-	tags, _ := tagger.Tag(containerID, collectors.HighCardinality)
+	tags, _ := tagger.Tag(containerID, collectorstypes.HighCardinality)
 	// Skip recording containers without kubelet information in tagger or if there are no tags
 	if !isTagKeyPresent(kubeNamespaceTag, tags) || len(tags) == 0 {
 		return
@@ -138,7 +138,7 @@ func (p *Provider) generateContainerStatusMetrics(sender sender.Sender, pod *kub
 		return
 	}
 
-	tags, _ := tagger.Tag(containerID, collectors.OrchestratorCardinality)
+	tags, _ := tagger.Tag(containerID, collectorstypes.OrchestratorCardinality)
 	// Skip recording containers without kubelet information in tagger or if there are no tags
 	if !isTagKeyPresent(kubeNamespaceTag, tags) || len(tags) == 0 {
 		return
@@ -182,7 +182,7 @@ func (r *runningAggregator) recordContainer(p *Provider, pod *kubelet.Pod, cStat
 		return
 	}
 	r.podHasRunningContainers[pod.Metadata.UID] = true
-	tags, _ := tagger.Tag(containerID, collectors.LowCardinality)
+	tags, _ := tagger.Tag(containerID, collectorstypes.LowCardinality)
 	// Skip recording containers without kubelet information in tagger or if there are no tags
 	if !isTagKeyPresent(kubeNamespaceTag, tags) || len(tags) == 0 {
 		return
@@ -203,7 +203,7 @@ func (r *runningAggregator) recordPod(p *Provider, pod *kubelet.Pod) {
 		log.Debug("skipping pod with no uid")
 		return
 	}
-	tags, _ := tagger.Tag(fmt.Sprintf("kubernetes_pod_uid://%s", podID), collectors.LowCardinality)
+	tags, _ := tagger.Tag(fmt.Sprintf("kubernetes_pod_uid://%s", podID), collectorstypes.LowCardinality)
 	if len(tags) == 0 {
 		return
 	}

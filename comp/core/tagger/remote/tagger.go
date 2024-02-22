@@ -23,7 +23,7 @@ import (
 
 	configComponent "github.com/DataDog/datadog-agent/comp/core/config"
 	tagger_api "github.com/DataDog/datadog-agent/comp/core/tagger/api"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	collectorstypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/telemetry"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/types"
 	"github.com/DataDog/datadog-agent/pkg/api/security"
@@ -181,7 +181,7 @@ func (t *Tagger) Stop() error {
 }
 
 // Tag returns tags for a given entity at the desired cardinality.
-func (t *Tagger) Tag(entityID string, cardinality collectors.TagCardinality) ([]string, error) {
+func (t *Tagger) Tag(entityID string, cardinality collectorstypes.TagCardinality) ([]string, error) {
 	entity := t.store.getEntity(entityID)
 	if entity != nil {
 		telemetry.QueriesByCardinality(cardinality).Success.Inc()
@@ -194,7 +194,7 @@ func (t *Tagger) Tag(entityID string, cardinality collectors.TagCardinality) ([]
 }
 
 // AccumulateTagsFor returns tags for a given entity at the desired cardinality.
-func (t *Tagger) AccumulateTagsFor(entityID string, cardinality collectors.TagCardinality, tb tagset.TagsAccumulator) error {
+func (t *Tagger) AccumulateTagsFor(entityID string, cardinality collectorstypes.TagCardinality, tb tagset.TagsAccumulator) error {
 	tags, err := t.Tag(entityID, cardinality)
 	if err != nil {
 		return err
@@ -226,7 +226,7 @@ func (t *Tagger) GetEntity(entityID string) (*types.Entity, error) {
 // List returns all the entities currently stored by the tagger.
 //
 //nolint:revive // TODO(CINT) Fix revive linter
-func (t *Tagger) List(cardinality collectors.TagCardinality) tagger_api.TaggerListResponse {
+func (t *Tagger) List(cardinality collectorstypes.TagCardinality) tagger_api.TaggerListResponse {
 	entities := t.store.listEntities()
 	resp := tagger_api.TaggerListResponse{
 		Entities: make(map[string]tagger_api.TaggerListEntity),
@@ -235,7 +235,7 @@ func (t *Tagger) List(cardinality collectors.TagCardinality) tagger_api.TaggerLi
 	for _, e := range entities {
 		resp.Entities[e.ID] = tagger_api.TaggerListEntity{
 			Tags: map[string][]string{
-				remoteSource: e.GetTags(collectors.HighCardinality),
+				remoteSource: e.GetTags(collectorstypes.HighCardinality),
 			},
 		}
 	}
@@ -246,7 +246,7 @@ func (t *Tagger) List(cardinality collectors.TagCardinality) tagger_api.TaggerLi
 // Subscribe returns a channel that receives a slice of events whenever an entity is
 // added, modified or deleted. It can send an initial burst of events only to the new
 // subscriber, without notifying all of the others.
-func (t *Tagger) Subscribe(cardinality collectors.TagCardinality) chan []types.EntityEvent {
+func (t *Tagger) Subscribe(cardinality collectorstypes.TagCardinality) chan []types.EntityEvent {
 	return t.store.subscribe(cardinality)
 }
 

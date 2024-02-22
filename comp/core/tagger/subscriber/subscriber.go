@@ -10,7 +10,7 @@ package subscriber
 import (
 	"sync"
 
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	collectorstypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/telemetry"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/types"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -22,20 +22,20 @@ const bufferSize = 100
 // tagger.
 type Subscriber struct {
 	sync.RWMutex
-	subscribers map[chan []types.EntityEvent]collectors.TagCardinality
+	subscribers map[chan []types.EntityEvent]collectorstypes.TagCardinality
 }
 
 // NewSubscriber returns a new subscriber.
 func NewSubscriber() *Subscriber {
 	return &Subscriber{
-		subscribers: make(map[chan []types.EntityEvent]collectors.TagCardinality),
+		subscribers: make(map[chan []types.EntityEvent]collectorstypes.TagCardinality),
 	}
 }
 
 // Subscribe returns a channel that receives a slice of events whenever an
 // entity is added, modified or deleted. It can send an initial burst of events
 // only to the new subscriber, without notifying all of the others.
-func (s *Subscriber) Subscribe(cardinality collectors.TagCardinality, events []types.EntityEvent) chan []types.EntityEvent {
+func (s *Subscriber) Subscribe(cardinality collectorstypes.TagCardinality, events []types.EntityEvent) chan []types.EntityEvent {
 	// this is a `ch []EntityEvent` instead of a `ch EntityEvent` to
 	// improve throughput, as bursts of events are as likely to occur as
 	// isolated events, especially at startup or with collectors that
@@ -94,7 +94,7 @@ func (s *Subscriber) Notify(events []types.EntityEvent) {
 }
 
 // notify sends a slice of EntityEvents to a channel at a chosen cardinality.
-func notify(ch chan []types.EntityEvent, events []types.EntityEvent, cardinality collectors.TagCardinality) {
+func notify(ch chan []types.EntityEvent, events []types.EntityEvent, cardinality collectorstypes.TagCardinality) {
 	subscriberEvents := make([]types.EntityEvent, 0, len(events))
 
 	for _, event := range events {
@@ -113,7 +113,7 @@ func notify(ch chan []types.EntityEvent, events []types.EntityEvent, cardinality
 	}
 
 	telemetry.Sends.Inc()
-	telemetry.Events.Add(float64(len(events)), collectors.TagCardinalityToString(cardinality))
+	telemetry.Events.Add(float64(len(events)), collectorstypes.TagCardinalityToString(cardinality))
 
 	ch <- subscriberEvents
 }

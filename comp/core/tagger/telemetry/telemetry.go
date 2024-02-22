@@ -7,7 +7,7 @@
 package telemetry
 
 import (
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 )
 
@@ -93,19 +93,19 @@ func NewCardinalityTelemetry(name string) CardinalityTelemetry {
 	}
 }
 
-var lowCardinalityQueries = NewCardinalityTelemetry(collectors.LowCardinalityString)
-var orchestratorCardinalityQueries = NewCardinalityTelemetry(collectors.OrchestratorCardinalityString)
-var highCardinalityQueries = NewCardinalityTelemetry(collectors.HighCardinalityString)
-var unknownCardinalityQueries = NewCardinalityTelemetry(collectors.UnknownCardinalityString)
+var lowCardinalityQueries = NewCardinalityTelemetry(types.LowCardinalityString)
+var orchestratorCardinalityQueries = NewCardinalityTelemetry(types.OrchestratorCardinalityString)
+var highCardinalityQueries = NewCardinalityTelemetry(types.HighCardinalityString)
+var unknownCardinalityQueries = NewCardinalityTelemetry(types.UnknownCardinalityString)
 
 // QueriesByCardinality returns a set of counters for a given cardinality level.
-func QueriesByCardinality(card collectors.TagCardinality) *CardinalityTelemetry {
+func QueriesByCardinality(card types.TagCardinality) *CardinalityTelemetry {
 	switch card {
-	case collectors.LowCardinality:
+	case types.LowCardinality:
 		return &lowCardinalityQueries
-	case collectors.OrchestratorCardinality:
+	case types.OrchestratorCardinality:
 		return &orchestratorCardinalityQueries
-	case collectors.HighCardinality:
+	case types.HighCardinality:
 		return &highCardinalityQueries
 	default:
 		return &unknownCardinalityQueries

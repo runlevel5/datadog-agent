@@ -7,7 +7,7 @@
 package types
 
 import (
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	collectorstypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/utils"
 )
 
@@ -24,14 +24,14 @@ type Entity struct {
 
 // GetTags flattens all tags from all cardinalities into a single slice of tag
 // strings.
-func (e Entity) GetTags(cardinality collectors.TagCardinality) []string {
+func (e Entity) GetTags(cardinality collectorstypes.TagCardinality) []string {
 	tagArrays := make([][]string, 0, 3)
 	tagArrays = append(tagArrays, e.LowCardinalityTags)
 
 	switch cardinality {
-	case collectors.OrchestratorCardinality:
+	case collectorstypes.OrchestratorCardinality:
 		tagArrays = append(tagArrays, e.OrchestratorCardinalityTags)
-	case collectors.HighCardinality:
+	case collectorstypes.HighCardinality:
 		tagArrays = append(tagArrays, e.OrchestratorCardinalityTags)
 		tagArrays = append(tagArrays, e.HighCardinalityTags)
 	}
@@ -42,7 +42,7 @@ func (e Entity) GetTags(cardinality collectors.TagCardinality) []string {
 // GetHash returns a computed hash of all of the entity's tags.
 func (e Entity) GetHash() string {
 	if e.hash == "" {
-		e.hash = utils.ComputeTagsHash(e.GetTags(collectors.HighCardinality))
+		e.hash = utils.ComputeTagsHash(e.GetTags(collectorstypes.HighCardinality))
 	}
 
 	return e.hash
@@ -50,13 +50,13 @@ func (e Entity) GetHash() string {
 
 // Copy returns a copy of the Entity containing only tags at the supplied
 // cardinality.
-func (e Entity) Copy(cardinality collectors.TagCardinality) Entity {
+func (e Entity) Copy(cardinality collectorstypes.TagCardinality) Entity {
 	newEntity := e
 
 	switch cardinality {
-	case collectors.OrchestratorCardinality:
+	case collectorstypes.OrchestratorCardinality:
 		newEntity.HighCardinalityTags = nil
-	case collectors.LowCardinality:
+	case collectorstypes.LowCardinality:
 		newEntity.HighCardinalityTags = nil
 		newEntity.OrchestratorCardinalityTags = nil
 	}

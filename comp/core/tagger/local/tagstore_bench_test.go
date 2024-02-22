@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/tagstore"
 )
 
@@ -70,7 +70,7 @@ func BenchmarkTagStoreThroughput(b *testing.B) {
 		go func() {
 			for i := 0; i < 1000; i++ {
 				id := ids[rand.Intn(nEntities)]
-				store.Lookup(id, collectors.HighCardinality)
+				store.Lookup(id, types.HighCardinality)
 			}
 			wg.Done()
 		}()
@@ -93,10 +93,10 @@ func BenchmarkTagStore_processTagInfo(b *testing.B) {
 	}
 }
 
-func generateRandomTagInfo() *collectors.TagInfo {
+func generateRandomTagInfo() *types.TagInfo {
 	id := ids[rand.Intn(nEntities)]
 	source := sources[rand.Intn(nSources)]
-	return &collectors.TagInfo{
+	return &types.TagInfo{
 		Entity:               id,
 		Source:               source,
 		LowCardTags:          generateRandomTags(),
@@ -117,7 +117,7 @@ func generateRandomTags() []string {
 }
 
 func processRandomTagInfoBatch(store *tagstore.TagStore) {
-	tagInfos := make([]*collectors.TagInfo, 0, batchSize)
+	tagInfos := make([]*types.TagInfo, 0, batchSize)
 	for i := 0; i < batchSize; i++ {
 		tagInfos = append(tagInfos, generateRandomTagInfo())
 	}

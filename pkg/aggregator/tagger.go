@@ -9,7 +9,7 @@ package aggregator
 
 import (
 	"github.com/DataDog/datadog-agent/comp/core/tagger"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	collectorstypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/pkg/tagset"
 )
 
@@ -17,14 +17,14 @@ func enrichTags(tb tagset.TagsAccumulator, udsOrigin string, clientOrigin string
 	tagger.EnrichTags(tb, udsOrigin, clientOrigin, cardinalityName)
 }
 
-func agentTags(cardinality collectors.TagCardinality) ([]string, error) {
+func agentTags(cardinality collectorstypes.TagCardinality) ([]string, error) {
 	return tagger.AgentTags(cardinality)
 }
 
-func globalTags(cardinality collectors.TagCardinality) ([]string, error) {
+func globalTags(cardinality collectorstypes.TagCardinality) ([]string, error) {
 	return tagger.GlobalTags(cardinality)
 }
 
-func checkCardinality() collectors.TagCardinality {
+func checkCardinality() collectorstypes.TagCardinality {
 	return tagger.ChecksCardinality
 }

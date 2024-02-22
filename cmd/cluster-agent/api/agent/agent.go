@@ -23,7 +23,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/api/api/apiimpl/response"
 	"github.com/DataDog/datadog-agent/comp/collector/collector"
 	"github.com/DataDog/datadog-agent/comp/core/tagger"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery"
@@ -200,7 +200,7 @@ func getConfigCheck(w http.ResponseWriter, r *http.Request) {
 
 //nolint:revive // TODO(CINT) Fix revive linter
 func getTaggerList(w http.ResponseWriter, r *http.Request) {
-	response := tagger.List(collectors.HighCardinality)
+	response := tagger.List(types.HighCardinality)
 
 	jsonTags, err := json.Marshal(response)
 	if err != nil {

@@ -13,6 +13,7 @@ import (
 
 	tagger_api "github.com/DataDog/datadog-agent/comp/core/tagger/api"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	collectorstypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/tagstore"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/telemetry"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/types"
@@ -69,7 +70,7 @@ func (t *Tagger) Stop() error {
 }
 
 // getTags returns a read only list of tags for a given entity.
-func (t *Tagger) getTags(entity string, cardinality collectors.TagCardinality) (tagset.HashedTags, error) {
+func (t *Tagger) getTags(entity string, cardinality collectorstypes.TagCardinality) (tagset.HashedTags, error) {
 	if entity == "" {
 		telemetry.QueriesByCardinality(cardinality).EmptyEntityID.Inc()
 		return tagset.HashedTags{}, fmt.Errorf("empty entity ID")
@@ -82,14 +83,14 @@ func (t *Tagger) getTags(entity string, cardinality collectors.TagCardinality) (
 }
 
 // AccumulateTagsFor appends tags for a given entity from the tagger to the TagsAccumulator
-func (t *Tagger) AccumulateTagsFor(entity string, cardinality collectors.TagCardinality, tb tagset.TagsAccumulator) error {
+func (t *Tagger) AccumulateTagsFor(entity string, cardinality collectorstypes.TagCardinality, tb tagset.TagsAccumulator) error {
 	tags, err := t.getTags(entity, cardinality)
 	tb.AppendHashed(tags)
 	return err
 }
 
 // Tag returns a copy of the tags for a given entity
-func (t *Tagger) Tag(entity string, cardinality collectors.TagCardinality) ([]string, error) {
+func (t *Tagger) Tag(entity string, cardinality collectorstypes.TagCardinality) ([]string, error) {
 	tags, err := t.getTags(entity, cardinality)
 	if err != nil {
 		return nil, err
@@ -115,14 +116,14 @@ func (t *Tagger) GetEntity(entityID string) (*types.Entity, error) {
 // List the content of the tagger
 //
 //nolint:revive // TODO(CINT) Fix revive linter
-func (t *Tagger) List(cardinality collectors.TagCardinality) tagger_api.TaggerListResponse {
+func (t *Tagger) List(cardinality collectorstypes.TagCardinality) tagger_api.TaggerListResponse {
 	return t.tagStore.List()
 }
 
 // Subscribe returns a channel that receives a slice of events whenever an entity is
 // added, modified or deleted. It can send an initial burst of events only to the new
 // subscriber, without notifying all of the others.
-func (t *Tagger) Subscribe(cardinality collectors.TagCardinality) chan []types.EntityEvent {
+func (t *Tagger) Subscribe(cardinality collectorstypes.TagCardinality) chan []types.EntityEvent {
 	return t.tagStore.Subscribe(cardinality)
 }
 

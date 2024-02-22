@@ -8,7 +8,7 @@ package remote
 import (
 	"sync"
 
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	collectorstypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/subscriber"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/telemetry"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/types"
@@ -102,7 +102,7 @@ func (s *tagStore) collectTelemetry() {
 	}
 }
 
-func (s *tagStore) subscribe(cardinality collectors.TagCardinality) chan []types.EntityEvent {
+func (s *tagStore) subscribe(cardinality collectorstypes.TagCardinality) chan []types.EntityEvent {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 

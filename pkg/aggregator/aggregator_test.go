@@ -17,8 +17,12 @@ import (
 	"time"
 
 	// 3p
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
 	"github.com/DataDog/datadog-agent/comp/core"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	collectorstypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
 	"github.com/DataDog/datadog-agent/comp/forwarder/eventplatform"
 	orchestratorforwarder "github.com/DataDog/datadog-agent/comp/forwarder/orchestrator"
@@ -32,9 +36,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/version"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -496,8 +497,8 @@ func TestTags(t *testing.T) {
 		name                    string
 		hostname                string
 		tlmContainerTagsEnabled bool
-		agentTags               func(collectors.TagCardinality) ([]string, error)
-		globalTags              func(collectors.TagCardinality) ([]string, error)
+		agentTags               func(collectorstypes.TagCardinality) ([]string, error)
+		globalTags              func(collectorstypes.TagCardinality) ([]string, error)
 		withVersion             bool
 		want                    []string
 	}{
@@ -505,8 +506,8 @@ func TestTags(t *testing.T) {
 			name:                    "tags disabled, with version",
 			hostname:                "hostname",
 			tlmContainerTagsEnabled: false,
-			agentTags:               func(collectors.TagCardinality) ([]string, error) { return nil, errors.New("disabled") },
-			globalTags:              func(collectors.TagCardinality) ([]string, error) { return nil, errors.New("disabled") },
+			agentTags:               func(collectorstypes.TagCardinality) ([]string, error) { return nil, errors.New("disabled") },
+			globalTags:              func(collectorstypes.TagCardinality) ([]string, error) { return nil, errors.New("disabled") },
 			withVersion:             true,
 			want:                    []string{"version:" + version.AgentVersion},
 		},
@@ -514,8 +515,8 @@ func TestTags(t *testing.T) {
 			name:                    "tags disabled, without version",
 			hostname:                "hostname",
 			tlmContainerTagsEnabled: false,
-			agentTags:               func(collectors.TagCardinality) ([]string, error) { return nil, errors.New("disabled") },
-			globalTags:              func(collectors.TagCardinality) ([]string, error) { return nil, errors.New("disabled") },
+			agentTags:               func(collectorstypes.TagCardinality) ([]string, error) { return nil, errors.New("disabled") },
+			globalTags:              func(collectorstypes.TagCardinality) ([]string, error) { return nil, errors.New("disabled") },
 			withVersion:             false,
 			want:                    []string{},
 		},
@@ -523,8 +524,8 @@ func TestTags(t *testing.T) {
 			name:                    "tags enabled, with version",
 			hostname:                "hostname",
 			tlmContainerTagsEnabled: true,
-			agentTags:               func(collectors.TagCardinality) ([]string, error) { return []string{"container_name:agent"}, nil },
-			globalTags:              func(collectors.TagCardinality) ([]string, error) { return nil, errors.New("disabled") },
+			agentTags:               func(collectorstypes.TagCardinality) ([]string, error) { return []string{"container_name:agent"}, nil },
+			globalTags:              func(collectorstypes.TagCardinality) ([]string, error) { return nil, errors.New("disabled") },
 			withVersion:             true,
 			want:                    []string{"container_name:agent", "version:" + version.AgentVersion},
 		},
@@ -532,8 +533,8 @@ func TestTags(t *testing.T) {
 			name:                    "tags enabled, without version",
 			hostname:                "hostname",
 			tlmContainerTagsEnabled: true,
-			agentTags:               func(collectors.TagCardinality) ([]string, error) { return []string{"container_name:agent"}, nil },
-			globalTags:              func(collectors.TagCardinality) ([]string, error) { return nil, errors.New("disabled") },
+			agentTags:               func(collectorstypes.TagCardinality) ([]string, error) { return []string{"container_name:agent"}, nil },
+			globalTags:              func(collectorstypes.TagCardinality) ([]string, error) { return nil, errors.New("disabled") },
 			withVersion:             false,
 			want:                    []string{"container_name:agent"},
 		},
@@ -541,8 +542,8 @@ func TestTags(t *testing.T) {
 			name:                    "tags enabled, with version, tagger error",
 			hostname:                "hostname",
 			tlmContainerTagsEnabled: true,
-			agentTags:               func(collectors.TagCardinality) ([]string, error) { return nil, errors.New("no tags") },
-			globalTags:              func(collectors.TagCardinality) ([]string, error) { return nil, errors.New("disabled") },
+			agentTags:               func(collectorstypes.TagCardinality) ([]string, error) { return nil, errors.New("no tags") },
+			globalTags:              func(collectorstypes.TagCardinality) ([]string, error) { return nil, errors.New("disabled") },
 			withVersion:             true,
 			want:                    []string{"version:" + version.AgentVersion},
 		},
@@ -550,8 +551,8 @@ func TestTags(t *testing.T) {
 			name:                    "tags enabled, with version, with global tags (no hostname)",
 			hostname:                "",
 			tlmContainerTagsEnabled: true,
-			agentTags:               func(collectors.TagCardinality) ([]string, error) { return []string{"container_name:agent"}, nil },
-			globalTags:              func(collectors.TagCardinality) ([]string, error) { return []string{"kube_cluster_name:foo"}, nil },
+			agentTags:               func(collectorstypes.TagCardinality) ([]string, error) { return []string{"container_name:agent"}, nil },
+			globalTags:              func(collectorstypes.TagCardinality) ([]string, error) { return []string{"kube_cluster_name:foo"}, nil },
 			withVersion:             true,
 			want:                    []string{"container_name:agent", "version:" + version.AgentVersion, "kube_cluster_name:foo"},
 		},
@@ -559,8 +560,8 @@ func TestTags(t *testing.T) {
 			name:                    "tags enabled, with version, with global tags (hostname present)",
 			hostname:                "hostname",
 			tlmContainerTagsEnabled: true,
-			agentTags:               func(collectors.TagCardinality) ([]string, error) { return []string{"container_name:agent"}, nil },
-			globalTags:              func(collectors.TagCardinality) ([]string, error) { return []string{"kube_cluster_name:foo"}, nil },
+			agentTags:               func(collectorstypes.TagCardinality) ([]string, error) { return []string{"container_name:agent"}, nil },
+			globalTags:              func(collectorstypes.TagCardinality) ([]string, error) { return []string{"kube_cluster_name:foo"}, nil },
 			withVersion:             true,
 			want:                    []string{"container_name:agent", "version:" + version.AgentVersion, "kube_cluster_name:foo"},
 		},

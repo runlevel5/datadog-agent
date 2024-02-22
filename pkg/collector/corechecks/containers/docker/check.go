@@ -17,9 +17,10 @@ import (
 	"time"
 
 	dockerTypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 
 	"github.com/DataDog/datadog-agent/comp/core/tagger"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	collectorstypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
@@ -35,7 +36,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/optional"
-	"github.com/docker/docker/api/types/container"
 )
 
 const (
@@ -248,7 +248,7 @@ func (d *DockerCheck) runDockerCustom(sender sender.Sender, du docker.Client, ra
 		}
 
 		// Send container size metrics
-		containerTags, err := tagger.Tag(taggerEntityID, collectors.HighCardinality)
+		containerTags, err := tagger.Tag(taggerEntityID, collectorstypes.HighCardinality)
 		if err != nil {
 			log.Warnf("Unable to fetch tags for container: %s, err: %v", rawContainer.ID, err)
 		}

@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	tagger_api "github.com/DataDog/datadog-agent/comp/core/tagger/api"
-	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
+	collectorstypes "github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/replay"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/types"
 	"github.com/DataDog/datadog-agent/pkg/tagset"
@@ -47,7 +47,7 @@ func GetEntity(entityID string) (*types.Entity, error) {
 }
 
 // Tag is an interface function that queries taggerclient singleton
-func Tag(entity string, cardinality collectors.TagCardinality) ([]string, error) {
+func Tag(entity string, cardinality collectorstypes.TagCardinality) ([]string, error) {
 	if globalTagger == nil {
 		return nil, fmt.Errorf("a global tagger must be set before calling Tag")
 	}
@@ -55,7 +55,7 @@ func Tag(entity string, cardinality collectors.TagCardinality) ([]string, error)
 }
 
 // AccumulateTagsFor is an interface function that queries taggerclient singleton
-func AccumulateTagsFor(entity string, cardinality collectors.TagCardinality, tb tagset.TagsAccumulator) error {
+func AccumulateTagsFor(entity string, cardinality collectorstypes.TagCardinality, tb tagset.TagsAccumulator) error {
 	if globalTagger == nil {
 		return fmt.Errorf("a global tagger must be set before calling AccumulateTagsFor")
 	}
@@ -63,7 +63,7 @@ func AccumulateTagsFor(entity string, cardinality collectors.TagCardinality, tb 
 }
 
 // GetEntityHash is an interface function that queries taggerclient singleton
-func GetEntityHash(entity string, cardinality collectors.TagCardinality) string {
+func GetEntityHash(entity string, cardinality collectorstypes.TagCardinality) string {
 	if globalTagger != nil {
 		return globalTagger.GetEntityHash(entity, cardinality)
 	}
@@ -79,7 +79,7 @@ func StandardTags(entity string) ([]string, error) {
 }
 
 // AgentTags is an interface function that queries taggerclient singleton
-func AgentTags(cardinality collectors.TagCardinality) ([]string, error) {
+func AgentTags(cardinality collectorstypes.TagCardinality) ([]string, error) {
 	if globalTagger == nil {
 		return nil, fmt.Errorf("a global tagger must be set before calling AgentTags")
 	}
@@ -87,7 +87,7 @@ func AgentTags(cardinality collectors.TagCardinality) ([]string, error) {
 }
 
 // GlobalTags is an interface function that queries taggerclient singleton
-func GlobalTags(cardinality collectors.TagCardinality) ([]string, error) {
+func GlobalTags(cardinality collectorstypes.TagCardinality) ([]string, error) {
 	if globalTagger == nil {
 		return nil, fmt.Errorf("a global tagger must be set before calling GlobalTags")
 	}
@@ -95,7 +95,7 @@ func GlobalTags(cardinality collectors.TagCardinality) ([]string, error) {
 }
 
 // List the content of the defaulTagger
-func List(cardinality collectors.TagCardinality) tagger_api.TaggerListResponse {
+func List(cardinality collectorstypes.TagCardinality) tagger_api.TaggerListResponse {
 	if globalTagger != nil {
 		return globalTagger.List(cardinality)
 	}

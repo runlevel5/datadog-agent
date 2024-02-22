@@ -13,6 +13,7 @@ import (
 
 	"github.com/gobwas/glob"
 
+	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors/types"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/utils"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/config"
@@ -39,10 +40,10 @@ const (
 )
 
 // CollectorPriorities holds collector priorities
-var CollectorPriorities = make(map[string]CollectorPriority)
+var CollectorPriorities = make(map[string]types.CollectorPriority)
 
 type processor interface {
-	ProcessTagInfo([]*TagInfo)
+	ProcessTagInfo([]*types.TagInfo)
 }
 
 // WorkloadMetaCollector collects tags from the metadata in the workloadmeta
@@ -106,7 +107,7 @@ func (c *WorkloadMetaCollector) collectStaticGlobalTags(ctx context.Context) {
 		}
 
 		low, orch, high, standard := tags.Compute()
-		c.tagProcessor.ProcessTagInfo([]*TagInfo{
+		c.tagProcessor.ProcessTagInfo([]*types.TagInfo{
 			{
 				Source:               staticSource,
 				Entity:               GlobalEntityID,
@@ -205,8 +206,8 @@ func mergeMaps(first, second map[string]string) map[string]string {
 }
 
 func init() {
-	CollectorPriorities[podSource] = NodeOrchestrator
-	CollectorPriorities[taskSource] = NodeOrchestrator
-	CollectorPriorities[containerSource] = NodeRuntime
-	CollectorPriorities[containerImageSource] = NodeRuntime
+	CollectorPriorities[podSource] = types.NodeOrchestrator
+	CollectorPriorities[taskSource] = types.NodeOrchestrator
+	CollectorPriorities[containerSource] = types.NodeRuntime
+	CollectorPriorities[containerImageSource] = types.NodeRuntime
 }
