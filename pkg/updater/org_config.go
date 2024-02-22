@@ -107,6 +107,7 @@ func (c *orgConfig) onCatalogUpdate(catalogConfigs map[string]state.RawConfig, a
 		log.Errorf("could not unmarshal default catalog: %s", err)
 	}
 	for configPath, config := range catalogConfigs {
+		log.Infof("received catalog from %s", configPath)
 		var catalog catalog
 		err := json.Unmarshal(config.Config, &catalog)
 		if err != nil {
