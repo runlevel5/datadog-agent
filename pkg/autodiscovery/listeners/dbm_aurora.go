@@ -14,6 +14,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -74,6 +75,7 @@ func newDBMAuroraListener(config dbmconfig.AutodiscoverClustersConfig, previousS
 		l.ticker = time.NewTicker(time.Duration(l.config.DiscoveryInterval) * time.Second)
 		l.ticks = l.ticker.C
 	}
+	log.Infof("DBMAuroraListener initialized with config: %v", config)
 	return l
 }
 
@@ -108,7 +110,8 @@ func (l *DBMAuroraListener) discoverAuroraClusters() {
 				}
 				l.awsRdsClients[cluster.Region] = c
 			}
-			auroraCluster, err := l.awsRdsClients[cluster.Region].GetAuroraClusterEndpoints(ids)
+			log.Infof("Querying for aws endpoints in cluster %s in region %s", strings.Join(ids, ", "), cluster.Region)
+			auroraCluster, err := l.awsRdsClients[cluster.Region].GetAuroraClusterEndpoints(context.Background(), ids)
 			if err != nil {
 				_ = log.Error(err)
 				continue
@@ -129,11 +132,11 @@ func (l *DBMAuroraListener) discoverAuroraClusters() {
 			deletedServices := findDeletedServices(l.previousServices, discoveredServices)
 			l.deleteServices(deletedServices)
 			l.previousServices = discoveredServices
-			select {
-			case <-l.stop:
-				return
-			case <-l.ticks:
-			}
+		}
+		select {
+		case <-l.stop:
+			return
+		case <-l.ticks:
 		}
 	}
 }
