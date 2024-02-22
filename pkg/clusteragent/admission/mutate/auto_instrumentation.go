@@ -197,6 +197,8 @@ func apmSSINamespaceFilter() (*containers.Filter, error) {
 	for i := range apmDisabledNamespaces {
 		apmDisabledNamespacesWithPrefix[i] = prefix + apmDisabledNamespaces[i]
 	}
+	log.Debugf("Enabled namespaces: %v", apmEnabledNamespacesWithPrefix)
+	log.Debugf("Disabled namespaces: %v", apmDisabledNamespacesWithPrefix)
 
 	disabledByDefault := []string{
 		prefix + "kube-system",
@@ -209,8 +211,10 @@ func apmSSINamespaceFilter() (*containers.Filter, error) {
 		// In the containers.Filter, the include list is checked before the
 		// exclude list, that's why we set the exclude list to all namespaces.
 		filterExcludeList = []string{prefix + ".*"}
+		log.Debugf("Filter exclude list for enabled ns: %v", filterExcludeList)
 	} else {
 		filterExcludeList = append(apmDisabledNamespacesWithPrefix, disabledByDefault...)
+		log.Debugf("Filter exclude list for disabled ns: %v", filterExcludeList)
 	}
 
 	return containers.NewFilter(containers.GlobalFilter, apmEnabledNamespacesWithPrefix, filterExcludeList)
@@ -496,6 +500,9 @@ func (w *APMInstrumentationWebhook) isEnabled(namespace string) bool {
 		return false
 	}
 
+	log.Debugf("Running filter for namespace %s", namespace)
+	isIncluded := !w.filter.IsExcluded(nil, "", "", namespace)
+	log.Debugf("Namespace %s is included: %v", namespace, isIncluded)
 	return !w.filter.IsExcluded(nil, "", "", namespace)
 }
 
