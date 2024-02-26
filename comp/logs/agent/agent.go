@@ -144,7 +144,6 @@ func newLogsAgent(deps dependencies) provides {
 	return provides{
 		Comp:           optional.NewNoneOption[Component](),
 		StatusProvider: statusComponent.NewInformationProvider(NewStatusProvider()),
-		// TODO(remy): RCListener:
 	}
 }
 

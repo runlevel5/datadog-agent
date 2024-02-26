@@ -22,6 +22,8 @@ import (
 // content for tailers capable of processing both unstructured and structured content.
 const UnstructuredProcessingMetricName = "datadog.logs_agent.tailer.unstructured_processing"
 
+const SDSProcessedTag = "sds:true"
+
 // A Processor updates messages from an inputChan and pushes
 // in an outputChan.
 type Processor struct {
@@ -191,6 +193,7 @@ func (p *Processor) applyRedactingRules(msg *message.Message) bool {
 						msg.ProcessingTags = append(msg.ProcessingTags, rc.Tags...)
 					}
 				}
+				msg.ProcessingTags = append(msg.ProcessingTags, SDSProcessedTag)
 				content = rv
 			}
 		}

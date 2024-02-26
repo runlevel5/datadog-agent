@@ -27,21 +27,6 @@ type ReconfigureOrder struct {
 	Config []byte
 }
 
-// TODO(remy):
-type RulesConfig struct {
-	Rules []RuleConfig `json:"rules"`
-}
-
-// TODO(remy): use the actual schema
-type RuleConfig struct {
-	Id                 string              `json:"id"`
-	Name               string              `json:"name"`
-	Description        string              `json:"description"`
-	Pattern            string              `json:"pattern"`
-	Tags               []string            `json:"tags"`
-	MatchAction        sds.MatchActionType `json:"match_action"`
-	ReplacePlaceholder string              `json:"replace_placeholder"`
-}
 
 // Scanner wraps an SDS Scanner implementation, adds reconfiguration
 // capabilities and telemetry on top of it.
@@ -73,19 +58,6 @@ func CreateScanner(rawConfig []byte) (*Scanner, error) {
 	log.Debugf("creating a new SDS scanner (internal id: %p)", scanner)
 	return scanner, err
 
-}
-
-// GetById returns a RuleConfig from the in-memory definitions.
-// If no definitions have been received or if the rule does not exist,
-// returns nil.
-// This method is NOT thread safe, caller has to ensure the thread safety.
-func (r RulesConfig) GetById(id string) *RuleConfig {
-	for i, rc := range r.Rules {
-		if rc.Id == id {
-			return &r.Rules[i]
-		}
-	}
-	return nil
 }
 
 // Reconfigure uses the given `ReconfigureOrder` to reconfigure in-memory
@@ -165,6 +137,9 @@ func (s *Scanner) reconfigureRules(rawConfig []byte) error {
 		return fmt.Errorf("Can't unmarshal raw configuration: %v", err)
 	}
 
+    // ignore disabled rules
+	config = config.OnlyEnabled()
+
 	// if we received an empty array of rules, interprets this as "stop SDS".
 	if len(config.Rules) == 0 {
 		log.Info("Received an empty configuration, stopping the SDS scanner.")
@@ -182,11 +157,11 @@ func (s *Scanner) reconfigureRules(rawConfig []byte) error {
 	var sdsRules []sds.Rule
 	for _, rule := range config.Rules {
 		// TODO(remy): other type of configuration?
-		switch rule.MatchAction {
+    		switch rule.MatchAction {
 		case sds.MatchActionRedact:
 			sdsRules = append(sdsRules, sds.NewRedactingRule(rule.Name, rule.Pattern, rule.ReplacePlaceholder))
-			//		case sds.MatchActionHash:
-			//    		sdsRules = append(sdsRules, sds.NewHashRule(rule.Name, rule.Pattern, rule.ReplacePlaceholder))
+		case sds.MatchActionHash:
+			sdsRules = append(sdsRules, sds.NewHashRule(rule.Name, rule.Pattern))
 		default:
 			log.Warnf("Unknown MatchAction type (%v) for rule '%s':", rule.MatchAction, rule.Name)
 		}
@@ -232,6 +207,8 @@ func (s *Scanner) Scan(event []byte) ([]byte, []sds.RuleMatch, error) {
 	return s.Scanner.Scan(event)
 }
 
+// GetRuleByIdx returns the configured rule by its idx, referring to the idx
+// that the SDS scanner writes in its internal response.
 func (s *Scanner) GetRuleByIdx(idx uint32) (RuleConfig, error) {
 	if s.Scanner == nil {
 		return RuleConfig{}, fmt.Errorf("scanner not configured")
