@@ -116,6 +116,9 @@ func (c *Collector) Init(_ config.Config) (err error) {
 	}
 
 	c.platform, c.family, c.build, err = host.PlatformInformation()
+	if err != nil {
+		return err
+	}
 
 	// Platform Architecture
 	c.arch = "32-bit"
