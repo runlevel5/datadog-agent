@@ -13,6 +13,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/sbom"
@@ -21,6 +22,7 @@ import (
 	"github.com/DataDog/gopsutil/host"
 
 	cyclonedxgo "github.com/CycloneDX/cyclonedx-go"
+	host2 "github.com/shirou/gopsutil/v3/host"
 	"github.com/yusufpapurcu/wmi"
 )
 
@@ -42,6 +44,7 @@ type Report struct {
 	platform string
 	family   string
 	build    string
+	arch     string
 }
 
 // ToCycloneDX returns the report as a CycloneDX SBOM
@@ -55,6 +58,10 @@ func (r *Report) ToCycloneDX() (*cyclonedxgo.BOM, error) {
 		}, {
 			Name:  "Build",
 			Value: r.build,
+		},
+		{
+			Name:  "Architecture",
+			Value: r.arch,
 		},
 	}
 
@@ -94,6 +101,7 @@ type Collector struct {
 	platform string
 	family   string
 	build    string
+	arch     string
 }
 
 // CleanCache cleans the cache
@@ -108,6 +116,16 @@ func (c *Collector) Init(_ config.Config) (err error) {
 	}
 
 	c.platform, c.family, c.build, err = host.PlatformInformation()
+
+	// Platform Architecture
+	c.arch = "32-bit"
+	arch, err := host2.KernelArch()
+	if err != nil {
+		return err
+	}
+	if strings.HasSuffix(arch, "64") {
+		c.arch = "64-bit"
+	}
 	return err
 }
 
@@ -119,7 +137,7 @@ func (c *Collector) Scan(_ context.Context, request sbom.ScanRequest, _ sbom.Sca
 	}
 	log.Infof("host scan request [%v]", hostScanRequest.ID())
 
-	report := Report{version: c.version, platform: c.platform, family: c.family, build: c.build}
+	report := Report{version: c.version, platform: c.platform, family: c.family, build: c.build, arch: c.arch}
 	q := wmi.CreateQuery(&report.KBS, "")
 	err := wmi.Query(q, &report.KBS)
 	if err != nil {
