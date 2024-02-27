@@ -1,3 +1,5 @@
+//go:build sds
+
 package sds
 
 import (
@@ -5,28 +7,12 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/DataDog/datadog-agent/pkg/logs/message"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	sds "github.com/DataDog/sds-go-bindings"
 )
 
-type reconfigureOrderType string
-
-const (
-	// Definitions triggers the storage of a new set of standard rules
-	// and reconfigure the internal SDS scanner with an existing user
-	// configuration if any.
-	Definitions reconfigureOrderType = "definitions"
-	// UserConfig triggers a reconfiguration of the SDS scanner.
-	UserConfig reconfigureOrderType = "user_config"
-)
-
-// ReconfigureOrder are used to trigger a reconfiguration
-// of the SDS scanner.
-type ReconfigureOrder struct {
-	Type   reconfigureOrderType
-	Config []byte
-}
-
+const ProcessedTag = "sds:true"
 
 // Scanner wraps an SDS Scanner implementation, adds reconfiguration
 // capabilities and telemetry on top of it.
@@ -137,7 +123,7 @@ func (s *Scanner) reconfigureRules(rawConfig []byte) error {
 		return fmt.Errorf("Can't unmarshal raw configuration: %v", err)
 	}
 
-    // ignore disabled rules
+	// ignore disabled rules
 	config = config.OnlyEnabled()
 
 	// if we received an empty array of rules, interprets this as "stop SDS".
@@ -156,8 +142,7 @@ func (s *Scanner) reconfigureRules(rawConfig []byte) error {
 	// prepare the scanner rules
 	var sdsRules []sds.Rule
 	for _, rule := range config.Rules {
-		// TODO(remy): other type of configuration?
-    		switch rule.MatchAction {
+		switch rule.MatchAction {
 		case sds.MatchActionRedact:
 			sdsRules = append(sdsRules, sds.NewRedactingRule(rule.Name, rule.Pattern, rule.ReplacePlaceholder))
 		case sds.MatchActionHash:
@@ -185,6 +170,9 @@ func (s *Scanner) reconfigureRules(rawConfig []byte) error {
 	s.rawConfig = rawConfig
 	s.configuredRules = config.Rules
 
+	// tlmSDSConfiguredScanner.Inc()
+	// tlmSDSConfiguredRules.Add(len(s.configuredRules))
+
 	log.Info("Created an SDS scanner with", len(scanner.Rules), "rules")
 	s.Scanner = scanner
 
@@ -195,16 +183,35 @@ func (s *Scanner) reconfigureRules(rawConfig []byte) error {
 // Returns an error if the internal SDS scanner is not ready. If you need to
 // validate that the internal SDS scanner can be used, use `IsReady()`.
 // This method is thread safe, a reconfiguration can't happen at the same time.
-func (s *Scanner) Scan(event []byte) ([]byte, []sds.RuleMatch, error) {
+// TODO(remy): comment
+func (s *Scanner) Scan(event []byte, msg *message.Message) (bool, []byte, error) {
 	s.Lock()
 	defer s.Unlock()
-	// TODO(remy): telemetry
 
 	if s.Scanner == nil {
-		return nil, nil, fmt.Errorf("can't Scan with an unitialized scanner")
+		return false, nil, fmt.Errorf("can't Scan with an unitialized scanner")
 	}
 
-	return s.Scanner.Scan(event)
+	// tlmSDSEventProcessed.Inc()
+	// tlmSDSBytesProcessed.Add(len(event))
+
+	processed, rulesMatch, err := s.Scanner.Scan(event)
+	matched := false
+	if len(rulesMatch) > 0 {
+		matched = true
+		// tlmSDSEventMatches.Inc()
+		// tlmSDSEventRulesMatches.Add(len(rulesMatch))
+		for _, match := range rulesMatch {
+			if rc, err := s.GetRuleByIdx(match.RuleIdx); err != nil {
+				log.Warnf("can't apply rule tags: %v", err)
+			} else {
+				msg.ProcessingTags = append(msg.ProcessingTags, rc.Tags...)
+			}
+		}
+		msg.ProcessingTags = append(msg.ProcessingTags, ProcessedTag)
+	}
+
+	return matched, processed, err
 }
 
 // GetRuleByIdx returns the configured rule by its idx, referring to the idx

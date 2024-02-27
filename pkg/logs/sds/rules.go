@@ -1,3 +1,5 @@
+//go:build sds
+
 package sds
 
 import (

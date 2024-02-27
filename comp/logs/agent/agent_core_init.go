@@ -94,7 +94,8 @@ func (a *agent) fakeRC() { // XXX(remy):
                         "description": "my description",
                         "pattern": "^[0-9a-z]{32}",
                         "match_action": "Redact",
-                        "replace_placeholder": "[redacted]"
+                        "replace_placeholder": "[redacted]",
+                        "enabled": true
                     }
                 ]}`),
 			Metadata: state.Metadata{},
@@ -121,7 +122,8 @@ func (a *agent) fakeRC() { // XXX(remy):
                         "description": "my description",
                         "pattern": "^[0-9a-z]{32}",
                         "match_action": "Redact",
-                        "replace_placeholder": "%s"
+                        "replace_placeholder": "%s",
+                        "enabled": true
                     }
                 ]}`, placeholder)),
 				Metadata: state.Metadata{},

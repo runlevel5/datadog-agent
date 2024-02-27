@@ -22,8 +22,6 @@ import (
 // content for tailers capable of processing both unstructured and structured content.
 const UnstructuredProcessingMetricName = "datadog.logs_agent.tailer.unstructured_processing"
 
-const SDSProcessedTag = "sds:true"
-
 // A Processor updates messages from an inputChan and pushes
 // in an outputChan.
 type Processor struct {
@@ -182,20 +180,11 @@ func (p *Processor) applyRedactingRules(msg *message.Message) bool {
 
 	// Global SDS scanner, applied on all log sources
 	if p.sds.IsReady() {
-		if rv, rulesMatch, err := p.sds.Scan(content); err != nil {
+		matched, processed, err := p.sds.Scan(content, msg)
+		if err != nil {
 			log.Error("while using SDS to scan the log:", err)
-		} else {
-			if len(rulesMatch) > 0 {
-				for _, match := range rulesMatch {
-					if rc, err := p.sds.GetRuleByIdx(match.RuleIdx); err != nil {
-						log.Warnf("can't apply rule tags: %v", err)
-					} else {
-						msg.ProcessingTags = append(msg.ProcessingTags, rc.Tags...)
-					}
-				}
-				msg.ProcessingTags = append(msg.ProcessingTags, SDSProcessedTag)
-				content = rv
-			}
+		} else if matched {
+			content = processed
 		}
 	}
 

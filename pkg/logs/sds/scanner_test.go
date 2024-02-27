@@ -5,6 +5,8 @@ package sds
 import (
 	"bytes"
 	"testing"
+
+	"github.com/DataDog/datadog-agent/pkg/logs/message"
 )
 
 func TestCreateScanner(t *testing.T) {
@@ -252,34 +254,43 @@ func TestScan(t *testing.T) {
 	}
 
 	type result struct {
+		matched    bool
 		event      string
 		matchCount int
 	}
 
 	tests := map[string]result{
 		"one two three go!": {
+			matched:    true,
 			event:      "[REDACTED] two three go!",
 			matchCount: 1,
 		},
 		"after zero comes one, after one comes two, and the rest is history": {
+			matched:    true,
 			event:      "after [redacted] comes [REDACTED], after [REDACTED] comes two, and the rest is history",
 			matchCount: 3,
+		},
+		"and so we go": {
+			matched:    false,
+			event:      "",
+			matchCount: 0,
 		},
 	}
 
 	for k, v := range tests {
-		processed, rulesMatch, err := s.Scan([]byte(k))
+		msg := message.Message{}
+		matched, processed, err := s.Scan([]byte(k), &msg)
 		if err != nil {
 			t.Errorf("scanning these event should not fail. err received: %v", err)
 		}
-		if processed == nil {
+		if matched && processed == nil {
 			t.Errorf("incorrect result: nil processed event returned")
+		}
+		if matched != v.matched {
+			t.Errorf("unexpected match/non-match: expected %v got %v", v.matched, matched)
 		}
 		if string(processed) != v.event {
 			t.Errorf("incorrect result, expected \"%v\" got \"%v\"", v.event, string(processed))
-		}
-		if len(rulesMatch) != v.matchCount {
-			t.Errorf("incorrect result, expected %d matches, got %d", v.matchCount, len(rulesMatch))
 		}
 	}
 }
