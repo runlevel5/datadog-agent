@@ -10,7 +10,6 @@ package webhook
 import (
 	"fmt"
 
-	admiv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,20 +20,22 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
-	"github.com/DataDog/datadog-agent/cmd/cluster-agent/admission"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/admission/metrics"
+	"github.com/DataDog/datadog-agent/pkg/clusteragent/admission/mutate"
 	agentsidecar "github.com/DataDog/datadog-agent/pkg/clusteragent/admission/mutate/agent_sidecar"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/admission/mutate/autoinstrumentation"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/admission/mutate/config"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/admission/mutate/cwsinstrumentation"
+	"github.com/DataDog/datadog-agent/pkg/clusteragent/admission/mutate/merged"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/admission/mutate/tagsfromlabels"
+	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 // Controller is an interface implemented by ControllerV1 and ControllerV1beta1.
 type Controller interface {
 	Run(stopCh <-chan struct{})
-	EnabledWebhooks() []MutatingWebhook
+	EnabledWebhooks() []mutate.MutatingWebhook
 }
 
 // NewController returns the adequate implementation of the Controller interface.
@@ -46,46 +47,56 @@ func NewController(client kubernetes.Interface, secretInformer coreinformers.Sec
 	return NewControllerV1beta1(client, secretInformer, admissionInterface.V1beta1().MutatingWebhookConfigurations(), isLeaderFunc, isLeaderNotif, config)
 }
 
-// MutatingWebhook represents a mutating webhook
-type MutatingWebhook interface {
-	// Name returns the name of the webhook
-	Name() string
-	// IsEnabled returns whether the webhook is enabled
-	IsEnabled() bool
-	// Endpoint returns the endpoint of the webhook
-	Endpoint() string
-	// Resources returns the kubernetes resources for which the webhook should
-	// be invoked
-	Resources() []string
-	// Operations returns the operations on the resources specified for which
-	// the webhook should be invoked
-	Operations() []admiv1.OperationType
-	// LabelSelectors returns the label selectors that specify when the webhook
-	// should be invoked
-	LabelSelectors(useNamespaceSelector bool) (namespaceSelector *metav1.LabelSelector, objectSelector *metav1.LabelSelector)
-	// MutateFunc returns the function that mutates the resources
-	MutateFunc() admission.WebhookFunc
-}
+func (c *controllerBase) webhookCollection() []mutate.MutatingWebhook {
+	configWebhook := config.NewWebhook()
+	tagsWebhook := tagsfromlabels.NewWebhook()
+	agentSidecarWebhook := agentsidecar.NewWebhook()
 
-func mutatingWebhooks() []MutatingWebhook {
-	webhooks := []MutatingWebhook{
-		config.NewWebhook(),
-		tagsfromlabels.NewWebhook(),
-		agentsidecar.NewWebhook(),
+	apm, errAPM := autoinstrumentation.NewWebhook()
+	if errAPM != nil {
+		log.Errorf("failed to register APM Instrumentation webhook: %v", errAPM)
 	}
 
-	apm, err := autoinstrumentation.NewWebhook()
-	if err == nil {
+	cws, errCWS := cwsinstrumentation.NewCWSInstrumentation()
+	if errCWS != nil {
+		log.Errorf("failed to register CWS Instrumentation webhook: %v", errCWS)
+	}
+
+	if ddconfig.Datadog.GetBool("admission_controller.merged.enabled") {
+		webhooks := merged.WebhookCollection{
+			Sidecar: agentSidecarWebhook,
+			Config:  configWebhook,
+			Tags:    tagsWebhook,
+		}
+
+		if errAPM == nil {
+			webhooks.APM = apm
+		}
+
+		if errCWS == nil {
+			webhooks.CWS = cws
+		}
+
+		mergedWebhook := merged.NewWebhook(webhooks, c.config.namespaceSelectorEnabled)
+
+		// The CWS webhook for pods is not part of the merged webhook because
+		// it's invoked for "pods/exec" instead of pods like the rest of
+		// webhooks.
+		return []mutate.MutatingWebhook{mergedWebhook, cws.WebhookForCommands()}
+	}
+
+	webhooks := []mutate.MutatingWebhook{
+		configWebhook,
+		tagsWebhook,
+		agentSidecarWebhook,
+	}
+
+	if errAPM == nil {
 		webhooks = append(webhooks, apm)
-	} else {
-		log.Errorf("failed to register APM Instrumentation webhook: %v", err)
 	}
 
-	cws, err := cwsinstrumentation.NewCWSInstrumentation()
-	if err == nil {
+	if errCWS == nil {
 		webhooks = append(webhooks, cws.WebhookForPods(), cws.WebhookForCommands())
-	} else {
-		log.Errorf("failed to register CWS Instrumentation webhook: %v", err)
 	}
 
 	return webhooks
@@ -103,12 +114,12 @@ type controllerBase struct {
 	queue            workqueue.RateLimitingInterface
 	isLeaderFunc     func() bool
 	isLeaderNotif    <-chan struct{}
-	mutatingWebhooks []MutatingWebhook
+	mutatingWebhooks []mutate.MutatingWebhook
 }
 
 // EnabledWebhooks returns the list of enabled webhooks.
-func (c *controllerBase) EnabledWebhooks() []MutatingWebhook {
-	var res []MutatingWebhook
+func (c *controllerBase) EnabledWebhooks() []mutate.MutatingWebhook {
+	var res []mutate.MutatingWebhook
 
 	for _, webhook := range c.mutatingWebhooks {
 		if webhook.IsEnabled() {

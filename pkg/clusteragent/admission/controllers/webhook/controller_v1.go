@@ -49,7 +49,7 @@ func NewControllerV1(client kubernetes.Interface, secretInformer coreinformers.S
 	controller.queue = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "webhooks")
 	controller.isLeaderFunc = isLeaderFunc
 	controller.isLeaderNotif = isLeaderNotif
-	controller.mutatingWebhooks = mutatingWebhooks()
+	controller.mutatingWebhooks = controller.webhookCollection()
 	controller.generateTemplates()
 
 	if _, err := secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{

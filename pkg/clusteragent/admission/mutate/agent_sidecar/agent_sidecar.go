@@ -103,10 +103,11 @@ func (w *Webhook) MutateFunc() admission.WebhookFunc {
 
 // mutate handles mutating pod requests for the agentsidecar webhook
 func (w *Webhook) mutate(request *admission.MutateRequest) ([]byte, error) {
-	return common.Mutate(request.Raw, request.Namespace, injectAgentSidecar, request.DynamicClient)
+	return common.Mutate(request.Raw, request.Namespace, InjectAgentSidecar, request.DynamicClient)
 }
 
-func injectAgentSidecar(pod *corev1.Pod, _ string, _ dynamic.Interface) error {
+// InjectAgentSidecar injects the Datadog Agent sidecar into the given pod
+func InjectAgentSidecar(pod *corev1.Pod, _ string, _ dynamic.Interface) error {
 	if pod == nil {
 		return errors.New("can't inject agent sidecar into nil pod")
 	}

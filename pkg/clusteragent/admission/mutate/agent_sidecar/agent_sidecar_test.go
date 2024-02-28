@@ -9,14 +9,15 @@ package agentsidecar
 
 import (
 	"fmt"
+	"reflect"
+	"testing"
+
 	"github.com/DataDog/datadog-agent/pkg/config"
 	apicommon "github.com/DataDog/datadog-agent/pkg/util/kubernetes/apiserver/common"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"reflect"
-	"testing"
 )
 
 func TestInjectAgentSidecar(t *testing.T) {
@@ -228,7 +229,7 @@ func TestInjectAgentSidecar(t *testing.T) {
 			mockConfig.SetWithoutSource("admission_controller.agent_sidecar.provider", test.provider)
 			mockConfig.SetWithoutSource("admission_controller.agent_sidecar.profiles", test.profilesJSON)
 
-			err := injectAgentSidecar(test.Pod, "", nil)
+			err := InjectAgentSidecar(test.Pod, "", nil)
 
 			if test.ExpectError {
 				assert.Error(tt, err, "expected non-nil error to be returned")

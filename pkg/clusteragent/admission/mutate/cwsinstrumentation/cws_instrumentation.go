@@ -356,10 +356,11 @@ func (ci *CWSInstrumentation) injectCWSCommandInstrumentation(exec *corev1.PodEx
 }
 
 func (ci *CWSInstrumentation) injectForPod(request *admission.MutateRequest) ([]byte, error) {
-	return common.Mutate(request.Raw, request.Namespace, ci.injectCWSPodInstrumentation, request.DynamicClient)
+	return common.Mutate(request.Raw, request.Namespace, ci.InjectCWSPodInstrumentation, request.DynamicClient)
 }
 
-func (ci *CWSInstrumentation) injectCWSPodInstrumentation(pod *corev1.Pod, ns string, _ dynamic.Interface) error {
+// InjectCWSPodInstrumentation injects CWS instrumentation in the given pod
+func (ci *CWSInstrumentation) InjectCWSPodInstrumentation(pod *corev1.Pod, ns string, _ dynamic.Interface) error {
 	var injected bool
 	defer func() {
 		metrics.MutationAttempts.Inc(metrics.CWSPodInstrumentation, strconv.FormatBool(injected), "", "")

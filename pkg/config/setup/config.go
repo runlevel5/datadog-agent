@@ -1087,6 +1087,8 @@ func InitConfig(config pkgconfigmodel.Config) {
 	config.BindEnvAndSetDefault("admission_controller.agent_sidecar.image_name", "agent")
 	config.BindEnvAndSetDefault("admission_controller.agent_sidecar.image_tag", "latest")
 	config.BindEnvAndSetDefault("admission_controller.agent_sidecar.cluster_agent.enabled", "true")
+	config.BindEnvAndSetDefault("admission_controller.merged.enabled", false)
+	config.BindEnvAndSetDefault("admission_controller.merged.endpoint", "/injectall")
 
 	// Telemetry
 	// Enable telemetry metrics on the internals of the Agent.

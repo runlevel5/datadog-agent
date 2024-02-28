@@ -123,12 +123,12 @@ func (o *ownerInfo) buildID(ns string) string {
 // mutate adds the DD_ENV, DD_VERSION, DD_SERVICE env vars to
 // the pod template from pod and higher-level resource labels
 func (w *Webhook) mutate(request *admission.MutateRequest) ([]byte, error) {
-	return common.Mutate(request.Raw, request.Namespace, injectTags, request.DynamicClient)
+	return common.Mutate(request.Raw, request.Namespace, InjectTags, request.DynamicClient)
 }
 
-// injectTags injects DD_ENV, DD_VERSION, DD_SERVICE
+// InjectTags injects DD_ENV, DD_VERSION, DD_SERVICE
 // env vars into a pod template if needed
-func injectTags(pod *corev1.Pod, ns string, dc dynamic.Interface) error {
+func InjectTags(pod *corev1.Pod, ns string, dc dynamic.Interface) error {
 	var injected bool
 	defer func() {
 		metrics.MutationAttempts.Inc(metrics.TagsMutationType, strconv.FormatBool(injected), "", "")

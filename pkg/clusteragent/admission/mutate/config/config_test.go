@@ -69,7 +69,7 @@ func TestInjectHostIP(t *testing.T) {
 	pod := mutatecommon.FakePodWithContainer("foo-pod", corev1.Container{})
 	pod = mutatecommon.WithLabels(pod, map[string]string{"admission.datadoghq.com/enabled": "true"})
 	webhook := NewWebhook()
-	err := webhook.inject(pod, "", nil)
+	err := webhook.Inject(pod, "", nil)
 	assert.Nil(t, err)
 	assert.Contains(t, pod.Spec.Containers[0].Env, mutatecommon.FakeEnvWithFieldRefValue("DD_AGENT_HOST", "status.hostIP"))
 }
@@ -78,7 +78,7 @@ func TestInjectService(t *testing.T) {
 	pod := mutatecommon.FakePodWithContainer("foo-pod", corev1.Container{})
 	pod = mutatecommon.WithLabels(pod, map[string]string{"admission.datadoghq.com/enabled": "true", "admission.datadoghq.com/config.mode": "service"})
 	webhook := NewWebhook()
-	err := webhook.inject(pod, "", nil)
+	err := webhook.Inject(pod, "", nil)
 	assert.Nil(t, err)
 	assert.Contains(t, pod.Spec.Containers[0].Env, mutatecommon.FakeEnvWithValue("DD_AGENT_HOST", "datadog."+common.GetMyNamespace()+".svc.cluster.local"))
 }
@@ -87,7 +87,7 @@ func TestInjectSocket(t *testing.T) {
 	pod := mutatecommon.FakePodWithContainer("foo-pod", corev1.Container{})
 	pod = mutatecommon.WithLabels(pod, map[string]string{"admission.datadoghq.com/enabled": "true", "admission.datadoghq.com/config.mode": "socket"})
 	webhook := NewWebhook()
-	err := webhook.inject(pod, "", nil)
+	err := webhook.Inject(pod, "", nil)
 	assert.Nil(t, err)
 	assert.Contains(t, pod.Spec.Containers[0].Env, mutatecommon.FakeEnvWithValue("DD_TRACE_AGENT_URL", "unix:///var/run/datadog/apm.socket"))
 	assert.Contains(t, pod.Spec.Containers[0].Env, mutatecommon.FakeEnvWithValue("DD_DOGSTATSD_URL", "unix:///var/run/datadog/dsd.socket"))
@@ -140,7 +140,7 @@ func TestInjectSocketWithConflictingVolumeAndInitContainer(t *testing.T) {
 	}
 
 	webhook := NewWebhook()
-	err := webhook.inject(pod, "", nil)
+	err := webhook.Inject(pod, "", nil)
 	assert.Nil(t, err)
 	assert.Equal(t, len(pod.Spec.InitContainers), 1)
 	assert.Equal(t, pod.Spec.InitContainers[0].VolumeMounts[0].Name, "datadog")

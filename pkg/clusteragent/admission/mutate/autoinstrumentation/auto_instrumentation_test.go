@@ -1853,7 +1853,7 @@ func TestInjectAutoInstrumentation(t *testing.T) {
 			apmInstrumentationWebhook, errInitAPMInstrumentation = NewWebhook()
 			require.NoError(t, errInitAPMInstrumentation)
 
-			err := apmInstrumentationWebhook.inject(tt.pod, "", fake.NewSimpleDynamicClient(scheme.Scheme))
+			err := apmInstrumentationWebhook.Inject(tt.pod, "", fake.NewSimpleDynamicClient(scheme.Scheme))
 			require.False(t, (err != nil) != tt.wantErr)
 
 			container := tt.pod.Spec.Containers[0]

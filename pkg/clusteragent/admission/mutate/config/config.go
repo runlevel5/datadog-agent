@@ -147,11 +147,11 @@ func (w *Webhook) MutateFunc() admission.WebhookFunc {
 
 // mutate adds the DD_AGENT_HOST and DD_ENTITY_ID env vars to the pod template if they don't exist
 func (w *Webhook) mutate(request *admission.MutateRequest) ([]byte, error) {
-	return common.Mutate(request.Raw, request.Namespace, w.inject, request.DynamicClient)
+	return common.Mutate(request.Raw, request.Namespace, w.Inject, request.DynamicClient)
 }
 
-// inject injects DD_AGENT_HOST and DD_ENTITY_ID into a pod template if needed
-func (w *Webhook) inject(pod *corev1.Pod, _ string, _ dynamic.Interface) error {
+// Inject injects DD_AGENT_HOST and DD_ENTITY_ID into a pod template if needed
+func (w *Webhook) Inject(pod *corev1.Pod, _ string, _ dynamic.Interface) error {
 	var injectedConfig, injectedEntity bool
 	defer func() {
 		metrics.MutationAttempts.Inc(metrics.ConfigMutationType, strconv.FormatBool(injectedConfig || injectedEntity), "", "")

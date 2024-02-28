@@ -11,16 +11,17 @@ package admission
 import (
 	"time"
 
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
+
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/admission/controllers/secret"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/admission/controllers/webhook"
+	"github.com/DataDog/datadog-agent/pkg/clusteragent/admission/mutate"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/apiserver"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/apiserver/common"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
-
-	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 )
 
 // ControllerContext holds necessary context for the admission controllers
@@ -34,7 +35,7 @@ type ControllerContext struct {
 }
 
 // StartControllers starts the secret and webhook controllers
-func StartControllers(ctx ControllerContext) ([]webhook.MutatingWebhook, error) {
+func StartControllers(ctx ControllerContext) ([]mutate.MutatingWebhook, error) {
 	if !config.Datadog.GetBool("admission_controller.enabled") {
 		log.Info("Admission controller is disabled")
 		return nil, nil

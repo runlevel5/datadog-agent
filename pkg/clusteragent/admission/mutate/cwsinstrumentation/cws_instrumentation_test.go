@@ -696,7 +696,7 @@ func Test_injectCWSPodInstrumentation(t *testing.T) {
 			if err != nil {
 				require.Fail(t, "couldn't instantiate CWS Instrumentation", "%v", err)
 			} else {
-				if err := ci.injectCWSPodInstrumentation(tt.args.pod, tt.args.ns, nil); err != nil && !tt.wantErr {
+				if err := ci.InjectCWSPodInstrumentation(tt.args.pod, tt.args.ns, nil); err != nil && !tt.wantErr {
 					require.Fail(t, "CWS instrumentation shouldn't have produced an error: got %v", err)
 				}
 

@@ -269,7 +269,7 @@ func (w *Webhook) MutateFunc() admission.WebhookFunc {
 
 // injectAutoInstrumentation injects APM libraries into pods
 func (w *Webhook) injectAutoInstrumentation(request *admission.MutateRequest) ([]byte, error) {
-	return mutatecommon.Mutate(request.Raw, request.Namespace, w.inject, request.DynamicClient)
+	return mutatecommon.Mutate(request.Raw, request.Namespace, w.Inject, request.DynamicClient)
 }
 
 func initContainerName(lang language) string {
@@ -281,7 +281,8 @@ func libImageName(registry string, lang language, tag string) string {
 	return fmt.Sprintf(imageFormat, registry, lang, tag)
 }
 
-func (w *Webhook) inject(pod *corev1.Pod, _ string, _ dynamic.Interface) error {
+// Inject injects the APM libraries into the given pod
+func (w *Webhook) Inject(pod *corev1.Pod, _ string, _ dynamic.Interface) error {
 	if pod == nil {
 		return errors.New("cannot inject lib into nil pod")
 	}
