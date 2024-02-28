@@ -12,14 +12,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"reflect"
-	"strings"
-
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/sbom"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil"
 	"github.com/DataDog/gopsutil/host"
+	"reflect"
 
 	cyclonedxgo "github.com/CycloneDX/cyclonedx-go"
 	host2 "github.com/shirou/gopsutil/v3/host"
@@ -120,14 +118,9 @@ func (c *Collector) Init(_ config.Config) (err error) {
 		return err
 	}
 
-	// Platform Architecture
-	c.arch = "32-bit"
-	arch, err := host2.KernelArch()
+	c.arch, err = host2.KernelArch()
 	if err != nil {
 		return err
-	}
-	if strings.HasSuffix(arch, "64") {
-		c.arch = "64-bit"
 	}
 	return err
 }
