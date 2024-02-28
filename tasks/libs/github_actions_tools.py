@@ -72,7 +72,12 @@ def trigger_macos_workflow(
     now = datetime.utcnow()
 
     gh = GithubAPI('DataDog/datadog-agent-macos-build')
-    gh.trigger_workflow(workflow_name, github_action_ref, inputs)
+    result = gh.trigger_workflow(workflow_name, github_action_ref, inputs)
+
+    print(f"Workflow creation result: {result}")
+    if not result:
+        print("Couldn't create workflow run.")
+        raise Exit(code=1)
 
     # Thus the following hack: Send an id as input when creating a workflow on Github. The worklow will use the id and put it in the name of one of its jobs.
     # We then fetch workflows and check if it contains the id in its job name.
