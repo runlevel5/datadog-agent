@@ -48,11 +48,6 @@ var (
 	// used to serialize to protobuf
 	AgentPayloadVersion string
 
-	jsonExtraHeaders                    http.Header
-	protobufExtraHeaders                http.Header
-	jsonExtraHeadersWithCompression     http.Header
-	protobufExtraHeadersWithCompression http.Header
-
 	expvars                                 = expvar.NewMap("serializer")
 	expvarsSendEventsErrItemTooBigs         = expvar.Int{}
 	expvarsSendEventsErrItemTooBigsFallback = expvar.Int{}
@@ -61,32 +56,28 @@ var (
 func init() {
 	expvars.Set("SendEventsErrItemTooBigs", &expvarsSendEventsErrItemTooBigs)
 	expvars.Set("SendEventsErrItemTooBigsFallback", &expvarsSendEventsErrItemTooBigsFallback)
-	initExtraHeaders()
 }
 
 // initExtraHeaders initializes the global extraHeaders variables.
 // Not part of the `init` function body to ease testing
-func initExtraHeaders() {
-	jsonExtraHeaders = make(http.Header)
+func initExtraHeaders(jsonExtraHeaders, protobufExtraHeaders, jsonExtraHeadersWithCompression, protobufExtraHeadersWithCompression http.Header) {
 	jsonExtraHeaders.Set("Content-Type", jsonContentType)
 
-	jsonExtraHeadersWithCompression = make(http.Header)
 	for k := range jsonExtraHeaders {
 		jsonExtraHeadersWithCompression.Set(k, jsonExtraHeaders.Get(k))
 	}
 
-	protobufExtraHeaders = make(http.Header)
 	protobufExtraHeaders.Set("Content-Type", protobufContentType)
 	protobufExtraHeaders.Set(payloadVersionHTTPHeader, AgentPayloadVersion)
 
-	protobufExtraHeadersWithCompression = make(http.Header)
 	for k := range protobufExtraHeaders {
 		protobufExtraHeadersWithCompression.Set(k, protobufExtraHeaders.Get(k))
 	}
 
 	if compression.ContentEncoding != "" {
-		jsonExtraHeadersWithCompression.Set("Content-Encoding", compression.ContentEncoding)
-		protobufExtraHeadersWithCompression.Set("Content-Encoding", compression.ContentEncoding)
+		contentEncoding := compression.GetContentEncoding()
+		jsonExtraHeadersWithCompression.Set("Content-Encoding", contentEncoding)
+		protobufExtraHeadersWithCompression.Set("Content-Encoding", contentEncoding)
 	}
 }
 
@@ -116,6 +107,11 @@ type Serializer struct {
 
 	seriesJSONPayloadBuilder *stream.JSONPayloadBuilder
 
+	jsonExtraHeaders                    http.Header
+	protobufExtraHeaders                http.Header
+	jsonExtraHeadersWithCompression     http.Header
+	protobufExtraHeadersWithCompression http.Header
+
 	// Those variables allow users to blacklist any kind of payload
 	// from being sent by the agent. This was introduced for
 	// environment where, for example, events or serviceChecks
@@ -137,22 +133,27 @@ type Serializer struct {
 // NewSerializer returns a new Serializer initialized
 func NewSerializer(forwarder forwarder.Forwarder, orchestratorForwarder orchestratorForwarder.Component, config config.Component, hostName string) *Serializer {
 	s := &Serializer{
-		clock:                         clock.New(),
-		Forwarder:                     forwarder,
-		orchestratorForwarder:         orchestratorForwarder,
-		config:                        config,
-		seriesJSONPayloadBuilder:      stream.NewJSONPayloadBuilder(config.GetBool("enable_json_stream_shared_compressor_buffers"), config),
-		enableEvents:                  config.GetBool("enable_payloads.events"),
-		enableSeries:                  config.GetBool("enable_payloads.series"),
-		enableServiceChecks:           config.GetBool("enable_payloads.service_checks"),
-		enableSketches:                config.GetBool("enable_payloads.sketches"),
-		enableJSONToV1Intake:          config.GetBool("enable_payloads.json_to_v1_intake"),
-		enableJSONStream:              stream.Available && config.GetBool("enable_stream_payload_serialization"),
-		enableServiceChecksJSONStream: stream.Available && config.GetBool("enable_service_checks_stream_payload_serialization"),
-		enableEventsJSONStream:        stream.Available && config.GetBool("enable_events_stream_payload_serialization"),
-		enableSketchProtobufStream:    stream.Available && config.GetBool("enable_sketch_stream_payload_serialization"),
-		hostname:                      hostName,
+		clock:                               clock.New(),
+		Forwarder:                           forwarder,
+		orchestratorForwarder:               orchestratorForwarder,
+		config:                              config,
+		seriesJSONPayloadBuilder:            stream.NewJSONPayloadBuilder(config.GetBool("enable_json_stream_shared_compressor_buffers"), config),
+		enableEvents:                        config.GetBool("enable_payloads.events"),
+		enableSeries:                        config.GetBool("enable_payloads.series"),
+		enableServiceChecks:                 config.GetBool("enable_payloads.service_checks"),
+		enableSketches:                      config.GetBool("enable_payloads.sketches"),
+		enableJSONToV1Intake:                config.GetBool("enable_payloads.json_to_v1_intake"),
+		enableJSONStream:                    stream.Available && config.GetBool("enable_stream_payload_serialization"),
+		enableServiceChecksJSONStream:       stream.Available && config.GetBool("enable_service_checks_stream_payload_serialization"),
+		enableEventsJSONStream:              stream.Available && config.GetBool("enable_events_stream_payload_serialization"),
+		enableSketchProtobufStream:          stream.Available && config.GetBool("enable_sketch_stream_payload_serialization"),
+		hostname:                            hostName,
+		jsonExtraHeaders:                    make(http.Header),
+		protobufExtraHeaders:                make(http.Header),
+		jsonExtraHeadersWithCompression:     make(http.Header),
+		protobufExtraHeadersWithCompression: make(http.Header),
 	}
+	initExtraHeaders(s.jsonExtraHeaders, s.protobufExtraHeaders, s.jsonExtraHeadersWithCompression, s.protobufExtraHeadersWithCompression)
 
 	if !s.enableEvents {
 		log.Warn("event payloads are disabled: all events will be dropped")
@@ -193,9 +194,9 @@ func (s Serializer) serializePayloadJSON(payload marshaler.JSONMarshaler, compre
 	var extraHeaders http.Header
 
 	if compress {
-		extraHeaders = jsonExtraHeadersWithCompression
+		extraHeaders = s.jsonExtraHeadersWithCompression
 	} else {
-		extraHeaders = jsonExtraHeaders
+		extraHeaders = s.jsonExtraHeaders
 	}
 
 	return s.serializePayloadInternal(payload, compress, extraHeaders, split.JSONMarshalFct)
@@ -204,9 +205,9 @@ func (s Serializer) serializePayloadJSON(payload marshaler.JSONMarshaler, compre
 func (s Serializer) serializePayloadProto(payload marshaler.ProtoMarshaler, compress bool) (transaction.BytesPayloads, http.Header, error) {
 	var extraHeaders http.Header
 	if compress {
-		extraHeaders = protobufExtraHeadersWithCompression
+		extraHeaders = s.protobufExtraHeadersWithCompression
 	} else {
-		extraHeaders = protobufExtraHeaders
+		extraHeaders = s.protobufExtraHeaders
 	}
 	return s.serializePayloadInternal(payload, compress, extraHeaders, split.ProtoMarshalFct)
 }
@@ -223,12 +224,12 @@ func (s Serializer) serializePayloadInternal(payload marshaler.AbstractMarshaler
 func (s Serializer) serializeStreamablePayload(payload marshaler.StreamJSONMarshaler, policy stream.OnErrItemTooBigPolicy) (transaction.BytesPayloads, http.Header, error) {
 	adapter := marshaler.NewIterableStreamJSONMarshalerAdapter(payload)
 	payloads, err := s.seriesJSONPayloadBuilder.BuildWithOnErrItemTooBigPolicy(adapter, policy)
-	return payloads, jsonExtraHeadersWithCompression, err
+	return payloads, s.jsonExtraHeadersWithCompression, err
 }
 
 func (s Serializer) serializeIterableStreamablePayload(payload marshaler.IterableStreamJSONMarshaler, policy stream.OnErrItemTooBigPolicy) (transaction.BytesPayloads, http.Header, error) {
 	payloads, err := s.seriesJSONPayloadBuilder.BuildWithOnErrItemTooBigPolicy(payload, policy)
-	return payloads, jsonExtraHeadersWithCompression, err
+	return payloads, s.jsonExtraHeadersWithCompression, err
 }
 
 // As events are gathered by SourceType, the serialization logic is more complex than for the other serializations.
@@ -344,7 +345,7 @@ func (s *Serializer) SendIterableSeries(serieSource metrics.SerieSource) error {
 		seriesBytesPayloads, extraHeaders, err = s.serializePayloadJSON(seriesSerializer, true)
 	} else {
 		seriesBytesPayloads, err = seriesSerializer.MarshalSplitCompress(marshaler.NewBufferContext(), s.config)
-		extraHeaders = protobufExtraHeadersWithCompression
+		extraHeaders = s.protobufExtraHeadersWithCompression
 	}
 
 	if err != nil {
@@ -375,7 +376,7 @@ func (s *Serializer) SendSketch(sketches metrics.SketchesSource) error {
 			return fmt.Errorf("dropping sketch payload: %v", err)
 		}
 
-		return s.Forwarder.SubmitSketchSeries(payloads, protobufExtraHeadersWithCompression)
+		return s.Forwarder.SubmitSketchSeries(payloads, s.protobufExtraHeadersWithCompression)
 	} else {
 		//nolint:revive // TODO(AML) Fix revive linter
 		compress := true
@@ -415,7 +416,7 @@ func (s *Serializer) sendMetadata(m marshaler.JSONMarshaler, submit func(payload
 		return fmt.Errorf("metadata payload was too big to send (%d bytes compressed, %d bytes uncompressed), metadata payloads cannot be split", len(compressedPayload), len(payload))
 	}
 
-	if err := submit(transaction.NewBytesPayloadsWithoutMetaData([]*[]byte{&compressedPayload}), jsonExtraHeadersWithCompression); err != nil {
+	if err := submit(transaction.NewBytesPayloadsWithoutMetaData([]*[]byte{&compressedPayload}), s.jsonExtraHeadersWithCompression); err != nil {
 		return err
 	}
 
@@ -440,7 +441,7 @@ func (s *Serializer) SendProcessesMetadata(data interface{}) error {
 		return fmt.Errorf("could not compress processes metadata payload: %s", err)
 	}
 	if err := s.Forwarder.SubmitV1Intake(transaction.NewBytesPayloadsWithoutMetaData([]*[]byte{&compressedPayload}),
-		transaction.Events, jsonExtraHeadersWithCompression); err != nil {
+		transaction.Events, s.jsonExtraHeadersWithCompression); err != nil {
 		return err
 	}
 

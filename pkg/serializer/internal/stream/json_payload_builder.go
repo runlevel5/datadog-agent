@@ -112,6 +112,8 @@ func (b *JSONPayloadBuilder) BuildWithOnErrItemTooBigPolicy(
 	maxPayloadSize := b.config.GetInt("serializer_max_payload_size")
 	maxUncompressedSize := b.config.GetInt("serializer_max_uncompressed_payload_size")
 
+	compressorKind := b.config.GetString("serializer_compressor_kind")
+
 	if b.shareAndLockBuffers {
 		defer b.mu.Unlock()
 
@@ -157,7 +159,7 @@ func (b *JSONPayloadBuilder) BuildWithOnErrItemTooBigPolicy(
 	compressor, err := NewCompressor(
 		input, output,
 		maxPayloadSize, maxUncompressedSize,
-		header.Bytes(), footer.Bytes(), []byte(","))
+		header.Bytes(), footer.Bytes(), []byte(","), compressorKind)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +195,7 @@ func (b *JSONPayloadBuilder) BuildWithOnErrItemTooBigPolicy(
 			compressor, err = NewCompressor(
 				input, output,
 				maxPayloadSize, maxUncompressedSize,
-				header.Bytes(), footer.Bytes(), []byte(","))
+				header.Bytes(), footer.Bytes(), []byte(","), compressorKind)
 			if err != nil {
 				return nil, err
 			}

@@ -26,6 +26,7 @@ import (
 	pkgconfigsetup "github.com/DataDog/datadog-agent/pkg/config/setup"
 	"github.com/DataDog/datadog-agent/pkg/metrics/event"
 	"github.com/DataDog/datadog-agent/pkg/serializer/internal/stream"
+	"github.com/DataDog/datadog-agent/pkg/util/compression"
 )
 
 func TestMarshal(t *testing.T) {
@@ -147,54 +148,80 @@ func TestPayloadDescribeItem(t *testing.T) {
 }
 
 func TestPayloadsNoEvent(t *testing.T) {
-	assertEqualEventsToMarshalJSON(t, Events{})
+	assertEqualEventsToMarshalJSON(t, Events{}, compression.ZlibCompressor)
+	assertEqualEventsToMarshalJSON(t, Events{}, compression.ZstdCompressor)
 }
 
 func TestPayloadsSingleEvent(t *testing.T) {
 	events := createEvents("sourceTypeName")
-	assertEqualEventsToMarshalJSON(t, events)
+	assertEqualEventsToMarshalJSON(t, events, compression.ZlibCompressor)
+	assertEqualEventsToMarshalJSON(t, events, compression.ZstdCompressor)
 }
 
 func TestPayloadsEmptyEvent(t *testing.T) {
-	assertEqualEventsToMarshalJSON(t, Events{EventsArr: []*event.Event{{}}})
+	assertEqualEventsToMarshalJSON(t, Events{EventsArr: []*event.Event{{}}}, compression.ZlibCompressor)
+	assertEqualEventsToMarshalJSON(t, Events{EventsArr: []*event.Event{{}}}, compression.ZstdCompressor)
 }
 
 func TestPayloadsEvents(t *testing.T) {
 	events := createEvents("1", "2", "3", "2", "1", "3")
-	assertEqualEventsToMarshalJSON(t, events)
+	assertEqualEventsToMarshalJSON(t, events, compression.ZlibCompressor)
+	assertEqualEventsToMarshalJSON(t, events, compression.ZstdCompressor)
 }
 
 func TestEventsSeveralPayloadsCreateSingleMarshaler(t *testing.T) {
-	events := createEvents("3", "3", "2", "2", "1", "1")
+	tests := map[string]struct {
+		kind string
+	}{
+		"zlib": {kind: "zlib"},
+		"zstd": {kind: "zstd"},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			events := createEvents("3", "3", "2", "2", "1", "1")
 
-	cfg := pkgconfigsetup.Conf()
-	cfg.SetWithoutSource("serializer_max_payload_size", 500)
-	expectedPayloads, err := events.MarshalJSON()
-	assert.NoError(t, err)
+			cfg := pkgconfigsetup.Conf()
+			cfg.SetWithoutSource("serializer_max_payload_size", 500)
+			cfg.SetWithoutSource("serializer_compressor_kind", tc.kind)
+			expectedPayloads, err := events.MarshalJSON()
+			assert.NoError(t, err)
 
-	payloadsBySourceType := buildPayload(t, events.CreateSingleMarshaler(), cfg)
-	assert.Equal(t, 3, len(payloadsBySourceType))
-	assertEqualEventsPayloads(t, expectedPayloads, payloadsBySourceType)
+			payloadsBySourceType := buildPayload(t, events.CreateSingleMarshaler(), cfg)
+			assert.Equal(t, 3, len(payloadsBySourceType))
+			assertEqualEventsPayloads(t, expectedPayloads, payloadsBySourceType)
+		})
+	}
 }
 
 func TestEventsSeveralPayloadsCreateMarshalersBySourceType(t *testing.T) {
-	events := createEvents("3", "3", "2", "2", "1", "1")
-
-	cfg := pkgconfigsetup.Conf()
-	cfg.SetWithoutSource("serializer_max_payload_size", 300)
-	expectedPayloads, err := events.MarshalJSON()
-	assert.NoError(t, err)
-
-	marshalers := events.CreateMarshalersBySourceType()
-	assert.Equal(t, 3, len(marshalers))
-	var payloadForEachSourceType []payloadsType
-	for _, marshaler := range marshalers {
-		payloads := buildPayload(t, marshaler, cfg)
-		assert.Equal(t, 2, len(payloads))
-		payloadForEachSourceType = append(payloadForEachSourceType, payloads...)
+	tests := map[string]struct {
+		kind string
+	}{
+		"zlib": {kind: compression.ZlibCompressor},
+		"zstd": {kind: compression.ZstdCompressor},
 	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			events := createEvents("3", "3", "2", "2", "1", "1")
 
-	assertEqualEventsPayloads(t, expectedPayloads, payloadForEachSourceType)
+			cfg := pkgconfigsetup.Conf()
+			cfg.SetWithoutSource("serializer_max_payload_size", 300)
+			cfg.SetWithoutSource("serializer_compressor_kind", tc.kind)
+			expectedPayloads, err := events.MarshalJSON()
+			assert.NoError(t, err)
+
+			marshalers := events.CreateMarshalersBySourceType()
+			assert.Equal(t, 3, len(marshalers))
+			var payloadForEachSourceType []payloadsType
+			for _, marshaler := range marshalers {
+				payloads := buildPayload(t, marshaler, cfg)
+				assert.Equal(t, 2, len(payloads))
+				payloadForEachSourceType = append(payloadForEachSourceType, payloads...)
+			}
+
+			assertEqualEventsPayloads(t, expectedPayloads, payloadForEachSourceType)
+		})
+	}
 }
 
 // Helpers
@@ -227,11 +254,12 @@ func createEvents(sourceTypeNames ...string) Events {
 
 // Check JSONPayloadBuilder for CreateSingleMarshaler and CreateMarshalersBySourceType
 // return the same results as for MarshalJSON.
-func assertEqualEventsToMarshalJSON(t *testing.T, events Events) {
+func assertEqualEventsToMarshalJSON(t *testing.T, events Events, kind string) {
 	json, err := events.MarshalJSON()
 	assert.NoError(t, err)
 
 	mockConfig := pkgconfigsetup.Conf()
+	mockConfig.SetWithoutSource("serializer_compressor_kind", kind)
 	payloadsBySourceType := buildPayload(t, events.CreateSingleMarshaler(), mockConfig)
 	assertEqualEventsPayloads(t, json, payloadsBySourceType)
 

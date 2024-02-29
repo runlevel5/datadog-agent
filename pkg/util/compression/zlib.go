@@ -7,46 +7,40 @@
 
 package compression
 
-import (
-	"bytes"
-	"compress/zlib"
-	"io"
-)
-
 // ContentEncoding describes the HTTP header value associated with the compression method
 // var instead of const to ease testing
-var ContentEncoding = "deflate"
+// var ContentEncoding = "deflate"
 
 // Compress will compress the data with zlib
-func Compress(src []byte) ([]byte, error) {
-	var b bytes.Buffer
-	w := zlib.NewWriter(&b)
-	_, err := w.Write(src)
-	if err != nil {
-		return nil, err
-	}
-	err = w.Close()
-	if err != nil {
-		return nil, err
-	}
-	dst := b.Bytes()
-	return dst, nil
-}
+// func Compress(src []byte) ([]byte, error) {
+// 	var b bytes.Buffer
+// 	w := zlib.NewWriter(&b)
+// 	_, err := w.Write(src)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	err = w.Close()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	dst := b.Bytes()
+// 	return dst, nil
+// }
 
 // Decompress will decompress the data with zlib
-func Decompress(src []byte) ([]byte, error) {
-	r, err := zlib.NewReader(bytes.NewReader(src))
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
+// func Decompress(src []byte) ([]byte, error) {
+// 	r, err := zlib.NewReader(bytes.NewReader(src))
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	defer r.Close()
 
-	dst, err := io.ReadAll(r)
-	if err != nil {
-		return nil, err
-	}
-	return dst, nil
-}
+// 	dst, err := io.ReadAll(r)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return dst, nil
+// }
 
 // CompressBound returns the worst case size needed for a destination buffer
 // This is allowed to return a value _larger_ than 'sourceLen'.

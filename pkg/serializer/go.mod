@@ -52,7 +52,8 @@ replace (
 )
 
 require (
-	github.com/DataDog/agent-payload/v5 v5.0.102
+	github.com/DataDog/agent-payload/v5 v5.0.104
+	github.com/DataDog/datadog-agent v0.0.0-20240229002041-199d74cb775d
 	github.com/DataDog/datadog-agent/comp/core/config v0.52.0-rc.3
 	github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder v0.52.0-rc.3
 	github.com/DataDog/datadog-agent/comp/forwarder/orchestrator/orchestratorinterface v0.52.0-rc.3
@@ -68,6 +69,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/util/log v0.52.0-rc.3
 	github.com/DataDog/datadog-agent/pkg/version v0.52.0-rc.3
 	github.com/DataDog/opentelemetry-mapping-go/pkg/quantile v0.13.3
+	github.com/DataDog/zstd v1.5.5
 	github.com/benbjohnson/clock v1.3.5
 	github.com/gogo/protobuf v1.3.2
 	github.com/json-iterator/go v1.1.12
@@ -84,6 +86,7 @@ require (
 	github.com/DataDog/datadog-agent/comp/core/telemetry v0.52.0-rc.3 // indirect
 	github.com/DataDog/datadog-agent/pkg/collector/check/defaults v0.52.0-rc.3 // indirect
 	github.com/DataDog/datadog-agent/pkg/config/env v0.52.0-rc.3 // indirect
+	github.com/DataDog/datadog-agent/pkg/config/logs v0.52.0-rc.3 // indirect
 	github.com/DataDog/datadog-agent/pkg/config/utils v0.52.0-rc.3 // indirect
 	github.com/DataDog/datadog-agent/pkg/orchestrator/model v0.52.0-rc.3 // indirect
 	github.com/DataDog/datadog-agent/pkg/status/health v0.52.0-rc.3 // indirect
@@ -105,7 +108,6 @@ require (
 	github.com/DataDog/mmh3 v0.0.0-20210722141835-012dc69a9e49 // indirect
 	github.com/DataDog/sketches-go v1.4.4 // indirect
 	github.com/DataDog/viper v1.12.0 // indirect
-	github.com/DataDog/zstd v1.5.5 // indirect
 	github.com/DataDog/zstd_0 v0.0.0-20210310093942-586c1286621f // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -166,7 +168,7 @@ require (
 	golang.org/x/exp v0.0.0-20231214170342-aacd6d4b4611 // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.20.0 // indirect
-	golang.org/x/sys v0.16.0 // indirect
+	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.17.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240102182953-50ed04b92917 // indirect

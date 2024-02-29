@@ -13,6 +13,9 @@ import (
 	"compress/zlib"
 	"errors"
 	"expvar"
+	"io"
+
+	"github.com/DataDog/zstd"
 
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/compression"
@@ -22,6 +25,28 @@ const (
 	// Available is true if the code is compiled in
 	Available = true
 )
+
+// Flusher is the interface that requires the Flush function
+type flusher interface {
+	Flush() error
+}
+
+// zipper is the interface that zlib and zstd should implement
+type zipper interface {
+	io.WriteCloser
+	flusher
+}
+
+// NewZipper returns a zipper of either zstd or zlib depending on the kind param
+func NewZipper(kind string, output *bytes.Buffer) (zipper, error) {
+	switch kind {
+	case compression.ZlibCompressor:
+		return zlib.NewWriter(output), nil
+	case compression.ZstdCompressor:
+		return zstd.NewWriter(output), nil
+	}
+	return nil, errors.New("invalid zipper kind. choose 'zlib' or 'zstd'")
+}
 
 var (
 	compressorExpvars    = expvar.NewMap("compressor")
@@ -63,12 +88,12 @@ func init() {
 type Compressor struct {
 	input               *bytes.Buffer // temporary buffer for data that has not been compressed yet
 	compressed          *bytes.Buffer // output buffer containing the compressed payload
-	zipper              *zlib.Writer
-	header              []byte // json header to print at the beginning of the payload
-	footer              []byte // json footer to append at the end of the payload
-	uncompressedWritten int    // uncompressed bytes written
-	firstItem           bool   // tells if the first item has been written
-	repacks             int    // numbers of time we had to pack this payload
+	zipper              zipper        // either zlib or zstd
+	header              []byte        // json header to print at the beginning of the payload
+	footer              []byte        // json footer to append at the end of the payload
+	uncompressedWritten int           // uncompressed bytes written
+	firstItem           bool          // tells if the first item has been written
+	repacks             int           // numbers of time we had to pack this payload
 	maxUnzippedItemSize int
 	maxZippedItemSize   int
 	maxPayloadSize      int
@@ -77,7 +102,7 @@ type Compressor struct {
 }
 
 // NewCompressor returns a new instance of a Compressor
-func NewCompressor(input, output *bytes.Buffer, maxPayloadSize, maxUncompressedSize int, header, footer []byte, separator []byte) (*Compressor, error) {
+func NewCompressor(input, output *bytes.Buffer, maxPayloadSize, maxUncompressedSize int, header, footer []byte, separator []byte, compressorKind string) (*Compressor, error) {
 	c := &Compressor{
 		header:              header,
 		footer:              footer,
@@ -90,8 +115,11 @@ func NewCompressor(input, output *bytes.Buffer, maxPayloadSize, maxUncompressedS
 		maxZippedItemSize:   maxUncompressedSize - compression.CompressBound(len(footer)+len(header)),
 		separator:           separator,
 	}
-
-	c.zipper = zlib.NewWriter(c.compressed)
+	var err error
+	c.zipper, err = NewZipper(compressorKind, c.compressed)
+	if err != nil {
+		return nil, err
+	}
 	n, err := c.zipper.Write(header)
 	c.uncompressedWritten += n
 

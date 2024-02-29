@@ -22,6 +22,7 @@ import (
 
 	forwarder "github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder/transaction"
+	"github.com/DataDog/datadog-agent/pkg/config"
 	pkgconfigsetup "github.com/DataDog/datadog-agent/pkg/config/setup"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
 	"github.com/DataDog/datadog-agent/pkg/metrics/event"
@@ -35,14 +36,17 @@ var initialContentEncoding = compression.ContentEncoding
 
 func resetContentEncoding() {
 	compression.ContentEncoding = initialContentEncoding
-	initExtraHeaders()
 }
 
 func TestInitExtraHeadersNoopCompression(t *testing.T) {
 	compression.ContentEncoding = ""
 	defer resetContentEncoding()
 
-	initExtraHeaders()
+	jsonExtraHeaders := make(http.Header)
+	protobufExtraHeaders := make(http.Header)
+	jsonExtraHeadersWithCompression := make(http.Header)
+	protobufExtraHeadersWithCompression := make(http.Header)
+	initExtraHeaders(jsonExtraHeaders, protobufExtraHeaders, jsonExtraHeadersWithCompression, protobufExtraHeadersWithCompression)
 
 	expected := make(http.Header)
 	expected.Set("Content-Type", jsonContentType)
@@ -65,31 +69,48 @@ func TestInitExtraHeadersNoopCompression(t *testing.T) {
 }
 
 func TestInitExtraHeadersWithCompression(t *testing.T) {
-	compression.ContentEncoding = "zstd"
-	defer resetContentEncoding()
+	tests := map[string]struct {
+		kind string
+	}{
+		"zlib": {kind: "zlib"},
+		"zstd": {kind: "zstd"},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			originalCompressorKind := config.Datadog.GetString("serializer_compressor_kind")
+			config.Datadog.SetWithoutSource("serializer_compressor_kind", tc.kind)
+			defer config.Datadog.SetWithoutSource("serializer_compressor_kind", originalCompressorKind)
 
-	initExtraHeaders()
+			contentEncoding := compression.GetContentEncoding()
 
-	expected := make(http.Header)
-	expected.Set("Content-Type", jsonContentType)
-	assert.Equal(t, expected, jsonExtraHeaders)
+			jsonExtraHeaders := make(http.Header)
+			protobufExtraHeaders := make(http.Header)
+			jsonExtraHeadersWithCompression := make(http.Header)
+			protobufExtraHeadersWithCompression := make(http.Header)
+			initExtraHeaders(jsonExtraHeaders, protobufExtraHeaders, jsonExtraHeadersWithCompression, protobufExtraHeadersWithCompression)
 
-	expected = make(http.Header)
-	expected.Set("Content-Type", protobufContentType)
-	expected.Set(payloadVersionHTTPHeader, AgentPayloadVersion)
-	assert.Equal(t, expected, protobufExtraHeaders)
+			expected := make(http.Header)
+			expected.Set("Content-Type", jsonContentType)
+			assert.Equal(t, expected, jsonExtraHeaders)
 
-	// "Content-Encoding" header present with correct value
-	expected = make(http.Header)
-	expected.Set("Content-Type", jsonContentType)
-	expected.Set("Content-Encoding", compression.ContentEncoding)
-	assert.Equal(t, expected, jsonExtraHeadersWithCompression)
+			expected = make(http.Header)
+			expected.Set("Content-Type", protobufContentType)
+			expected.Set(payloadVersionHTTPHeader, AgentPayloadVersion)
+			assert.Equal(t, expected, protobufExtraHeaders)
 
-	expected = make(http.Header)
-	expected.Set("Content-Type", protobufContentType)
-	expected.Set("Content-Encoding", compression.ContentEncoding)
-	expected.Set(payloadVersionHTTPHeader, AgentPayloadVersion)
-	assert.Equal(t, expected, protobufExtraHeadersWithCompression)
+			// "Content-Encoding" header present with correct value
+			expected = make(http.Header)
+			expected.Set("Content-Type", jsonContentType)
+			expected.Set("Content-Encoding", contentEncoding)
+			assert.Equal(t, expected, jsonExtraHeadersWithCompression)
+
+			expected = make(http.Header)
+			expected.Set("Content-Type", protobufContentType)
+			expected.Set("Content-Encoding", contentEncoding)
+			expected.Set(payloadVersionHTTPHeader, AgentPayloadVersion)
+			assert.Equal(t, expected, protobufExtraHeadersWithCompression)
+		})
+	}
 }
 
 func TestAgentPayloadVersion(t *testing.T) {
@@ -251,179 +272,318 @@ func createProtoscopeMatcher(protoscopeDef string) interface{} {
 }
 
 func TestSendV1Events(t *testing.T) {
-	mockConfig := pkgconfigsetup.Conf()
-	mockConfig.SetWithoutSource("enable_events_stream_payload_serialization", false)
+	tests := map[string]struct {
+		kind string
+	}{
+		"zlib": {kind: compression.ZlibCompressor},
+		"zstd": {kind: compression.ZstdCompressor},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			mockConfig := pkgconfigsetup.Conf()
+			mockConfig.SetWithoutSource("enable_events_stream_payload_serialization", false)
+			mockConfig.SetWithoutSource("serializer_compressor_kind", tc.kind)
 
-	f := &forwarder.MockedForwarder{}
+			f := &forwarder.MockedForwarder{}
+			jsonExtraHeaders := make(http.Header)
+			protobufExtraHeaders := make(http.Header)
+			jsonExtraHeadersWithCompression := make(http.Header)
+			protobufExtraHeadersWithCompression := make(http.Header)
+			initExtraHeaders(jsonExtraHeaders, protobufExtraHeaders, jsonExtraHeadersWithCompression, protobufExtraHeadersWithCompression)
 
-	matcher := createJSONPayloadMatcher(`{"apiKey":"","events":{},"internalHostname"`)
-	f.On("SubmitV1Intake", matcher, jsonExtraHeadersWithCompression).Return(nil).Times(1)
+			matcher := createJSONPayloadMatcher(`{"apiKey":"","events":{},"internalHostname"`)
+			f.On("SubmitV1Intake", matcher, jsonExtraHeadersWithCompression).Return(nil).Times(1)
 
-	s := NewSerializer(f, nil, mockConfig, "testhost")
-	err := s.SendEvents([]*event.Event{})
-	require.Nil(t, err)
-	f.AssertExpectations(t)
+			s := NewSerializer(f, nil, mockConfig, "testhost")
+			err := s.SendEvents([]*event.Event{})
+			require.Nil(t, err)
+			f.AssertExpectations(t)
+
+		})
+	}
 }
 
 func TestSendV1EventsCreateMarshalersBySourceType(t *testing.T) {
-	mockConfig := pkgconfigsetup.Conf()
-	mockConfig.SetWithoutSource("enable_events_stream_payload_serialization", true)
-	f := &forwarder.MockedForwarder{}
 
-	s := NewSerializer(f, nil, mockConfig, "testhost")
+	tests := map[string]struct {
+		kind string
+	}{
+		"zlib": {kind: compression.ZlibCompressor},
+		"zstd": {kind: compression.ZstdCompressor},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			mockConfig := pkgconfigsetup.Conf()
+			mockConfig.SetWithoutSource("enable_events_stream_payload_serialization", true)
+			mockConfig.SetWithoutSource("serializer_compressor_kind", tc.kind)
+			f := &forwarder.MockedForwarder{}
 
-	events := event.Events{&event.Event{SourceTypeName: "source1"}, &event.Event{SourceTypeName: "source2"}, &event.Event{SourceTypeName: "source3"}}
-	payloadsCountMatcher := func(payloadCount int) interface{} {
-		return mock.MatchedBy(func(payloads transaction.BytesPayloads) bool {
-			return len(payloads) == payloadCount
+			s := NewSerializer(f, nil, mockConfig, "testhost")
+
+			events := event.Events{&event.Event{SourceTypeName: "source1"}, &event.Event{SourceTypeName: "source2"}, &event.Event{SourceTypeName: "source3"}}
+			payloadsCountMatcher := func(payloadCount int) interface{} {
+				return mock.MatchedBy(func(payloads transaction.BytesPayloads) bool {
+					return len(payloads) == payloadCount
+				})
+			}
+
+			f.On("SubmitV1Intake", payloadsCountMatcher(1), s.jsonExtraHeadersWithCompression).Return(nil)
+			err := s.SendEvents(events)
+			assert.NoError(t, err)
+			f.AssertExpectations(t)
+
+			mockConfig.SetWithoutSource("serializer_max_payload_size", 20)
+
+			f.On("SubmitV1Intake", payloadsCountMatcher(3), s.jsonExtraHeadersWithCompression).Return(nil)
+			err = s.SendEvents(events)
+			assert.NoError(t, err)
+			f.AssertExpectations(t)
+
 		})
 	}
-
-	f.On("SubmitV1Intake", payloadsCountMatcher(1), jsonExtraHeadersWithCompression).Return(nil)
-	err := s.SendEvents(events)
-	assert.NoError(t, err)
-	f.AssertExpectations(t)
-
-	mockConfig.SetWithoutSource("serializer_max_payload_size", 20)
-
-	f.On("SubmitV1Intake", payloadsCountMatcher(3), jsonExtraHeadersWithCompression).Return(nil)
-	err = s.SendEvents(events)
-	assert.NoError(t, err)
-	f.AssertExpectations(t)
 }
 
 func TestSendV1ServiceChecks(t *testing.T) {
-	f := &forwarder.MockedForwarder{}
-	matcher := createJSONPayloadMatcher(`[{"check":"","host_name":"","timestamp":0,"status":0,"message":"","tags":null}]`)
-	f.On("SubmitV1CheckRuns", matcher, jsonExtraHeadersWithCompression).Return(nil).Times(1)
-	mockConfig := pkgconfigsetup.Conf()
-	mockConfig.SetWithoutSource("enable_service_checks_stream_payload_serialization", false)
 
-	s := NewSerializer(f, nil, mockConfig, "testhost")
-	err := s.SendServiceChecks(servicecheck.ServiceChecks{&servicecheck.ServiceCheck{}})
-	require.Nil(t, err)
-	f.AssertExpectations(t)
+	tests := map[string]struct {
+		kind string
+	}{
+		"zlib": {kind: compression.ZlibCompressor},
+		"zstd": {kind: compression.ZstdCompressor},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			f := &forwarder.MockedForwarder{}
+			jsonExtraHeaders := make(http.Header)
+			protobufExtraHeaders := make(http.Header)
+			jsonExtraHeadersWithCompression := make(http.Header)
+			protobufExtraHeadersWithCompression := make(http.Header)
+			initExtraHeaders(jsonExtraHeaders, protobufExtraHeaders, jsonExtraHeadersWithCompression, protobufExtraHeadersWithCompression)
+			matcher := createJSONPayloadMatcher(`[{"check":"","host_name":"","timestamp":0,"status":0,"message":"","tags":null}]`)
+			f.On("SubmitV1CheckRuns", matcher, jsonExtraHeadersWithCompression).Return(nil).Times(1)
+			mockConfig := pkgconfigsetup.Conf()
+			mockConfig.SetWithoutSource("enable_service_checks_stream_payload_serialization", false)
+			mockConfig.SetWithoutSource("serializer_compressor_kind", tc.kind)
+
+			s := NewSerializer(f, nil, mockConfig, "testhost")
+			err := s.SendServiceChecks(servicecheck.ServiceChecks{&servicecheck.ServiceCheck{}})
+			require.Nil(t, err)
+			f.AssertExpectations(t)
+
+		})
+	}
 }
 
 func TestSendV1Series(t *testing.T) {
-	f := &forwarder.MockedForwarder{}
-	matcher := createJSONBytesPayloadMatcher(`{"series":[]}`)
 
-	f.On("SubmitV1Series", matcher, jsonExtraHeadersWithCompression).Return(nil).Times(1)
-	mockConfig := pkgconfigsetup.Conf()
-	mockConfig.SetWithoutSource("enable_stream_payload_serialization", false)
-	mockConfig.SetWithoutSource("use_v2_api.series", false)
+	tests := map[string]struct {
+		kind string
+	}{
+		"zlib": {kind: compression.ZlibCompressor},
+		"zstd": {kind: compression.ZstdCompressor},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			f := &forwarder.MockedForwarder{}
+			jsonExtraHeaders := make(http.Header)
+			protobufExtraHeaders := make(http.Header)
+			jsonExtraHeadersWithCompression := make(http.Header)
+			protobufExtraHeadersWithCompression := make(http.Header)
+			initExtraHeaders(jsonExtraHeaders, protobufExtraHeaders, jsonExtraHeadersWithCompression, protobufExtraHeadersWithCompression)
+			matcher := createJSONBytesPayloadMatcher(`{"series":[]}`)
 
-	s := NewSerializer(f, nil, mockConfig, "testhost")
+			f.On("SubmitV1Series", matcher, jsonExtraHeadersWithCompression).Return(nil).Times(1)
+			mockConfig := pkgconfigsetup.Conf()
+			mockConfig.SetWithoutSource("enable_stream_payload_serialization", false)
+			mockConfig.SetWithoutSource("use_v2_api.series", false)
+			mockConfig.SetWithoutSource("serializer_compressor_kind", tc.kind)
 
-	err := s.SendIterableSeries(metricsserializer.CreateSerieSource(metrics.Series{}))
-	require.Nil(t, err)
-	f.AssertExpectations(t)
+			s := NewSerializer(f, nil, mockConfig, "testhost")
+
+			err := s.SendIterableSeries(metricsserializer.CreateSerieSource(metrics.Series{}))
+			require.Nil(t, err)
+			f.AssertExpectations(t)
+
+		})
+	}
 }
 
 func TestSendSeries(t *testing.T) {
-	f := &forwarder.MockedForwarder{}
-	matcher := createProtoscopeMatcher(`1: {
+	tests := map[string]struct {
+		kind string
+	}{
+		"zlib": {kind: compression.ZlibCompressor},
+		"zstd": {kind: compression.ZstdCompressor},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			f := &forwarder.MockedForwarder{}
+			matcher := createProtoscopeMatcher(`1: {
 		1: { 1: {"host"} }
 		5: 3
 		9: { 1: { 4: 10 }}
 	  }`)
-	f.On("SubmitSeries", matcher, protobufExtraHeadersWithCompression).Return(nil).Times(1)
-	mockConfig := pkgconfigsetup.Conf()
-	mockConfig.SetWithoutSource("use_v2_api.series", true) // default value, but just to be sure
+			originalCompressorKind := config.Datadog.GetString("serializer_compressor_kind")
+			config.Datadog.SetWithoutSource("serializer_compressor_kind", tc.kind)
+			defer config.Datadog.SetWithoutSource("serializer_compressor_kind", originalCompressorKind)
+			mockConfig := pkgconfigsetup.Conf()
+			mockConfig.SetWithoutSource("use_v2_api.series", true) // default value, but just to be sure
+			mockConfig.SetWithoutSource("serializer_compressor_kind", tc.kind)
 
-	s := NewSerializer(f, nil, mockConfig, "testhost")
+			s := NewSerializer(f, nil, mockConfig, "testhost")
+			f.On("SubmitSeries", matcher, s.protobufExtraHeadersWithCompression).Return(nil).Times(1)
 
-	err := s.SendIterableSeries(metricsserializer.CreateSerieSource(metrics.Series{&metrics.Serie{}}))
-	require.Nil(t, err)
-	f.AssertExpectations(t)
+			err := s.SendIterableSeries(metricsserializer.CreateSerieSource(metrics.Series{&metrics.Serie{}}))
+			require.Nil(t, err)
+			f.AssertExpectations(t)
+		})
+	}
 }
 
 func TestSendSketch(t *testing.T) {
-	f := &forwarder.MockedForwarder{}
 
-	matcher := createProtoscopeMatcher(`
+	tests := map[string]struct {
+		kind string
+	}{
+		"zlib": {kind: compression.ZlibCompressor},
+		"zstd": {kind: compression.ZstdCompressor},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			f := &forwarder.MockedForwarder{}
+
+			matcher := createProtoscopeMatcher(`
 		1: { 1: {"fakename"} 2: {"fakehost"} 8: { 1: { 4: 10 }}}
 		2: {}
 		`)
-	f.On("SubmitSketchSeries", matcher, protobufExtraHeadersWithCompression).Return(nil).Times(1)
-
-	s := NewSerializer(f, nil, pkgconfigsetup.Conf(), "testhost")
-	err := s.SendSketch(metrics.NewSketchesSourceTestWithSketch())
-	require.Nil(t, err)
-	f.AssertExpectations(t)
+			originalCompressorKind := config.Datadog.GetString("serializer_compressor_kind")
+			config.Datadog.SetWithoutSource("serializer_compressor_kind", tc.kind)
+			defer config.Datadog.SetWithoutSource("serializer_compressor_kind", originalCompressorKind)
+			mockConfig := pkgconfigsetup.Conf()
+			mockConfig.SetWithoutSource("serializer_compressor_kind", tc.kind)
+			s := NewSerializer(f, nil, mockConfig, "testhost")
+			f.On("SubmitSketchSeries", matcher, s.protobufExtraHeadersWithCompression).Return(nil).Times(1)
+			err := s.SendSketch(metrics.NewSketchesSourceTestWithSketch())
+			require.Nil(t, err)
+			f.AssertExpectations(t)
+		})
+	}
 }
 
 func TestSendMetadata(t *testing.T) {
-	f := &forwarder.MockedForwarder{}
-	f.On("SubmitMetadata", jsonPayloads, jsonExtraHeadersWithCompression).Return(nil).Times(1)
 
-	s := NewSerializer(f, nil, pkgconfigsetup.Conf(), "testhost")
+	tests := map[string]struct {
+		kind string
+	}{
+		"zlib": {kind: compression.ZlibCompressor},
+		"zstd": {kind: compression.ZstdCompressor},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			f := &forwarder.MockedForwarder{}
 
-	payload := &testPayload{}
-	err := s.SendMetadata(payload)
-	require.Nil(t, err)
-	f.AssertExpectations(t)
+			mockConfig := pkgconfigsetup.Conf()
+			mockConfig.SetWithoutSource("serializer_compressor_kind", tc.kind)
+			s := NewSerializer(f, nil, mockConfig, "testhost")
 
-	f.On("SubmitMetadata", jsonPayloads, jsonExtraHeadersWithCompression).Return(fmt.Errorf("some error")).Times(1)
-	err = s.SendMetadata(payload)
-	require.NotNil(t, err)
-	f.AssertExpectations(t)
+			f.On("SubmitMetadata", jsonPayloads, s.jsonExtraHeadersWithCompression).Return(nil).Times(1)
 
-	errPayload := &testErrorPayload{}
-	err = s.SendMetadata(errPayload)
-	require.NotNil(t, err)
+			payload := &testPayload{}
+			err := s.SendMetadata(payload)
+			require.Nil(t, err)
+			f.AssertExpectations(t)
+
+			f.On("SubmitMetadata", jsonPayloads, s.jsonExtraHeadersWithCompression).Return(fmt.Errorf("some error")).Times(1)
+			err = s.SendMetadata(payload)
+			require.NotNil(t, err)
+			f.AssertExpectations(t)
+
+			errPayload := &testErrorPayload{}
+			err = s.SendMetadata(errPayload)
+			require.NotNil(t, err)
+		})
+	}
 }
 
 func TestSendProcessesMetadata(t *testing.T) {
-	f := &forwarder.MockedForwarder{}
-	payload := []byte("\"test\"")
-	payloads, _ := mkPayloads(payload, true)
-	f.On("SubmitV1Intake", payloads, jsonExtraHeadersWithCompression).Return(nil).Times(1)
+	tests := map[string]struct {
+		kind string
+	}{
+		"zlib": {kind: compression.ZlibCompressor},
+		"zstd": {kind: compression.ZstdCompressor},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
 
-	s := NewSerializer(f, nil, pkgconfigsetup.Conf(), "testhost")
+			f := &forwarder.MockedForwarder{}
+			jsonExtraHeaders := make(http.Header)
+			protobufExtraHeaders := make(http.Header)
+			jsonExtraHeadersWithCompression := make(http.Header)
+			protobufExtraHeadersWithCompression := make(http.Header)
+			initExtraHeaders(jsonExtraHeaders, protobufExtraHeaders, jsonExtraHeadersWithCompression, protobufExtraHeadersWithCompression)
+			payload := []byte("\"test\"")
+			payloads, _ := mkPayloads(payload, true)
+			f.On("SubmitV1Intake", payloads, jsonExtraHeadersWithCompression).Return(nil).Times(1)
 
-	err := s.SendProcessesMetadata("test")
-	require.Nil(t, err)
-	f.AssertExpectations(t)
+			mockConfig := pkgconfigsetup.Conf()
+			mockConfig.SetWithoutSource("serializer_compressor_kind", tc.kind)
+			s := NewSerializer(f, nil, mockConfig, "testhost")
 
-	f.On("SubmitV1Intake", payloads, jsonExtraHeadersWithCompression).Return(fmt.Errorf("some error")).Times(1)
-	err = s.SendProcessesMetadata("test")
-	require.NotNil(t, err)
-	f.AssertExpectations(t)
+			err := s.SendProcessesMetadata("test")
+			require.Nil(t, err)
+			f.AssertExpectations(t)
 
-	errPayload := &testErrorPayload{}
-	err = s.SendProcessesMetadata(errPayload)
-	require.NotNil(t, err)
+			f.On("SubmitV1Intake", payloads, jsonExtraHeadersWithCompression).Return(fmt.Errorf("some error")).Times(1)
+			err = s.SendProcessesMetadata("test")
+			require.NotNil(t, err)
+			f.AssertExpectations(t)
+
+			errPayload := &testErrorPayload{}
+			err = s.SendProcessesMetadata(errPayload)
+			require.NotNil(t, err)
+		})
+	}
 }
 
 func TestSendWithDisabledKind(t *testing.T) {
-	mockConfig := pkgconfigsetup.Conf()
+	tests := map[string]struct {
+		kind string
+	}{
+		"zlib": {kind: compression.ZlibCompressor},
+		"zstd": {kind: compression.ZstdCompressor},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			mockConfig := pkgconfigsetup.Conf()
 
-	mockConfig.SetWithoutSource("enable_payloads.events", false)
-	mockConfig.SetWithoutSource("enable_payloads.series", false)
-	mockConfig.SetWithoutSource("enable_payloads.service_checks", false)
-	mockConfig.SetWithoutSource("enable_payloads.sketches", false)
-	mockConfig.SetWithoutSource("enable_payloads.json_to_v1_intake", false)
+			mockConfig.SetWithoutSource("enable_payloads.events", false)
+			mockConfig.SetWithoutSource("enable_payloads.series", false)
+			mockConfig.SetWithoutSource("enable_payloads.service_checks", false)
+			mockConfig.SetWithoutSource("enable_payloads.sketches", false)
+			mockConfig.SetWithoutSource("enable_payloads.json_to_v1_intake", false)
+			mockConfig.SetWithoutSource("serializer_compressor_kind", tc.kind)
 
-	f := &forwarder.MockedForwarder{}
-	s := NewSerializer(f, nil, mockConfig, "testhost")
+			f := &forwarder.MockedForwarder{}
+			s := NewSerializer(f, nil, mockConfig, "testhost")
 
-	payload := &testPayload{}
+			payload := &testPayload{}
 
-	s.SendEvents(make(event.Events, 0))
-	s.SendIterableSeries(metricsserializer.CreateSerieSource(metrics.Series{}))
-	s.SendSketch(metrics.NewSketchesSourceTest())
-	s.SendServiceChecks(make(servicecheck.ServiceChecks, 0))
-	s.SendProcessesMetadata("test")
+			s.SendEvents(make(event.Events, 0))
+			s.SendIterableSeries(metricsserializer.CreateSerieSource(metrics.Series{}))
+			s.SendSketch(metrics.NewSketchesSourceTest())
+			s.SendServiceChecks(make(servicecheck.ServiceChecks, 0))
+			s.SendProcessesMetadata("test")
 
-	f.AssertNotCalled(t, "SubmitMetadata")
-	f.AssertNotCalled(t, "SubmitV1CheckRuns")
-	f.AssertNotCalled(t, "SubmitV1Series")
-	f.AssertNotCalled(t, "SubmitSketchSeries")
+			f.AssertNotCalled(t, "SubmitMetadata")
+			f.AssertNotCalled(t, "SubmitV1CheckRuns")
+			f.AssertNotCalled(t, "SubmitV1Series")
+			f.AssertNotCalled(t, "SubmitSketchSeries")
 
-	// We never disable metadata
-	f.On("SubmitMetadata", jsonPayloads, jsonExtraHeadersWithCompression).Return(nil).Times(1)
-	s.SendMetadata(payload)
-	f.AssertNumberOfCalls(t, "SubmitMetadata", 1) // called once for the metadata
+			// We never disable metadata
+			f.On("SubmitMetadata", jsonPayloads, s.jsonExtraHeadersWithCompression).Return(nil).Times(1)
+			s.SendMetadata(payload)
+			f.AssertNumberOfCalls(t, "SubmitMetadata", 1) // called once for the metadata
+
+		})
+	}
 }

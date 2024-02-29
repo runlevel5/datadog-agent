@@ -8,10 +8,7 @@
 package metrics
 
 import (
-	"bytes"
-	"compress/zlib"
 	"fmt"
-	"io"
 	"strings"
 	"testing"
 
@@ -24,6 +21,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/serializer/internal/stream"
 	"github.com/DataDog/datadog-agent/pkg/serializer/marshaler"
 	"github.com/DataDog/datadog-agent/pkg/serializer/split"
+	"github.com/DataDog/datadog-agent/pkg/util/compression"
 )
 
 func TestMarshalJSONServiceChecks(t *testing.T) {
@@ -83,7 +81,7 @@ func buildPayload(t *testing.T, m marshaler.StreamJSONMarshaler, cfg pkgconfigmo
 	var uncompressedPayloads [][]byte
 
 	for _, compressedPayload := range payloads {
-		payload, err := decompressPayload(compressedPayload.GetContent())
+		payload, err := decompressPayload(compressedPayload.GetContent(), cfg.GetString("serializer_compressor_kind"))
 		assert.NoError(t, err)
 
 		uncompressedPayloads = append(uncompressedPayloads, payload)
@@ -153,18 +151,8 @@ func createServiceChecks(numberOfItem int) ServiceChecks {
 	return ServiceChecks(serviceCheckCollections)
 }
 
-func decompressPayload(payload []byte) ([]byte, error) {
-	r, err := zlib.NewReader(bytes.NewReader(payload))
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
-
-	dst, err := io.ReadAll(r)
-	if err != nil {
-		return nil, err
-	}
-	return dst, nil
+func decompressPayload(payload []byte, kind string) ([]byte, error) {
+	return compression.DecompressWithKind(payload, kind)
 }
 
 func benchmarkJSONPayloadBuilderServiceCheck(b *testing.B, numberOfItem int) {
