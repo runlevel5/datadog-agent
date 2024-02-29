@@ -183,7 +183,7 @@ static __always_inline void tls_handle_dynamic_table_update(tls_dispatcher_argum
 // that are relevant for us, to be processed later on.
 // The return value is the number of relevant headers that were found and inserted
 // in the `headers_to_process` table.
-static __always_inline __u8 tls_filter_relevant_headers(tls_dispatcher_arguments_t *info, dynamic_table_index_t *dynamic_index, http2_header_t *headers_to_process, __u32 frame_length, http2_telemetry_t *http2_tel) {
+static __always_inline __u8 tls_filter_relevant_headers(tls_dispatcher_arguments_t *info, dynamic_table_index_t *dynamic_index, http2_header_t *headers_to_process, __u32 frame_length, http2_telemetry_t *http2_tel, __u64 *global_dynamic_counter) {
     __u8 current_ch;
     __u8 interesting_headers = 0;
     http2_header_t *current_header;
@@ -193,11 +193,6 @@ static __always_inline __u8 tls_filter_relevant_headers(tls_dispatcher_arguments
     bool is_literal = false;
     __u64 max_bits = 0;
     __u64 index = 0;
-
-    __u64 *global_dynamic_counter = get_dynamic_counter(&info->tup);
-    if (global_dynamic_counter == NULL) {
-        return 0;
-    }
 
     tls_handle_dynamic_table_update(info);
 
@@ -377,7 +372,7 @@ static __always_inline void tls_process_headers(tls_dispatcher_arguments_t *info
     }
 }
 
-static __always_inline void tls_process_headers_frame(tls_dispatcher_arguments_t *info, http2_stream_t *current_stream, dynamic_table_index_t *dynamic_index, http2_frame_t *current_frame_header, http2_telemetry_t *http2_tel) {
+static __always_inline void tls_process_headers_frame(tls_dispatcher_arguments_t *info, http2_stream_t *current_stream, dynamic_table_index_t *dynamic_index, http2_frame_t *current_frame_header, http2_telemetry_t *http2_tel, __u64 *global_dynamic_counter) {
     const __u32 zero = 0;
 
     // Allocating an array of headers, to hold all interesting headers from the frame.
@@ -387,7 +382,7 @@ static __always_inline void tls_process_headers_frame(tls_dispatcher_arguments_t
     }
     bpf_memset(headers_to_process, 0, HTTP2_MAX_HEADERS_COUNT_FOR_PROCESSING * sizeof(http2_header_t));
 
-    __u8 interesting_headers = tls_filter_relevant_headers(info, dynamic_index, headers_to_process, current_frame_header->length, http2_tel);
+    __u8 interesting_headers = tls_filter_relevant_headers(info, dynamic_index, headers_to_process, current_frame_header->length, http2_tel, global_dynamic_counter);
     tls_process_headers(info, dynamic_index, current_stream, headers_to_process, interesting_headers, http2_tel);
 }
 
@@ -777,6 +772,11 @@ int uprobe__http2_tls_headers_parser(struct pt_regs *ctx) {
         goto delete_iteration;
     }
 
+    __u64 *global_dynamic_counter = get_dynamic_counter(&dispatcher_args_copy.tup);
+    if (global_dynamic_counter == NULL) {
+        goto delete_iteration;
+    }
+
     http2_telemetry_t *http2_tel = bpf_map_lookup_elem(&tls_http2_telemetry, &zero);
     if (http2_tel == NULL) {
         goto delete_iteration;
@@ -815,7 +815,7 @@ int uprobe__http2_tls_headers_parser(struct pt_regs *ctx) {
             continue;
         }
         dispatcher_args_copy.data_off = current_frame.offset;
-        tls_process_headers_frame(&dispatcher_args_copy, current_stream, &http2_ctx->dynamic_index, &current_frame.frame, http2_tel);
+        tls_process_headers_frame(&dispatcher_args_copy, current_stream, &http2_ctx->dynamic_index, &current_frame.frame, http2_tel, global_dynamic_counter);
     }
 
     if (tail_call_state->iteration < HTTP2_MAX_FRAMES_ITERATIONS &&

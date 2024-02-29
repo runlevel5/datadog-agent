@@ -181,7 +181,7 @@ static __always_inline void handle_dynamic_table_update(struct __sk_buff *skb, s
 // that are relevant for us, to be processed later on.
 // The return value is the number of relevant headers that were found and inserted
 // in the `headers_to_process` table.
-static __always_inline __u8 filter_relevant_headers(struct __sk_buff *skb, skb_info_t *skb_info, conn_tuple_t *tup, dynamic_table_index_t *dynamic_index, http2_header_t *headers_to_process, __u32 frame_length, http2_telemetry_t *http2_tel) {
+static __always_inline __u8 filter_relevant_headers(struct __sk_buff *skb, skb_info_t *skb_info, conn_tuple_t *tup, dynamic_table_index_t *dynamic_index, http2_header_t *headers_to_process, __u32 frame_length, http2_telemetry_t *http2_tel, __u64 *global_dynamic_counter) {
     __u8 current_ch;
     __u8 interesting_headers = 0;
     http2_header_t *current_header;
@@ -191,11 +191,6 @@ static __always_inline __u8 filter_relevant_headers(struct __sk_buff *skb, skb_i
     bool is_literal = false;
     __u64 max_bits = 0;
     __u64 index = 0;
-
-    __u64 *global_dynamic_counter = get_dynamic_counter(tup);
-    if (global_dynamic_counter == NULL) {
-        return 0;
-    }
 
     handle_dynamic_table_update(skb, skb_info);
 
@@ -374,7 +369,7 @@ static __always_inline void process_headers(struct __sk_buff *skb, dynamic_table
     }
 }
 
-static __always_inline void process_headers_frame(struct __sk_buff *skb, http2_stream_t *current_stream, skb_info_t *skb_info, conn_tuple_t *tup, dynamic_table_index_t *dynamic_index, http2_frame_t *current_frame_header, http2_telemetry_t *http2_tel) {
+static __always_inline void process_headers_frame(struct __sk_buff *skb, http2_stream_t *current_stream, skb_info_t *skb_info, conn_tuple_t *tup, dynamic_table_index_t *dynamic_index, http2_frame_t *current_frame_header, http2_telemetry_t *http2_tel, __u64 *global_dynamic_counter) {
     const __u32 zero = 0;
 
     // Allocating an array of headers, to hold all interesting headers from the frame.
@@ -384,7 +379,7 @@ static __always_inline void process_headers_frame(struct __sk_buff *skb, http2_s
     }
     bpf_memset(headers_to_process, 0, HTTP2_MAX_HEADERS_COUNT_FOR_PROCESSING * sizeof(http2_header_t));
 
-    __u8 interesting_headers = filter_relevant_headers(skb, skb_info, tup, dynamic_index, headers_to_process, current_frame_header->length, http2_tel);
+    __u8 interesting_headers = filter_relevant_headers(skb, skb_info, tup, dynamic_index, headers_to_process, current_frame_header->length, http2_tel, global_dynamic_counter);
     process_headers(skb, dynamic_index, current_stream, headers_to_process, interesting_headers, http2_tel);
 }
 
@@ -800,6 +795,11 @@ int socket__http2_headers_parser(struct __sk_buff *skb) {
         goto delete_iteration;
     }
 
+    __u64 *global_dynamic_counter = get_dynamic_counter(&dispatcher_args_copy.tup);
+    if (global_dynamic_counter == NULL) {
+        return 0;
+    }
+
     http2_telemetry_t *http2_tel = bpf_map_lookup_elem(&http2_telemetry, &zero);
     if (http2_tel == NULL) {
         goto delete_iteration;
@@ -838,7 +838,7 @@ int socket__http2_headers_parser(struct __sk_buff *skb) {
             continue;
         }
         dispatcher_args_copy.skb_info.data_off = current_frame.offset;
-        process_headers_frame(skb, current_stream, &dispatcher_args_copy.skb_info, &dispatcher_args_copy.tup, &http2_ctx->dynamic_index, &current_frame.frame, http2_tel);
+        process_headers_frame(skb, current_stream, &dispatcher_args_copy.skb_info, &dispatcher_args_copy.tup, &http2_ctx->dynamic_index, &current_frame.frame, http2_tel, global_dynamic_counter);
     }
 
     if (tail_call_state->iteration < HTTP2_MAX_FRAMES_ITERATIONS &&
