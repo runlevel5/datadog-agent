@@ -13,9 +13,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/DataDog/zstd"
+	pkgconfigmodel "github.com/DataDog/datadog-agent/pkg/config/model"
 
-	"github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/zstd"
 )
 
 const (
@@ -28,16 +28,16 @@ const (
 // ContentEncoding default as ZlibContentEncoding
 var ContentEncoding = ZlibContentEncoding
 
-func GetContentEncoding() string {
-	kind := config.Datadog.GetString("serializer_compressor_kind")
+func GetContentEncoding(cfg pkgconfigmodel.Reader) string {
+	kind := cfg.GetString("serializer_compressor_kind")
 	if kind == ZlibCompressor {
 		return ZlibContentEncoding
 	}
 	return ZstdContentEncoding
 }
 
-func Compress(payload []byte) ([]byte, error) {
-	kind := config.Datadog.GetString("serializer_compressor_kind")
+func Compress(cfg pkgconfigmodel.Reader, payload []byte) ([]byte, error) {
+	kind := cfg.GetString("serializer_compressor_kind")
 	var compressedPayload []byte
 	var err error
 	switch kind {
@@ -49,8 +49,8 @@ func Compress(payload []byte) ([]byte, error) {
 	return compressedPayload, err
 }
 
-func Decompress(payload []byte) ([]byte, error) {
-	kind := config.Datadog.GetString("serializer_compressor_kind")
+func Decompress(cfg pkgconfigmodel.Reader, payload []byte) ([]byte, error) {
+	kind := cfg.GetString("serializer_compressor_kind")
 	return DecompressWithKind(payload, kind)
 }
 
