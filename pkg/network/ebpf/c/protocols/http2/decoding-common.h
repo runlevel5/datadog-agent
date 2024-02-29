@@ -12,16 +12,23 @@
 #include "protocols/http2/maps-defs.h"
 #include "protocols/classification/defs.h"
 
+#define GET_DIRECTION_DEPENDENT_VARIABLE_WITHOUT_NORMALIZATION(name, map_name, return_type)                 \
+    static __always_inline return_type* get_##name##_without_normalization(conn_tuple_t *t, bool flipped) { \
+        return_type *array = bpf_map_lookup_elem(&map_name, t);                                             \
+        if (array == NULL) {                                                                                \
+            return NULL;                                                                                    \
+        }                                                                                                   \
+        const int array_index = flipped ? 1 : 0;                                                            \
+        return &array[array_index];                                                                         \
+    }
+
+GET_DIRECTION_DEPENDENT_VARIABLE_WITHOUT_NORMALIZATION(dynamic_table_counter, http2_dynamic_counter_table, dynamic_counter_t)
+
 #define GET_DIRECTION_DEPENDENT_VARIABLE(name, map_name, return_type)       \
     static __always_inline return_type* get_##name(conn_tuple_t *t) {       \
         conn_tuple_t normalized = *t;                                       \
         const bool flipped = normalize_tuple(&normalized);                  \
-        return_type *array = bpf_map_lookup_elem(&map_name, &normalized);   \
-        if (array == NULL) {                                                \
-            return NULL;                                                    \
-        }                                                                   \
-        const int array_index = flipped ? 1 : 0;                            \
-        return array + array_index;                                         \
+        return get_##name##_without_normalization(&normalized, flipped);    \
     }
 
 GET_DIRECTION_DEPENDENT_VARIABLE(dynamic_table_counter, http2_dynamic_counter_table, dynamic_counter_t)

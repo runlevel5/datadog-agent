@@ -796,12 +796,6 @@ int socket__http2_headers_parser(struct __sk_buff *skb) {
         goto delete_iteration;
     }
 
-    initialize_dynamic_table_counter(&dispatcher_args_copy.tup);
-    dynamic_counter_t *global_dynamic_counter = get_dynamic_table_counter(&dispatcher_args_copy.tup);
-    if (global_dynamic_counter == NULL) {
-        return 0;
-    }
-
     http2_telemetry_t *http2_tel = bpf_map_lookup_elem(&http2_telemetry, &zero);
     if (http2_tel == NULL) {
         goto delete_iteration;
@@ -812,9 +806,15 @@ int socket__http2_headers_parser(struct __sk_buff *skb) {
 
     // create the http2 ctx for the current http2 frame.
     bpf_memset(http2_ctx, 0, sizeof(http2_ctx_t));
-    http2_ctx->http2_stream_key.tup = dispatcher_args_copy.tup;
-    normalize_tuple(&http2_ctx->http2_stream_key.tup);
     http2_ctx->dynamic_index.tup = dispatcher_args_copy.tup;
+    http2_ctx->http2_stream_key.tup = dispatcher_args_copy.tup;
+    bool flipped = normalize_tuple(&http2_ctx->http2_stream_key.tup);
+
+    initialize_dynamic_table_counter(&http2_ctx->http2_stream_key.tup);
+    dynamic_counter_t *global_dynamic_counter = get_dynamic_table_counter_without_normalization(&http2_ctx->http2_stream_key.tup, flipped);
+    if (global_dynamic_counter == NULL) {
+        goto delete_iteration;
+    }
 
     http2_stream_t *current_stream = NULL;
 
