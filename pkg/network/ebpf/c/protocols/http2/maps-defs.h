@@ -13,7 +13,7 @@ BPF_HASH_MAP(http2_dynamic_table, dynamic_table_index_t, dynamic_table_entry_t, 
 // A map between a stream (connection and a stream id) to the current global dynamic counter.
 // The value also a field called "previous" which is used to cache the last index we've cleaned during our cleanup
 // tail calls.
-BPF_HASH_MAP(http2_dynamic_counter_table, conn_tuple_t, dynamic_counter_t, 0)
+BPF_HASH_MAP(http2_dynamic_counter_table, conn_tuple_t, dynamic_counter_t[DIRECTIONS_PER_CONNECTION], 0)
 
 /* This map is used to keep track of in-flight HTTP2 transactions for each TCP connection */
 BPF_HASH_MAP(http2_in_flight, http2_stream_key_t, http2_stream_t, 0)

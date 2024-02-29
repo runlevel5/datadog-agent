@@ -606,13 +606,14 @@ int socket__http2_handle_first_frame(struct __sk_buff *skb) {
     if (is_tcp_termination(&dispatcher_args_copy.skb_info)) {
         // Deleting the entry for the original tuple.
         bpf_map_delete_elem(&http2_remainder, &dispatcher_args_copy.tup);
-        bpf_map_delete_elem(&http2_dynamic_counter_table, &dispatcher_args_copy.tup);
         terminated_http2_batch_enqueue(&dispatcher_args_copy.tup);
         // In case of local host, the protocol will be deleted for both (client->server) and (server->client),
         // so we won't reach for that path again in the code, so we're deleting the opposite side as well.
         flip_tuple(&dispatcher_args_copy.tup);
-        bpf_map_delete_elem(&http2_dynamic_counter_table, &dispatcher_args_copy.tup);
         bpf_map_delete_elem(&http2_remainder, &dispatcher_args_copy.tup);
+
+        normalize_tuple(&dispatcher_args_copy.tup);
+        bpf_map_delete_elem(&http2_dynamic_counter_table, &dispatcher_args_copy.tup);
         return 0;
     }
 
@@ -795,7 +796,8 @@ int socket__http2_headers_parser(struct __sk_buff *skb) {
         goto delete_iteration;
     }
 
-    __u64 *global_dynamic_counter = get_dynamic_counter(&dispatcher_args_copy.tup);
+    initialize_dynamic_table_counter(&dispatcher_args_copy.tup);
+    dynamic_counter_t *global_dynamic_counter = get_dynamic_table_counter(&dispatcher_args_copy.tup);
     if (global_dynamic_counter == NULL) {
         return 0;
     }
@@ -838,7 +840,7 @@ int socket__http2_headers_parser(struct __sk_buff *skb) {
             continue;
         }
         dispatcher_args_copy.skb_info.data_off = current_frame.offset;
-        process_headers_frame(skb, current_stream, &dispatcher_args_copy.skb_info, &dispatcher_args_copy.tup, &http2_ctx->dynamic_index, &current_frame.frame, http2_tel, global_dynamic_counter);
+        process_headers_frame(skb, current_stream, &dispatcher_args_copy.skb_info, &dispatcher_args_copy.tup, &http2_ctx->dynamic_index, &current_frame.frame, http2_tel, &global_dynamic_counter->value);
     }
 
     if (tail_call_state->iteration < HTTP2_MAX_FRAMES_ITERATIONS &&
@@ -868,7 +870,7 @@ int socket__http2_dynamic_table_cleaner(struct __sk_buff *skb) {
         return 0;
     }
 
-    dynamic_counter_t *dynamic_counter = bpf_map_lookup_elem(&http2_dynamic_counter_table, &dispatcher_args_copy.tup);
+    dynamic_counter_t *dynamic_counter = get_dynamic_table_counter(&dispatcher_args_copy.tup);
     if (dynamic_counter == NULL) {
         goto next;
     }

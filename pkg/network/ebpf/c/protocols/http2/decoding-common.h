@@ -12,6 +12,28 @@
 #include "protocols/http2/maps-defs.h"
 #include "protocols/classification/defs.h"
 
+#define GET_DIRECTION_DEPENDENT_VARIABLE(name, map_name, return_type)       \
+    static __always_inline return_type* get_##name(conn_tuple_t *t) {       \
+        conn_tuple_t normalized = *t;                                       \
+        const bool flipped = normalize_tuple(&normalized);                  \
+        return_type *array = bpf_map_lookup_elem(&map_name, &normalized);   \
+        if (array == NULL) {                                                \
+            return NULL;                                                    \
+        }                                                                   \
+        const int array_index = flipped ? 1 : 0;                            \
+        return array + array_index;                                         \
+    }
+
+GET_DIRECTION_DEPENDENT_VARIABLE(dynamic_table_counter, http2_dynamic_counter_table, dynamic_counter_t)
+
+#define INITIALIZE_DIRECTION_DEPENDENT_VARIABLE(name, map_name, variable_type)  \
+    static __always_inline void initialize_##name(conn_tuple_t *tup) {          \
+        variable_type empty[DIRECTIONS_PER_CONNECTION] = {0};                   \
+        bpf_map_update_elem(&map_name, tup, &empty, BPF_NOEXIST);               \
+    }
+
+INITIALIZE_DIRECTION_DEPENDENT_VARIABLE(dynamic_table_counter, http2_dynamic_counter_table, dynamic_counter_t)
+
 // Returns true if the given index represents a path index.
 static __always_inline bool is_path_index(const __u64 index) {
     return index == kEmptyPath || index == kIndexPath;
@@ -54,17 +76,6 @@ static __always_inline http2_stream_t *http2_fetch_stream(const http2_stream_key
     http2_stream_ptr->request_started = bpf_ktime_get_ns();
     bpf_map_update_elem(&http2_in_flight, http2_stream_key, http2_stream_ptr, BPF_NOEXIST);
     return bpf_map_lookup_elem(&http2_in_flight, http2_stream_key);
-}
-
-// get_dynamic_counter returns the current dynamic counter by the conn tuple.
-static __always_inline __u64 *get_dynamic_counter(conn_tuple_t *tup) {
-    dynamic_counter_t empty = {0};
-    bpf_map_update_elem(&http2_dynamic_counter_table, tup, &empty, BPF_NOEXIST);
-    dynamic_counter_t *ptr = bpf_map_lookup_elem(&http2_dynamic_counter_table, tup);
-    if (ptr == NULL) {
-        return NULL;
-    }
-    return &ptr->value;
 }
 
 // parse_field_indexed parses fully-indexed headers.

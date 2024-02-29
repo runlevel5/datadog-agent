@@ -772,7 +772,8 @@ int uprobe__http2_tls_headers_parser(struct pt_regs *ctx) {
         goto delete_iteration;
     }
 
-    __u64 *global_dynamic_counter = get_dynamic_counter(&dispatcher_args_copy.tup);
+    initialize_dynamic_table_counter(&dispatcher_args_copy.tup);
+    dynamic_counter_t *global_dynamic_counter = get_dynamic_table_counter(&dispatcher_args_copy.tup);
     if (global_dynamic_counter == NULL) {
         goto delete_iteration;
     }
@@ -815,7 +816,7 @@ int uprobe__http2_tls_headers_parser(struct pt_regs *ctx) {
             continue;
         }
         dispatcher_args_copy.data_off = current_frame.offset;
-        tls_process_headers_frame(&dispatcher_args_copy, current_stream, &http2_ctx->dynamic_index, &current_frame.frame, http2_tel, global_dynamic_counter);
+        tls_process_headers_frame(&dispatcher_args_copy, current_stream, &http2_ctx->dynamic_index, &current_frame.frame, http2_tel, &global_dynamic_counter->value);
     }
 
     if (tail_call_state->iteration < HTTP2_MAX_FRAMES_ITERATIONS &&
@@ -850,7 +851,7 @@ int uprobe__http2_dynamic_table_cleaner(struct pt_regs *ctx) {
     }
     dispatcher_args_copy = *args;
 
-    dynamic_counter_t *dynamic_counter = bpf_map_lookup_elem(&http2_dynamic_counter_table, &dispatcher_args_copy.tup);
+    dynamic_counter_t *dynamic_counter = get_dynamic_table_counter(&dispatcher_args_copy.tup);
     if (dynamic_counter == NULL) {
         goto next;
     }
@@ -1013,14 +1014,15 @@ int uprobe__http2_tls_termination(struct pt_regs *ctx) {
     terminated_http2_batch_enqueue(&args->tup);
     // Deleting the entry for the original tuple.
     bpf_map_delete_elem(&http2_remainder, &args->tup);
-    bpf_map_delete_elem(&http2_dynamic_counter_table, &args->tup);
     // In case of local host, the protocol will be deleted for both (client->server) and (server->client),
     // so we won't reach for that path again in the code, so we're deleting the opposite side as well.
     flip_tuple(&args->tup);
-    bpf_map_delete_elem(&http2_dynamic_counter_table, &args->tup);
     bpf_map_delete_elem(&http2_remainder, &args->tup);
 
     bpf_map_delete_elem(&tls_http2_iterations, &args->tup);
+
+    normalize_tuple(&args->tup);
+    bpf_map_delete_elem(&http2_dynamic_counter_table, &args->tup);
 
     return 0;
 }
