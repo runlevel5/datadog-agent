@@ -82,7 +82,7 @@ require (
 
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2 // indirect
-	github.com/DataDog/agent-payload/v5 v5.0.102 // indirect
+	github.com/DataDog/agent-payload/v5 v5.0.104 // indirect
 	github.com/DataDog/datadog-agent/comp/core/config v0.52.0-rc.3 // indirect
 	github.com/DataDog/datadog-agent/comp/core/log v0.52.0-rc.3 // indirect
 	github.com/DataDog/datadog-agent/comp/core/secrets v0.52.0-rc.3 // indirect
@@ -197,7 +197,7 @@ require (
 	golang.org/x/exp v0.0.0-20231214170342-aacd6d4b4611 // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.20.0 // indirect
-	golang.org/x/sys v0.16.0 // indirect
+	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.17.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240102182953-50ed04b92917 // indirect
