@@ -51,6 +51,10 @@ func (r *Report) ToCycloneDX() (*cyclonedxgo.BOM, error) {
 
 	osProperties := []cyclonedxgo.Property{
 		{
+			Name:  "Platform",
+			Value: r.platform,
+		},
+		{
 			Name:  "Family",
 			Value: r.family,
 		}, {
@@ -65,7 +69,7 @@ func (r *Report) ToCycloneDX() (*cyclonedxgo.BOM, error) {
 
 	windowsComponent := cyclonedxgo.Component{
 		Type:       cyclonedxgo.ComponentTypeOS,
-		Name:       r.platform,
+		Name:       "windows",
 		Version:    r.version,
 		Properties: &osProperties,
 	}
