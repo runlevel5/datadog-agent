@@ -87,15 +87,12 @@ func (a *agent) fakeRC() { // XXX(remy):
 			println(str)
 		}
 		conf := state.RawConfig{
-			Config: []byte(`{"rules":[
+			Config: []byte(`{"priority":1,"rules":[
                     {
                         "id": "my_unique_id",
                         "name": "my rule",
                         "description": "my description",
-                        "pattern": "^[0-9a-z]{32}",
-                        "match_action": "Redact",
-                        "replace_placeholder": "[redacted]",
-                        "enabled": true
+                        "pattern": "^[0-9a-z]{32}"
                     }
                 ]}`),
 			Metadata: state.Metadata{},
@@ -115,15 +112,15 @@ func (a *agent) fakeRC() { // XXX(remy):
 			}
 			placeholder := fmt.Sprintf("placeholder[%d]", rand.Int63n(10000))
 			conf := state.RawConfig{
-				Config: []byte(fmt.Sprintf(`{"rules":[
+				Config: []byte(fmt.Sprintf(`{"priority":1,"rules":[
                     {
-                        "id": "my_unique_id",
+                        "standard_rule_id": "my_unique_id",
                         "name": "my rule",
-                        "description": "my description",
-                        "pattern": "^[0-9a-z]{32}",
-                        "match_action": "Redact",
-                        "replace_placeholder": "%s",
-                        "enabled": true
+                        "match_action": {
+                            "type": "Redact",
+                            "placeholder": "%s"
+                        },
+                        "is_enabled": true
                     }
                 ]}`, placeholder)),
 				Metadata: state.Metadata{},

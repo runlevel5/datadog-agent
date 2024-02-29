@@ -5,6 +5,7 @@ package sds
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
@@ -141,14 +142,26 @@ func (s *Scanner) reconfigureRules(rawConfig []byte) error {
 
 	// prepare the scanner rules
 	var sdsRules []sds.Rule
-	for _, rule := range config.Rules {
-		switch rule.MatchAction {
-		case sds.MatchActionRedact:
-			sdsRules = append(sdsRules, sds.NewRedactingRule(rule.Name, rule.Pattern, rule.ReplacePlaceholder))
-		case sds.MatchActionHash:
-			sdsRules = append(sdsRules, sds.NewHashRule(rule.Name, rule.Pattern))
+	for _, userRule := range config.Rules {
+		// read the rule in the definitions
+		standardRule := s.definitions.GetById(userRule.StandardRuleId)
+		if standardRule == nil {
+			log.Warnf("Referencing an unknown standard rule: %v", userRule.StandardRuleId)
+			continue
+		}
+
+		// from here: `standardRule` contains the definition, with the name, pattern, etc.
+		//            `userRule`     contains the configuration done by the user: match action, etc.
+
+		// create the rules for the scanner
+		matchAction := strings.ToLower(userRule.MatchAction.Type)
+		switch matchAction {
+		case strings.ToLower(string(sds.MatchActionRedact)):
+			sdsRules = append(sdsRules, sds.NewRedactingRule(standardRule.Name, standardRule.Pattern, userRule.MatchAction.Placeholder))
+		case strings.ToLower(string(sds.MatchActionHash)):
+			sdsRules = append(sdsRules, sds.NewHashRule(standardRule.Name, standardRule.Pattern))
 		default:
-			log.Warnf("Unknown MatchAction type (%v) for rule '%s':", rule.MatchAction, rule.Name)
+			log.Warnf("Unknown MatchAction type (%v) for rule '%s':", matchAction, standardRule.Name)
 		}
 	}
 	// create the new SDS Scanner

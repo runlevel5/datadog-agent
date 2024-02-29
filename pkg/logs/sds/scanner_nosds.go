@@ -15,10 +15,6 @@ type Match struct {
 	RuleIdx uint32
 }
 
-// RuleConfig mock.
-type RuleConfig struct {
-}
-
 // CreateScanner creates a scanner for unsupported platforms/architectures.
 func CreateScanner(rawConfig []byte) (*Scanner, error) {
 	return nil, nil
