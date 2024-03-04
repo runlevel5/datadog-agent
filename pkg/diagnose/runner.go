@@ -425,9 +425,15 @@ func NewSuitesDeps(senderManager sender.DiagnoseSenderManager, collector optiona
 func getSuites(diagCfg diagnosis.Config, deps SuitesDeps) []diagnosis.Suite {
 	catalog := diagnosis.NewCatalog()
 
-	catalog.Register("check-datadog", func() []diagnosis.Diagnosis {
-		return getDiagnose(diagCfg, deps.senderManager, deps.collector, deps.secretResolver)
-	})
+	if coll, ok := deps.collector.Get(); ok && diagCfg.RunningInAgentProcess {
+		catalog.Register("check-datadog", func() []diagnosis.Diagnosis {
+			return diagnoseChecksInAgentProcess(coll)
+		})
+	} else {
+		catalog.Register("check-datadog", func() []diagnosis.Diagnosis {
+			return diagnoseChecksInCLIProcess(deps.senderManager, deps.secretResolver)
+		})
+	}
 	catalog.Register("connectivity-datadog-core-endpoints", func() []diagnosis.Diagnosis { return connectivity.Diagnose(diagCfg) })
 	catalog.Register("connectivity-datadog-autodiscovery", connectivity.DiagnoseMetadataAutodiscoveryConnectivity)
 	catalog.Register("connectivity-datadog-event-platform", eventplatformimpl.Diagnose)

@@ -15,7 +15,6 @@ import (
 	"github.com/DataDog/datadog-agent/comp/collector/collector"
 	"github.com/DataDog/datadog-agent/comp/core/secrets"
 	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
-	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	pkgcollector "github.com/DataDog/datadog-agent/pkg/collector"
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
@@ -23,14 +22,6 @@ import (
 	pkglog "github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/optional"
 )
-
-func getDiagnose(diagCfg diagnosis.Config, senderManager sender.DiagnoseSenderManager, collector optional.Option[collector.Component], secretResolver secrets.Component) []diagnosis.Diagnosis {
-	if coll, ok := collector.Get(); diagCfg.RunningInAgentProcess && ok {
-		return diagnoseChecksInAgentProcess(coll)
-	}
-
-	return diagnoseChecksInCLIProcess(diagCfg, senderManager, secretResolver)
-}
 
 func getInstanceDiagnoses(instance check.Check) []diagnosis.Diagnosis {
 
@@ -80,7 +71,7 @@ func diagnoseChecksInAgentProcess(collector collector.Component) []diagnosis.Dia
 	return diagnoses
 }
 
-func diagnoseChecksInCLIProcess(diagCfg diagnosis.Config, senderManager diagnosesendermanager.Component, secretResolver secrets.Component) []diagnosis.Diagnosis { //nolint:revive // TODO fix revive unused-parameter
+func diagnoseChecksInCLIProcess(senderManager diagnosesendermanager.Component, secretResolver secrets.Component) []diagnosis.Diagnosis { //nolint:revive // TODO fix revive unused-parameter
 	// other choices
 	// 	run() github.com\DataDog\datadog-agent\pkg\cli\subcommands\check\command.go
 	//  runCheck() github.com\DataDog\datadog-agent\cmd\agent\gui\checks.go
