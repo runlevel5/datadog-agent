@@ -102,7 +102,14 @@ func extractTagsMetadata(tags []string, originFromUDS string, originFromMsg []by
 	}
 	tags = tags[:n]
 
-	return tags, host, OriginInfo, metricSource
+	originInfo := OriginInfo{
+		OriginFromUDS: originFromUDS,
+		OriginFromTag: originFromTag,
+		OriginFromMsg: originFromMsg,
+		Cardinality: cardinality,	
+	}
+
+	return tags, host, originInfo, metricSource
 }
 
 func enrichMetricType(dogstatsdMetricType metricType) metrics.MetricType {
