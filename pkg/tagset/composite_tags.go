@@ -7,6 +7,7 @@ package tagset
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 )
 
@@ -16,8 +17,14 @@ import (
 // SketchSeries, ...).
 type CompositeTags struct {
 	// Methods should never modify these slices without copying first.
-	tags1 []string
-	tags2 []string
+	tags1         []string
+	tags2         []string
+	containerTags ContainerTags
+}
+
+type ContainerTags struct {
+	id   string
+	tags []string
 }
 
 // NewCompositeTags creates a new CompositeTags with the given slices.
@@ -25,10 +32,84 @@ type CompositeTags struct {
 // Returned value may reference the argument slices directly (or not). Callers should avoid
 // modifying the slices after calling this function.
 func NewCompositeTags(tags1 []string, tags2 []string) CompositeTags {
+	tags1, ctags1 := filterContainerTags(tags1)
+	tags2, ctags2 := filterContainerTags(tags2)
+	ctags := append(ctags1, ctags2...)
+	cid, err := containerID(ctags)
+	if err != nil {
+		fmt.Printf("containerID err: %s", err)
+	}
 	return CompositeTags{
 		tags1: tags1,
 		tags2: tags2,
+		containerTags: ContainerTags{
+			id:   cid,
+			tags: ctags,
+		},
 	}
+}
+
+func filterContainerTags(tags []string) ([]string, []string) {
+	ct := map[string]interface{}{
+		// ?
+		"cnab.installation":  nil,
+		"git.commit.sha":     nil,
+		"git.repository_url": nil,
+
+		// agent tags
+		"datacenter": nil,
+		"site":       nil,
+		"env":        nil, // duplicate
+
+		// config
+		"service":                        nil, // duplicate
+		"team":                           nil,
+		"app":                            nil,
+		"release":                        nil,
+		"log_format":                     nil,
+		"container.baseimage.isgbi":      nil,
+		"container.baseimage.buildstamp": nil,
+		"container.baseimage.name":       nil,
+		"container.baseimage.os":         nil,
+
+		// integration
+		"version":             nil, // duplicate
+		"kube_ownerref_kind":  nil,
+		"image_id":            nil,
+		"kube_deployment":     nil,
+		"short_image":         nil,
+		"image_tag":           nil,
+		"kube_replica_set":    nil,
+		"pod_phase":           nil,
+		"kube_container_name": nil,
+		"image_name":          nil,
+		"kube_qos":            nil,
+		"kube_namespace":      nil,
+	}
+	var fTags []string
+	var cTags []string
+	for _, t := range tags {
+		if _, ok := ct[strings.SplitN(t, ":", 2)[0]]; ok {
+			cTags = append(cTags, t)
+		} else {
+			fTags = append(fTags, t)
+		}
+	}
+	return fTags, cTags
+}
+
+func containerID(tags []string) (string, error) {
+	for _, t := range tags {
+		tag := strings.SplitN(t, ":", 2)
+		if tag[0] == "kube_container_name" {
+			return tag[1], nil
+		}
+	}
+	return "", fmt.Errorf("no container id")
+}
+
+func (t CompositeTags) ContainerTags() (string, []string) {
+	return t.containerTags.id, t.containerTags.tags
 }
 
 // CompositeTagsFromSlice creates a new CompositeTags from a slice

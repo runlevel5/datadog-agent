@@ -190,6 +190,11 @@ func (c *Compressor) AddItem(data []byte) error {
 		c.repacks++
 	}
 
+	c.Append(data)
+	return nil
+}
+
+func (c *Compressor) Append(data []byte) {
 	// Write the separator between items
 	if c.firstItem {
 		c.firstItem = false
@@ -198,7 +203,6 @@ func (c *Compressor) AddItem(data []byte) error {
 	}
 
 	c.input.Write(data)
-	return nil
 }
 
 // Close closes the Compressor, flushing any remaining uncompressed data

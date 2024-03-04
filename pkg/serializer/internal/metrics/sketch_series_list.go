@@ -131,6 +131,8 @@ func (sl SketchSeriesList) MarshalSplitCompress(bufferContext *marshaler.BufferC
 		footer = buf.Bytes()
 	}
 
+	var inflightContainers map[string][]string
+
 	pointCount := 0
 	// Prepare to write the next payload
 	startPayload := func() error {
@@ -139,6 +141,8 @@ func (sl SketchSeriesList) MarshalSplitCompress(bufferContext *marshaler.BufferC
 		bufferContext.CompressorInput.Reset()
 		bufferContext.CompressorOutput.Reset()
 		pointCount = 0
+		inflightContainers = make(map[string][]string)
+
 		compressor, err = stream.NewCompressor(
 			bufferContext.CompressorInput, bufferContext.CompressorOutput,
 			maxPayloadSize, maxUncompressedSize,
@@ -151,6 +155,25 @@ func (sl SketchSeriesList) MarshalSplitCompress(bufferContext *marshaler.BufferC
 	}
 
 	finishPayload := func() error {
+		// Append inflight containers - this will likely exceed payload limits
+		for cid, ctags := range inflightContainers {
+			buf.Reset()
+			ps.Embedded(100, func(ps *molecule.ProtoStream) error {
+				err = ps.String(101, cid)
+				if err != nil {
+					return err
+				}
+				for _, t := range ctags {
+					err = ps.String(102, t)
+					if err != nil {
+						return err
+					}
+				}
+				return nil
+			})
+			compressor.Append(buf.Bytes())
+		}
+
 		var payload []byte
 		payload, err = compressor.Close()
 		if err != nil {
@@ -170,6 +193,10 @@ func (sl SketchSeriesList) MarshalSplitCompress(bufferContext *marshaler.BufferC
 
 	for sl.MoveNext() {
 		ss := sl.Current()
+
+		cid, ctags := ss.Tags.ContainerTags()
+		inflightContainers[cid] = ctags
+
 		buf.Reset()
 		err = ps.Embedded(payloadSketches, func(ps *molecule.ProtoStream) error {
 			var err error

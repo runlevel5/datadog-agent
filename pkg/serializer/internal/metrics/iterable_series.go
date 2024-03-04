@@ -166,6 +166,7 @@ func (series *IterableSeries) MarshalSplitCompress(bufferContext *marshaler.Buff
 	//                       |-----------| 'OriginProduct' enum
 	//                                    |-------| 'Agent' enum value
 
+	var inflightContainers map[string][]string
 	// Prepare to write the next payload
 	startPayload := func() error {
 		var err error
@@ -174,6 +175,7 @@ func (series *IterableSeries) MarshalSplitCompress(bufferContext *marshaler.Buff
 		seriesThisPayload = 0
 		bufferContext.CompressorInput.Reset()
 		bufferContext.CompressorOutput.Reset()
+		inflightContainers = make(map[string][]string)
 
 		compressor, err = stream.NewCompressor(
 			bufferContext.CompressorInput, bufferContext.CompressorOutput,
@@ -197,8 +199,27 @@ func (series *IterableSeries) MarshalSplitCompress(bufferContext *marshaler.Buff
 	}
 
 	finishPayload := func() error {
-		var payload []byte
+		// Append inflight containers - this will likely exceed payload limits
+		for cid, ctags := range inflightContainers {
+			buf.Reset()
+			ps.Embedded(100, func(ps *molecule.ProtoStream) error {
+				err = ps.String(101, cid)
+				if err != nil {
+					return err
+				}
+				for _, t := range ctags {
+					err = ps.String(102, t)
+					if err != nil {
+						return err
+					}
+				}
+				return nil
+			})
+			compressor.Append(buf.Bytes())
+		}
+
 		// Since the compression buffer is full - flush it and rotate
+		var payload []byte
 		payload, err = compressor.Close()
 		if err != nil {
 			return err
@@ -223,6 +244,9 @@ func (series *IterableSeries) MarshalSplitCompress(bufferContext *marshaler.Buff
 		serie = series.source.Current()
 		serie.PopulateDeviceField()
 		serie.PopulateResources()
+
+		cid, ctags := serie.Tags.ContainerTags()
+		inflightContainers[cid] = ctags
 
 		buf.Reset()
 		err = ps.Embedded(payloadSeries, func(ps *molecule.ProtoStream) error {
