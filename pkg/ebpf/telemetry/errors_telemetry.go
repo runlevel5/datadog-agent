@@ -33,6 +33,7 @@ const (
 	readKernelIndx
 	skbLoadBytes
 	perfEventOutput
+	mapErr
 )
 
 var helperNames = map[int]string{
