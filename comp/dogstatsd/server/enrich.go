@@ -93,37 +93,7 @@ func extractTagsMetadata(tags []string, originFromUDS string, originFromMsg []by
 	}
 	tags = tags[:n]
 
-	udsOrigin := ""
-	// We use the UDS socket origin if no origin ID was specify in the tags
-	// or 'dogstatsd_entity_id_precedence' is set to False (default false).
-	if originFromTag == "" || !conf.entityIDPrecedenceEnabled {
-		// Add origin tags only if the entity id tags is not provided
-		udsOrigin = originFromUDS
-	}
-
-	// originFromClient can either be originFromTag or originFromMsg
-	originFromClient := ""
-
-	// We set originFromClient if the metrics contain a 'dd.internal.entity_id' tag different from 'none'.
-	if originFromTag != "" && originFromTag != entityIDIgnoreValue {
-		// Check if the value is not "none" in order to avoid calling
-		// the tagger for entity that doesn't exist.
-
-		// currently only supported for pods
-		originFromClient = kubelet.KubePodTaggerEntityPrefix + originFromTag
-	} else if originFromTag == "" && len(originFromMsg) > 0 {
-		// originFromMsg is the container id sent by the newer clients.
-		// Opt-in is handled when parsing.
-		originFromClient = containers.BuildTaggerEntityName(string(originFromMsg))
-	}
-
-	if conf.originOptOutEnabled && cardinality == "none" {
-		udsOrigin = ""
-		originFromClient = ""
-		cardinality = ""
-	}
-
-	return tags, host, udsOrigin, originFromClient, cardinality, metricSource
+	return tags, host, originFromUDS, originFromTag, originFromMsg, cardinality, metricSource
 }
 
 func enrichMetricType(dogstatsdMetricType metricType) metrics.MetricType {
