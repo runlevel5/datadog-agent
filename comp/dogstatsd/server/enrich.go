@@ -67,7 +67,16 @@ type enrichConfig struct {
 // | none                   | not empty       || container prefix + originFromMsg    |
 //
 //	---------------------------------------------------------------------------------
-func extractTagsMetadata(tags []string, originFromUDS string, originFromMsg []byte, conf enrichConfig) ([]string, string, string, string, string, metrics.MetricSource) {
+
+// OriginInfo should be define in `tagger package`
+type OriginInfo struct {
+	OriginFromUDS string
+	OriginFromTag string
+	OriginFromMsg string
+    Cardinality string
+}
+
+func extractTagsMetadata(tags []string, originFromUDS string, originFromMsg []byte, conf enrichConfig) ([]string, OriginInfo, metrics.MetricSource) {
 	host := conf.defaultHostname
 
 	metricSource := metrics.MetricSourceDogstatsd
@@ -93,7 +102,7 @@ func extractTagsMetadata(tags []string, originFromUDS string, originFromMsg []by
 	}
 	tags = tags[:n]
 
-	return tags, host, originFromUDS, originFromTag, originFromMsg, cardinality, metricSource
+	return tags, host, OriginInfo, metricSource
 }
 
 func enrichMetricType(dogstatsdMetricType metricType) metrics.MetricType {
