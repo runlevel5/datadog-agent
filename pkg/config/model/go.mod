@@ -1,6 +1,6 @@
 module github.com/DataDog/datadog-agent/pkg/config/model
 
-go 1.21
+go 1.21.7
 
 replace (
 	github.com/DataDog/datadog-agent/pkg/util/log => ../../util/log/
@@ -14,6 +14,7 @@ require (
 	github.com/spf13/afero v1.1.2
 	github.com/spf13/pflag v1.0.3
 	github.com/stretchr/testify v1.8.1
+	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
 )
 
 require (
