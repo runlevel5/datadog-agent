@@ -8,4 +8,4 @@
 ---
 enhancements:
   - |
-    Send ECS task lifecycle events in container lifecycle check
+    Send ECS task lifecycle events in the container lifecycle check.
