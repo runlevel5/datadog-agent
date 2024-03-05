@@ -66,7 +66,6 @@ new-e2e-agent-platform-install-script-ubuntu-a6-arm64:
     - .new-e2e_os_ubuntu
     - .new-e2e_ubuntu_a6_arm64
     - .new-e2e_agent_a6
-  rules: !reference [.on_all_kitchen_builds_a6]
   variables:
     FLAVOR: datadog-agent
 
@@ -91,8 +90,6 @@ new-e2e-agent-platform-install-script-ubuntu-a7-arm64:
     - .new-e2e_os_ubuntu
     - .new-e2e_ubuntu_a7_arm64
     - .new-e2e_agent_a7
-  rules:
-    !reference [.on_all_new-e2e_tests_a7]
   variables:
     FLAVOR: datadog-agent
 
