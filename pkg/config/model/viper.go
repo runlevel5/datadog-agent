@@ -233,6 +233,9 @@ func (c *safeConfig) AllKeysLowercased() []string {
 
 // Get wraps Viper for concurrent access
 func (c *safeConfig) Get(key string) interface{} {
+	if !c.IsKnown(key) {
+		log.Warnf("key %v is not known\n", key)
+	}
 	c.RLock()
 	defer c.RUnlock()
 	val, err := c.Viper.GetE(key)
@@ -244,6 +247,9 @@ func (c *safeConfig) Get(key string) interface{} {
 
 // GetAllSources returns the value of a key for each source
 func (c *safeConfig) GetAllSources(key string) []ValueWithSource {
+	if !c.IsKnown(key) {
+		log.Warnf("key %v is not known\n", key)
+	}
 	c.RLock()
 	defer c.RUnlock()
 	vals := make([]ValueWithSource, len(sources))
@@ -258,6 +264,9 @@ func (c *safeConfig) GetAllSources(key string) []ValueWithSource {
 
 // GetString wraps Viper for concurrent access
 func (c *safeConfig) GetString(key string) string {
+	if !c.IsKnown(key) {
+		log.Warnf("key %v is not known\n", key)
+	}
 	c.RLock()
 	defer c.RUnlock()
 	val, err := c.Viper.GetStringE(key)
@@ -269,6 +278,9 @@ func (c *safeConfig) GetString(key string) string {
 
 // GetBool wraps Viper for concurrent access
 func (c *safeConfig) GetBool(key string) bool {
+	if !c.IsKnown(key) {
+		log.Warnf("key %v is not known\n", key)
+	}
 	c.RLock()
 	defer c.RUnlock()
 	val, err := c.Viper.GetBoolE(key)
@@ -280,6 +292,9 @@ func (c *safeConfig) GetBool(key string) bool {
 
 // GetInt wraps Viper for concurrent access
 func (c *safeConfig) GetInt(key string) int {
+	if !c.IsKnown(key) {
+		log.Warnf("key %v is not known\n", key)
+	}
 	c.RLock()
 	defer c.RUnlock()
 	val, err := c.Viper.GetIntE(key)
@@ -291,6 +306,9 @@ func (c *safeConfig) GetInt(key string) int {
 
 // GetInt32 wraps Viper for concurrent access
 func (c *safeConfig) GetInt32(key string) int32 {
+	if !c.IsKnown(key) {
+		log.Warnf("key %v is not known\n", key)
+	}
 	c.RLock()
 	defer c.RUnlock()
 	val, err := c.Viper.GetInt32E(key)
@@ -302,6 +320,9 @@ func (c *safeConfig) GetInt32(key string) int32 {
 
 // GetInt64 wraps Viper for concurrent access
 func (c *safeConfig) GetInt64(key string) int64 {
+	if !c.IsKnown(key) {
+		log.Warnf("key %v is not known\n", key)
+	}
 	c.RLock()
 	defer c.RUnlock()
 	val, err := c.Viper.GetInt64E(key)
@@ -313,6 +334,9 @@ func (c *safeConfig) GetInt64(key string) int64 {
 
 // GetFloat64 wraps Viper for concurrent access
 func (c *safeConfig) GetFloat64(key string) float64 {
+	if !c.IsKnown(key) {
+		log.Warnf("key %v is not known\n", key)
+	}
 	c.RLock()
 	defer c.RUnlock()
 	val, err := c.Viper.GetFloat64E(key)
@@ -324,6 +348,9 @@ func (c *safeConfig) GetFloat64(key string) float64 {
 
 // GetTime wraps Viper for concurrent access
 func (c *safeConfig) GetTime(key string) time.Time {
+	if !c.IsKnown(key) {
+		log.Warnf("key %v is not known\n", key)
+	}
 	c.RLock()
 	defer c.RUnlock()
 	val, err := c.Viper.GetTimeE(key)
@@ -335,6 +362,9 @@ func (c *safeConfig) GetTime(key string) time.Time {
 
 // GetDuration wraps Viper for concurrent access
 func (c *safeConfig) GetDuration(key string) time.Duration {
+	if !c.IsKnown(key) {
+		log.Warnf("key %v is not known\n", key)
+	}
 	c.RLock()
 	defer c.RUnlock()
 	val, err := c.Viper.GetDurationE(key)
@@ -346,6 +376,9 @@ func (c *safeConfig) GetDuration(key string) time.Duration {
 
 // GetStringSlice wraps Viper for concurrent access
 func (c *safeConfig) GetStringSlice(key string) []string {
+	if !c.IsKnown(key) {
+		log.Warnf("key %v is not known\n", key)
+	}
 	c.RLock()
 	defer c.RUnlock()
 	val, err := c.Viper.GetStringSliceE(key)
@@ -357,6 +390,9 @@ func (c *safeConfig) GetStringSlice(key string) []string {
 
 // GetFloat64SliceE loads a key as a []float64
 func (c *safeConfig) GetFloat64SliceE(key string) ([]float64, error) {
+	if !c.IsKnown(key) {
+		log.Warnf("key %v is not known\n", key)
+	}
 	c.RLock()
 	defer c.RUnlock()
 
@@ -379,6 +415,9 @@ func (c *safeConfig) GetFloat64SliceE(key string) ([]float64, error) {
 
 // GetStringMap wraps Viper for concurrent access
 func (c *safeConfig) GetStringMap(key string) map[string]interface{} {
+	if !c.IsKnown(key) {
+		log.Warnf("key %v is not known\n", key)
+	}
 	c.RLock()
 	defer c.RUnlock()
 	val, err := c.Viper.GetStringMapE(key)
@@ -390,6 +429,9 @@ func (c *safeConfig) GetStringMap(key string) map[string]interface{} {
 
 // GetStringMapString wraps Viper for concurrent access
 func (c *safeConfig) GetStringMapString(key string) map[string]string {
+	if !c.IsKnown(key) {
+		log.Warnf("key %v is not known\n", key)
+	}
 	c.RLock()
 	defer c.RUnlock()
 	val, err := c.Viper.GetStringMapStringE(key)
@@ -401,6 +443,9 @@ func (c *safeConfig) GetStringMapString(key string) map[string]string {
 
 // GetStringMapStringSlice wraps Viper for concurrent access
 func (c *safeConfig) GetStringMapStringSlice(key string) map[string][]string {
+	if !c.IsKnown(key) {
+		log.Warnf("key %v is not known\n", key)
+	}
 	c.RLock()
 	defer c.RUnlock()
 	val, err := c.Viper.GetStringMapStringSliceE(key)
@@ -412,6 +457,9 @@ func (c *safeConfig) GetStringMapStringSlice(key string) map[string][]string {
 
 // GetSizeInBytes wraps Viper for concurrent access
 func (c *safeConfig) GetSizeInBytes(key string) uint {
+	if !c.IsKnown(key) {
+		log.Warnf("key %v is not known\n", key)
+	}
 	c.RLock()
 	defer c.RUnlock()
 	val, err := c.Viper.GetSizeInBytesE(key)
@@ -423,6 +471,9 @@ func (c *safeConfig) GetSizeInBytes(key string) uint {
 
 // GetSource wraps Viper for concurrent access
 func (c *safeConfig) GetSource(key string) Source {
+	if !c.IsKnown(key) {
+		log.Warnf("key %v is not known\n", key)
+	}
 	c.RLock()
 	defer c.RUnlock()
 	var source Source
