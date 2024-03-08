@@ -85,6 +85,8 @@ func StartServers(
 	collector optional.Option[collector.Component],
 	eventPlatformReceiver eventplatformreceiver.Component,
 ) error {
+
+	fmt.Printf("this line should trigger e2e tests on subcommands")
 	apiAddr, err := getIPCAddressPort()
 	if err != nil {
 		return fmt.Errorf("unable to get IPC address and port: %v", err)
