@@ -97,7 +97,7 @@ fi
 SYSTEMCTL_SKIP_SYSV=true systemctl enable datadog-updater-admin.path || true
 SYSTEMCTL_SKIP_SYSV=true systemctl start datadog-updater-admin.path || true
 
-$INSTALL_DIR/bin/updater/updater bootstrap -P datadog-agent
+$INSTALL_DIR/bin/updater/updater bootstrap -P datadog-agent || true
 # Bootstrap installs first agent with root ownership, overriding to dd-agent
 chown -R dd-agent:dd-agent ${PACKAGES_DIR}
 
