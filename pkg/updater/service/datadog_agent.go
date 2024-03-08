@@ -40,73 +40,33 @@ var (
 
 // SetupAgentUnits installs and starts the agent units
 func SetupAgentUnits() error {
-	runner, err := newScriptRunner()
-	if err != nil {
-		return err
-	}
-	defer runner.close()
-	for _, unit := range stableUnits {
-		if err := runner.loadUnit(unit); err != nil {
-			return err
-		}
-	}
-	for _, unit := range experimentalUnits {
-		if err := runner.loadUnit(unit); err != nil {
-			return err
-		}
-	}
-
-	if err = runner.systemdReload(); err != nil {
+	// todo: move this to updater setup
+	if err := SetupRootExec(); err != nil {
 		return err
 	}
 
 	for _, unit := range stableUnits {
-		if err := runner.enableUnit(unit); err != nil {
+		if err := loadUnit(unit); err != nil {
 			return err
 		}
 	}
-	for _, unit := range stableUnits {
-		if err := runner.startUnit(unit); err != nil {
+	for _, unit := range experimentalUnits {
+		if err := loadUnit(unit); err != nil {
 			return err
 		}
 	}
-	return nil
-}
 
-// RemoveAgentUnits stops and removes the agent units
-func RemoveAgentUnits() error {
-	runner, err := newScriptRunner()
-	if err != nil {
+	if err := systemdReload(); err != nil {
 		return err
 	}
-	defer runner.close()
-	// stop experiments, they can restart stable agent
-	for _, unit := range experimentalUnits {
-		if err := runner.stopUnit(unit); err != nil {
-			return err
-		}
-	}
-	// stop stable agents
+
 	for _, unit := range stableUnits {
-		if err := runner.stopUnit(unit); err != nil {
+		if err := enableUnit(unit); err != nil {
 			return err
 		}
 	}
-	// purge experimental units
-	for _, unit := range experimentalUnits {
-		if err := runner.disableUnit(unit); err != nil {
-			return err
-		}
-		if err := runner.removeUnit(unit); err != nil {
-			return err
-		}
-	}
-	// purge stable units
 	for _, unit := range stableUnits {
-		if err := runner.disableUnit(unit); err != nil {
-			return err
-		}
-		if err := runner.removeUnit(unit); err != nil {
+		if err := startUnit(unit); err != nil {
 			return err
 		}
 	}
@@ -115,22 +75,10 @@ func RemoveAgentUnits() error {
 
 // StartAgentExperiment starts the agent experiment
 func StartAgentExperiment() error {
-	runner, err := newScriptRunner()
-	if err != nil {
-		return err
-	}
-	defer runner.close()
-
-	return runner.startUnit(agentExp)
+	return startUnit(agentExp)
 }
 
 // StopAgentExperiment stops the agent experiment
 func StopAgentExperiment() error {
-	runner, err := newScriptRunner()
-	if err != nil {
-		return err
-	}
-	defer runner.close()
-
-	return runner.startUnit(agentUnit)
+	return startUnit(agentUnit)
 }

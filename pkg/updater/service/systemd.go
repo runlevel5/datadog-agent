@@ -9,159 +9,49 @@
 package service
 
 import (
-	"context"
 	"fmt"
-	"io"
-	"os"
 	"path/filepath"
-	"strings"
-	"sync"
-	"syscall"
-	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/config/setup"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
-	"github.com/containerd/fifo"
 )
-
-type unitCommand string
 
 const (
-	startUnit     = unitCommand("start")
-	stopUnit      = unitCommand("stop")
-	enableUnit    = unitCommand("enable")
-	disableUnit   = unitCommand("disable")
-	loadUnit      = unitCommand("load-unit")
-	removeUnit    = unitCommand("remove-systemd")
-	systemdReload = "systemd-reload"
 	adminExecutor = "datadog-updater-admin.service"
+	libSystemdDir = "/lib/systemd/system"
 )
 
-var (
-	inFifoPath  = filepath.Join(setup.InstallPath, "run", "in.fifo")
-	outFifoPath = filepath.Join(setup.InstallPath, "run", "out.fifo")
-	runnerMutex sync.Mutex
-)
+var unitPath = filepath.Join(setup.InstallPath, "systemd")
 
-type scriptRunner struct {
-	inFifo  io.ReadWriteCloser
-	outFifo io.ReadWriteCloser
-	timeout time.Duration
+func stopUnit(unit string) error {
+	return RootExec(wrapUnitCommand("stop", unit))
 }
 
-func newScriptRunner() (*scriptRunner, error) {
-	runnerMutex.Lock()
-	err := os.Remove(inFifoPath)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("error deleting inFifo: %s", err)
-	}
-	err = os.Remove(outFifoPath)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("error deleting inFifo: %s", err)
-	}
-
-	// start with outFifo creation first as inFifo triggers admin exec systemd path listner
-	outFifo, err := fifo.OpenFifo(context.Background(), outFifoPath, syscall.O_CREAT|syscall.O_RDONLY|syscall.O_NONBLOCK, 0660)
-	if err != nil {
-		return nil, fmt.Errorf("error opening out.fifo: %s", err)
-	}
-	inFifo, err := fifo.OpenFifo(context.Background(), inFifoPath, syscall.O_CREAT|syscall.O_WRONLY|syscall.O_NONBLOCK, 0660)
-	if err != nil {
-		outFifo.Close()
-		return nil, fmt.Errorf("error opening in.fifo: %s", err)
-	}
-	return &scriptRunner{
-		inFifo:  inFifo,
-		outFifo: outFifo,
-		timeout: 10 * time.Second,
-	}, nil
+func startUnit(unit string) error {
+	return RootExec(wrapUnitCommand("start", unit))
 }
 
-func (s *scriptRunner) stopUnit(unit string) error {
-	return s.executeCommand(wrapUnitCommand(stopUnit, unit))
+func enableUnit(unit string) error {
+	return RootExec(wrapUnitCommand("enable", unit))
 }
 
-func (s *scriptRunner) startUnit(unit string) error {
-	return s.executeCommand(wrapUnitCommand(startUnit, unit))
+func disableUnit(unit string) error {
+	return RootExec(wrapUnitCommand("disable", unit))
 }
 
-func (s *scriptRunner) enableUnit(unit string) error {
-	return s.executeCommand(wrapUnitCommand(enableUnit, unit))
+func loadUnit(unit string) error {
+	// todo non debian
+	return RootExec(fmt.Sprintf("cp %s %s" + filepath.Join(unitPath, unit) + filepath.Join(libSystemdDir, unit)))
 }
 
-func (s *scriptRunner) disableUnit(unit string) error {
-	return s.executeCommand(wrapUnitCommand(disableUnit, unit))
+func removeUnit(unit string) error {
+	// todo non debian
+	return RootExec(fmt.Sprintf("rm %s" + filepath.Join(unitPath, unit)))
 }
 
-func (s *scriptRunner) loadUnit(unit string) error {
-	return s.executeCommand(wrapUnitCommand(loadUnit, unit))
+func systemdReload() error {
+	return RootExec("systemctl daemon-reload")
 }
 
-func (s *scriptRunner) removeUnit(unit string) error {
-	return s.executeCommand(wrapUnitCommand(removeUnit, unit))
-}
-
-func (s *scriptRunner) systemdReload() error {
-	return s.executeCommand(systemdReload)
-}
-
-func (s *scriptRunner) executeCommand(command string) error {
-	err := wrapWithTimeout(func() error {
-		_, err := s.inFifo.Write([]byte(command + "\n"))
-		return err
-	},
-		s.timeout,
-	)
-	if err != nil {
-		return fmt.Errorf("error executing command %s while writing to fifo: %s", command, err)
-	}
-	res := make([]byte, 1<<6)
-	err = wrapWithTimeout(func() error {
-		n, err := s.outFifo.Read(res)
-		res = res[:n]
-		return err
-	},
-		s.timeout,
-	)
-	if err != nil {
-		return fmt.Errorf("error executing command %s while reading from fifo: %s", command, err)
-	}
-	result := strings.TrimRight(string(res), "\n")
-	if result != "success" {
-		return fmt.Errorf("error executing command %s: %s", command, result)
-	}
-	return nil
-}
-
-func (s *scriptRunner) close() {
-	if err := s.inFifo.Close(); err != nil {
-		log.Warnf("error closing inFifo: %s", err)
-	}
-	if err := os.Remove(inFifoPath); err != nil {
-		log.Warnf("error removing inFifo: %s", err)
-	}
-	if err := s.outFifo.Close(); err != nil {
-		log.Warnf("error closing outFifo: %s", err)
-	}
-	if err := os.Remove(outFifoPath); err != nil {
-		log.Warnf("error removing outFifo: %s", err)
-	}
-	runnerMutex.Unlock()
-}
-
-func wrapUnitCommand(command unitCommand, unit string) string {
-	return string(command) + " " + unit
-}
-
-func wrapWithTimeout(fn func() error, timeout time.Duration) error {
-	err := make(chan error, 1)
-	go func() {
-		err <- fn()
-	}()
-	select {
-	case <-time.After(timeout):
-		return fmt.Errorf("timeout")
-	case e := <-err:
-		return e
-	}
+func wrapUnitCommand(command, unit string) string {
+	return fmt.Sprintf("systemctl %s %s", string(command), unit)
 }

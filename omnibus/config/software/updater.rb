@@ -53,13 +53,6 @@ build do
 
     copy 'bin/updater', "#{install_dir}/bin/"
 
-    # Add updater-admin-exec.sh
-    erb source: "updater-admin-exec.sh.erb",
-        dest: "#{install_dir}/bin/updater-admin-exec.sh",
-        mode: 0744,
-        vars: { install_dir: install_dir }
-
-
     # Add updater units
     systemdPath = "/lib/systemd/system/"
     if not debian_target?
@@ -67,8 +60,6 @@ build do
       systemdPath = "/usr/lib/systemd/system/"
     end
     templateToFile = {
-      "datadog-updater-admin.path.erb" => "datadog-updater-admin.path",
-      "datadog-updater-admin.service.erb" => "datadog-updater-admin.service",
       "datadog-updater.service.erb" => "datadog-updater.service",
     }
     templateToFile.each do |template, file|
