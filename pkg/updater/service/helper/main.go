@@ -22,7 +22,7 @@ import (
 
 var (
 	installPath string
-	systemdPath = "/lib/systemd/system" // todo load it at build time from omnibus
+	systemdPath = "/lib/systemd/system" // todo update once we support RPM (additional commands will be required for CentOS)
 )
 
 func isValidChar(c rune) bool {
@@ -78,8 +78,8 @@ func executeCommand() error {
 	}
 	inputCommand := os.Args[1]
 
-	currentUser := syscall.Getuid()
-	log.Printf("Current user: %d", currentUser)
+	callerUser := syscall.Getuid()
+	log.Printf("Current user: %d", callerUser)
 
 	command, err := buildCommand(inputCommand)
 	if err != nil {
@@ -87,12 +87,12 @@ func executeCommand() error {
 	}
 
 	// only root or dd-agent can execute this command
-	if currentUser != 0 {
+	if callerUser != 0 {
 		ddAgentUser, err := user.Lookup("dd-agent")
 		if err != nil {
 			return fmt.Errorf("failed to lookup dd-agent user: %s", err)
 		}
-		if strconv.Itoa(currentUser) != ddAgentUser.Uid {
+		if strconv.Itoa(callerUser) != ddAgentUser.Uid {
 			return fmt.Errorf("only root or dd-agent can execute this command")
 		}
 	}
@@ -102,10 +102,13 @@ func executeCommand() error {
 		return fmt.Errorf("failed to setuid: %s", err)
 	}
 	defer func() {
-		log.Printf("Setting back to current user: %d", currentUser)
-		err := syscall.Setuid(currentUser)
+		if callerUser == 0 {
+			return
+		}
+		log.Printf("Setting back to caller user: %d", callerUser)
+		err := syscall.Setuid(callerUser)
 		if err != nil {
-			log.Printf("Failed to set back to current user: %s", err)
+			log.Printf("Failed to set back to caller user: %s", err)
 		}
 	}()
 
