@@ -20,10 +20,9 @@ import (
 	"unicode"
 )
 
-var (
-	installPath string
-	systemdPath = "/lib/systemd/system" // todo update once we support RPM (additional commands will be required for CentOS)
-)
+var installPath string
+
+const systemdPath = "/lib/systemd/system" // todo update once we support RPM (additional commands will be required for CentOS)
 
 func isValidChar(c rune) bool {
 	return unicode.IsLower(c) || c == '.' || c == '-' || c == ' '
