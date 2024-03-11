@@ -103,7 +103,7 @@ func (is *agentMSISuite) TestInstall() {
 	is.T().Run("install Agent only modify Agent related paths", func(tt *testing.T) {
 		afterInstall, err := windowsCommon.NewFileSystemSnapshot(vm, SystemPaths())
 		is.Require().NoError(err)
-		results, err := is.beforeInstall.CompareSnapshots(vm, afterInstall)
+		results, err := is.beforeInstall.Compare(vm, afterInstall)
 		is.Require().NoError(err)
 		// TODO: compare files to ensure they all start with Agent paths ("%PROGRAMDATA%\Datadog" "%PROGRAMFILES%\Datadog Agent")
 		is.Require().NotEmpty(results)

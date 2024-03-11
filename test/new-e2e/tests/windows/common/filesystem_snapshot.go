@@ -13,14 +13,14 @@ type FileSystemSnapshot struct {
 }
 
 // Validate ensures the snapshot file exists and is a reasonable size
-func (fs *FileSystemSnapshot) Validate(host *components.RemoteHost) error {
+func (fs *FileSystemSnapshot) Validate() error {
 	// ensure file exists
-	_, err := host.Lstat(fs.path)
+	_, err := fs.host.Lstat(fs.path)
 	if err != nil {
 		return fmt.Errorf("system file snapshot %s does not exist: %w", fs.path, err)
 	}
 	// sanity check to ensure file contains a reasonable amount of output
-	stat, err := host.Lstat(fs.path)
+	stat, err := fs.host.Lstat(fs.path)
 	if err != nil {
 		return fmt.Errorf("failed to stat %s: %w", fs.path, err)
 	}
@@ -46,8 +46,8 @@ func (fs *FileSystemSnapshot) Cleanup() error {
 	return nil
 }
 
-// CompareSnapshots compares two system file snapshots and returns a list of files that are missing in the second snapshot
-func (fs *FileSystemSnapshot) CompareSnapshots(host *components.RemoteHost, other *FileSystemSnapshot) (string, error) {
+// Compare compares two system file snapshots and returns a list of files that are missing in the second snapshot
+func (fs *FileSystemSnapshot) Compare(host *components.RemoteHost, other *FileSystemSnapshot) (string, error) {
 	// Diff the two files on the remote host, selecting missing items
 	// diffing remotely saves bandwidth and is faster than downloading the (relatively large) files
 	cmd := fmt.Sprintf(`Compare-Object -ReferenceObject (Get-Content "%s") -DifferenceObject (Get-Content "%s") | Where-Object -Property SideIndicator -EQ '<=' | Select -ExpandProperty InputObject`, fs.path, other.path)

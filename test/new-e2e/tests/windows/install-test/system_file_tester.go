@@ -43,7 +43,7 @@ func SystemPaths() []string {
 func AssertDoesNotChangeSystemFiles(t *testing.T, host *components.RemoteHost, beforeInstall *windowsCommon.FileSystemSnapshot) {
 	t.Run("does not change system files", func(tt *testing.T) {
 		afterUninstall, err := windowsCommon.NewFileSystemSnapshot(host, SystemPaths())
-		result, err := beforeInstall.CompareSnapshots(host, afterUninstall)
+		result, err := beforeInstall.Compare(host, afterUninstall)
 		assert.NoError(tt, err)
 
 		// Since the result of this test can depend on Windows behavior unrelated to the agent,
