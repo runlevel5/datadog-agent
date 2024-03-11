@@ -95,22 +95,6 @@ func executeCommand() error {
 			return fmt.Errorf("only root or dd-agent can execute this command")
 		}
 	}
-
-	log.Printf("Setting to root user")
-	if err := syscall.Setuid(0); err != nil {
-		return fmt.Errorf("failed to setuid: %s", err)
-	}
-	defer func() {
-		if callerUser == 0 {
-			return
-		}
-		log.Printf("Setting back to caller user: %d", callerUser)
-		err := syscall.Setuid(callerUser)
-		if err != nil {
-			log.Printf("Failed to set back to caller user: %s", err)
-		}
-	}()
-
 	log.Printf("Running command: %s", command.String())
 	return command.Run()
 }
