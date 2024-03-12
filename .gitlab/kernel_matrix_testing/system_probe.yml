@@ -228,6 +228,7 @@ kernel_matrix_testing_run_system_probe_tests_x64:
           - "amzn_4.14"
           - "amzn_5.4"
           - "amzn_5.10"
+          - "amzn_5.15"
           - "fedora_37"
           - "fedora_38"
           - "debian_10"
