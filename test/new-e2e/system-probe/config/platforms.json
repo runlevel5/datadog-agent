@@ -25,6 +25,7 @@
         "amzn_4.14": "master/amzn2-kvm-2.0-arm64-4.14.qcow2.xz",
         "amzn_5.4": "master/amzn2-kvm-2.0-arm64-5.4.qcow2.xz",
         "amzn_5.10": "master/amzn2-kvm-2.0-arm64-5.10.qcow2.xz",
+        "amzn_5.15": "master/amzn2-kvm-2.0-x86_64-5.15.qcow2.xz",
         "fedora_37": "master/Fedora-Cloud-Base-37.arm64.qcow2.xz",
         "fedora_38": "master/Fedora-Cloud-Base-38.arm64.qcow2.xz",
         "debian_10": "master/debian-10-generic-arm64.qcow2.xz",
