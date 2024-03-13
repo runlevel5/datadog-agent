@@ -447,6 +447,38 @@ func traceFilterProg(opts TracerOpts) (*syscall.SockFprog, error) {
 	}, nil
 }
 
+// AttachTracer attach the tracer to the given pid
+func AttachTracer(pid int, opts TracerOpts) (*Tracer, error) {
+	info, err := arch.GetInfo("")
+	if err != nil {
+		return nil, err
+	}
+
+	runtime.LockOSThread()
+
+	if err := syscall.PtraceAttach(pid); err != nil {
+		return nil, fmt.Errorf("unable to attach to pid `%d`: %w", pid, err)
+	}
+
+	var wstatus syscall.WaitStatus
+	if _, err := syscall.Wait4(pid, &wstatus, 0, nil); err != nil {
+		return nil, fmt.Errorf("unable to call wait4 on `%d`: %w", pid, err)
+	}
+
+	err = syscall.PtraceSetOptions(pid, ptraceFlags)
+	if err != nil {
+		return nil, fmt.Errorf("unable to ptrace `%d`, please verify the capabilities: %w", pid, err)
+	}
+
+	return &Tracer{
+		PID:                      pid,
+		info:                     info,
+		opts:                     opts,
+		userCacheRefreshLimiter:  rate.NewLimiter(rate.Every(defaultUserGroupRateLimit), 1),
+		groupCacheRefreshLimiter: rate.NewLimiter(rate.Every(defaultUserGroupRateLimit), 1),
+	}, nil
+}
+
 // NewTracer returns a tracer
 func NewTracer(path string, args []string, envs []string, opts TracerOpts) (*Tracer, error) {
 	info, err := arch.GetInfo("")

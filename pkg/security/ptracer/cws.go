@@ -143,8 +143,49 @@ func sendMsg(client net.Conn, msg *ebpfless.Message) error {
 	return nil
 }
 
-// StartCWSPtracer start the ptracer
-func StartCWSPtracer(args []string, envs []string, probeAddr string, opts Opts) error {
+// Attach attach the ptracer
+func Attach(pid int, probeAddr string, opts Opts) error {
+	logger := Logger{opts.Verbose}
+
+	mode := "seccomp"
+	if opts.DisableSeccomp {
+		mode = "standard"
+	}
+
+	logger.Debugf("Attach %d [%s] using `%s` mode ", pid, os.Getenv("DD_CONTAINER_ID"), mode)
+
+	if path := os.Getenv(EnvPasswdPathOverride); path != "" {
+		passwdPath = path
+	}
+	if path := os.Getenv(EnvGroupPathOverride); path != "" {
+		groupPath = path
+	}
+
+	syscallHandlers := make(map[int]syscallHandler)
+
+	// register handlers
+	registerFIMHandlers(syscallHandlers)
+	// TODO add FIM feature flags
+	registerProcessHandlers(syscallHandlers)
+
+	tracerOpts := TracerOpts{
+		Creds:          opts.Creds,
+		Logger:         logger,
+		DisableSeccomp: true, // force to false, can't use seccomp with the attach mode
+	}
+
+	tracer, err := AttachTracer(pid, tracerOpts)
+	if err != nil {
+		return err
+	}
+
+	return ptrace(tracer, probeAddr, syscallHandlers, logger, opts)
+}
+
+// Wrap the executable
+func Wrap(args []string, envs []string, probeAddr string, opts Opts) error {
+	logger := Logger{opts.Verbose}
+
 	if len(args) == 0 {
 		return fmt.Errorf("an executable is required")
 	}
@@ -153,10 +194,44 @@ func StartCWSPtracer(args []string, envs []string, probeAddr string, opts Opts) 
 		return err
 	}
 
-	logger := Logger{opts.Verbose}
+	mode := "seccomp"
+	if opts.DisableSeccomp {
+		mode = "standard"
+	}
 
-	logger.Debugf("Run %s %v [%s]", entry, args, os.Getenv("DD_CONTAINER_ID"))
+	logger.Debugf("Run %s %v [%s] using `%s` mode ", entry, args, os.Getenv("DD_CONTAINER_ID"), mode)
 
+	if path := os.Getenv(EnvPasswdPathOverride); path != "" {
+		passwdPath = path
+	}
+	if path := os.Getenv(EnvGroupPathOverride); path != "" {
+		groupPath = path
+	}
+
+	syscallHandlers := make(map[int]syscallHandler)
+
+	// register handlers
+	ptracedSyscalls := registerFIMHandlers(syscallHandlers)
+	// TODO add FIM feature flags
+	ptracedSyscalls = append(ptracedSyscalls, registerProcessHandlers(syscallHandlers)...)
+
+	tracerOpts := TracerOpts{
+		Syscalls:       ptracedSyscalls,
+		Creds:          opts.Creds,
+		Logger:         logger,
+		DisableSeccomp: opts.DisableSeccomp,
+	}
+
+	tracer, err := NewTracer(entry, args, envs, tracerOpts)
+	if err != nil {
+		return err
+	}
+
+	return ptrace(tracer, probeAddr, syscallHandlers, logger, opts)
+}
+
+// startPtracer start the ptracer
+func ptrace(tracer *Tracer, probeAddr string, syscallHandlers map[int]syscallHandler, logger Logger, opts Opts) error {
 	if path := os.Getenv(EnvPasswdPathOverride); path != "" {
 		passwdPath = path
 	}
@@ -168,6 +243,7 @@ func StartCWSPtracer(args []string, envs []string, probeAddr string, opts Opts) 
 		client      net.Conn
 		clientReady = make(chan bool, 1)
 		wg          sync.WaitGroup
+		err         error
 	)
 
 	if probeAddr != "" {
@@ -198,22 +274,6 @@ func StartCWSPtracer(args []string, envs []string, probeAddr string, opts Opts) 
 		logger.Errorf("Retrieve container ID from proc failed: %v\n", err)
 	}
 	containerCtx, err := newContainerContext(containerID)
-	if err != nil {
-		return err
-	}
-
-	syscallHandlers := make(map[int]syscallHandler)
-	PtracedSyscalls := registerFIMHandlers(syscallHandlers)
-	PtracedSyscalls = append(PtracedSyscalls, registerProcessHandlers(syscallHandlers)...)
-
-	tracerOpts := TracerOpts{
-		Syscalls:       PtracedSyscalls,
-		Creds:          opts.Creds,
-		Logger:         logger,
-		DisableSeccomp: opts.DisableSeccomp,
-	}
-
-	tracer, err := NewTracer(entry, args, envs, tracerOpts)
 	if err != nil {
 		return err
 	}
@@ -286,7 +346,8 @@ func StartCWSPtracer(args []string, envs []string, probeAddr string, opts Opts) 
 		Hello: &ebpfless.HelloMsg{
 			NSID:             getNSID(),
 			ContainerContext: containerCtx,
-			EntrypointArgs:   args,
+			// TODO FIX
+			//EntrypointArgs:   args,
 		},
 	})
 
