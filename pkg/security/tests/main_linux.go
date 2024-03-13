@@ -113,7 +113,7 @@ func preTestsHook() {
 
 		opts := ptracer.Opts{
 			Async:          true,
-			DisableSeccomp: seccompDisabled,
+			DisableSeccomp: disableSeccomp,
 		}
 
 		err := ptracer.StartCWSPtracer(args, envs, constants.DefaultEBPFLessProbeAddr, opts)
@@ -136,7 +136,7 @@ var (
 	logStatusMetrics bool
 	withProfile      bool
 	trace            bool
-	seccompDisabled  bool
+	disableSeccomp   bool
 )
 
 var testSuitePid uint32
@@ -146,7 +146,7 @@ func init() {
 	flag.BoolVar(&logStatusMetrics, "status-metrics", false, "display status metrics")
 	flag.BoolVar(&withProfile, "with-profile", false, "enable profile per test")
 	flag.BoolVar(&trace, "trace", false, "wrap the test suite with the ptracer")
-	flag.BoolVar(&seccompDisabled, "seccomp-disabled", false, "disable seccomp in the ptracer")
+	flag.BoolVar(&disableSeccomp, "disable-seccomp", false, "disable seccomp in the ptracer")
 	flag.BoolVar(&ebpfLessEnabled, "ebpfless", false, "enabled the ebpfless mode")
 
 	testSuitePid = utils.Getpid()
