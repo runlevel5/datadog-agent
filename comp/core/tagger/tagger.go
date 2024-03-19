@@ -211,7 +211,7 @@ func (t *TaggerClient) Tag(entity string, cardinality collectors.TagCardinality)
 }
 
 // AccumulateTagsFor queries the defaultTagger to get entity tags from cache or
-// sources and appends them to the TagsAccumulator.  It can return tags at high
+// sources and appends them to the TagsAccumulator. It can return tags at high
 // cardinality (with tags about individual containers), or at orchestrator
 // cardinality (pod/task level).
 func (t *TaggerClient) AccumulateTagsFor(entity string, cardinality collectors.TagCardinality, tb tagset.TagsAccumulator) error {

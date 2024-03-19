@@ -1,13 +1,11 @@
 # package `tagger`
 
-The **Tagger** is the central source of truth for client-side entity tagging. It
-runs **Collector**s that detect entities and collect their tags. Tags are then
-stored in memory (by the **TagStore**) and can be queried by the tagger.Tag()
-method. Calling once tagger.Init() after the **config** package is ready is
-needed to enable collection.
+The **Tagger** component is the central source of truth for client-side entity tagging.
+It connects to **WorkloadMeta** that detect entities and collect their tags.
+Tags are then stored in memory (by the **TagStore**) and can be queried by the `tagger.Tag()` method.
+Calling once `tagger.Init()` after the **config** package is ready is needed to enable collection.
 
-The package methods use a common **defaultTagger** object, but we can create
-a custom **Tagger** object for testing.
+The package methods use a common `defaultTagger` object, but we can create a custom **Tagger** object for testing.
 
 The package will implement an IPC mechanism (a server and a client) to allow
 other agents to query the **DefaultTagger** and avoid duplicating the information
@@ -17,31 +15,17 @@ The tagger is also available to python checks via the `tagger` module exporting
 the `get_tags()` function. This function accepts the same arguments as the Go `Tag()`
 function, and returns an empty list on errors.
 
-## Collector
+## Workloadmeta
 
-A **Collector** connects to a single information source and pushes **TagInfo**
-structs to a channel, towards the **Tagger**. It can either run in streaming
-mode, pull or fetchonly mode, depending of what's most efficient for the data source:
-
-### Streamer
-
-The **DockerCollector** runs in stream mode as it collects events from the docker
-daemon and reacts to them, sending updates incrementally.
-
-### Puller
-
-The **KubernetesCollector** will run in pull mode as it needs to query and filter a full entity list every time. It will only push
-updates to the store though, by keeping an internal state of the latest
-revision.
-
-### FetchOnly
-
-The **ECSCollector** does not push updates to the Store by itself, but is only triggered on cache misses. As tasks don't change after creation, there's no need for periodic pulling. It is designed to run alongside DockerCollector, that will trigger deletions in the store.
+The **Tagger** subscribe to Workloadmeta as its single information source and store **TagInfo** in the **TagStore**.
+The **Tagger** will stream data from Workloadmeta and update the **TagStore** incrementally.
 
 ## TagStore
 
 The **TagStore** reads **TagInfo** structs and stores them in a in-memory
-cache. Cache invalidation is triggered by the collectors (or source) by either:
+cache. Cache invalidation is triggered by a TTL mechanism, and by the **Tagger**
+when it receives a **TagInfo** with **DeleteEntity** set.
+# TODO Mot sure about the all DeleteEntity thing.
 
 * sending new tags for the same `Entity`, all the tags from this `Source`
   will be removed and replaced by the new tags
@@ -53,8 +37,9 @@ cache. Cache invalidation is triggered by the collectors (or source) by either:
 
 **TagInfo** accepts and store tags that have different cardinality. **TagCardinality** can be:
 
-* **LowCardinality**: in the host count order of magnitude
-* **OrchestratorCardinality**: tags that change value for each pod or task
+# TODO What about standard cardinality?
+* **LowCardinality**: in the host count order of magnitude.
+* **OrchestratorCardinality**: tags that change value for each pod or task.
 * **HighCardinality**: typically tags that change value for each web request, user agent, container, etc.
 
 ## Entity IDs
@@ -77,19 +62,20 @@ Tagger entities are identified by a string-typed ID, with one of the following f
 
 ## Tagger
 
-The Tagger handles the glue between **Collectors** and **TagStore** and the
+The Tagger handles the glue between **Workloadmeta**, the **TagStore** and the
 cache miss logic. If the tags from the **TagStore** are missing some sources,
 they will be manually queried in a block way, and the cache will be updated.
 
 For convenience, the package creates a **defaultTagger** object that is used
 when calling the `tagger.Tag()` method.
+# TODO What is globalTagger vs defaultTagger?
 
-                   +-----------+
-                   | Collector |
-                   +---+-------+
-                       |
-                       |
-    +--------+      +--+-------+       +-------------+
+                   +--------------+
+                   | Workloadmeta |
+                   +-----+--------+
+                         |
+                         |
+    +--------+      +----+-----+       +-------------+
     |  User  <------+  Tagger  +-------> IPC handler |
     |packages|      +--+-----^-+       +-------------+
     +--------+         |     |
