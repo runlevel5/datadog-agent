@@ -10,8 +10,10 @@ package k8sconfig
 
 import (
 	"context"
+	"encoding/json"
 	"io/fs"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -40,11 +42,11 @@ kubelet \
 var eksFs = []*mockFile{
 	{
 		name: "/etc/eks/image-credential-provider",
-		mode: 0755, isDir: true,
+		mode: 0750, isDir: true,
 	},
 	{
 		name: "/etc/eks/image-credential-provider/config.json",
-		mode: 0644,
+		mode: 0640,
 		content: `{
   "apiVersion": "kubelet.config.k8s.io/v1alpha1",
   "kind": "CredentialProviderConfig",
@@ -66,7 +68,7 @@ var eksFs = []*mockFile{
 	},
 	{
 		name: "/etc/eks/release",
-		mode: 0664,
+		mode: 0660,
 		content: `BASE_AMI_ID="ami-0528ac959959021be"
 BUILD_TIME="Sat May 13 01:48:34 UTC 2023"
 BUILD_KERNEL="5.10.178-162.673.amzn2.aarch64"
@@ -74,7 +76,7 @@ ARCH="aarch64"`,
 	},
 	{
 		name: "/etc/kubernetes/kubelet/kubelet-config.json",
-		mode: 0644,
+		mode: 0640,
 		content: `{
   "kind": "KubeletConfiguration",
   "apiVersion": "kubelet.config.k8s.io/v1beta1",
@@ -141,7 +143,7 @@ ARCH="aarch64"`,
 	},
 	{
 		name: "/etc/systemd/system/kubelet.service.d/10-kubelet-args.conf",
-		mode: 0644,
+		mode: 0640,
 		content: `[Service]
 Environment='KUBELET_ARGS=--node-ip=192.168.78.181 \
 	--pod-infra-container-image=602401143452.dkr.ecr.eu-west-3.amazonaws.com/eks/pause:3.5 \
@@ -151,7 +153,7 @@ Environment='KUBELET_ARGS=--node-ip=192.168.78.181 \
 	},
 	{
 		name: "/etc/kubernetes/pki/ca.crt",
-		mode: 0644,
+		mode: 0640,
 		content: `-----BEGIN CERTIFICATE-----
 MIIDFTCCAf2gAwIBAgIBATANBgkqhkiG9w0BAQsFADAfMR0wGwYDVQQDDBRsb2Nh
 bGhvc3RAMTUxNTQ2MjIwNjAgFw0xODAxMDkwMTQzMjZaGA8yMTE4MDEwOTAxNDMy
@@ -175,7 +177,7 @@ L7+jALMhMhiQD+Q4qsNuyvvNQLoYcTTFTw==
 	},
 	{
 		name: "/var/lib/kubelet/kubeconfig",
-		mode: 0644,
+		mode: 0640,
 		content: `apiVersion: v1
 kind: Config
 clusters:
@@ -230,7 +232,7 @@ kubelet \
 var gkeFs = []*mockFile{
 	{
 		name: "/var/lib/kubelet/kubeconfig",
-		mode: 0644,
+		mode: 0640,
 		content: `apiVersion: v1
 kind: Config
 clusters:
@@ -433,7 +435,7 @@ bira4c1b6yJ1gUq3vA==
 	},
 	{
 		name: "/etc/kubernetes/certs/ca.crt",
-		mode: 0644,
+		mode: 0640,
 		content: `-----BEGIN CERTIFICATE-----
 MIIE6DCCAtCgAwIBAgIQIuh8lD2Bvb+KBGRBBS6naTANBgkqhkiG9w0BAQsFADAN
 MQswCQYDVQQDEwJjYTAgFw0yMjEwMjQxNjAxMDVaGA8yMDUyMTAyNDE2MTEwNVow
@@ -572,7 +574,7 @@ func procTable(str string) []proc {
 
 func TestKubAdmConfigLoader(t *testing.T) {
 	tmpDir := t.TempDir()
-	conf := loadTestConfiguration(tmpDir, kubadmProcTable)
+	conf := loadTestConfiguration(t, tmpDir, kubadmProcTable)
 	assert.Empty(t, conf.Errors)
 }
 
@@ -581,7 +583,7 @@ func TestKubEksConfigLoader(t *testing.T) {
 	for _, f := range eksFs {
 		f.create(t, tmpDir)
 	}
-	conf := loadTestConfiguration(tmpDir, eksProcTable)
+	conf := loadTestConfiguration(t, tmpDir, eksProcTable)
 	assert.Empty(t, conf.Errors)
 
 	assert.NotNil(t, conf.ManagedEnvironment)
@@ -607,7 +609,7 @@ func TestKubEksConfigLoader(t *testing.T) {
 	}
 
 	{
-		v := 10255
+		v := int(10255)
 		assert.NotNil(t, conf.Components.Kubelet.ReadOnlyPort)
 		assert.Equal(t, &v, conf.Components.Kubelet.ReadOnlyPort)
 		assert.Nil(t, kubeletConfig["readOnlyPort"])
@@ -620,7 +622,7 @@ func TestKubEksConfigLoader(t *testing.T) {
 		assert.True(t, ok)
 		x509, ok := authentication["x509"].(map[string]interface{})
 		assert.True(t, ok)
-		clientCAFile, ok := x509["clientCAFile"].(*K8sCertFileMeta)
+		clientCAFile, ok := x509["clientCAFile"].(map[string]interface{})
 		assert.True(t, ok)
 		assert.NotNil(t, clientCAFile)
 		assert.Nil(t, conf.Components.Kubelet.ClientCaFile)
@@ -642,7 +644,7 @@ func TestKubGkeConfigLoader(t *testing.T) {
 	for _, f := range gkeFs {
 		f.create(t, tmpDir)
 	}
-	conf := loadTestConfiguration(tmpDir, gkeProcTable)
+	conf := loadTestConfiguration(t, tmpDir, gkeProcTable)
 	assert.Empty(t, conf.Errors)
 
 	assert.NotNil(t, conf.ManagedEnvironment)
@@ -669,7 +671,7 @@ func TestKubGkeConfigLoader(t *testing.T) {
 	{
 		assert.Nil(t, conf.Components.Kubelet.ReadOnlyPort)
 		assert.NotNil(t, kubeletConfig["readOnlyPort"])
-		assert.Equal(t, 10255, kubeletConfig["readOnlyPort"])
+		assert.Equal(t, float64(10255), kubeletConfig["readOnlyPort"])
 	}
 
 	{
@@ -679,7 +681,7 @@ func TestKubGkeConfigLoader(t *testing.T) {
 		assert.True(t, ok)
 		x509, ok := authentication["x509"].(map[string]interface{})
 		assert.True(t, ok)
-		clientCAFile, ok := x509["clientCAFile"].(*K8sCertFileMeta)
+		clientCAFile, ok := x509["clientCAFile"].(map[string]interface{})
 		assert.True(t, ok)
 		assert.NotNil(t, clientCAFile)
 		assert.Nil(t, conf.Components.Kubelet.ClientCaFile)
@@ -696,7 +698,7 @@ func TestKubAksConfigLoader(t *testing.T) {
 	for _, f := range aksFs {
 		f.create(t, tmpDir)
 	}
-	conf := loadTestConfiguration(tmpDir, aksProcTable)
+	conf := loadTestConfiguration(t, tmpDir, aksProcTable)
 	assert.Empty(t, conf.Errors)
 
 	assert.NotNil(t, conf.ManagedEnvironment)
@@ -736,19 +738,24 @@ func TestKubAksConfigLoader(t *testing.T) {
 		webhook := "Webhook"
 		assert.Equal(t, &webhook, conf.Components.Kubelet.AuthorizationMode)
 
-		assert.NotNil(t, conf.Components.Kubelet.ClientCaFile)
-		assert.Equal(t, "root", conf.Components.Kubelet.ClientCaFile.User)
-		assert.Equal(t, "root", conf.Components.Kubelet.ClientCaFile.Group)
-		assert.Equal(t, uint32(0644), conf.Components.Kubelet.ClientCaFile.Mode)
+		usr, err := user.Current()
+		assert.NoError(t, err)
+
+		grp, err := user.LookupGroupId(usr.Gid)
+		assert.NoError(t, err)
+
+		assert.Equal(t, usr.Username, conf.Components.Kubelet.ClientCaFile.User)
+		assert.Equal(t, grp.Name, conf.Components.Kubelet.ClientCaFile.Group)
+		assert.Equal(t, uint32(0640), conf.Components.Kubelet.ClientCaFile.Mode)
 
 		assert.NotNil(t, conf.Components.Kubelet.TlsCertFile)
-		assert.Equal(t, "root", conf.Components.Kubelet.TlsCertFile.User)
-		assert.Equal(t, "root", conf.Components.Kubelet.TlsCertFile.Group)
+		assert.Equal(t, usr.Username, conf.Components.Kubelet.TlsCertFile.User)
+		assert.Equal(t, grp.Name, conf.Components.Kubelet.TlsCertFile.Group)
 		assert.Equal(t, uint32(0600), conf.Components.Kubelet.TlsCertFile.Mode)
 
 		assert.NotNil(t, conf.Components.Kubelet.TlsPrivateKeyFile)
-		assert.Equal(t, "root", conf.Components.Kubelet.TlsPrivateKeyFile.User)
-		assert.Equal(t, "root", conf.Components.Kubelet.TlsPrivateKeyFile.Group)
+		assert.Equal(t, usr.Username, conf.Components.Kubelet.TlsPrivateKeyFile.User)
+		assert.Equal(t, grp.Name, conf.Components.Kubelet.TlsPrivateKeyFile.Group)
 		assert.Equal(t, uint32(0600), conf.Components.Kubelet.TlsPrivateKeyFile.Mode)
 
 		assert.NotEmpty(t, conf.Components.Kubelet.TlsCipherSuites)
@@ -761,12 +768,17 @@ func TestKubAksConfigLoader(t *testing.T) {
 	}
 }
 
-func loadTestConfiguration(hostroot string, table string) *K8sNodeConfig {
+func loadTestConfiguration(t *testing.T, hostroot string, table string) *K8sNodeConfig {
 	l := &loader{hostroot: hostroot}
 	_, data := l.load(context.Background(), func(ctx context.Context) []proc {
 		return procTable(table)
 	})
-	return data
+	jsonData, err := json.Marshal(data)
+	assert.NoError(t, err)
+	var conf K8sNodeConfig
+	err = json.Unmarshal(jsonData, &conf)
+	assert.NoError(t, err)
+	return &conf
 }
 
 type mockFile struct {
@@ -782,7 +794,7 @@ func (f *mockFile) create(t *testing.T, root string) {
 			t.Fatal(err)
 		}
 	} else {
-		if err := os.MkdirAll(filepath.Join(root, filepath.Dir(f.name)), fs.FileMode(0755)); err != nil {
+		if err := os.MkdirAll(filepath.Join(root, filepath.Dir(f.name)), fs.FileMode(0750)); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.WriteFile(filepath.Join(root, f.name), []byte(f.content), os.FileMode(f.mode)); err != nil {

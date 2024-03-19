@@ -50,6 +50,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/samber/lo"
 
 	agentmodel "github.com/DataDog/agent-payload/v5/process"
 	"github.com/DataDog/datadog-agent/test/fakeintake/aggregator"
@@ -73,6 +74,7 @@ const (
 	apmStatsEndpoint             = "/api/v0.2/stats"
 	orchestratorEndpoint         = "/api/v2/orch"
 	orchestratorManifestEndpoint = "/api/v2/orchmanif"
+	metadataEndpoint             = "/api/v1/metadata"
 )
 
 // ErrNoFlareAvailable is returned when no flare is available
@@ -96,6 +98,7 @@ type Client struct {
 	apmStatsAggregator             aggregator.APMStatsAggregator
 	orchestratorAggregator         aggregator.OrchestratorAggregator
 	orchestratorManifestAggregator aggregator.OrchestratorManifestAggregator
+	metadataAggregator             aggregator.MetadataAggregator
 }
 
 // NewClient creates a new fake intake client
@@ -117,6 +120,7 @@ func NewClient(fakeIntakeURL string) *Client {
 		apmStatsAggregator:             aggregator.NewAPMStatsAggregator(),
 		orchestratorAggregator:         aggregator.NewOrchestratorAggregator(),
 		orchestratorManifestAggregator: aggregator.NewOrchestratorManifestAggregator(),
+		metadataAggregator:             aggregator.NewMetadataAggregator(),
 	}
 }
 
@@ -362,6 +366,17 @@ func WithTags[P aggregator.PayloadItem](tags []string) MatchOpt[P] {
 	}
 }
 
+// WithMatchingTags filters by `tags` where tags is an array of regex strings
+func WithMatchingTags[P aggregator.PayloadItem](tags []*regexp.Regexp) MatchOpt[P] {
+	return func(payload P) (bool, error) {
+		return lo.EveryBy(tags, func(regTag *regexp.Regexp) bool {
+			return lo.SomeBy(payload.GetTags(), func(t string) bool {
+				return regTag.MatchString(t)
+			})
+		}), nil
+	}
+}
+
 // WithMetricValueInRange filters metrics with values in range `minValue < value < maxValue`
 func WithMetricValueInRange(minValue float64, maxValue float64) MatchOpt[*aggregator.MetricSeries] {
 	return func(metric *aggregator.MetricSeries) (bool, error) {
@@ -509,6 +524,8 @@ func (c *Client) FlushServerAndResetAggregators() error {
 	c.connectionAggregator.Reset()
 	c.metricAggregator.Reset()
 	c.logAggregator.Reset()
+	c.apmStatsAggregator.Reset()
+	c.traceAggregator.Reset()
 	return nil
 }
 
@@ -698,6 +715,23 @@ func (c *Client) FilterSBOMs(id string, options ...MatchOpt[*aggregator.SBOMPayl
 		}
 	}
 	return filteredSBOMs, nil
+}
+
+// GetMetadata fetches fakeintake on `/api/v1/metadata` endpoint and returns a list of metadata payloads
+func (c *Client) GetMetadata() ([]*aggregator.MetadataPayload, error) {
+	payloads, err := c.getFakePayloads(metadataEndpoint)
+	if err != nil {
+		return nil, err
+	}
+	err = c.metadataAggregator.UnmarshallPayloads(payloads)
+	if err != nil {
+		return nil, err
+	}
+	metadata := make([]*aggregator.MetadataPayload, 0, len(c.metadataAggregator.GetNames()))
+	for _, name := range c.metadataAggregator.GetNames() {
+		metadata = append(metadata, c.metadataAggregator.GetPayloadsByName(name)...)
+	}
+	return metadata, nil
 }
 
 // GetOrchestratorResources fetches fakeintake on `/api/v2/orch` endpoint and returns

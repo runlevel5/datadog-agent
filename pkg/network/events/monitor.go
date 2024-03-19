@@ -9,13 +9,13 @@
 package events
 
 import (
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	"go.uber.org/atomic"
 	"go4.org/intern"
-	"golang.org/x/exp/slices"
 
 	sprobe "github.com/DataDog/datadog-agent/pkg/security/probe"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"

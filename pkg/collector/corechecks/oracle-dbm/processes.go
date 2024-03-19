@@ -41,6 +41,14 @@ const pgaQuery11 = `SELECT
 FROM v$process p, v$session s
 WHERE s.paddr(+) = p.addr`
 
+const pgaQueryOldIntegration = `SELECT
+	p.pid as pid, p.program as server_process,
+	nvl(pga_used_mem,0) pga_used_mem,
+	nvl(pga_alloc_mem,0) pga_alloc_mem,
+	nvl(pga_freeable_mem,0) pga_freeable_mem,
+	nvl(pga_max_mem,0) pga_max_mem
+FROM gv$process p`
+
 type sessionTagColumns struct {
 	Sid      sql.NullInt64  `db:"SID"`
 	Username sql.NullString `db:"USERNAME"`
@@ -70,11 +78,16 @@ func (c *Check) ProcessMemory() error {
 	rows := []ProcessesRowDB{}
 
 	var pgaQuery string
-	if isDbVersionGreaterOrEqualThan(c, minMultitenantVersion) {
-		pgaQuery = pgaQuery12
+	if c.legacyIntegrationCompatibilityMode {
+		pgaQuery = pgaQueryOldIntegration
 	} else {
-		pgaQuery = pgaQuery11
+		if isDbVersionGreaterOrEqualThan(c, minMultitenantVersion) {
+			pgaQuery = pgaQuery12
+		} else {
+			pgaQuery = pgaQuery11
+		}
 	}
+
 	err := selectWrapper(c, &rows, pgaQuery)
 	if err != nil {
 		return fmt.Errorf("failed to collect processes info: %w", err)
@@ -109,6 +122,8 @@ func (c *Check) ProcessMemory() error {
 			sendMetric(c, gauge, fmt.Sprintf("%s.process.pga_allocated_memory", common.IntegrationName), r.PGAAllocMem, tags)
 			sendMetric(c, gauge, fmt.Sprintf("%s.process.pga_freeable_memory", common.IntegrationName), r.PGAFreeableMem, tags)
 			sendMetric(c, gauge, fmt.Sprintf("%s.process.pga_max_memory", common.IntegrationName), r.PGAMaxMem, tags)
+			// we send pga_maximum_memory for backward compatibility with the old Oracle integration
+			sendMetric(c, gauge, fmt.Sprintf("%s.process.pga_maximum_memory", common.IntegrationName), r.PGAMaxMem, tags)
 		}
 
 		if c.config.InactiveSessions.Enabled && r.Status.Valid && r.Status.String == "INACTIVE" && r.LastCallEt.Valid {

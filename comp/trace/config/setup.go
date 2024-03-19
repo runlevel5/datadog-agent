@@ -20,6 +20,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/opentelemetry-mapping-go/pkg/otlp/attributes"
+	"go.opentelemetry.io/collector/component/componenttest"
+
 	corecompcfg "github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/tagger"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/collectors"
@@ -28,10 +31,8 @@ import (
 	coreconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/model"
 	rc "github.com/DataDog/datadog-agent/pkg/config/remote/client"
-	"github.com/DataDog/datadog-agent/pkg/config/remote/data"
 	"github.com/DataDog/datadog-agent/pkg/config/utils"
-	"github.com/DataDog/opentelemetry-mapping-go/pkg/otlp/attributes"
-	"go.opentelemetry.io/collector/component/componenttest"
+	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 
 	//nolint:revive // TODO(APM) Fix revive linter
 	configUtils "github.com/DataDog/datadog-agent/pkg/config/utils"
@@ -121,9 +122,9 @@ func prepareConfig(c corecompcfg.Component) (*config.AgentConfig, error) {
 		client, err := rc.NewGRPCClient(
 			ipcAddress,
 			coreconfig.GetIPCPort(),
-			security.FetchAuthToken,
+			func() (string, error) { return security.FetchAuthToken(c) },
 			rc.WithAgent(rcClientName, version.AgentVersion),
-			rc.WithProducts([]data.Product{data.ProductAPMSampling, data.ProductAgentConfig}),
+			rc.WithProducts(state.ProductAPMSampling, state.ProductAgentConfig),
 			rc.WithPollInterval(rcClientPollInterval),
 			rc.WithDirectorRootOverride(c.GetString("remote_configuration.director_root")),
 		)
@@ -408,6 +409,7 @@ func applyDatadogConfig(c *config.AgentConfig, core corecompcfg.Component) error
 		c.Obfuscation.Mongo.Enabled = true
 		c.Obfuscation.Memcached.Enabled = true
 		c.Obfuscation.Redis.Enabled = true
+		c.Obfuscation.CreditCards.Enabled = true
 
 		// TODO(x): There is an issue with coreconfig.Datadog.IsSet("apm_config.obfuscation"), probably coming from Viper,
 		// where it returns false even is "apm_config.obfuscation.credit_cards.enabled" is set via an environment
