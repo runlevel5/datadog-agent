@@ -18,8 +18,10 @@ import (
 	"github.com/vishvananda/netlink"
 	"go.uber.org/atomic"
 
+	"github.com/DataDog/datadog-agent/pkg/eventmonitor"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/runtime"
+	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -298,6 +300,10 @@ func (pm *ProcessMonitor) mainEventLoop() {
 			pm.tel.events.Add(1)
 			switch ev := event.Msg.(type) {
 			case *netlink.ExecProcEvent:
+				log.Info("netlink exec pid", ev.ProcessPid)
+
+				log.Info("skip netlink event")
+				continue
 				pm.tel.exec.Add(1)
 				// handleProcessExec locks a mutex to access the exec callbacks array, if it is empty, then we're
 				// wasting "resources" to check it. Since it is a hot-code-path, it has some cpu load.
@@ -307,6 +313,9 @@ func (pm *ProcessMonitor) mainEventLoop() {
 				}
 			case *netlink.ExitProcEvent:
 				pm.tel.exit.Add(1)
+				log.Info("netlink exit pid", ev.ProcessPid)
+				log.Info("skip netlink event")
+				continue
 				// handleProcessExit locks a mutex to access the exit callbacks array, if it is empty, then we're
 				// wasting "resources" to check it. Since it is a hot-code-path, it has some cpu load.
 				// Checking an atomic boolean, is an atomic operation, hence much faster.
@@ -484,4 +493,92 @@ func FindDeletedProcesses[V any](pids map[uint32]V) map[uint32]struct{} {
 	}
 
 	return res
+}
+
+// SimpleEvent defines a simple event
+type SimpleEvent struct {
+	Type model.EventType
+	Pid  uint32
+}
+
+// SimpleEventConsumer defines a simple event consumer
+type SimpleEventConsumer struct {
+	sync.RWMutex
+	exec int
+	fork int
+	exit int
+}
+
+// NewSimpleEventConsumer returns a new simple event consumer
+func NewSimpleEventConsumer(em *eventmonitor.EventMonitor) (*SimpleEventConsumer, error) {
+	fc := &SimpleEventConsumer{}
+	err := em.AddEventConsumer(fc)
+	return fc, err
+}
+
+// ID returns the ID of this consumer
+// Implement the consumer interface
+func (fc *SimpleEventConsumer) ID() string {
+	return "SIMPLE_CONSUMER"
+}
+
+// Start the consumer
+// Implement the consumer interface
+func (fc *SimpleEventConsumer) Start() error {
+	return nil
+}
+
+// Stop the consumer
+// Implement the consumer interface
+func (fc *SimpleEventConsumer) Stop() {
+}
+
+// EventTypes returns the event types handled by this consumer
+// Implement the consumer interface
+func (fc *SimpleEventConsumer) EventTypes() []model.EventType {
+	return []model.EventType{
+		model.ForkEventType,
+		model.ExecEventType,
+		model.ExitEventType,
+	}
+}
+
+// HandleEvent handles this event
+// Implement the consumer interface
+func (fc *SimpleEventConsumer) HandleEvent(event any) {
+	sevent, ok := event.(*SimpleEvent)
+	if !ok {
+		log.Error("Event is not a security model event")
+		return
+	}
+
+	fc.Lock()
+	defer fc.Unlock()
+
+	fmt.Println("Got event", sevent)
+
+	pm := processMonitor
+	switch sevent.Type {
+	case model.ExecEventType:
+		if pm.hasExecCallbacks.Load() {
+			pm.handleProcessExec(sevent.Pid)
+		}
+		fc.exec++
+	case model.ForkEventType:
+		fc.fork++
+	case model.ExitEventType:
+		if pm.hasExitCallbacks.Load() {
+			pm.handleProcessExit(sevent.Pid)
+		}
+		fc.exit++
+	}
+}
+
+// Copy should copy the given event or return nil to discard it
+// Implement the consumer interface
+func (fc *SimpleEventConsumer) Copy(event *model.Event) any {
+	return &SimpleEvent{
+		Type: event.GetEventType(),
+		Pid:  event.GetProcessPid(),
+	}
 }
