@@ -11,10 +11,12 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 
 	"github.com/DataDog/test-infra-definitions/common/config"
+	"github.com/DataDog/test-infra-definitions/common/utils"
 	npmtools "github.com/DataDog/test-infra-definitions/components/datadog/apps/npm-tools"
 	"github.com/DataDog/test-infra-definitions/components/datadog/kubernetesagentparams"
 	"github.com/DataDog/test-infra-definitions/components/docker"
 	kubeComp "github.com/DataDog/test-infra-definitions/components/kubernetes"
+	"github.com/DataDog/test-infra-definitions/components/kubernetes/istio"
 	"github.com/DataDog/test-infra-definitions/resources/aws"
 	"github.com/DataDog/test-infra-definitions/scenarios/aws/ec2"
 
@@ -73,10 +75,33 @@ func eksHttpbinEnvProvisioner() e2e.PulumiEnvRunFunc[eksHttpbinEnv] {
 			return npmtools.K8sAppDefinition(*awsEnv.CommonEnvironment, kubeProvider, "npmtools", testURL)
 		}
 
+		istioInstall := func(e config.CommonEnvironment, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error) {
+			helmComponent, err := istio.NewHelmInstallation(*awsEnv.CommonEnvironment, pulumi.Provider(kubeProvider))
+			if err != nil {
+				return nil, err
+			}
+			ctx.Export("istio-base-helm-install-name", helmComponent.IstioBaseHelmReleaseStatus)
+			ctx.Export("istiod-helm-install-status", helmComponent.IstiodHelmReleaseStatus)
+			ctx.Export("istio-ingress-helm-install-status", helmComponent.IstioIngressHelmReleaseStatus)
+
+			httpbin, err := istio.NewHttpbinServiceInstallation(*awsEnv.CommonEnvironment, utils.PulumiDependsOn(helmComponent))
+			if err != nil {
+				return nil, err
+			}
+
+			err = istio.NewHttpbinGatewayRoutesInstallation(*awsEnv.CommonEnvironment, utils.PulumiDependsOn(httpbin))
+			if err != nil {
+				return nil, err
+			}
+
+			return &kubeComp.Workload{}, nil
+		}
+
 		params := envkube.GetProvisionerParams(
 			envkube.WithEKSLinuxNodeGroup(),
 			envkube.WithAgentOptions(kubernetesagentparams.WithHelmValues(systemProbeConfigNPMHelmValues)),
 			envkube.WithWorkloadApp(npmToolsWorkload),
+			envkube.WithWorkloadApp(istioInstall),
 		)
 		envkube.EKSRunFunc(ctx, &env.Kubernetes, params)
 
