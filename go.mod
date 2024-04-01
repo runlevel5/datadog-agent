@@ -130,7 +130,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.54.0-rc.1
 	github.com/DataDog/datadog-go/v5 v5.5.0
 	// do not update datadog-operator to 1.2.1 because the indirect dependency github.com/DataDog/datadog-api-client-go/v2 v2.15.0 is trigger a huge Go heap memory increase.
-	github.com/DataDog/datadog-operator v1.1.0
+	github.com/DataDog/datadog-operator v0.7.1-0.20240429084820-2e93e67d41d8
 	github.com/DataDog/ebpf-manager v0.6.0
 	github.com/DataDog/gopsutil v1.2.2
 	github.com/DataDog/nikos v1.12.4
@@ -592,7 +592,7 @@ require (
 	modernc.org/strutil v1.1.3 // indirect
 	modernc.org/token v1.1.0 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.28.0 // indirect
-	sigs.k8s.io/controller-runtime v0.11.2 // indirect
+	sigs.k8s.io/controller-runtime v0.12.2 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 	sigs.k8s.io/yaml v1.4.0
@@ -602,7 +602,7 @@ require github.com/lorenzosaino/go-sysctl v0.3.1
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/DataDog/agent-payload/v5 v5.0.114
+	github.com/DataDog/agent-payload/v5 v5.0.115-0.20240429154924-49b7b966ebe4
 	github.com/DataDog/datadog-agent/cmd/agent/common/path v0.54.0-rc.1
 	github.com/DataDog/datadog-agent/comp/core/config v0.54.0-rc.1
 	github.com/DataDog/datadog-agent/comp/core/flare/types v0.54.0-rc.1
@@ -809,6 +809,7 @@ require (
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/expr-lang/expr v1.16.3 // indirect
 	github.com/facebook/time v0.0.0-20240109160331-d1456d1a6bac // indirect
+	github.com/frankban/quicktest v1.14.5 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.1 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-resty/resty/v2 v2.11.0 // indirect
@@ -835,6 +836,7 @@ require (
 	github.com/hashicorp/go-getter v1.7.4 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.5 // indirect
 	github.com/hashicorp/go-safetemp v1.0.0 // indirect
+	github.com/hashicorp/go-sockaddr v1.0.6 // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
 	github.com/hashicorp/nomad/api v0.0.0-20240306004928-3e7191ccb702 // indirect
 	github.com/hetznercloud/hcloud-go/v2 v2.6.0 // indirect
@@ -1051,7 +1053,7 @@ require (
 	github.com/pkg/sftp v1.13.6 // indirect
 	github.com/pquerna/cachecontrol v0.1.0 // indirect
 	github.com/prometheus/common/sigv4 v0.1.0 // indirect
-	github.com/prometheus/prometheus v0.51.2-0.20240405174432-b4a973753c6e // indirect
+	github.com/prometheus/prometheus v2.5.0+incompatible // indirect
 	github.com/redis/go-redis/v9 v9.5.1 // indirect
 	github.com/relvacode/iso8601 v1.4.0 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
@@ -1069,7 +1071,7 @@ require (
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/viper v1.18.2 // indirect
-	github.com/stoewer/go-strcase v1.2.0 // indirect
+	github.com/stoewer/go-strcase v1.3.0 // indirect
 	github.com/stormcat24/protodep v0.1.8 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/swaggest/refl v1.3.0 // indirect
@@ -1120,11 +1122,14 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20240318140521-94a12d6c2237 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240401170217-c3f982113cda // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
-	gotest.tools/v3 v3.4.0 // indirect
+	gotest.tools/v3 v3.5.1 // indirect
 	honnef.co/go/tools v0.4.5 // indirect
 	k8s.io/kms v0.29.0 // indirect
 	skywalking.apache.org/repo/goapi v0.0.0-20240104145220-ba7202308dd4 // indirect
 )
+
+// Datadog Operator -> EDS -> KSM -> prometheus/prometheus v2.5.0 while some OTel stuff imports old version
+replace github.com/prometheus/prometheus => github.com/prometheus/prometheus v0.51.2-0.20240405174432-b4a973753c6e
 
 replace github.com/pahanini/go-grpc-bidirectional-streaming-example v0.0.0-20211027164128-cc6111af44be => github.com/DataDog/go-grpc-bidirectional-streaming-example v0.0.0-20221024060302-b9cf785c02fe
 
