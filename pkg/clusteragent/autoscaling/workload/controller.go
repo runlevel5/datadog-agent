@@ -1,0 +1,333 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
+//go:build kubeapiserver
+
+package workload
+
+import (
+	"context"
+	"fmt"
+
+	"k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	scaleclient "k8s.io/client-go/scale"
+	"k8s.io/utils/clock"
+
+	datadoghq "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+
+	"github.com/DataDog/datadog-agent/pkg/clusteragent/autoscaling"
+	"github.com/DataDog/datadog-agent/pkg/clusteragent/autoscaling/workload/model"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
+)
+
+const (
+	maxRetry int = 5
+
+	controllerID = "dpa-c"
+)
+
+var (
+	podAutoscalerGVR  = datadoghq.GroupVersion.WithResource("datadogpodautoscalers")
+	podAutoscalerMeta = metav1.TypeMeta{
+		Kind:       "DatadogPodAutoscaler",
+		APIVersion: "datadoghq.com/v1alpha1",
+	}
+)
+
+type store = autoscaling.Store[model.PodAutoscalerInternal]
+
+type processResult struct {
+	autoscaling.ProcessResult
+	updateStatus bool
+}
+
+func withStatusUpdate(updateStatus bool, result autoscaling.ProcessResult) processResult {
+	return processResult{
+		ProcessResult: result,
+		updateStatus:  updateStatus,
+	}
+}
+
+// Controller for DatadogPodAutoscaler objects
+type Controller struct {
+	*autoscaling.Controller
+
+	clock clock.Clock
+	store *store
+
+	horizontalController *horizontalController
+}
+
+// newController returns a new workload autoscaling controller
+func newController(
+	restMapper apimeta.RESTMapper,
+	scaleClient scaleclient.ScalesGetter,
+	dynamicClient dynamic.Interface,
+	dynamicInformer dynamicinformer.DynamicSharedInformerFactory,
+	isLeader func() bool,
+	store *store,
+) (*Controller, error) {
+	c := &Controller{
+		clock: clock.RealClock{},
+	}
+
+	baseController, err := autoscaling.NewController(controllerID, c, dynamicClient, dynamicInformer, podAutoscalerGVR, isLeader, store)
+	if err != nil {
+		return nil, err
+	}
+
+	c.Controller = baseController
+	c.store = store
+	c.horizontalController = newHorizontalReconciler(restMapper, scaleClient)
+
+	return c, nil
+}
+
+// Process implements the Processor interface (so required to be public)
+func (c *Controller) Process(ctx context.Context, key, ns, name string) autoscaling.ProcessResult {
+	res, err := c.processPodAutoscaler(ctx, key, ns, name)
+	if err != nil {
+		numRequeues := c.Workqueue.NumRequeues(key)
+		log.Errorf("Impossible to synchronize DatadogPodAutoscaler (attempt #%d): %s, err: %v", numRequeues, key, err)
+
+		if numRequeues >= maxRetry {
+			log.Infof("Max retries reached for DatadogPodAutoscaler: %s, removing from queue", key)
+			res = autoscaling.NoRequeue
+		}
+	}
+
+	return res
+}
+
+func (c *Controller) processPodAutoscaler(ctx context.Context, key, ns, name string) (autoscaling.ProcessResult, error) {
+	podAutoscaler := &datadoghq.DatadogPodAutoscaler{}
+	podAutoscalerCachedObj, err := c.Lister.ByNamespace(ns).Get(name)
+	if err == nil {
+		err = autoscaling.FromUnstructured(podAutoscalerCachedObj, podAutoscaler)
+	}
+
+	switch {
+	case errors.IsNotFound(err):
+		// We ignore not found here as we may need to create a DatadogPodAutoscaler later
+		podAutoscaler = nil
+	case err != nil:
+		return autoscaling.Requeue, fmt.Errorf("Unable to retrieve DatadogPodAutoscaler: %w", err)
+	case podAutoscalerCachedObj == nil:
+		return autoscaling.Requeue, fmt.Errorf("Could not parse empty DatadogPodAutoscaler from local cache")
+	}
+
+	// No error path, check what to do with this event
+	if c.IsLeader() {
+		return c.syncPodAutoscaler(ctx, key, ns, name, podAutoscaler)
+	}
+
+	// In follower mode, we simply sync updates from Kubernetes
+	// If the object is present in Kubernetes, we will update our local version
+	// Otherwise, we clear it from our local store
+	if podAutoscaler != nil {
+		c.store.Set(key, model.NewPodAutoscalerInternal(key, podAutoscaler), c.ID)
+	} else {
+		c.store.Delete(key, c.ID)
+	}
+
+	return autoscaling.NoRequeue, nil
+}
+
+// Synchronize DatadogPodAutoscaler state between internal store and Kubernetes objects
+// Make sure any `return` has the proper store Unlock
+func (c *Controller) syncPodAutoscaler(ctx context.Context, key, ns, name string, podAutoscaler *datadoghq.DatadogPodAutoscaler) (autoscaling.ProcessResult, error) {
+	podAutoscalerInternal, podAutoscalerInternalFound := c.store.LockRead(key, true)
+
+	// Object is missing from our store
+	if !podAutoscalerInternalFound {
+		if podAutoscaler != nil {
+			// If we don't have an instance locally, we create it. Deletion is handled through setting the `Deleted` flag
+			c.store.UnlockSet(key, model.NewPodAutoscalerInternal(key, podAutoscaler), c.ID)
+		} else {
+			// If podAutoscaler == nil, both objects are nil, nothing to do
+			c.store.Unlock(key)
+		}
+
+		return autoscaling.NoRequeue, nil
+	}
+
+	if podAutoscaler == nil {
+		// Object is not present in Kubernetes
+		// If flagged for deletetion, we just need to clear up our store (deletion complete)
+		// Also if object was not owned by remote config, we also need to delete it (deleted by user)
+		if podAutoscalerInternal.Deleted || podAutoscalerInternal.Spec.Owner != datadoghq.DatadogPodAutoscalerRemoteOwner {
+			c.store.UnlockDelete(key, c.ID)
+			return autoscaling.NoRequeue, nil
+		}
+
+		// Object is not flagged for deletion and owned by remote config, we need to create it in Kubernetes
+		err := c.createPodAutoscaler(ctx, podAutoscalerInternal)
+
+		c.store.Unlock(key)
+		return autoscaling.Requeue, err
+	}
+
+	// Object is present in both our store and Kubernetes, we need to sync depending on ownership.
+	// Implement info sync based on ownership.
+	if podAutoscaler.Spec.Owner == datadoghq.DatadogPodAutoscalerRemoteOwner {
+		// First implement deletion logic, as if it's a deletion, we don't need to update the object.
+		// Deletion can only happen if the object is owned by remote config.
+		if podAutoscalerInternal.Deleted {
+			err := c.deletePodAutoscaler(ns, name)
+			// In case of not found, it means the object is gone but informer cache is not updated yet, we can safely delete it from our store
+			if err != nil && errors.IsNotFound(err) {
+				c.store.UnlockDelete(key, c.ID)
+				return autoscaling.NoRequeue, nil
+			}
+
+			// In all other cases, we requeue and wait for the object to be deleted from store with next reconcile
+			c.store.Unlock(key)
+			return autoscaling.Requeue, err
+		}
+
+		// If the object is owned by remote config and newer, we need to update the spec in Kubernetes
+		// If Kubernetes is newer, we wait for RC to update the object in our internal store.
+		if *podAutoscalerInternal.SettingsVersion > podAutoscaler.Spec.RemoteVersion {
+			podAutoscaler.Spec = podAutoscalerInternal.Spec
+			err := c.updatePodAutoscalerSpec(ctx, podAutoscalerInternal, podAutoscaler)
+
+			// If update succeeded, we requeue the object to handle status update
+			if err == nil {
+				c.Workqueue.AddRateLimited(key)
+			}
+
+			// When doing an external update, we stop and reqeue the object to not have multiple changes at once.
+			c.store.Unlock(key)
+			return autoscaling.Requeue, err
+		}
+
+		// TODO: If Generation != podAutoscaler.Generation, we should compute `.Spec` hash
+		// and compare it with the one in the PodAutoscaler. If they differ, we should update the PodAutoscaler.
+	}
+
+	// Implement sync logic for local ownership, source of truth is Kubernetes
+	if podAutoscalerInternal.Spec.Owner == datadoghq.DatadogPodAutoscalerLocalOwner {
+		if podAutoscalerInternal.Generation != podAutoscaler.Generation {
+			podAutoscalerInternal.UpdateFromSpec(&podAutoscaler.Spec)
+			c.store.Set(key, podAutoscalerInternal, c.ID)
+		}
+	}
+
+	// Now that everything is synced, we can perform the actual processing
+	result, err := c.handleScaling(ctx, &podAutoscalerInternal)
+	if err != nil {
+		podAutoscalerInternal.GlobalError = err
+		result.updateStatus = true
+	}
+
+	if result.updateStatus {
+		statusErr := c.updatePodAutoscalerStatus(ctx, podAutoscalerInternal, podAutoscaler)
+		if statusErr != nil {
+			log.Errorf("Failed to update status for PodAutoscaler: %s/%s, err: %v", ns, name, statusErr)
+		}
+	}
+
+	c.store.UnlockSet(key, podAutoscalerInternal, c.ID)
+	return result.ProcessResult, err
+}
+
+func (c *Controller) handleScaling(ctx context.Context, podAutoscalerInternal *model.PodAutoscalerInternal) (processResult, error) {
+	// First, resolve target GVK if not already done
+	if podAutoscalerInternal.TargetGVK.Empty() {
+		gv, err := schema.ParseGroupVersion(podAutoscalerInternal.Spec.TargetRef.APIVersion)
+		if err != nil {
+			return withStatusUpdate(true, autoscaling.NoRequeue), fmt.Errorf("failed to parse API version %s: %w", podAutoscalerInternal.Spec.TargetRef.APIVersion, err)
+		}
+
+		podAutoscalerInternal.TargetGVK = schema.GroupVersionKind{
+			Group:   gv.Group,
+			Version: gv.Version,
+			Kind:    podAutoscalerInternal.Spec.TargetRef.Kind,
+		}
+	}
+
+	return c.horizontalController.sync(ctx, podAutoscalerInternal)
+}
+
+func (c *Controller) createPodAutoscaler(ctx context.Context, podAutoscalerInternal model.PodAutoscalerInternal) error {
+	log.Infof("Creating PodAutoscaler Spec: %s/%s", podAutoscalerInternal.Namespace, podAutoscalerInternal.Name)
+	autoscalerObj := &datadoghq.DatadogPodAutoscaler{
+		TypeMeta: podAutoscalerMeta,
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: podAutoscalerInternal.Namespace,
+			Name:      podAutoscalerInternal.Name,
+		},
+		Spec:   podAutoscalerInternal.Spec,
+		Status: podAutoscalerInternal.BuildStatus(metav1.NewTime(c.clock.Now()), nil),
+	}
+
+	obj, err := autoscaling.ToUnstructured(autoscalerObj)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.Client.Resource(podAutoscalerGVR).Namespace(podAutoscalerInternal.Namespace).Create(ctx, obj, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("Unable to create PodAutoscaler: %s/%s, err: %v", podAutoscalerInternal.Namespace, podAutoscalerInternal.Name, err)
+	}
+
+	return nil
+}
+
+func (c *Controller) updatePodAutoscalerSpec(ctx context.Context, podAutoscalerInternal model.PodAutoscalerInternal, podAutoscaler *datadoghq.DatadogPodAutoscaler) error {
+	log.Infof("Updating PodAutoscaler Spec: %s/%s", podAutoscalerInternal.Namespace, podAutoscalerInternal.Name)
+	autoscalerObj := &datadoghq.DatadogPodAutoscaler{
+		TypeMeta:   podAutoscalerMeta,
+		ObjectMeta: podAutoscaler.ObjectMeta,
+		Spec:       podAutoscalerInternal.Spec,
+	}
+
+	obj, err := autoscaling.ToUnstructured(autoscalerObj)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.Client.Resource(podAutoscalerGVR).Namespace(podAutoscalerInternal.Namespace).Update(ctx, obj, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("Unable to update PodAutoscaler Spec: %s/%s, err: %w", podAutoscalerInternal.Namespace, podAutoscalerInternal.Name, err)
+	}
+
+	return nil
+}
+
+func (c *Controller) updatePodAutoscalerStatus(ctx context.Context, podAutoscalerInternal model.PodAutoscalerInternal, podAutoscaler *datadoghq.DatadogPodAutoscaler) error {
+	log.Debugf("Updating PodAutoscaler Status: %s/%s", podAutoscalerInternal.Namespace, podAutoscalerInternal.Name)
+	autoscalerObj := &datadoghq.DatadogPodAutoscaler{
+		TypeMeta:   podAutoscalerMeta,
+		ObjectMeta: podAutoscaler.ObjectMeta,
+		Status:     podAutoscalerInternal.BuildStatus(metav1.NewTime(c.clock.Now()), &podAutoscaler.Status),
+	}
+
+	obj, err := autoscaling.ToUnstructured(autoscalerObj)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.Client.Resource(podAutoscalerGVR).Namespace(podAutoscalerInternal.Namespace).UpdateStatus(ctx, obj, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("Unable to update PodAutoscaler Spec: %s/%s, err: %w", podAutoscalerInternal.Namespace, podAutoscalerInternal.Name, err)
+	}
+
+	return nil
+}
+
+func (c *Controller) deletePodAutoscaler(ns, name string) error {
+	log.Infof("Deleting PodAutoscaler: %s/%s", ns, name)
+	err := c.Client.Resource(podAutoscalerGVR).Namespace(ns).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("Unable to delete PodAutoscaler: %s/%s, err: %v", ns, name, err)
+	}
+	return nil
+}
