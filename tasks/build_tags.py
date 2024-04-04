@@ -181,7 +181,7 @@ UNIT_TEST_TAGS = {"test"}
 UNIT_TEST_EXCLUDE_TAGS = {"datadog.no_waf"}
 
 # List of tags for FIPS mode
-FIPS_TAGS = { "requirefips", "goexperiment.systemcrypto" }
+FIPS_TAGS = {"requirefips", "goexperiment.systemcrypto"}
 
 # Build type: maps flavor to build tags map
 build_tags = {
