@@ -294,10 +294,13 @@ def list_ssm_parameters(_):
 
 
 @task
-def ssm_parameters(ctx):
+def ssm_parameters(ctx, mode="all"):
     """
     Lint SSM parameters in the datadog-agent repository.
     """
+    modes = ["env", "wrapper", "all"]
+    if mode not in modes:
+        raise Exit(f"Invalid mode: {mode}. Must be one of {modes}")
     lint_folders = [".circleci", ".github", ".gitlab", "tasks", "test"]
     repo_files = ctx.run("git ls-files", hide="both")
     error_files = []
@@ -306,6 +309,10 @@ def ssm_parameters(ctx):
             matched = is_get_parameter_call(file)
             if matched:
                 error_files.append(matched)
+    if mode == "env":
+        error_files = [f for f in error_files if not f.with_env_var]
+    elif mode == "wrapper":
+        error_files = [f for f in error_files if not f.with_wrapper]
     if error_files:
         print("The following files contain unexpected syntax for aws ssm get-parameter:")
         for file in error_files:
