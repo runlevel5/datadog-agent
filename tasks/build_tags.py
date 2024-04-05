@@ -41,6 +41,7 @@ ALL_TAGS = {
     "process",
     "python",
     "requirefips", ## causes process to panic if fips not enabled
+    "sds",
     "serverless",
     "systemd",
     "trivy",

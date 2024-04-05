@@ -8,7 +8,6 @@ package run
 
 import (
 	"context"
-	"errors"
 	_ "expvar" // Blank import used because this isn't directly used in this file
 	"fmt"
 	"net/http"
@@ -28,14 +27,14 @@ import (
 	"github.com/DataDog/datadog-agent/cmd/agent/common/misconfig"
 	"github.com/DataDog/datadog-agent/cmd/agent/common/path"
 	"github.com/DataDog/datadog-agent/cmd/agent/common/signals"
-	"github.com/DataDog/datadog-agent/cmd/agent/gui"
 	"github.com/DataDog/datadog-agent/cmd/agent/subcommands/run/internal/clcrunnerapi"
 	"github.com/DataDog/datadog-agent/cmd/manager"
 
 	// checks implemented as components
 
 	// core components
-	"github.com/DataDog/datadog-agent/comp/agent"
+
+	"github.com/DataDog/datadog-agent/comp/agent/expvarserver"
 	"github.com/DataDog/datadog-agent/comp/agent/jmxlogger"
 	"github.com/DataDog/datadog-agent/comp/agent/jmxlogger/jmxloggerimpl"
 	"github.com/DataDog/datadog-agent/comp/aggregator/demultiplexer"
@@ -51,12 +50,15 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/autodiscovery/providers"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/flare"
+	"github.com/DataDog/datadog-agent/comp/core/gui/guiimpl"
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/comp/core/log/logimpl"
 	"github.com/DataDog/datadog-agent/comp/core/pid"
 	"github.com/DataDog/datadog-agent/comp/core/pid/pidimpl"
 	"github.com/DataDog/datadog-agent/comp/process"
+	"github.com/DataDog/datadog-agent/comp/serializer/compression/compressionimpl"
 
+	"github.com/DataDog/datadog-agent/comp/agent"
 	"github.com/DataDog/datadog-agent/comp/agent/metadatascheduler"
 	"github.com/DataDog/datadog-agent/comp/core/healthprobe"
 	"github.com/DataDog/datadog-agent/comp/core/healthprobe/healthprobeimpl"
@@ -222,6 +224,7 @@ func run(log log.Component,
 	_ packagesigning.Component,
 	statusComponent status.Component,
 	collector collector.Component,
+	_ expvarserver.Component,
 	_ pid.Component,
 	metadatascheduler metadatascheduler.Component,
 	jmxlogger jmxlogger.Component,
@@ -347,6 +350,7 @@ func getSharedFxOption() fx.Option {
 		statusimpl.Module(),
 		authtokenimpl.Module(),
 		apiimpl.Module(),
+		compressionimpl.Module(),
 		demultiplexerimpl.Module(),
 		dogstatsd.Bundle(),
 		otelcol.Bundle(),
@@ -370,7 +374,7 @@ func getSharedFxOption() fx.Option {
 		// error prone.
 		fx.Invoke(func(lc fx.Lifecycle, wmeta workloadmeta.Component, _ tagger.Component, ac autodiscovery.Component, secretResolver secrets.Component) {
 			lc.Append(fx.Hook{
-				OnStart: func(ctx context.Context) error {
+				OnStart: func(_ context.Context) error {
 					//  setup the AutoConfig instance
 					common.LoadComponents(secretResolver, wmeta, ac, pkgconfig.Datadog.GetString("confd_path"))
 					return nil
@@ -403,6 +407,7 @@ func getSharedFxOption() fx.Option {
 		snmptraps.Bundle(),
 		collectorimpl.Module(),
 		process.Bundle(),
+		guiimpl.Module(),
 		agent.Bundle(),
 		fx.Supply(jmxloggerimpl.NewDefaultParams()),
 		fx.Provide(func(config config.Component) healthprobe.Options {
@@ -418,7 +423,7 @@ func getSharedFxOption() fx.Option {
 // startAgent Initializes the agent process
 func startAgent(
 	log log.Component,
-	flare flare.Component,
+	_ flare.Component,
 	telemetry telemetry.Component,
 	_ sysprobeconfig.Component,
 	server dogstatsdServer.Component,
@@ -435,7 +440,7 @@ func startAgent(
 	demultiplexer demultiplexer.Component,
 	agentAPI internalAPI.Component,
 	invChecks inventorychecks.Component,
-	statusComponent status.Component,
+	_ status.Component,
 	collector collector.Component,
 	_ metadatascheduler.Component,
 	jmxLogger jmxlogger.Component,
@@ -469,17 +474,7 @@ func startAgent(
 	// Setup expvar server
 	telemetryHandler := telemetry.Handler()
 
-	expvarPort := pkgconfig.Datadog.GetString("expvar_port")
 	http.Handle("/telemetry", telemetryHandler)
-	go func() {
-		common.ExpvarServer = &http.Server{
-			Addr:    fmt.Sprintf("127.0.0.1:%s", expvarPort),
-			Handler: http.DefaultServeMux,
-		}
-		if err := common.ExpvarServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Errorf("Error creating expvar server on %v: %v", common.ExpvarServer.Addr, err)
-		}
-	}()
 
 	ctx, _ := pkgcommon.GetMainCtxCancel()
 
@@ -557,14 +552,6 @@ func startAgent(
 		leaderelection.CreateGlobalLeaderEngine(ctx)
 	}
 
-	// start the GUI server
-	guiPort := pkgconfig.Datadog.GetString("GUI_port")
-	if guiPort == "-1" {
-		log.Infof("GUI server port -1 specified: not starting the GUI.")
-	} else if err = gui.StartGUIServer(guiPort, flare, statusComponent, collector, ac); err != nil {
-		log.Errorf("Error while starting GUI: %v", err)
-	}
-
 	// Setup stats telemetry handler
 	if sender, err := demultiplexer.GetDefaultSender(); err == nil {
 		// TODO: to be removed when default telemetry is enabled.
@@ -614,17 +601,10 @@ func stopAgent(agentAPI internalAPI.Component) {
 		pkglog.Warnf("Some components were unhealthy: %v", health.Unhealthy)
 	}
 
-	if common.ExpvarServer != nil {
-		if err := common.ExpvarServer.Shutdown(context.Background()); err != nil {
-			pkglog.Errorf("Error shutting down expvar server: %v", err)
-		}
-	}
-
 	agentAPI.StopServer()
 	clcrunnerapi.StopCLCRunnerServer()
 	jmx.StopJmxfetch()
 
-	gui.StopGUIServer()
 	profiler.Stop()
 
 	// gracefully shut down any component
