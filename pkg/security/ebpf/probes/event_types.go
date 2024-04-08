@@ -77,14 +77,6 @@ func SnapshotSelectors() []manager.ProbesSelector {
 	}
 }
 
-func SyntheticSelectors() []manager.ProbesSelector {
-	return []manager.ProbesSelector{
-		&manager.BestEffort{Selectors: []manager.ProbesSelector{
-			kprobeOrFentry("synthetic"),
-		}},
-	}
-}
-
 var selectorsPerEventTypeStore map[eval.EventType][]manager.ProbesSelector
 
 // GetSelectorsPerEventType returns the list of probes that should be activated for each event

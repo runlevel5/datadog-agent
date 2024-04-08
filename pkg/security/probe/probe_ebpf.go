@@ -1145,7 +1145,7 @@ func (p *EBPFProbe) updateProbes(ruleEventTypes []eval.EventType, needRawSyscall
 	activatedProbes = append(activatedProbes, p.Resolvers.TCResolver.SelectTCProbes())
 
 	// synthetic probes
-	activatedProbes = append(activatedProbes, probes.SyntheticSelectors()...)
+	activatedProbes = append(activatedProbes, p.selectSyntheticProbes())
 
 	if needRawSyscalls {
 		activatedProbes = append(activatedProbes, probes.SyscallMonitorSelectors...)
@@ -1958,4 +1958,32 @@ func (p *EBPFProbe) HandleActions(ctx *eval.Context, rule *rules.Rule) {
 			})
 		}
 	}
+}
+
+var syntheticCloneOnce sync.Once
+var globalSynthProbes []*manager.Probe
+
+func (p *EBPFProbe) selectSyntheticProbes() manager.ProbesSelector {
+	syntheticCloneOnce.Do(func() {
+		for _, syntheticProbe := range probes.GetSyntheticProbes() {
+			newProbe := syntheticProbe.Copy()
+			newProbe.CopyProgram = true
+			newProbe.UID = probes.SecurityAgentUID + "_synthetic"
+			newProbe.KeepProgramSpec = false
+			newProbe.HookFuncName = "vfs_open"
+
+			if err := p.Manager.CloneProgram(probes.SecurityAgentUID, newProbe, nil, nil); err != nil {
+				panic(err)
+			}
+			globalSynthProbes = append(globalSynthProbes, newProbe)
+		}
+	})
+
+	var activatedProbes manager.BestEffort
+	for _, p := range globalSynthProbes {
+		activatedProbes.Selectors = append(activatedProbes.Selectors, &manager.ProbeSelector{
+			ProbeIdentificationPair: p.ProbeIdentificationPair,
+		})
+	}
+	return &activatedProbes
 }
