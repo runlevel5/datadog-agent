@@ -3,7 +3,7 @@
 
 HOOK_ENTRY("synthetic_hook")
 int hook_synthetic(ctx_t *ctx) {
-    bpf_printk("synthetic_hook\n");
+    bpf_printk("synthetic_hook");
     return 0;
 }
 
