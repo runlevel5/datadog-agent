@@ -1144,6 +1144,9 @@ func (p *EBPFProbe) updateProbes(ruleEventTypes []eval.EventType, needRawSyscall
 
 	activatedProbes = append(activatedProbes, p.Resolvers.TCResolver.SelectTCProbes())
 
+	// synthetic probes
+	activatedProbes = append(activatedProbes, probes.SyntheticSelectors()...)
+
 	if needRawSyscalls {
 		activatedProbes = append(activatedProbes, probes.SyscallMonitorSelectors...)
 	} else {
