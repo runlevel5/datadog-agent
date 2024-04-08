@@ -19,9 +19,10 @@ import (
 
 // PolicyDef represents a policy file definition
 type PolicyDef struct {
-	Version string             `yaml:"version"`
-	Rules   []*RuleDefinition  `yaml:"rules"`
-	Macros  []*MacroDefinition `yaml:"macros"`
+	Version         string             `yaml:"version"`
+	Rules           []*RuleDefinition  `yaml:"rules"`
+	Macros          []*MacroDefinition `yaml:"macros"`
+	SyntheticProbes []string           `yaml:"synthetic_probes"`
 }
 
 // Policy represents a policy file which is composed of a list of rules and macros

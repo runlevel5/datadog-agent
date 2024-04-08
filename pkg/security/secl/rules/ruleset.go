@@ -848,6 +848,10 @@ func (rs *RuleSet) NewEvent() eval.Event {
 	return rs.eventCtor()
 }
 
+type SyntheticProbe struct {
+	FunctionName string `yaml:"function_name"`
+}
+
 // NewRuleSet returns a new ruleset for the specified data model
 func NewRuleSet(model eval.Model, eventCtor func() eval.Event, opts *Opts, evalOpts *eval.Opts) *RuleSet {
 	logger := log.OrNullLogger(opts.Logger)
