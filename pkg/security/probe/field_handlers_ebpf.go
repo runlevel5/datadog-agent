@@ -535,7 +535,7 @@ func (fh *EBPFFieldHandlers) ResolveK8SGroups(_ *model.Event, evtCtx *model.User
 }
 
 func (fh *EBPFFieldHandlers) ResolveSyntheticName(_ *model.Event, e *model.SyntheticEvent) string {
-	return fh.synthetics.hookPoints[e.ID].name
+	return fh.synthetics.hookPoints[e.ID].Name
 }
 
 func (fh *EBPFFieldHandlers) ResolveArg2Str(_ *model.Event, e *model.SyntheticEvent) string {

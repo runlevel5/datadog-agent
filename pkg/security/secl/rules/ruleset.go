@@ -207,6 +207,8 @@ type RuleSet struct {
 
 	// event collector, used for tests
 	eventCollector EventCollector
+
+	syntheticHookPoints []SyntheticHookPoint
 }
 
 // ListRuleIDs returns the list of RuleIDs from the ruleset

@@ -27,12 +27,13 @@ type PolicyDef struct {
 
 // Policy represents a policy file which is composed of a list of rules and macros
 type Policy struct {
-	Name       string
-	Source     string
-	Version    string
-	Rules      []*RuleDefinition
-	Macros     []*MacroDefinition
-	IsInternal bool
+	Name            string
+	Source          string
+	Version         string
+	Rules           []*RuleDefinition
+	Macros          []*MacroDefinition
+	SyntheticProbes []SyntheticHookPoint `yaml:"synthetic_probes"`
+	IsInternal      bool
 }
 
 // AddMacro add a macro to the policy
@@ -149,6 +150,8 @@ LOOP:
 			errs = multierror.Append(errs, &ErrRuleLoad{Definition: s.ruleDefinition, Err: s.err})
 		}
 	}
+
+	policy.SyntheticProbes = def.SyntheticProbes
 
 	return policy, errs.ErrorOrNil()
 }

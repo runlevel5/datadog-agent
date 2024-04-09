@@ -1715,25 +1715,24 @@ func NewEBPFProbe(probe *Probe, config *config.Config, opts Opts, wmeta optional
 		return nil, err
 	}
 
-	hookPoints := []hookPoint{
+	/*hookPoints := []rules.SyntheticHookPoint{
 		{
-			name: "do_sys_openat2",
-			args: []hookPointArg{
+			Name: "do_sys_openat2",
+			Args: []rules.HookPointArg{
 				{
-					n:    1,
-					kind: "int",
+					N:    1,
+					Kind: "int",
 				},
 				{
-					n:    2,
-					kind: "null-terminated-string",
+					N:    2,
+					Kind: "null-terminated-string",
 				},
 			},
 		},
-	}
+	}*/
 
 	p.syntheticManager = &SyntheticManager{
-		hookPoints: hookPoints,
-		manager:    p.Manager,
+		manager: p.Manager,
 	}
 
 	// TODO safchain change the fields handlers
@@ -1990,19 +1989,9 @@ func (p *EBPFProbe) HandleActions(ctx *eval.Context, rule *rules.Rule) {
 }
 
 type SyntheticManager struct {
-	hookPoints []hookPoint
+	hookPoints []rules.SyntheticHookPoint
 	manager    *manager.Manager
 	probes     []*manager.Probe
-}
-
-type hookPoint struct {
-	name string
-	args []hookPointArg
-}
-
-type hookPointArg struct {
-	n    int
-	kind string
 }
 
 func (sm *SyntheticManager) updateProbes() {
@@ -2015,11 +2004,11 @@ func (sm *SyntheticManager) updateProbes() {
 		for _, syntheticProbe := range probes.GetSyntheticProbes() {
 			newProbe := syntheticProbe.Copy()
 			newProbe.CopyProgram = true
-			newProbe.UID = fmt.Sprintf("%s_%s_synthetic", probes.SecurityAgentUID, hookPoint.name)
+			newProbe.UID = fmt.Sprintf("%s_%s_synthetic", probes.SecurityAgentUID, hookPoint.Name)
 			newProbe.KeepProgramSpec = false
-			newProbe.HookFuncName = hookPoint.name
+			newProbe.HookFuncName = hookPoint.Name
 
-			argsEditors := buildArgsEditors(hookPoint.args)
+			argsEditors := buildArgsEditors(hookPoint.Args)
 			argsEditors = append(argsEditors, manager.ConstantEditor{
 				Name:  "synth_id",
 				Value: uint64(hookId),
@@ -2043,20 +2032,20 @@ func (sm *SyntheticManager) selectProbes() manager.ProbesSelector {
 	return &activatedProbes
 }
 
-func buildArgsEditors(args []hookPointArg) []manager.ConstantEditor {
+func buildArgsEditors(args []rules.HookPointArg) []manager.ConstantEditor {
 	argKinds := make(map[int]int)
 	for _, arg := range args {
 		var kind int
-		switch arg.kind {
+		switch arg.Kind {
 		case "int":
 			kind = 1
 		case "null-terminated-string":
 			kind = 2
 		default:
-			panic(fmt.Errorf("unknown kind for arg: %s", arg.kind))
+			panic(fmt.Errorf("unknown kind for arg: %s", arg.Kind))
 		}
 
-		argKinds[arg.n] = kind
+		argKinds[arg.N] = kind
 	}
 
 	editors := make([]manager.ConstantEditor, 0, len(argKinds))
