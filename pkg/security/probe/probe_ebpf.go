@@ -2010,7 +2010,14 @@ func (sm *SyntheticManager) updateProbes() {
 			newProbe.KeepProgramSpec = false
 			newProbe.HookFuncName = hookPoint.name
 
-			if err := sm.manager.CloneProgram(probes.SecurityAgentUID, newProbe, nil, nil); err != nil {
+			argsEditor := []manager.ConstantEditor{
+				{
+					Name:  "param2kind",
+					Value: uint64(2),
+				},
+			}
+
+			if err := sm.manager.CloneProgram(probes.SecurityAgentUID, newProbe, argsEditor, nil); err != nil {
 				panic(err)
 			}
 			sm.probes = append(sm.probes, newProbe)
