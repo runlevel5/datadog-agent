@@ -53,6 +53,7 @@ func (m *Model) GetEventTypes() []eval.EventType {
 		eval.EventType("setxattr"),
 		eval.EventType("signal"),
 		eval.EventType("splice"),
+		eval.EventType("synthetic"),
 		eval.EventType("unlink"),
 		eval.EventType("unload_module"),
 		eval.EventType("utimes"),
