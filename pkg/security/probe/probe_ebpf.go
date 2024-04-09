@@ -939,6 +939,11 @@ func (p *EBPFProbe) handleEvent(CPU int, data []byte) {
 			seclog.Errorf("failed to decode anomaly detection for syscall event: %s (offset %d, len %d)", err, offset, len(data))
 			return
 		}
+	case model.SyntheticEventType:
+		if _, err = event.Synthetic.UnmarshalBinary(data[offset:]); err != nil {
+			panic(err)
+		}
+		fmt.Println("Synthetic event", event.Synthetic)
 	}
 
 	// resolve the container context

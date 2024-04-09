@@ -69,6 +69,9 @@ type Event struct {
 	DNS  DNSEvent  `field:"dns" event:"dns"`   // [7.36] [Network] A DNS request was sent
 	Bind BindEvent `field:"bind" event:"bind"` // [7.37] [Network] A bind was executed
 
+	// synthetic events
+	Synthetic SyntheticEvent `field:"synthetic" event:"synthetic"` // [7.54] [Kernel] A synthetic event was generated
+
 	// internal usage
 	Umount           UmountEvent           `field:"-"`
 	InvalidateDentry InvalidateDentryEvent `field:"-"`
@@ -574,4 +577,10 @@ type PathKey struct {
 	Inode   uint64 `field:"inode"`    // SECLDoc[inode] Definition:`Inode of the file`
 	MountID uint32 `field:"mount_id"` // SECLDoc[mount_id] Definition:`Mount ID of the file`
 	PathID  uint32 `field:"-"`
+}
+
+// SyntheticEvent identifies a synthetic event generated from synthetic probes
+type SyntheticEvent struct {
+	ID   uint32    `field:"-"`
+	Data [256]byte `field:"-"`
 }
