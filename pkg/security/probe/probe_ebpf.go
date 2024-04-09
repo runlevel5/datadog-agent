@@ -1729,7 +1729,8 @@ func NewEBPFProbe(probe *Probe, config *config.Config, opts Opts, wmeta optional
 	}
 
 	p.syntheticManager = &SyntheticManager{
-		manager: p.Manager,
+		hookPoints: []string{"vfs_open"},
+		manager:    p.Manager,
 	}
 
 	p.event = p.NewEvent()
@@ -1967,12 +1968,10 @@ func (p *EBPFProbe) HandleActions(ctx *eval.Context, rule *rules.Rule) {
 	}
 }
 
-var syntheticCloneOnce sync.Once
-var globalSynthProbes []*manager.Probe
-
 type SyntheticManager struct {
-	manager *manager.Manager
-	probes  []*manager.Probe
+	hookPoints []string
+	manager    *manager.Manager
+	probes     []*manager.Probe
 }
 
 func (sm *SyntheticManager) updateProbes() {
@@ -1981,23 +1980,25 @@ func (sm *SyntheticManager) updateProbes() {
 	}
 
 	sm.probes = make([]*manager.Probe, 0)
-	for _, syntheticProbe := range probes.GetSyntheticProbes() {
-		newProbe := syntheticProbe.Copy()
-		newProbe.CopyProgram = true
-		newProbe.UID = probes.SecurityAgentUID + "_synthetic"
-		newProbe.KeepProgramSpec = false
-		newProbe.HookFuncName = "vfs_open"
+	for _, hookPoint := range sm.hookPoints {
+		for _, syntheticProbe := range probes.GetSyntheticProbes() {
+			newProbe := syntheticProbe.Copy()
+			newProbe.CopyProgram = true
+			newProbe.UID = fmt.Sprintf("%s_%s_synthetic", probes.SecurityAgentUID, hookPoint)
+			newProbe.KeepProgramSpec = false
+			newProbe.HookFuncName = hookPoint
 
-		if err := sm.manager.CloneProgram(probes.SecurityAgentUID, newProbe, nil, nil); err != nil {
-			panic(err)
+			if err := sm.manager.CloneProgram(probes.SecurityAgentUID, newProbe, nil, nil); err != nil {
+				panic(err)
+			}
+			sm.probes = append(sm.probes, newProbe)
 		}
-		sm.probes = append(sm.probes, newProbe)
 	}
 }
 
 func (sm *SyntheticManager) selectProbes() manager.ProbesSelector {
 	var activatedProbes manager.BestEffort
-	for _, p := range globalSynthProbes {
+	for _, p := range sm.probes {
 		activatedProbes.Selectors = append(activatedProbes.Selectors, &manager.ProbeSelector{
 			ProbeIdentificationPair: p.ProbeIdentificationPair,
 		})
