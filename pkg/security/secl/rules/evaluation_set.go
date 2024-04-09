@@ -108,6 +108,8 @@ func (es *EvaluationSet) LoadPolicies(loader *PolicyLoader, opts PolicyLoaderOpt
 				rules[tagValue] = append(rules[tagValue], rule)
 			}
 		}
+
+		// TODO: merge synthetic probes here
 	}
 
 	for ruleSetTagValue, rs := range es.RuleSets {
