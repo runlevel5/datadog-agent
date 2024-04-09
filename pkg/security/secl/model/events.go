@@ -220,6 +220,8 @@ func (t EventType) String() string {
 		return "syscalls"
 	case AnomalyDetectionSyscallEventType:
 		return "anomaly_detection_syscall"
+	case SyntheticEventType:
+		return "synthetic"
 
 	case CustomLostReadEventType:
 		return "lost_events_read"
