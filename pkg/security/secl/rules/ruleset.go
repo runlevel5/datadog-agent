@@ -230,6 +230,10 @@ func (rs *RuleSet) GetRuleSetTag() eval.RuleSetTagValue {
 	return rs.opts.RuleSetTag[RuleSetTagKey]
 }
 
+func (rs *RuleSet) GetSyntheticProbes() []SyntheticHookPoint {
+	return rs.syntheticHookPoints
+}
+
 // ListMacroIDs returns the list of MacroIDs from the ruleset
 func (rs *RuleSet) ListMacroIDs() []MacroID {
 	var ids []string

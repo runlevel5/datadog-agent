@@ -21,12 +21,27 @@ import (
 )
 
 func TestSynthetic(t *testing.T) {
+	synthetics := []rules.SyntheticHookPoint{
+		{
+			Name: "do_sys_openat2",
+			Args: []rules.HookPointArg{
+				{
+					N:    0,
+					Kind: "int",
+				},
+				{
+					N:    1,
+					Kind: "null-terminated-string",
+				},
+			},
+		},
+	}
 	rule := &rules.RuleDefinition{
 		ID:         "test_rule",
 		Expression: `synthetic.name == "do_sys_openat2" && synthetic.arg2.str =~ ~"*/test-open" && process.file.name == "testsuite"`,
 	}
 
-	test, err := newTestModule(t, nil, []*rules.RuleDefinition{rule})
+	test, err := newTestModuleWithSynthetics(t, synthetics, nil, []*rules.RuleDefinition{rule})
 	if err != nil {
 		t.Fatal(err)
 	}

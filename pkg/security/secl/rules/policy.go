@@ -32,7 +32,7 @@ type Policy struct {
 	Version         string
 	Rules           []*RuleDefinition
 	Macros          []*MacroDefinition
-	SyntheticProbes []SyntheticHookPoint `yaml:"synthetic_probes"`
+	SyntheticProbes []SyntheticHookPoint
 	IsInternal      bool
 }
 
