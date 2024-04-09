@@ -26,11 +26,11 @@ func TestSynthetic(t *testing.T) {
 			Name: "do_sys_openat2",
 			Args: []rules.HookPointArg{
 				{
-					N:    0,
+					N:    1,
 					Kind: "int",
 				},
 				{
-					N:    1,
+					N:    2,
 					Kind: "null-terminated-string",
 				},
 			},
