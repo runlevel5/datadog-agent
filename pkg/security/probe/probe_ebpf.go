@@ -134,6 +134,8 @@ type EBPFProbe struct {
 	constantOffsets    map[string]uint64
 	runtimeCompiled    bool
 	useFentry          bool
+
+	syntheticManager *SyntheticManager
 }
 
 func (p *EBPFProbe) detectKernelVersion() error {
@@ -1145,7 +1147,8 @@ func (p *EBPFProbe) updateProbes(ruleEventTypes []eval.EventType, needRawSyscall
 	activatedProbes = append(activatedProbes, p.Resolvers.TCResolver.SelectTCProbes())
 
 	// synthetic probes
-	activatedProbes = append(activatedProbes, p.selectSyntheticProbes())
+	p.syntheticManager.updateProbes()
+	activatedProbes = append(activatedProbes, p.syntheticManager.selectProbes())
 
 	if needRawSyscalls {
 		activatedProbes = append(activatedProbes, probes.SyscallMonitorSelectors...)
@@ -1725,6 +1728,10 @@ func NewEBPFProbe(probe *Probe, config *config.Config, opts Opts, wmeta optional
 		}
 	}
 
+	p.syntheticManager = &SyntheticManager{
+		manager: p.Manager,
+	}
+
 	p.event = p.NewEvent()
 
 	// be sure to zero the probe event before everything else
@@ -1963,22 +1970,32 @@ func (p *EBPFProbe) HandleActions(ctx *eval.Context, rule *rules.Rule) {
 var syntheticCloneOnce sync.Once
 var globalSynthProbes []*manager.Probe
 
-func (p *EBPFProbe) selectSyntheticProbes() manager.ProbesSelector {
-	syntheticCloneOnce.Do(func() {
-		for _, syntheticProbe := range probes.GetSyntheticProbes() {
-			newProbe := syntheticProbe.Copy()
-			newProbe.CopyProgram = true
-			newProbe.UID = probes.SecurityAgentUID + "_synthetic"
-			newProbe.KeepProgramSpec = false
-			newProbe.HookFuncName = "vfs_open"
+type SyntheticManager struct {
+	manager *manager.Manager
+	probes  []*manager.Probe
+}
 
-			if err := p.Manager.CloneProgram(probes.SecurityAgentUID, newProbe, nil, nil); err != nil {
-				panic(err)
-			}
-			globalSynthProbes = append(globalSynthProbes, newProbe)
+func (sm *SyntheticManager) updateProbes() {
+	if len(sm.probes) != 0 {
+		return
+	}
+
+	sm.probes = make([]*manager.Probe, 0)
+	for _, syntheticProbe := range probes.GetSyntheticProbes() {
+		newProbe := syntheticProbe.Copy()
+		newProbe.CopyProgram = true
+		newProbe.UID = probes.SecurityAgentUID + "_synthetic"
+		newProbe.KeepProgramSpec = false
+		newProbe.HookFuncName = "vfs_open"
+
+		if err := sm.manager.CloneProgram(probes.SecurityAgentUID, newProbe, nil, nil); err != nil {
+			panic(err)
 		}
-	})
+		sm.probes = append(sm.probes, newProbe)
+	}
+}
 
+func (sm *SyntheticManager) selectProbes() manager.ProbesSelector {
 	var activatedProbes manager.BestEffort
 	for _, p := range globalSynthProbes {
 		activatedProbes.Selectors = append(activatedProbes.Selectors, &manager.ProbeSelector{
