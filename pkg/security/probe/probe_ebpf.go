@@ -1731,11 +1731,18 @@ func NewEBPFProbe(probe *Probe, config *config.Config, opts Opts, wmeta optional
 	hookPoints := []hookPoint{
 		{
 			name: "do_sys_openat2",
-			args: []hookPointArg{{
-				name: "path",
-				n:    2,
-				kind: "null-terminated-string",
-			}},
+			args: []hookPointArg{
+				{
+					name: "dfd",
+					n:    1,
+					kind: "int",
+				},
+				{
+					name: "path",
+					n:    2,
+					kind: "null-terminated-string",
+				},
+			},
 		},
 	}
 
@@ -2010,14 +2017,9 @@ func (sm *SyntheticManager) updateProbes() {
 			newProbe.KeepProgramSpec = false
 			newProbe.HookFuncName = hookPoint.name
 
-			argsEditor := []manager.ConstantEditor{
-				{
-					Name:  "param2kind",
-					Value: uint64(2),
-				},
-			}
+			argsEditors := buildArgsEditors(hookPoint.args)
 
-			if err := sm.manager.CloneProgram(probes.SecurityAgentUID, newProbe, argsEditor, nil); err != nil {
+			if err := sm.manager.CloneProgram(probes.SecurityAgentUID, newProbe, argsEditors, nil); err != nil {
 				panic(err)
 			}
 			sm.probes = append(sm.probes, newProbe)
@@ -2033,4 +2035,30 @@ func (sm *SyntheticManager) selectProbes() manager.ProbesSelector {
 		})
 	}
 	return &activatedProbes
+}
+
+func buildArgsEditors(args []hookPointArg) []manager.ConstantEditor {
+	argKinds := make(map[int]int)
+	for _, arg := range args {
+		var kind int
+		switch arg.kind {
+		case "int":
+			kind = 1
+		case "null-terminated-string":
+			kind = 2
+		default:
+			panic(fmt.Errorf("unknown kind for arg `%s`: %s", arg.name, arg.kind))
+		}
+
+		argKinds[arg.n] = kind
+	}
+
+	editors := make([]manager.ConstantEditor, 0, len(argKinds))
+	for n, kind := range argKinds {
+		editors = append(editors, manager.ConstantEditor{
+			Name:  fmt.Sprintf("param%dkind", n),
+			Value: uint64(kind),
+		})
+	}
+	return editors
 }
