@@ -582,7 +582,7 @@ type PathKey struct {
 // SyntheticEvent identifies a synthetic event generated from synthetic probes
 type SyntheticEvent struct {
 	ID      uint32    `field:"-"`
-	Name    string    `field:"name"` // SECLDoc[name] Definition:`No doc`
+	Name    string    `field:"name,handler:ResolveSyntheticName"` // SECLDoc[name] Definition:`No doc`
 	Data    [256]byte `field:"-"`
-	Arg2Str string    `field:"arg2.str"` // SECLDoc[arg2.str] Definition:`No doc`
+	Arg2Str string    `field:"arg2.str,handler:ResolveArg2Str"` // SECLDoc[arg2.str] Definition:`No doc`
 }

@@ -17249,7 +17249,7 @@ func (ev *Event) GetSyntheticArg2Str() string {
 	if ev.GetEventType().String() != "synthetic" {
 		return ""
 	}
-	return ev.Synthetic.Arg2Str
+	return ev.FieldHandlers.ResolveArg2Str(ev, &ev.Synthetic)
 }
 
 // GetSyntheticName returns the value of the field, resolving if necessary
@@ -17257,7 +17257,7 @@ func (ev *Event) GetSyntheticName() string {
 	if ev.GetEventType().String() != "synthetic" {
 		return ""
 	}
-	return ev.Synthetic.Name
+	return ev.FieldHandlers.ResolveSyntheticName(ev, &ev.Synthetic)
 }
 
 // GetTimestamp returns the value of the field, resolving if necessary

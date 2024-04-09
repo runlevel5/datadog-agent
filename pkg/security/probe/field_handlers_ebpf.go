@@ -532,3 +532,13 @@ func (fh *EBPFFieldHandlers) ResolveK8SGroups(_ *model.Event, evtCtx *model.User
 	fh.ResolveUserSessionContext(evtCtx)
 	return evtCtx.K8SGroups
 }
+
+func (fh *EBPFFieldHandlers) ResolveSyntheticName(_ *model.Event, e *model.SyntheticEvent) string {
+	return "synthetic" // TODO: fix this
+}
+
+func (fh *EBPFFieldHandlers) ResolveArg2Str(_ *model.Event, e *model.SyntheticEvent) string {
+	data := e.Data[64:128]
+	s := model.NullTerminatedString(data)
+	return s
+}

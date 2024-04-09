@@ -15933,19 +15933,19 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 		return &eval.StringEvaluator{
 			EvalFnc: func(ctx *eval.Context) string {
 				ev := ctx.Event.(*Event)
-				return ev.Synthetic.Arg2Str
+				return ev.FieldHandlers.ResolveArg2Str(ev, &ev.Synthetic)
 			},
 			Field:  field,
-			Weight: eval.FunctionWeight,
+			Weight: eval.HandlerWeight,
 		}, nil
 	case "synthetic.name":
 		return &eval.StringEvaluator{
 			EvalFnc: func(ctx *eval.Context) string {
 				ev := ctx.Event.(*Event)
-				return ev.Synthetic.Name
+				return ev.FieldHandlers.ResolveSyntheticName(ev, &ev.Synthetic)
 			},
 			Field:  field,
-			Weight: eval.FunctionWeight,
+			Weight: eval.HandlerWeight,
 		}, nil
 	case "unlink.file.change_time":
 		return &eval.IntEvaluator{
@@ -23867,9 +23867,9 @@ func (ev *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 	case "splice.retval":
 		return int(ev.Splice.SyscallEvent.Retval), nil
 	case "synthetic.arg2.str":
-		return ev.Synthetic.Arg2Str, nil
+		return ev.FieldHandlers.ResolveArg2Str(ev, &ev.Synthetic), nil
 	case "synthetic.name":
-		return ev.Synthetic.Name, nil
+		return ev.FieldHandlers.ResolveSyntheticName(ev, &ev.Synthetic), nil
 	case "unlink.file.change_time":
 		return int(ev.Unlink.File.FileFields.CTime), nil
 	case "unlink.file.filesystem":

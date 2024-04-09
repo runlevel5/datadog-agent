@@ -945,6 +945,8 @@ func (ev *Event) resolveFields(forADs bool) {
 			_ = ev.FieldHandlers.ResolveHashesFromEvent(ev, &ev.Splice.File)
 		}
 	case "synthetic":
+		_ = ev.FieldHandlers.ResolveSyntheticName(ev, &ev.Synthetic)
+		_ = ev.FieldHandlers.ResolveArg2Str(ev, &ev.Synthetic)
 	case "unlink":
 		_ = ev.FieldHandlers.ResolveFileFieldsUser(ev, &ev.Unlink.File.FileFields)
 		_ = ev.FieldHandlers.ResolveFileFieldsGroup(ev, &ev.Unlink.File.FileFields)
@@ -976,6 +978,7 @@ func (ev *Event) resolveFields(forADs bool) {
 }
 
 type FieldHandlers interface {
+	ResolveArg2Str(ev *Event, e *SyntheticEvent) string
 	ResolveAsync(ev *Event) bool
 	ResolveChownGID(ev *Event, e *ChownEvent) string
 	ResolveChownUID(ev *Event, e *ChownEvent) string
@@ -1024,6 +1027,7 @@ type FieldHandlers interface {
 	ResolveSetuidEUser(ev *Event, e *SetuidEvent) string
 	ResolveSetuidFSUser(ev *Event, e *SetuidEvent) string
 	ResolveSetuidUser(ev *Event, e *SetuidEvent) string
+	ResolveSyntheticName(ev *Event, e *SyntheticEvent) string
 	ResolveXAttrName(ev *Event, e *SetXAttrEvent) string
 	ResolveXAttrNamespace(ev *Event, e *SetXAttrEvent) string
 	// custom handlers not tied to any fields
@@ -1031,9 +1035,10 @@ type FieldHandlers interface {
 }
 type FakeFieldHandlers struct{}
 
-func (dfh *FakeFieldHandlers) ResolveAsync(ev *Event) bool                     { return ev.Async }
-func (dfh *FakeFieldHandlers) ResolveChownGID(ev *Event, e *ChownEvent) string { return e.Group }
-func (dfh *FakeFieldHandlers) ResolveChownUID(ev *Event, e *ChownEvent) string { return e.User }
+func (dfh *FakeFieldHandlers) ResolveArg2Str(ev *Event, e *SyntheticEvent) string { return e.Arg2Str }
+func (dfh *FakeFieldHandlers) ResolveAsync(ev *Event) bool                        { return ev.Async }
+func (dfh *FakeFieldHandlers) ResolveChownGID(ev *Event, e *ChownEvent) string    { return e.Group }
+func (dfh *FakeFieldHandlers) ResolveChownUID(ev *Event, e *ChownEvent) string    { return e.User }
 func (dfh *FakeFieldHandlers) ResolveContainerCreatedAt(ev *Event, e *ContainerContext) int {
 	return int(e.CreatedAt)
 }
@@ -1127,7 +1132,10 @@ func (dfh *FakeFieldHandlers) ResolveSetgidGroup(ev *Event, e *SetgidEvent) stri
 func (dfh *FakeFieldHandlers) ResolveSetuidEUser(ev *Event, e *SetuidEvent) string  { return e.EUser }
 func (dfh *FakeFieldHandlers) ResolveSetuidFSUser(ev *Event, e *SetuidEvent) string { return e.FSUser }
 func (dfh *FakeFieldHandlers) ResolveSetuidUser(ev *Event, e *SetuidEvent) string   { return e.User }
-func (dfh *FakeFieldHandlers) ResolveXAttrName(ev *Event, e *SetXAttrEvent) string  { return e.Name }
+func (dfh *FakeFieldHandlers) ResolveSyntheticName(ev *Event, e *SyntheticEvent) string {
+	return e.Name
+}
+func (dfh *FakeFieldHandlers) ResolveXAttrName(ev *Event, e *SetXAttrEvent) string { return e.Name }
 func (dfh *FakeFieldHandlers) ResolveXAttrNamespace(ev *Event, e *SetXAttrEvent) string {
 	return e.Namespace
 }

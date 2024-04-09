@@ -343,3 +343,11 @@ func (fh *EBPFLessFieldHandlers) ResolveHashesFromEvent(ev *model.Event, f *mode
 
 // ResolveUserSessionContext resolves and updates the provided user session context
 func (fh *EBPFLessFieldHandlers) ResolveUserSessionContext(_ *model.UserSessionContext) {}
+
+func (fh *EBPFLessFieldHandlers) ResolveSyntheticName(_ *model.Event, e *model.SyntheticEvent) string {
+	return ""
+}
+
+func (fh *EBPFLessFieldHandlers) ResolveArg2Str(_ *model.Event, e *model.SyntheticEvent) string {
+	return ""
+}
