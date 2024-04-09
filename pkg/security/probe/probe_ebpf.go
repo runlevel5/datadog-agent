@@ -1728,8 +1728,14 @@ func NewEBPFProbe(probe *Probe, config *config.Config, opts Opts, wmeta optional
 		}
 	}
 
+	hookPoints := []hookPoint{
+		{
+			name: "vfs_open",
+		},
+	}
+
 	p.syntheticManager = &SyntheticManager{
-		hookPoints: []string{"vfs_open"},
+		hookPoints: hookPoints,
 		manager:    p.Manager,
 	}
 
@@ -1969,9 +1975,20 @@ func (p *EBPFProbe) HandleActions(ctx *eval.Context, rule *rules.Rule) {
 }
 
 type SyntheticManager struct {
-	hookPoints []string
+	hookPoints []hookPoint
 	manager    *manager.Manager
 	probes     []*manager.Probe
+}
+
+type hookPoint struct {
+	name string
+	args []hookPointArg
+}
+
+type hookPointArg struct {
+	name string
+	n    int
+	kind string
 }
 
 func (sm *SyntheticManager) updateProbes() {
@@ -1986,7 +2003,7 @@ func (sm *SyntheticManager) updateProbes() {
 			newProbe.CopyProgram = true
 			newProbe.UID = fmt.Sprintf("%s_%s_synthetic", probes.SecurityAgentUID, hookPoint)
 			newProbe.KeepProgramSpec = false
-			newProbe.HookFuncName = hookPoint
+			newProbe.HookFuncName = hookPoint.name
 
 			if err := sm.manager.CloneProgram(probes.SecurityAgentUID, newProbe, nil, nil); err != nil {
 				panic(err)
