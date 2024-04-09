@@ -24,8 +24,9 @@ import (
 
 // EBPFFieldHandlers defines a field handlers
 type EBPFFieldHandlers struct {
-	config    *config.Config
-	resolvers *resolvers.EBPFResolvers
+	config     *config.Config
+	resolvers  *resolvers.EBPFResolvers
+	synthetics *SyntheticManager
 }
 
 // ResolveProcessCacheEntry queries the ProcessResolver to retrieve the ProcessContext of the event
@@ -534,7 +535,7 @@ func (fh *EBPFFieldHandlers) ResolveK8SGroups(_ *model.Event, evtCtx *model.User
 }
 
 func (fh *EBPFFieldHandlers) ResolveSyntheticName(_ *model.Event, e *model.SyntheticEvent) string {
-	return "synthetic" // TODO: fix this
+	return fh.synthetics.hookPoints[e.ID].name
 }
 
 func (fh *EBPFFieldHandlers) ResolveArg2Str(_ *model.Event, e *model.SyntheticEvent) string {

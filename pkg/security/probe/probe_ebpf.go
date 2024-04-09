@@ -1715,24 +1715,6 @@ func NewEBPFProbe(probe *Probe, config *config.Config, opts Opts, wmeta optional
 		return nil, err
 	}
 
-	// TODO safchain change the fields handlers
-	p.fieldHandlers = &EBPFFieldHandlers{config: config, resolvers: p.Resolvers}
-
-	if useRingBuffers {
-		p.eventStream = ringbuffer.New(p.handleEvent)
-		p.managerOptions.SkipRingbufferReaderStartup = map[string]bool{
-			eventstream.EventStreamMap: true,
-		}
-	} else {
-		p.eventStream, err = reorderer.NewOrderedPerfMap(p.ctx, p.handleEvent, probe.StatsdClient)
-		if err != nil {
-			return nil, err
-		}
-		p.managerOptions.SkipPerfMapReaderStartup = map[string]bool{
-			eventstream.EventStreamMap: true,
-		}
-	}
-
 	hookPoints := []hookPoint{
 		{
 			name: "do_sys_openat2",
@@ -1754,6 +1736,24 @@ func NewEBPFProbe(probe *Probe, config *config.Config, opts Opts, wmeta optional
 	p.syntheticManager = &SyntheticManager{
 		hookPoints: hookPoints,
 		manager:    p.Manager,
+	}
+
+	// TODO safchain change the fields handlers
+	p.fieldHandlers = &EBPFFieldHandlers{config: config, resolvers: p.Resolvers, synthetics: p.syntheticManager}
+
+	if useRingBuffers {
+		p.eventStream = ringbuffer.New(p.handleEvent)
+		p.managerOptions.SkipRingbufferReaderStartup = map[string]bool{
+			eventstream.EventStreamMap: true,
+		}
+	} else {
+		p.eventStream, err = reorderer.NewOrderedPerfMap(p.ctx, p.handleEvent, probe.StatsdClient)
+		if err != nil {
+			return nil, err
+		}
+		p.managerOptions.SkipPerfMapReaderStartup = map[string]bool{
+			eventstream.EventStreamMap: true,
+		}
 	}
 
 	p.event = p.NewEvent()
@@ -2014,7 +2014,7 @@ func (sm *SyntheticManager) updateProbes() {
 	}
 
 	sm.probes = make([]*manager.Probe, 0)
-	for _, hookPoint := range sm.hookPoints {
+	for hookId, hookPoint := range sm.hookPoints {
 		for _, syntheticProbe := range probes.GetSyntheticProbes() {
 			newProbe := syntheticProbe.Copy()
 			newProbe.CopyProgram = true
@@ -2023,6 +2023,10 @@ func (sm *SyntheticManager) updateProbes() {
 			newProbe.HookFuncName = hookPoint.name
 
 			argsEditors := buildArgsEditors(hookPoint.args)
+			argsEditors = append(argsEditors, manager.ConstantEditor{
+				Name:  "synth_id",
+				Value: uint64(hookId),
+			})
 
 			if err := sm.manager.CloneProgram(probes.SecurityAgentUID, newProbe, argsEditors, nil); err != nil {
 				panic(err)
