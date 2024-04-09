@@ -1730,7 +1730,12 @@ func NewEBPFProbe(probe *Probe, config *config.Config, opts Opts, wmeta optional
 
 	hookPoints := []hookPoint{
 		{
-			name: "vfs_open",
+			name: "do_sys_openat2",
+			args: []hookPointArg{{
+				name: "path",
+				n:    2,
+				kind: "null-terminated-string",
+			}},
 		},
 	}
 
@@ -2001,7 +2006,7 @@ func (sm *SyntheticManager) updateProbes() {
 		for _, syntheticProbe := range probes.GetSyntheticProbes() {
 			newProbe := syntheticProbe.Copy()
 			newProbe.CopyProgram = true
-			newProbe.UID = fmt.Sprintf("%s_%s_synthetic", probes.SecurityAgentUID, hookPoint)
+			newProbe.UID = fmt.Sprintf("%s_%s_synthetic", probes.SecurityAgentUID, hookPoint.name)
 			newProbe.KeepProgramSpec = false
 			newProbe.HookFuncName = hookPoint.name
 
