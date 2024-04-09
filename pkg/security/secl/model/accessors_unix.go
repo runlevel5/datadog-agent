@@ -15929,6 +15929,24 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			Field:  field,
 			Weight: eval.FunctionWeight,
 		}, nil
+	case "synthetic.arg2.str":
+		return &eval.StringEvaluator{
+			EvalFnc: func(ctx *eval.Context) string {
+				ev := ctx.Event.(*Event)
+				return ev.Synthetic.Arg2Str
+			},
+			Field:  field,
+			Weight: eval.FunctionWeight,
+		}, nil
+	case "synthetic.name":
+		return &eval.StringEvaluator{
+			EvalFnc: func(ctx *eval.Context) string {
+				ev := ctx.Event.(*Event)
+				return ev.Synthetic.Name
+			},
+			Field:  field,
+			Weight: eval.FunctionWeight,
+		}, nil
 	case "unlink.file.change_time":
 		return &eval.IntEvaluator{
 			EvalFnc: func(ctx *eval.Context) int {
@@ -17578,6 +17596,8 @@ func (ev *Event) GetFields() []eval.Field {
 		"splice.pipe_entry_flag",
 		"splice.pipe_exit_flag",
 		"splice.retval",
+		"synthetic.arg2.str",
+		"synthetic.name",
 		"unlink.file.change_time",
 		"unlink.file.filesystem",
 		"unlink.file.gid",
@@ -23846,6 +23866,10 @@ func (ev *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 		return int(ev.Splice.PipeExitFlag), nil
 	case "splice.retval":
 		return int(ev.Splice.SyscallEvent.Retval), nil
+	case "synthetic.arg2.str":
+		return ev.Synthetic.Arg2Str, nil
+	case "synthetic.name":
+		return ev.Synthetic.Name, nil
 	case "unlink.file.change_time":
 		return int(ev.Unlink.File.FileFields.CTime), nil
 	case "unlink.file.filesystem":
@@ -26403,6 +26427,10 @@ func (ev *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 		return "splice", nil
 	case "splice.retval":
 		return "splice", nil
+	case "synthetic.arg2.str":
+		return "synthetic", nil
+	case "synthetic.name":
+		return "synthetic", nil
 	case "unlink.file.change_time":
 		return "unlink", nil
 	case "unlink.file.filesystem":
@@ -28960,6 +28988,10 @@ func (ev *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.Int, nil
 	case "splice.retval":
 		return reflect.Int, nil
+	case "synthetic.arg2.str":
+		return reflect.String, nil
+	case "synthetic.name":
+		return reflect.String, nil
 	case "unlink.file.change_time":
 		return reflect.Int, nil
 	case "unlink.file.filesystem":
@@ -41450,6 +41482,20 @@ func (ev *Event) SetFieldValue(field eval.Field, value interface{}) error {
 			return &eval.ErrValueTypeMismatch{Field: "Splice.SyscallEvent.Retval"}
 		}
 		ev.Splice.SyscallEvent.Retval = int64(rv)
+		return nil
+	case "synthetic.arg2.str":
+		rv, ok := value.(string)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "Synthetic.Arg2Str"}
+		}
+		ev.Synthetic.Arg2Str = rv
+		return nil
+	case "synthetic.name":
+		rv, ok := value.(string)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "Synthetic.Name"}
+		}
+		ev.Synthetic.Name = rv
 		return nil
 	case "unlink.file.change_time":
 		rv, ok := value.(int)

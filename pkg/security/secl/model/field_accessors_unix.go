@@ -17244,6 +17244,22 @@ func (ev *Event) GetSpliceRetval() int64 {
 	return ev.Splice.SyscallEvent.Retval
 }
 
+// GetSyntheticArg2Str returns the value of the field, resolving if necessary
+func (ev *Event) GetSyntheticArg2Str() string {
+	if ev.GetEventType().String() != "synthetic" {
+		return ""
+	}
+	return ev.Synthetic.Arg2Str
+}
+
+// GetSyntheticName returns the value of the field, resolving if necessary
+func (ev *Event) GetSyntheticName() string {
+	if ev.GetEventType().String() != "synthetic" {
+		return ""
+	}
+	return ev.Synthetic.Name
+}
+
 // GetTimestamp returns the value of the field, resolving if necessary
 func (ev *Event) GetTimestamp() time.Time {
 	return ev.FieldHandlers.ResolveEventTime(ev, &ev.BaseEvent)

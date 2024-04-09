@@ -6399,6 +6399,25 @@
       ]
     },
     {
+      "name": "synthetic",
+      "definition": "A synthetic event was generated",
+      "type": "Kernel",
+      "from_agent_version": "7.54",
+      "experimental": false,
+      "properties": [
+        {
+          "name": "synthetic.arg2.str",
+          "definition": "No doc",
+          "property_doc_link": "synthetic-arg2-str-doc"
+        },
+        {
+          "name": "synthetic.name",
+          "definition": "No doc",
+          "property_doc_link": "synthetic-name-doc"
+        }
+      ]
+    },
+    {
       "name": "unlink",
       "definition": "A file was deleted",
       "type": "File",
@@ -9452,6 +9471,30 @@
       ],
       "constants": "Pipe buffer flags",
       "constants_link": "pipe-buffer-flags",
+      "examples": []
+    },
+    {
+      "name": "synthetic.arg2.str",
+      "link": "synthetic-arg2-str-doc",
+      "type": "string",
+      "definition": "No doc",
+      "prefixes": [
+        "synthetic"
+      ],
+      "constants": "",
+      "constants_link": "",
+      "examples": []
+    },
+    {
+      "name": "synthetic.name",
+      "link": "synthetic-name-doc",
+      "type": "string",
+      "definition": "No doc",
+      "prefixes": [
+        "synthetic"
+      ],
+      "constants": "",
+      "constants_link": "",
       "examples": []
     },
     {
