@@ -848,8 +848,14 @@ func (rs *RuleSet) NewEvent() eval.Event {
 	return rs.eventCtor()
 }
 
-type SyntheticProbe struct {
-	FunctionName string `yaml:"function_name"`
+type SyntheticHookPoint struct {
+	Name string         `yaml:"name"`
+	Args []HookPointArg `yaml:"args"`
+}
+
+type HookPointArg struct {
+	N    int    `yaml:"n"`
+	Kind string `yaml:"kind"`
 }
 
 // NewRuleSet returns a new ruleset for the specified data model

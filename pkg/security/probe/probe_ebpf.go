@@ -1720,12 +1720,10 @@ func NewEBPFProbe(probe *Probe, config *config.Config, opts Opts, wmeta optional
 			name: "do_sys_openat2",
 			args: []hookPointArg{
 				{
-					name: "dfd",
 					n:    1,
 					kind: "int",
 				},
 				{
-					name: "path",
 					n:    2,
 					kind: "null-terminated-string",
 				},
@@ -2003,7 +2001,6 @@ type hookPoint struct {
 }
 
 type hookPointArg struct {
-	name string
 	n    int
 	kind string
 }
@@ -2056,7 +2053,7 @@ func buildArgsEditors(args []hookPointArg) []manager.ConstantEditor {
 		case "null-terminated-string":
 			kind = 2
 		default:
-			panic(fmt.Errorf("unknown kind for arg `%s`: %s", arg.name, arg.kind))
+			panic(fmt.Errorf("unknown kind for arg: %s", arg.kind))
 		}
 
 		argKinds[arg.n] = kind
