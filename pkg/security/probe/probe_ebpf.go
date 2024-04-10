@@ -944,9 +944,6 @@ func (p *EBPFProbe) handleEvent(CPU int, data []byte) {
 			seclog.Errorf("failed to decode synthetic event for syscall event: %s (offset %d, len %d)", err, offset, len(data))
 			return
 		}
-		if event.Synthetic.ID == 1 {
-			fmt.Println(event.Synthetic)
-		}
 	}
 
 	// resolve the container context
@@ -2022,8 +2019,6 @@ func (sm *SyntheticManager) updateProbes() {
 		} else {
 			newProbe.HookFuncName = hookPoint.Name
 		}
-
-		fmt.Println(newProbe.HookFuncName)
 
 		argsEditors := buildArgsEditors(hookPoint.Args)
 		argsEditors = append(argsEditors, manager.ConstantEditor{
