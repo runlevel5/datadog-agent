@@ -9,18 +9,36 @@ enum param_kind_t {
 	PARAM_KIND_NULL_STR,
 };
 
-#define param_parsing(PARM_PREFIX, idx) \
+#define param_parsing_regular(idx) \
 	u64 param##idx##kind; \
     LOAD_CONSTANT("param" #idx "kind", param##idx##kind); \
                                              \
 	switch (param##idx##kind) { \
 	case PARAM_KIND_INTEGER: \
-		value = PARM_PREFIX##idx(ctx); \
+		value = CTX_PARM##idx(ctx); \
 		bpf_probe_read(&event.data[(idx - 1) * PER_ARG_SIZE], sizeof(value), &value); \
 		break; \
 	case PARAM_KIND_NULL_STR: \
 		buf = &event.data[(idx - 1) * PER_ARG_SIZE]; \
-		path = (char *)PARM_PREFIX##idx(ctx); \
+		path = (char *)CTX_PARM##idx(ctx); \
+		bpf_probe_read_str(buf, PER_ARG_SIZE, path); \
+		break; \
+	}
+
+#define param_parsing_syscall(idx) \
+	u64 param##idx##kind; \
+    LOAD_CONSTANT("param" #idx "kind", param##idx##kind); \
+           \
+	u64 arg##idx; \
+	bpf_probe_read(&arg##idx, sizeof(arg##idx), &SYSCALL64_PT_REGS_PARM##idx(ctx)); \
+                                             \
+	switch (param##idx##kind) { \
+	case PARAM_KIND_INTEGER: \
+		bpf_probe_read(&event.data[(idx - 1) * PER_ARG_SIZE], sizeof(arg##idx), &arg##idx); \
+		break; \
+	case PARAM_KIND_NULL_STR: \
+		buf = &event.data[(idx - 1) * PER_ARG_SIZE]; \
+		path = (char *)arg##idx; \
 		bpf_probe_read_str(buf, PER_ARG_SIZE, path); \
 		break; \
 	}
@@ -42,8 +60,8 @@ int hook_synthetic(ctx_t *ctx) {
 	char *buf;
 	u64 value;
 
-	param_parsing(CTX_PARM, 1);
-	param_parsing(CTX_PARM, 2);
+	param_parsing_regular(1);
+	param_parsing_regular(2);
 
 	send_event(ctx, EVENT_SYNTHETIC, event);
 
@@ -68,10 +86,9 @@ int hook_synthetic_syscall(ctx_t *ptctx) {
 
 	char *path;
 	char *buf;
-	u64 value;
 
-	param_parsing(SYSCALL64_PT_REGS_PARM, 1);
-	param_parsing(SYSCALL64_PT_REGS_PARM, 2);
+	param_parsing_syscall(1);
+	param_parsing_syscall(2);
 
 	send_event(ptctx, EVENT_SYNTHETIC, event);
 

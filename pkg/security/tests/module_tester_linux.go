@@ -183,6 +183,7 @@ version: 1.2.3
 synthetic_probes:
 {{range $SyntheticProbe := .SyntheticProbes}}
   - name: {{$SyntheticProbe.Name}}
+    syscall: {{$SyntheticProbe.IsSyscall}}
     args:
 {{range $Arg := $SyntheticProbe.Args}}
       - n: {{$Arg.N}}

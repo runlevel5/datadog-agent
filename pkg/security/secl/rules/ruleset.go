@@ -855,8 +855,9 @@ func (rs *RuleSet) NewEvent() eval.Event {
 }
 
 type SyntheticHookPoint struct {
-	Name string         `yaml:"name"`
-	Args []HookPointArg `yaml:"args"`
+	Name      string         `yaml:"name"`
+	IsSyscall bool           `yaml:"syscall"`
+	Args      []HookPointArg `yaml:"args"`
 }
 
 type HookPointArg struct {

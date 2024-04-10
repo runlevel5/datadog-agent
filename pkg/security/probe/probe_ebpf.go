@@ -944,6 +944,9 @@ func (p *EBPFProbe) handleEvent(CPU int, data []byte) {
 			seclog.Errorf("failed to decode synthetic event for syscall event: %s (offset %d, len %d)", err, offset, len(data))
 			return
 		}
+		if event.Synthetic.ID == 1 {
+			fmt.Println(event.Synthetic)
+		}
 	}
 
 	// resolve the container context
@@ -2003,11 +2006,24 @@ func (sm *SyntheticManager) updateProbes() {
 
 	sm.probes = make([]*manager.Probe, 0)
 	for hookId, hookPoint := range sm.hookPoints {
-		newProbe := probes.GetSyntheticRegularProbe().Copy()
+		var baseProbe *manager.Probe
+		if hookPoint.IsSyscall {
+			baseProbe = probes.GetSyntheticSyscallProbe()
+		} else {
+			baseProbe = probes.GetSyntheticRegularProbe()
+		}
+
+		newProbe := baseProbe.Copy()
 		newProbe.CopyProgram = true
 		newProbe.UID = fmt.Sprintf("%s_%s_synthetic", probes.SecurityAgentUID, hookPoint.Name)
 		newProbe.KeepProgramSpec = false
-		newProbe.HookFuncName = hookPoint.Name
+		if hookPoint.IsSyscall {
+			newProbe.HookFuncName = "__arm64_sys_" + hookPoint.Name
+		} else {
+			newProbe.HookFuncName = hookPoint.Name
+		}
+
+		fmt.Println(newProbe.HookFuncName)
 
 		argsEditors := buildArgsEditors(hookPoint.Args)
 		argsEditors = append(argsEditors, manager.ConstantEditor{

@@ -35,13 +35,30 @@ func TestSynthetic(t *testing.T) {
 				},
 			},
 		},
-	}
-	rule := &rules.RuleDefinition{
-		ID:         "test_rule",
-		Expression: `synthetic.name == "do_sys_openat2" && synthetic.arg2.str =~ ~"*/test-open" && process.file.name == "testsuite"`,
+		{
+			Name:      "chdir",
+			IsSyscall: true,
+			Args: []rules.HookPointArg{
+				{
+					N:    1,
+					Kind: "null-terminated-string",
+				},
+			},
+		},
 	}
 
-	test, err := newTestModuleWithSynthetics(t, synthetics, nil, []*rules.RuleDefinition{rule})
+	ruleDefs := []*rules.RuleDefinition{
+		{
+			ID:         "test_rule_open",
+			Expression: `synthetic.name == "do_sys_openat2" && synthetic.arg2.str =~ ~"*/test-open" && process.file.name == "testsuite"`,
+		},
+		{
+			ID:         "test_rule_chdir",
+			Expression: `synthetic.name == "chdir" && process.file.name == "testsuite"`,
+		},
+	}
+
+	test, err := newTestModuleWithSynthetics(t, synthetics, nil, ruleDefs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,6 +71,16 @@ func TestSynthetic(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.Remove(testFile)
+
+	testFolder, _, err := test.Path("test-chdir")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.MkdirAll(testFolder, 0777); err != nil {
+		t.Fatalf("failed to create directory: %s", err)
+	}
+	defer os.RemoveAll(testFolder)
 
 	t.Run("open", func(t *testing.T) {
 		test.WaitSignal(t, func() error {
@@ -71,6 +98,17 @@ func TestSynthetic(t *testing.T) {
 
 			value, _ := event.GetFieldValue("synthetic.arg2.str")
 			assert.Equal(t, value.(string), testFile)
+		})
+	})
+
+	t.Run("chdir", func(t *testing.T) {
+		test.WaitSignal(t, func() error {
+			return os.Chdir(testFolder)
+		}, func(event *model.Event, r *rules.Rule) {
+			assert.Equal(t, "synthetic", event.GetType(), "wrong event type")
+
+			value, _ := event.GetFieldValue("synthetic.arg1.str")
+			assert.Equal(t, value.(string), testFolder)
 		})
 	})
 }
