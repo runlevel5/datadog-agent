@@ -686,7 +686,7 @@ require (
 	github.com/prometheus-community/pro-bing v0.3.0
 	github.com/rickar/props v1.0.0
 	github.com/sijms/go-ora/v2 v2.8.6
-	github.com/swaggest/jsonschema-go v0.3.64
+	github.com/swaggest/jsonschema-go v0.3.70
 	github.com/vibrantbyte/go-antpath v1.1.1
 	go.opentelemetry.io/collector/confmap/converter/expandconverter v0.97.0
 	go.opentelemetry.io/collector/confmap/provider/envprovider v0.97.0
