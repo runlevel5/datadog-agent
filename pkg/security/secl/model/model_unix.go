@@ -584,5 +584,6 @@ type SyntheticEvent struct {
 	ID      uint32    `field:"-"`
 	Name    string    `field:"name,handler:ResolveSyntheticName"` // SECLDoc[name] Definition:`No doc`
 	Data    [256]byte `field:"-"`
+	Arg1Str string    `field:"arg1.str,handler:ResolveArg1Str"` // SECLDoc[arg1.str] Definition:`No doc`
 	Arg2Str string    `field:"arg2.str,handler:ResolveArg2Str"` // SECLDoc[arg2.str] Definition:`No doc`
 }

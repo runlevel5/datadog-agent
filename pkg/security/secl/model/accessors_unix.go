@@ -15929,6 +15929,15 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			Field:  field,
 			Weight: eval.FunctionWeight,
 		}, nil
+	case "synthetic.arg1.str":
+		return &eval.StringEvaluator{
+			EvalFnc: func(ctx *eval.Context) string {
+				ev := ctx.Event.(*Event)
+				return ev.FieldHandlers.ResolveArg1Str(ev, &ev.Synthetic)
+			},
+			Field:  field,
+			Weight: eval.HandlerWeight,
+		}, nil
 	case "synthetic.arg2.str":
 		return &eval.StringEvaluator{
 			EvalFnc: func(ctx *eval.Context) string {
@@ -17596,6 +17605,7 @@ func (ev *Event) GetFields() []eval.Field {
 		"splice.pipe_entry_flag",
 		"splice.pipe_exit_flag",
 		"splice.retval",
+		"synthetic.arg1.str",
 		"synthetic.arg2.str",
 		"synthetic.name",
 		"unlink.file.change_time",
@@ -23866,6 +23876,8 @@ func (ev *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 		return int(ev.Splice.PipeExitFlag), nil
 	case "splice.retval":
 		return int(ev.Splice.SyscallEvent.Retval), nil
+	case "synthetic.arg1.str":
+		return ev.FieldHandlers.ResolveArg1Str(ev, &ev.Synthetic), nil
 	case "synthetic.arg2.str":
 		return ev.FieldHandlers.ResolveArg2Str(ev, &ev.Synthetic), nil
 	case "synthetic.name":
@@ -26427,6 +26439,8 @@ func (ev *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 		return "splice", nil
 	case "splice.retval":
 		return "splice", nil
+	case "synthetic.arg1.str":
+		return "synthetic", nil
 	case "synthetic.arg2.str":
 		return "synthetic", nil
 	case "synthetic.name":
@@ -28988,6 +29002,8 @@ func (ev *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.Int, nil
 	case "splice.retval":
 		return reflect.Int, nil
+	case "synthetic.arg1.str":
+		return reflect.String, nil
 	case "synthetic.arg2.str":
 		return reflect.String, nil
 	case "synthetic.name":
@@ -41482,6 +41498,13 @@ func (ev *Event) SetFieldValue(field eval.Field, value interface{}) error {
 			return &eval.ErrValueTypeMismatch{Field: "Splice.SyscallEvent.Retval"}
 		}
 		ev.Splice.SyscallEvent.Retval = int64(rv)
+		return nil
+	case "synthetic.arg1.str":
+		rv, ok := value.(string)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "Synthetic.Arg1Str"}
+		}
+		ev.Synthetic.Arg1Str = rv
 		return nil
 	case "synthetic.arg2.str":
 		rv, ok := value.(string)

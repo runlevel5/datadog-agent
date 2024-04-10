@@ -946,6 +946,7 @@ func (ev *Event) resolveFields(forADs bool) {
 		}
 	case "synthetic":
 		_ = ev.FieldHandlers.ResolveSyntheticName(ev, &ev.Synthetic)
+		_ = ev.FieldHandlers.ResolveArg1Str(ev, &ev.Synthetic)
 		_ = ev.FieldHandlers.ResolveArg2Str(ev, &ev.Synthetic)
 	case "unlink":
 		_ = ev.FieldHandlers.ResolveFileFieldsUser(ev, &ev.Unlink.File.FileFields)
@@ -978,6 +979,7 @@ func (ev *Event) resolveFields(forADs bool) {
 }
 
 type FieldHandlers interface {
+	ResolveArg1Str(ev *Event, e *SyntheticEvent) string
 	ResolveArg2Str(ev *Event, e *SyntheticEvent) string
 	ResolveAsync(ev *Event) bool
 	ResolveChownGID(ev *Event, e *ChownEvent) string
@@ -1035,6 +1037,7 @@ type FieldHandlers interface {
 }
 type FakeFieldHandlers struct{}
 
+func (dfh *FakeFieldHandlers) ResolveArg1Str(ev *Event, e *SyntheticEvent) string { return e.Arg1Str }
 func (dfh *FakeFieldHandlers) ResolveArg2Str(ev *Event, e *SyntheticEvent) string { return e.Arg2Str }
 func (dfh *FakeFieldHandlers) ResolveAsync(ev *Event) bool                        { return ev.Async }
 func (dfh *FakeFieldHandlers) ResolveChownGID(ev *Event, e *ChownEvent) string    { return e.Group }

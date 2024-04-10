@@ -6406,6 +6406,11 @@
       "experimental": false,
       "properties": [
         {
+          "name": "synthetic.arg1.str",
+          "definition": "No doc",
+          "property_doc_link": "synthetic-arg1-str-doc"
+        },
+        {
           "name": "synthetic.arg2.str",
           "definition": "No doc",
           "property_doc_link": "synthetic-arg2-str-doc"
@@ -9471,6 +9476,18 @@
       ],
       "constants": "Pipe buffer flags",
       "constants_link": "pipe-buffer-flags",
+      "examples": []
+    },
+    {
+      "name": "synthetic.arg1.str",
+      "link": "synthetic-arg1-str-doc",
+      "type": "string",
+      "definition": "No doc",
+      "prefixes": [
+        "synthetic"
+      ],
+      "constants": "",
+      "constants_link": "",
       "examples": []
     },
     {

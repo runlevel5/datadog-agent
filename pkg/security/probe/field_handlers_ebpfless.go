@@ -348,6 +348,10 @@ func (fh *EBPFLessFieldHandlers) ResolveSyntheticName(_ *model.Event, e *model.S
 	return ""
 }
 
+func (fh *EBPFLessFieldHandlers) ResolveArg1Str(_ *model.Event, e *model.SyntheticEvent) string {
+	return ""
+}
+
 func (fh *EBPFLessFieldHandlers) ResolveArg2Str(_ *model.Event, e *model.SyntheticEvent) string {
 	return ""
 }

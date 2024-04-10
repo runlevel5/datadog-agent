@@ -538,6 +538,12 @@ func (fh *EBPFFieldHandlers) ResolveSyntheticName(_ *model.Event, e *model.Synth
 	return fh.synthetics.hookPoints[e.ID].Name
 }
 
+func (fh *EBPFFieldHandlers) ResolveArg1Str(_ *model.Event, e *model.SyntheticEvent) string {
+	data := e.Data[0:64]
+	s := model.NullTerminatedString(data)
+	return s
+}
+
 func (fh *EBPFFieldHandlers) ResolveArg2Str(_ *model.Event, e *model.SyntheticEvent) string {
 	data := e.Data[64:128]
 	s := model.NullTerminatedString(data)
