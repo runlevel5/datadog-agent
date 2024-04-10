@@ -14,12 +14,16 @@ import (
 
 func GetSyntheticProbes() []*manager.Probe {
 	return []*manager.Probe{
-		{
-			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				UID:          SecurityAgentUID,
-				EBPFFuncName: "hook_synthetic",
-			},
-			KeepProgramSpec: true,
+		GetSyntheticRegularProbe(),
+	}
+}
+
+func GetSyntheticRegularProbe() *manager.Probe {
+	return &manager.Probe{
+		ProbeIdentificationPair: manager.ProbeIdentificationPair{
+			UID:          SecurityAgentUID,
+			EBPFFuncName: "hook_synthetic",
 		},
+		KeepProgramSpec: true,
 	}
 }

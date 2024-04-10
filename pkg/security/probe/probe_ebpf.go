@@ -2003,24 +2003,22 @@ func (sm *SyntheticManager) updateProbes() {
 
 	sm.probes = make([]*manager.Probe, 0)
 	for hookId, hookPoint := range sm.hookPoints {
-		for _, syntheticProbe := range probes.GetSyntheticProbes() {
-			newProbe := syntheticProbe.Copy()
-			newProbe.CopyProgram = true
-			newProbe.UID = fmt.Sprintf("%s_%s_synthetic", probes.SecurityAgentUID, hookPoint.Name)
-			newProbe.KeepProgramSpec = false
-			newProbe.HookFuncName = hookPoint.Name
+		newProbe := probes.GetSyntheticRegularProbe().Copy()
+		newProbe.CopyProgram = true
+		newProbe.UID = fmt.Sprintf("%s_%s_synthetic", probes.SecurityAgentUID, hookPoint.Name)
+		newProbe.KeepProgramSpec = false
+		newProbe.HookFuncName = hookPoint.Name
 
-			argsEditors := buildArgsEditors(hookPoint.Args)
-			argsEditors = append(argsEditors, manager.ConstantEditor{
-				Name:  "synth_id",
-				Value: uint64(hookId),
-			})
+		argsEditors := buildArgsEditors(hookPoint.Args)
+		argsEditors = append(argsEditors, manager.ConstantEditor{
+			Name:  "synth_id",
+			Value: uint64(hookId),
+		})
 
-			if err := sm.manager.CloneProgram(probes.SecurityAgentUID, newProbe, argsEditors, nil); err != nil {
-				panic(err)
-			}
-			sm.probes = append(sm.probes, newProbe)
+		if err := sm.manager.CloneProgram(probes.SecurityAgentUID, newProbe, argsEditors, nil); err != nil {
+			panic(err)
 		}
+		sm.probes = append(sm.probes, newProbe)
 	}
 }
 
