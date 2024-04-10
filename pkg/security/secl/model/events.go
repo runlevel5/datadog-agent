@@ -91,6 +91,8 @@ const (
 	SyscallsEventType
 	// AnomalyDetectionSyscallEventType Anomaly Detection Syscall event
 	AnomalyDetectionSyscallEventType
+	// RawPacketEventType raw packet event
+	RawPacketEventType
 	// MaxKernelEventType is used internally to get the maximum number of kernel events.
 	MaxKernelEventType
 
