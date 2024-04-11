@@ -1092,6 +1092,8 @@ func InitConfig(config pkgconfigmodel.Config) {
 	config.BindEnvAndSetDefault("admission_controller.container_registry", "gcr.io/datadoghq")
 	config.BindEnvAndSetDefault("admission_controller.timeout_seconds", 10) // in seconds (see kubernetes/kubernetes#71508)
 	config.BindEnvAndSetDefault("admission_controller.service_name", "datadog-admission-controller")
+	config.BindEnvAndSetDefault("admission_controller.autoscaling.enabled", false)
+	config.BindEnvAndSetDefault("admission_controller.autoscaling.endpoint", "/autoscale")
 	config.BindEnvAndSetDefault("admission_controller.certificate.validity_bound", 365*24)             // validity bound of the certificate created by the controller (in hours, default 1 year)
 	config.BindEnvAndSetDefault("admission_controller.certificate.expiration_threshold", 30*24)        // how long before its expiration a certificate should be refreshed (in hours, default 1 month)
 	config.BindEnvAndSetDefault("admission_controller.certificate.secret_name", "webhook-certificate") // name of the Secret object containing the webhook certificate
