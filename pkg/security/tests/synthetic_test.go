@@ -21,6 +21,8 @@ import (
 )
 
 func TestOnDemand(t *testing.T) {
+	SkipIfNotAvailable(t)
+
 	onDemands := []rules.OnDemandHookPoint{
 		{
 			Name: "do_sys_openat2",
