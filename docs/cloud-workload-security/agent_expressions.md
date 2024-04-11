@@ -58,6 +58,7 @@ Triggers are events that correspond to types of activity seen by the system. The
 | `setxattr` | File | Set exteneded attributes | 7.27 |
 | `signal` | Process | A signal was sent | 7.35 |
 | `splice` | File | A splice command was executed | 7.36 |
+| `synthetic` | Kernel | A synthetic event was generated | 7.54 |
 | `unlink` | File | A file was deleted | 7.27 |
 | `unload_module` | Kernel | A kernel module was deleted | 7.35 |
 | `utimes` | File | Change file access/modification times | 7.27 |
@@ -1587,6 +1588,16 @@ A splice command was executed
 | [`splice.pipe_exit_flag`](#splice-pipe_exit_flag-doc) | Exit flag of the "fd_out" pipe passed to the splice syscall |
 | [`splice.retval`](#common-syscallevent-retval-doc) | Return value of the syscall |
 
+### Event `synthetic`
+
+A synthetic event was generated
+
+| Property | Definition |
+| -------- | ------------- |
+| [`synthetic.arg1.str`](#synthetic-arg1-str-doc) | No doc |
+| [`synthetic.arg2.str`](#synthetic-arg2-str-doc) | No doc |
+| [`synthetic.name`](#synthetic-name-doc) | No doc |
+
 ### Event `unlink`
 
 A file was deleted
@@ -2886,6 +2897,27 @@ Definition: Exit flag of the "fd_out" pipe passed to the splice syscall
 
 
 Constants: [Pipe buffer flags](#pipe-buffer-flags)
+
+
+
+### `synthetic.arg1.str` {#synthetic-arg1-str-doc}
+Type: string
+
+Definition: No doc
+
+
+
+### `synthetic.arg2.str` {#synthetic-arg2-str-doc}
+Type: string
+
+Definition: No doc
+
+
+
+### `synthetic.name` {#synthetic-name-doc}
+Type: string
+
+Definition: No doc
 
 
 
