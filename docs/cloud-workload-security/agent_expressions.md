@@ -47,6 +47,7 @@ Triggers are events that correspond to types of activity seen by the system. The
 | `mmap` | Kernel | A mmap command was executed | 7.35 |
 | `mount` | File | [Experimental] A filesystem was mounted | 7.42 |
 | `mprotect` | Kernel | A mprotect command was executed | 7.35 |
+| `ondemand` | Kernel | An On-Demand event was generated | 7.54 |
 | `open` | File | A file was opened | 7.27 |
 | `ptrace` | Kernel | A ptrace command was executed | 7.35 |
 | `removexattr` | File | Remove extended attributes | 7.27 |
@@ -58,7 +59,6 @@ Triggers are events that correspond to types of activity seen by the system. The
 | `setxattr` | File | Set exteneded attributes | 7.27 |
 | `signal` | Process | A signal was sent | 7.35 |
 | `splice` | File | A splice command was executed | 7.36 |
-| `synthetic` | Kernel | A synthetic event was generated | 7.54 |
 | `unlink` | File | A file was deleted | 7.27 |
 | `unload_module` | Kernel | A kernel module was deleted | 7.35 |
 | `utimes` | File | Change file access/modification times | 7.27 |
@@ -886,6 +886,16 @@ A mprotect command was executed
 | [`mprotect.retval`](#common-syscallevent-retval-doc) | Return value of the syscall |
 | [`mprotect.vm_protection`](#mprotect-vm_protection-doc) | initial memory segment protection |
 
+### Event `ondemand`
+
+An On-Demand event was generated
+
+| Property | Definition |
+| -------- | ------------- |
+| [`ondemand.arg1.str`](#ondemand-arg1-str-doc) | No doc |
+| [`ondemand.arg2.str`](#ondemand-arg2-str-doc) | No doc |
+| [`ondemand.name`](#ondemand-name-doc) | No doc |
+
 ### Event `open`
 
 A file was opened
@@ -1587,16 +1597,6 @@ A splice command was executed
 | [`splice.pipe_entry_flag`](#splice-pipe_entry_flag-doc) | Entry flag of the "fd_out" pipe passed to the splice syscall |
 | [`splice.pipe_exit_flag`](#splice-pipe_exit_flag-doc) | Exit flag of the "fd_out" pipe passed to the splice syscall |
 | [`splice.retval`](#common-syscallevent-retval-doc) | Return value of the syscall |
-
-### Event `synthetic`
-
-A synthetic event was generated
-
-| Property | Definition |
-| -------- | ------------- |
-| [`synthetic.arg1.str`](#synthetic-arg1-str-doc) | No doc |
-| [`synthetic.arg2.str`](#synthetic-arg2-str-doc) | No doc |
-| [`synthetic.name`](#synthetic-name-doc) | No doc |
 
 ### Event `unlink`
 
@@ -2721,6 +2721,27 @@ Definition: size in bytes of the network packet
 
 
 
+### `ondemand.arg1.str` {#ondemand-arg1-str-doc}
+Type: string
+
+Definition: No doc
+
+
+
+### `ondemand.arg2.str` {#ondemand-arg2-str-doc}
+Type: string
+
+Definition: No doc
+
+
+
+### `ondemand.name` {#ondemand-name-doc}
+Type: string
+
+Definition: No doc
+
+
+
 ### `open.file.destination.mode` {#open-file-destination-mode-doc}
 Type: int
 
@@ -2897,27 +2918,6 @@ Definition: Exit flag of the "fd_out" pipe passed to the splice syscall
 
 
 Constants: [Pipe buffer flags](#pipe-buffer-flags)
-
-
-
-### `synthetic.arg1.str` {#synthetic-arg1-str-doc}
-Type: string
-
-Definition: No doc
-
-
-
-### `synthetic.arg2.str` {#synthetic-arg2-str-doc}
-Type: string
-
-Definition: No doc
-
-
-
-### `synthetic.name` {#synthetic-name-doc}
-Type: string
-
-Definition: No doc
 
 
 
