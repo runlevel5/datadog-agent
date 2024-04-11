@@ -208,7 +208,7 @@ type RuleSet struct {
 	// event collector, used for tests
 	eventCollector EventCollector
 
-	syntheticHookPoints []SyntheticHookPoint
+	OnDemandHookPoints []OnDemandHookPoint
 }
 
 // ListRuleIDs returns the list of RuleIDs from the ruleset
@@ -230,9 +230,9 @@ func (rs *RuleSet) GetRuleSetTag() eval.RuleSetTagValue {
 	return rs.opts.RuleSetTag[RuleSetTagKey]
 }
 
-// GetSyntheticHookPoints gets the synthetic hook points
-func (rs *RuleSet) GetSyntheticHookPoints() []SyntheticHookPoint {
-	return rs.syntheticHookPoints
+// GetOnDemandHookPoints gets the on-demand hook points
+func (rs *RuleSet) GetOnDemandHookPoints() []OnDemandHookPoint {
+	return rs.OnDemandHookPoints
 }
 
 // ListMacroIDs returns the list of MacroIDs from the ruleset
@@ -855,8 +855,8 @@ func (rs *RuleSet) NewEvent() eval.Event {
 	return rs.eventCtor()
 }
 
-// SyntheticHookPoint represents a hook point definition
-type SyntheticHookPoint struct {
+// OnDemandHookPoint represents a hook point definition
+type OnDemandHookPoint struct {
 	Name      string         `yaml:"name"`
 	IsSyscall bool           `yaml:"syscall"`
 	Args      []HookPointArg `yaml:"args"`

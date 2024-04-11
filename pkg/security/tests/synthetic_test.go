@@ -20,8 +20,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func TestSynthetic(t *testing.T) {
-	synthetics := []rules.SyntheticHookPoint{
+func TestOnDemand(t *testing.T) {
+	onDemands := []rules.OnDemandHookPoint{
 		{
 			Name: "do_sys_openat2",
 			Args: []rules.HookPointArg{
@@ -50,15 +50,15 @@ func TestSynthetic(t *testing.T) {
 	ruleDefs := []*rules.RuleDefinition{
 		{
 			ID:         "test_rule_open",
-			Expression: `synthetic.name == "do_sys_openat2" && synthetic.arg2.str =~ ~"*/test-open" && process.file.name == "testsuite"`,
+			Expression: `ondemand.name == "do_sys_openat2" && ondemand.arg2.str =~ ~"*/test-open" && process.file.name == "testsuite"`,
 		},
 		{
 			ID:         "test_rule_chdir",
-			Expression: `synthetic.name == "chdir" && process.file.name == "testsuite"`,
+			Expression: `ondemand.name == "chdir" && process.file.name == "testsuite"`,
 		},
 	}
 
-	test, err := newTestModuleWithSynthetics(t, synthetics, nil, ruleDefs)
+	test, err := newTestModuleWithOnDemandProbes(t, onDemands, nil, ruleDefs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,9 +94,9 @@ func TestSynthetic(t *testing.T) {
 			}
 			return syscall.Close(int(fd))
 		}, func(event *model.Event, r *rules.Rule) {
-			assert.Equal(t, "synthetic", event.GetType(), "wrong event type")
+			assert.Equal(t, "ondemand", event.GetType(), "wrong event type")
 
-			value, _ := event.GetFieldValue("synthetic.arg2.str")
+			value, _ := event.GetFieldValue("ondemand.arg2.str")
 			assert.Equal(t, value.(string), testFile)
 		})
 	})
@@ -105,9 +105,9 @@ func TestSynthetic(t *testing.T) {
 		test.WaitSignal(t, func() error {
 			return os.Chdir(testFolder)
 		}, func(event *model.Event, r *rules.Rule) {
-			assert.Equal(t, "synthetic", event.GetType(), "wrong event type")
+			assert.Equal(t, "ondemand", event.GetType(), "wrong event type")
 
-			value, _ := event.GetFieldValue("synthetic.arg1.str")
+			value, _ := event.GetFieldValue("ondemand.arg1.str")
 			assert.Equal(t, value.(string), testFolder)
 		})
 	})

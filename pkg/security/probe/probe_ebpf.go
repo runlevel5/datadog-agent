@@ -135,7 +135,7 @@ type EBPFProbe struct {
 	runtimeCompiled    bool
 	useFentry          bool
 
-	syntheticManager *SyntheticManager
+	onDemandManager *OnDemandProbesManager
 }
 
 func (p *EBPFProbe) detectKernelVersion() error {
@@ -939,9 +939,9 @@ func (p *EBPFProbe) handleEvent(CPU int, data []byte) {
 			seclog.Errorf("failed to decode anomaly detection for syscall event: %s (offset %d, len %d)", err, offset, len(data))
 			return
 		}
-	case model.SyntheticEventType:
-		if _, err = event.Synthetic.UnmarshalBinary(data[offset:]); err != nil {
-			seclog.Errorf("failed to decode synthetic event for syscall event: %s (offset %d, len %d)", err, offset, len(data))
+	case model.OnDemandEventType:
+		if _, err = event.OnDemand.UnmarshalBinary(data[offset:]); err != nil {
+			seclog.Errorf("failed to decode on-demand event for syscall event: %s (offset %d, len %d)", err, offset, len(data))
 			return
 		}
 	}
@@ -1151,9 +1151,9 @@ func (p *EBPFProbe) updateProbes(ruleEventTypes []eval.EventType, needRawSyscall
 
 	activatedProbes = append(activatedProbes, p.Resolvers.TCResolver.SelectTCProbes())
 
-	// synthetic probes
-	p.syntheticManager.updateProbes()
-	activatedProbes = append(activatedProbes, p.syntheticManager.selectProbes())
+	// on-demand probes
+	p.onDemandManager.updateProbes()
+	activatedProbes = append(activatedProbes, p.onDemandManager.selectProbes())
 
 	if needRawSyscalls {
 		activatedProbes = append(activatedProbes, probes.SyscallMonitorSelectors...)
@@ -1442,7 +1442,7 @@ func (p *EBPFProbe) ApplyRuleSet(rs *rules.RuleSet) (*kfilters.ApplyRuleSetRepor
 		}
 	}
 
-	p.syntheticManager.hookPoints = rs.GetSyntheticHookPoints()
+	p.onDemandManager.hookPoints = rs.GetOnDemandHookPoints()
 
 	if err := p.updateProbes(rs.GetEventTypes(), needRawSyscalls); err != nil {
 		return nil, fmt.Errorf("failed to select probes: %w", err)
@@ -1717,7 +1717,7 @@ func NewEBPFProbe(probe *Probe, config *config.Config, opts Opts, wmeta optional
 		return nil, err
 	}
 
-	/*hookPoints := []rules.SyntheticHookPoint{
+	/*hookPoints := []rules.OnDemandHookPoint{
 		{
 			Name: "do_sys_openat2",
 			Args: []rules.HookPointArg{
@@ -1733,12 +1733,12 @@ func NewEBPFProbe(probe *Probe, config *config.Config, opts Opts, wmeta optional
 		},
 	}*/
 
-	p.syntheticManager = &SyntheticManager{
+	p.onDemandManager = &OnDemandProbesManager{
 		manager: p.Manager,
 	}
 
 	// TODO safchain change the fields handlers
-	p.fieldHandlers = &EBPFFieldHandlers{config: config, resolvers: p.Resolvers, synthetics: p.syntheticManager}
+	p.fieldHandlers = &EBPFFieldHandlers{config: config, resolvers: p.Resolvers, onDemand: p.onDemandManager}
 
 	if useRingBuffers {
 		p.eventStream = ringbuffer.New(p.handleEvent)
@@ -1990,14 +1990,14 @@ func (p *EBPFProbe) HandleActions(ctx *eval.Context, rule *rules.Rule) {
 	}
 }
 
-// SyntheticManager is the manager for synthetic probes
-type SyntheticManager struct {
-	hookPoints []rules.SyntheticHookPoint
+// OnDemandProbesManager is the manager for on-demand probes
+type OnDemandProbesManager struct {
+	hookPoints []rules.OnDemandHookPoint
 	manager    *manager.Manager
 	probes     []*manager.Probe
 }
 
-func (sm *SyntheticManager) updateProbes() {
+func (sm *OnDemandProbesManager) updateProbes() {
 	if len(sm.probes) != 0 {
 		return
 	}
@@ -2006,14 +2006,14 @@ func (sm *SyntheticManager) updateProbes() {
 	for hookID, hookPoint := range sm.hookPoints {
 		var baseProbe *manager.Probe
 		if hookPoint.IsSyscall {
-			baseProbe = probes.GetSyntheticSyscallProbe()
+			baseProbe = probes.GetOnDemandSyscallProbe()
 		} else {
-			baseProbe = probes.GetSyntheticRegularProbe()
+			baseProbe = probes.GetOnDemandRegularProbe()
 		}
 
 		newProbe := baseProbe.Copy()
 		newProbe.CopyProgram = true
-		newProbe.UID = fmt.Sprintf("%s_%s_synthetic", probes.SecurityAgentUID, hookPoint.Name)
+		newProbe.UID = fmt.Sprintf("%s_%s_on_demand", probes.SecurityAgentUID, hookPoint.Name)
 		newProbe.KeepProgramSpec = false
 		if hookPoint.IsSyscall {
 			newProbe.HookFuncName = "__arm64_sys_" + hookPoint.Name
@@ -2034,7 +2034,7 @@ func (sm *SyntheticManager) updateProbes() {
 	}
 }
 
-func (sm *SyntheticManager) selectProbes() manager.ProbesSelector {
+func (sm *OnDemandProbesManager) selectProbes() manager.ProbesSelector {
 	var activatedProbes manager.BestEffort
 	for _, p := range sm.probes {
 		activatedProbes.Selectors = append(activatedProbes.Selectors, &manager.ProbeSelector{

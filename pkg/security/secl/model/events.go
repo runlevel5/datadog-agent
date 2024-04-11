@@ -91,8 +91,8 @@ const (
 	SyscallsEventType
 	// AnomalyDetectionSyscallEventType Anomaly Detection Syscall event
 	AnomalyDetectionSyscallEventType
-	// SyntheticEventType is sent for synthetic events
-	SyntheticEventType
+	// OnDemandEventType is sent for on-demand events
+	OnDemandEventType
 	// MaxKernelEventType is used internally to get the maximum number of kernel events.
 	MaxKernelEventType
 
@@ -221,8 +221,8 @@ func (t EventType) String() string {
 		return "syscalls"
 	case AnomalyDetectionSyscallEventType:
 		return "anomaly_detection_syscall"
-	case SyntheticEventType:
-		return "synthetic"
+	case OnDemandEventType:
+		return "ondemand"
 
 	case CustomLostReadEventType:
 		return "lost_events_read"

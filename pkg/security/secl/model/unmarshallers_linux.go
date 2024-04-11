@@ -1117,7 +1117,7 @@ func (e *AnomalyDetectionSyscallEvent) UnmarshalBinary(data []byte) (int, error)
 }
 
 // UnmarshalBinary unmarshalls a binary representation of itself
-func (e *SyntheticEvent) UnmarshalBinary(data []byte) (int, error) {
+func (e *OnDemandEvent) UnmarshalBinary(data []byte) (int, error) {
 	if len(data) < 260 {
 		return 0, ErrNotEnoughData
 	}

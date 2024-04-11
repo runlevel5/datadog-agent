@@ -42,6 +42,7 @@ func (m *Model) GetEventTypes() []eval.EventType {
 		eval.EventType("mmap"),
 		eval.EventType("mount"),
 		eval.EventType("mprotect"),
+		eval.EventType("ondemand"),
 		eval.EventType("open"),
 		eval.EventType("ptrace"),
 		eval.EventType("removexattr"),
@@ -53,7 +54,6 @@ func (m *Model) GetEventTypes() []eval.EventType {
 		eval.EventType("setxattr"),
 		eval.EventType("signal"),
 		eval.EventType("splice"),
-		eval.EventType("synthetic"),
 		eval.EventType("unlink"),
 		eval.EventType("unload_module"),
 		eval.EventType("utimes"),
@@ -3759,6 +3759,33 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			},
 			Field:  field,
 			Weight: eval.FunctionWeight,
+		}, nil
+	case "ondemand.arg1.str":
+		return &eval.StringEvaluator{
+			EvalFnc: func(ctx *eval.Context) string {
+				ev := ctx.Event.(*Event)
+				return ev.FieldHandlers.ResolveArg1Str(ev, &ev.OnDemand)
+			},
+			Field:  field,
+			Weight: eval.HandlerWeight,
+		}, nil
+	case "ondemand.arg2.str":
+		return &eval.StringEvaluator{
+			EvalFnc: func(ctx *eval.Context) string {
+				ev := ctx.Event.(*Event)
+				return ev.FieldHandlers.ResolveArg2Str(ev, &ev.OnDemand)
+			},
+			Field:  field,
+			Weight: eval.HandlerWeight,
+		}, nil
+	case "ondemand.name":
+		return &eval.StringEvaluator{
+			EvalFnc: func(ctx *eval.Context) string {
+				ev := ctx.Event.(*Event)
+				return ev.FieldHandlers.ResolveOnDemandName(ev, &ev.OnDemand)
+			},
+			Field:  field,
+			Weight: eval.HandlerWeight,
 		}, nil
 	case "open.file.change_time":
 		return &eval.IntEvaluator{
@@ -15929,33 +15956,6 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			Field:  field,
 			Weight: eval.FunctionWeight,
 		}, nil
-	case "synthetic.arg1.str":
-		return &eval.StringEvaluator{
-			EvalFnc: func(ctx *eval.Context) string {
-				ev := ctx.Event.(*Event)
-				return ev.FieldHandlers.ResolveArg1Str(ev, &ev.Synthetic)
-			},
-			Field:  field,
-			Weight: eval.HandlerWeight,
-		}, nil
-	case "synthetic.arg2.str":
-		return &eval.StringEvaluator{
-			EvalFnc: func(ctx *eval.Context) string {
-				ev := ctx.Event.(*Event)
-				return ev.FieldHandlers.ResolveArg2Str(ev, &ev.Synthetic)
-			},
-			Field:  field,
-			Weight: eval.HandlerWeight,
-		}, nil
-	case "synthetic.name":
-		return &eval.StringEvaluator{
-			EvalFnc: func(ctx *eval.Context) string {
-				ev := ctx.Event.(*Event)
-				return ev.FieldHandlers.ResolveSyntheticName(ev, &ev.Synthetic)
-			},
-			Field:  field,
-			Weight: eval.HandlerWeight,
-		}, nil
 	case "unlink.file.change_time":
 		return &eval.IntEvaluator{
 			EvalFnc: func(ctx *eval.Context) int {
@@ -16755,6 +16755,9 @@ func (ev *Event) GetFields() []eval.Field {
 		"network.size",
 		"network.source.ip",
 		"network.source.port",
+		"ondemand.arg1.str",
+		"ondemand.arg2.str",
+		"ondemand.name",
 		"open.file.change_time",
 		"open.file.destination.mode",
 		"open.file.filesystem",
@@ -17605,9 +17608,6 @@ func (ev *Event) GetFields() []eval.Field {
 		"splice.pipe_entry_flag",
 		"splice.pipe_exit_flag",
 		"splice.retval",
-		"synthetic.arg1.str",
-		"synthetic.arg2.str",
-		"synthetic.name",
 		"unlink.file.change_time",
 		"unlink.file.filesystem",
 		"unlink.file.gid",
@@ -18639,6 +18639,12 @@ func (ev *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 		return ev.NetworkContext.Source.IPNet, nil
 	case "network.source.port":
 		return int(ev.NetworkContext.Source.Port), nil
+	case "ondemand.arg1.str":
+		return ev.FieldHandlers.ResolveArg1Str(ev, &ev.OnDemand), nil
+	case "ondemand.arg2.str":
+		return ev.FieldHandlers.ResolveArg2Str(ev, &ev.OnDemand), nil
+	case "ondemand.name":
+		return ev.FieldHandlers.ResolveOnDemandName(ev, &ev.OnDemand), nil
 	case "open.file.change_time":
 		return int(ev.Open.File.FileFields.CTime), nil
 	case "open.file.destination.mode":
@@ -23876,12 +23882,6 @@ func (ev *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 		return int(ev.Splice.PipeExitFlag), nil
 	case "splice.retval":
 		return int(ev.Splice.SyscallEvent.Retval), nil
-	case "synthetic.arg1.str":
-		return ev.FieldHandlers.ResolveArg1Str(ev, &ev.Synthetic), nil
-	case "synthetic.arg2.str":
-		return ev.FieldHandlers.ResolveArg2Str(ev, &ev.Synthetic), nil
-	case "synthetic.name":
-		return ev.FieldHandlers.ResolveSyntheticName(ev, &ev.Synthetic), nil
 	case "unlink.file.change_time":
 		return int(ev.Unlink.File.FileFields.CTime), nil
 	case "unlink.file.filesystem":
@@ -24739,6 +24739,12 @@ func (ev *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 		return "dns", nil
 	case "network.source.port":
 		return "dns", nil
+	case "ondemand.arg1.str":
+		return "ondemand", nil
+	case "ondemand.arg2.str":
+		return "ondemand", nil
+	case "ondemand.name":
+		return "ondemand", nil
 	case "open.file.change_time":
 		return "open", nil
 	case "open.file.destination.mode":
@@ -26439,12 +26445,6 @@ func (ev *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 		return "splice", nil
 	case "splice.retval":
 		return "splice", nil
-	case "synthetic.arg1.str":
-		return "synthetic", nil
-	case "synthetic.arg2.str":
-		return "synthetic", nil
-	case "synthetic.name":
-		return "synthetic", nil
 	case "unlink.file.change_time":
 		return "unlink", nil
 	case "unlink.file.filesystem":
@@ -27302,6 +27302,12 @@ func (ev *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.Struct, nil
 	case "network.source.port":
 		return reflect.Int, nil
+	case "ondemand.arg1.str":
+		return reflect.String, nil
+	case "ondemand.arg2.str":
+		return reflect.String, nil
+	case "ondemand.name":
+		return reflect.String, nil
 	case "open.file.change_time":
 		return reflect.Int, nil
 	case "open.file.destination.mode":
@@ -29002,12 +29008,6 @@ func (ev *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.Int, nil
 	case "splice.retval":
 		return reflect.Int, nil
-	case "synthetic.arg1.str":
-		return reflect.String, nil
-	case "synthetic.arg2.str":
-		return reflect.String, nil
-	case "synthetic.name":
-		return reflect.String, nil
 	case "unlink.file.change_time":
 		return reflect.Int, nil
 	case "unlink.file.filesystem":
@@ -32186,6 +32186,27 @@ func (ev *Event) SetFieldValue(field eval.Field, value interface{}) error {
 			return &eval.ErrValueTypeMismatch{Field: "NetworkContext.Source.Port"}
 		}
 		ev.NetworkContext.Source.Port = uint16(rv)
+		return nil
+	case "ondemand.arg1.str":
+		rv, ok := value.(string)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "OnDemand.Arg1Str"}
+		}
+		ev.OnDemand.Arg1Str = rv
+		return nil
+	case "ondemand.arg2.str":
+		rv, ok := value.(string)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "OnDemand.Arg2Str"}
+		}
+		ev.OnDemand.Arg2Str = rv
+		return nil
+	case "ondemand.name":
+		rv, ok := value.(string)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "OnDemand.Name"}
+		}
+		ev.OnDemand.Name = rv
 		return nil
 	case "open.file.change_time":
 		rv, ok := value.(int)
@@ -41498,27 +41519,6 @@ func (ev *Event) SetFieldValue(field eval.Field, value interface{}) error {
 			return &eval.ErrValueTypeMismatch{Field: "Splice.SyscallEvent.Retval"}
 		}
 		ev.Splice.SyscallEvent.Retval = int64(rv)
-		return nil
-	case "synthetic.arg1.str":
-		rv, ok := value.(string)
-		if !ok {
-			return &eval.ErrValueTypeMismatch{Field: "Synthetic.Arg1Str"}
-		}
-		ev.Synthetic.Arg1Str = rv
-		return nil
-	case "synthetic.arg2.str":
-		rv, ok := value.(string)
-		if !ok {
-			return &eval.ErrValueTypeMismatch{Field: "Synthetic.Arg2Str"}
-		}
-		ev.Synthetic.Arg2Str = rv
-		return nil
-	case "synthetic.name":
-		rv, ok := value.(string)
-		if !ok {
-			return &eval.ErrValueTypeMismatch{Field: "Synthetic.Name"}
-		}
-		ev.Synthetic.Name = rv
 		return nil
 	case "unlink.file.change_time":
 		rv, ok := value.(int)

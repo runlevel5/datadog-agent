@@ -384,7 +384,7 @@ struct chdir_event_t {
     struct file_t file;
 };
 
-struct synthetic_event_t {
+struct on_demand_event_t {
     struct kevent_t event;
     struct process_context_t process;
     struct span_context_t span;

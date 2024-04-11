@@ -64,12 +64,12 @@ type ruleIndexEntry struct {
 // LoadPolicies load policies
 func (es *EvaluationSet) LoadPolicies(loader *PolicyLoader, opts PolicyLoaderOpts) *multierror.Error {
 	var (
-		errs                *multierror.Error
-		rules               = make(map[eval.RuleSetTagValue][]*RuleDefinition)
-		allMacros           []*MacroDefinition
-		macroIndex          = make(map[string]*MacroDefinition)
-		rulesIndex          = make(map[ruleIndexEntry]*RuleDefinition)
-		syntheticHookPoints = make([]SyntheticHookPoint, 0)
+		errs               *multierror.Error
+		rules              = make(map[eval.RuleSetTagValue][]*RuleDefinition)
+		allMacros          []*MacroDefinition
+		macroIndex         = make(map[string]*MacroDefinition)
+		rulesIndex         = make(map[ruleIndexEntry]*RuleDefinition)
+		onDemandHookPoints = make([]OnDemandHookPoint, 0)
 	)
 
 	parsingContext := ast.NewParsingContext()
@@ -110,7 +110,7 @@ func (es *EvaluationSet) LoadPolicies(loader *PolicyLoader, opts PolicyLoaderOpt
 			}
 		}
 
-		syntheticHookPoints = append(syntheticHookPoints, policy.SyntheticProbes...)
+		onDemandHookPoints = append(onDemandHookPoints, policy.OnDemandHookPoints...)
 	}
 
 	for ruleSetTagValue, rs := range es.RuleSets {
@@ -130,7 +130,7 @@ func (es *EvaluationSet) LoadPolicies(loader *PolicyLoader, opts PolicyLoaderOpt
 					errs = multierror.Append(errs, err)
 				}
 			}
-			rs.syntheticHookPoints = syntheticHookPoints
+			rs.OnDemandHookPoints = onDemandHookPoints
 		}
 	}
 

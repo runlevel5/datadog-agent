@@ -180,12 +180,12 @@ runtime_security_config:
 const testPolicy = `---
 version: 1.2.3
 
-synthetic_probes:
-{{range $SyntheticProbe := .SyntheticProbes}}
-  - name: {{$SyntheticProbe.Name}}
-    syscall: {{$SyntheticProbe.IsSyscall}}
+on_demand:
+{{range $OnDemandProbe := .OnDemandProbes}}
+  - name: {{$OnDemandProbe.Name}}
+    syscall: {{$OnDemandProbe.IsSyscall}}
     args:
-{{range $Arg := $SyntheticProbe.Args}}
+{{range $Arg := $OnDemandProbe.Args}}
       - n: {{$Arg.N}}
         kind: {{$Arg.Kind}}
 {{end}}
@@ -587,10 +587,10 @@ func (tm *testModule) validateExecEvent(tb *testing.T, kind wrapperType, validat
 }
 
 func newTestModule(t testing.TB, macroDefs []*rules.MacroDefinition, ruleDefs []*rules.RuleDefinition, fopts ...optFunc) (*testModule, error) {
-	return newTestModuleWithSynthetics(t, nil, macroDefs, ruleDefs, fopts...)
+	return newTestModuleWithOnDemandProbes(t, nil, macroDefs, ruleDefs, fopts...)
 }
 
-func newTestModuleWithSynthetics(t testing.TB, synthetics []rules.SyntheticHookPoint, macroDefs []*rules.MacroDefinition, ruleDefs []*rules.RuleDefinition, fopts ...optFunc) (*testModule, error) {
+func newTestModuleWithOnDemandProbes(t testing.TB, onDemandHooks []rules.OnDemandHookPoint, macroDefs []*rules.MacroDefinition, ruleDefs []*rules.RuleDefinition, fopts ...optFunc) (*testModule, error) {
 	var opts tmOpts
 	for _, opt := range fopts {
 		opt(&opts)
@@ -633,7 +633,7 @@ func newTestModuleWithSynthetics(t testing.TB, synthetics []rules.SyntheticHookP
 		return nil, err
 	}
 
-	if _, err = setTestPolicy(commonCfgDir, synthetics, macroDefs, ruleDefs); err != nil {
+	if _, err = setTestPolicy(commonCfgDir, onDemandHooks, macroDefs, ruleDefs); err != nil {
 		return nil, err
 	}
 

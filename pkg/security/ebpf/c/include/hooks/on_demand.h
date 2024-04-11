@@ -1,5 +1,5 @@
-#ifndef _HOOKS_SYNTHETIC_H_
-#define _HOOKS_SYNTHETIC_H_
+#ifndef _HOOKS_ON_DEMAND_H_
+#define _HOOKS_ON_DEMAND_H_
 
 #define PER_ARG_SIZE 64
 
@@ -43,12 +43,12 @@ enum param_kind_t {
 		break; \
 	}
 
-HOOK_ENTRY("synthetic_hook")
-int hook_synthetic(ctx_t *ctx) {
+HOOK_ENTRY("on_demand_hook")
+int hook_on_demand(ctx_t *ctx) {
 	u64 synth_id;
     LOAD_CONSTANT("synth_id", synth_id);
 
-	struct synthetic_event_t event = {
+	struct on_demand_event_t event = {
 		.synth_id = synth_id,
 	};
 
@@ -63,20 +63,20 @@ int hook_synthetic(ctx_t *ctx) {
 	param_parsing_regular(1);
 	param_parsing_regular(2);
 
-	send_event(ctx, EVENT_SYNTHETIC, event);
+	send_event(ctx, EVENT_ON_DEMAND, event);
 
     return 0;
 }
 
-HOOK_ENTRY("synthetic_syscall_hook")
-int hook_synthetic_syscall(ctx_t *ptctx) {
+HOOK_ENTRY("on_demand_syscall_hook")
+int hook_on_demand_syscall(ctx_t *ptctx) {
 	struct pt_regs *ctx = (struct pt_regs *) CTX_PARM1(ptctx);
     if (!ctx) return 0;
 
 	u64 synth_id;
     LOAD_CONSTANT("synth_id", synth_id);
 
-	struct synthetic_event_t event = {
+	struct on_demand_event_t event = {
 		.synth_id = synth_id,
 	};
 
@@ -90,7 +90,7 @@ int hook_synthetic_syscall(ctx_t *ptctx) {
 	param_parsing_syscall(1);
 	param_parsing_syscall(2);
 
-	send_event(ptctx, EVENT_SYNTHETIC, event);
+	send_event(ptctx, EVENT_ON_DEMAND, event);
 
     return 0;
 }

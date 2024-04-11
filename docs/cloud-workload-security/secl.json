@@ -3175,6 +3175,30 @@
       ]
     },
     {
+      "name": "ondemand",
+      "definition": "An On-Demand event was generated",
+      "type": "Kernel",
+      "from_agent_version": "7.54",
+      "experimental": false,
+      "properties": [
+        {
+          "name": "ondemand.arg1.str",
+          "definition": "No doc",
+          "property_doc_link": "ondemand-arg1-str-doc"
+        },
+        {
+          "name": "ondemand.arg2.str",
+          "definition": "No doc",
+          "property_doc_link": "ondemand-arg2-str-doc"
+        },
+        {
+          "name": "ondemand.name",
+          "definition": "No doc",
+          "property_doc_link": "ondemand-name-doc"
+        }
+      ]
+    },
+    {
       "name": "open",
       "definition": "A file was opened",
       "type": "File",
@@ -6399,30 +6423,6 @@
       ]
     },
     {
-      "name": "synthetic",
-      "definition": "A synthetic event was generated",
-      "type": "Kernel",
-      "from_agent_version": "7.54",
-      "experimental": false,
-      "properties": [
-        {
-          "name": "synthetic.arg1.str",
-          "definition": "No doc",
-          "property_doc_link": "synthetic-arg1-str-doc"
-        },
-        {
-          "name": "synthetic.arg2.str",
-          "definition": "No doc",
-          "property_doc_link": "synthetic-arg2-str-doc"
-        },
-        {
-          "name": "synthetic.name",
-          "definition": "No doc",
-          "property_doc_link": "synthetic-name-doc"
-        }
-      ]
-    },
-    {
       "name": "unlink",
       "definition": "A file was deleted",
       "type": "File",
@@ -9203,6 +9203,42 @@
       "examples": []
     },
     {
+      "name": "ondemand.arg1.str",
+      "link": "ondemand-arg1-str-doc",
+      "type": "string",
+      "definition": "No doc",
+      "prefixes": [
+        "ondemand"
+      ],
+      "constants": "",
+      "constants_link": "",
+      "examples": []
+    },
+    {
+      "name": "ondemand.arg2.str",
+      "link": "ondemand-arg2-str-doc",
+      "type": "string",
+      "definition": "No doc",
+      "prefixes": [
+        "ondemand"
+      ],
+      "constants": "",
+      "constants_link": "",
+      "examples": []
+    },
+    {
+      "name": "ondemand.name",
+      "link": "ondemand-name-doc",
+      "type": "string",
+      "definition": "No doc",
+      "prefixes": [
+        "ondemand"
+      ],
+      "constants": "",
+      "constants_link": "",
+      "examples": []
+    },
+    {
       "name": "open.file.destination.mode",
       "link": "open-file-destination-mode-doc",
       "type": "int",
@@ -9476,42 +9512,6 @@
       ],
       "constants": "Pipe buffer flags",
       "constants_link": "pipe-buffer-flags",
-      "examples": []
-    },
-    {
-      "name": "synthetic.arg1.str",
-      "link": "synthetic-arg1-str-doc",
-      "type": "string",
-      "definition": "No doc",
-      "prefixes": [
-        "synthetic"
-      ],
-      "constants": "",
-      "constants_link": "",
-      "examples": []
-    },
-    {
-      "name": "synthetic.arg2.str",
-      "link": "synthetic-arg2-str-doc",
-      "type": "string",
-      "definition": "No doc",
-      "prefixes": [
-        "synthetic"
-      ],
-      "constants": "",
-      "constants_link": "",
-      "examples": []
-    },
-    {
-      "name": "synthetic.name",
-      "link": "synthetic-name-doc",
-      "type": "string",
-      "definition": "No doc",
-      "prefixes": [
-        "synthetic"
-      ],
-      "constants": "",
-      "constants_link": "",
       "examples": []
     },
     {

@@ -24,9 +24,9 @@ import (
 
 // EBPFFieldHandlers defines a field handlers
 type EBPFFieldHandlers struct {
-	config     *config.Config
-	resolvers  *resolvers.EBPFResolvers
-	synthetics *SyntheticManager
+	config    *config.Config
+	resolvers *resolvers.EBPFResolvers
+	onDemand  *OnDemandProbesManager
 }
 
 // ResolveProcessCacheEntry queries the ProcessResolver to retrieve the ProcessContext of the event
@@ -534,20 +534,20 @@ func (fh *EBPFFieldHandlers) ResolveK8SGroups(_ *model.Event, evtCtx *model.User
 	return evtCtx.K8SGroups
 }
 
-// ResolveSyntheticName resolves the synthetic event name
-func (fh *EBPFFieldHandlers) ResolveSyntheticName(_ *model.Event, e *model.SyntheticEvent) string {
-	return fh.synthetics.hookPoints[e.ID].Name
+// ResolveOnDemandName resolves the on-demand event name
+func (fh *EBPFFieldHandlers) ResolveOnDemandName(_ *model.Event, e *model.OnDemandEvent) string {
+	return fh.onDemand.hookPoints[e.ID].Name
 }
 
 // ResolveArg1Str resolves the string value of the first argument of hooked function
-func (fh *EBPFFieldHandlers) ResolveArg1Str(_ *model.Event, e *model.SyntheticEvent) string {
+func (fh *EBPFFieldHandlers) ResolveArg1Str(_ *model.Event, e *model.OnDemandEvent) string {
 	data := e.Data[0:64]
 	s := model.NullTerminatedString(data)
 	return s
 }
 
 // ResolveArg2Str resolves the string value of the second argument of hooked function
-func (fh *EBPFFieldHandlers) ResolveArg2Str(_ *model.Event, e *model.SyntheticEvent) string {
+func (fh *EBPFFieldHandlers) ResolveArg2Str(_ *model.Event, e *model.OnDemandEvent) string {
 	data := e.Data[64:128]
 	s := model.NullTerminatedString(data)
 	return s

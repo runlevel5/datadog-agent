@@ -19,21 +19,21 @@ import (
 
 // PolicyDef represents a policy file definition
 type PolicyDef struct {
-	Version         string               `yaml:"version"`
-	Rules           []*RuleDefinition    `yaml:"rules"`
-	Macros          []*MacroDefinition   `yaml:"macros"`
-	SyntheticProbes []SyntheticHookPoint `yaml:"synthetic_probes"`
+	Version            string              `yaml:"version"`
+	Rules              []*RuleDefinition   `yaml:"rules"`
+	Macros             []*MacroDefinition  `yaml:"macros"`
+	OnDemandHookPoints []OnDemandHookPoint `yaml:"on_demand"`
 }
 
 // Policy represents a policy file which is composed of a list of rules and macros
 type Policy struct {
-	Name            string
-	Source          string
-	Version         string
-	Rules           []*RuleDefinition
-	Macros          []*MacroDefinition
-	SyntheticProbes []SyntheticHookPoint
-	IsInternal      bool
+	Name               string
+	Source             string
+	Version            string
+	Rules              []*RuleDefinition
+	Macros             []*MacroDefinition
+	OnDemandHookPoints []OnDemandHookPoint
+	IsInternal         bool
 }
 
 // AddMacro add a macro to the policy
@@ -151,7 +151,7 @@ LOOP:
 		}
 	}
 
-	policy.SyntheticProbes = def.SyntheticProbes
+	policy.OnDemandHookPoints = def.OnDemandHookPoints
 
 	return policy, errs.ErrorOrNil()
 }

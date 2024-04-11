@@ -69,8 +69,8 @@ type Event struct {
 	DNS  DNSEvent  `field:"dns" event:"dns"`   // [7.36] [Network] A DNS request was sent
 	Bind BindEvent `field:"bind" event:"bind"` // [7.37] [Network] A bind was executed
 
-	// synthetic events
-	Synthetic SyntheticEvent `field:"synthetic" event:"synthetic"` // [7.54] [Kernel] A synthetic event was generated
+	// on-demand events
+	OnDemand OnDemandEvent `field:"ondemand" event:"ondemand"` // [7.54] [Kernel] An On-Demand event was generated
 
 	// internal usage
 	Umount           UmountEvent           `field:"-"`
@@ -579,10 +579,10 @@ type PathKey struct {
 	PathID  uint32 `field:"-"`
 }
 
-// SyntheticEvent identifies a synthetic event generated from synthetic probes
-type SyntheticEvent struct {
+// OnDemandEvent identifies an on-demand event generated from on-demand probes
+type OnDemandEvent struct {
 	ID      uint32    `field:"-"`
-	Name    string    `field:"name,handler:ResolveSyntheticName"` // SECLDoc[name] Definition:`No doc`
+	Name    string    `field:"name,handler:ResolveOnDemandName"` // SECLDoc[name] Definition:`No doc`
 	Data    [256]byte `field:"-"`
 	Arg1Str string    `field:"arg1.str,handler:ResolveArg1Str"` // SECLDoc[arg1.str] Definition:`No doc`
 	Arg2Str string    `field:"arg2.str,handler:ResolveArg2Str"` // SECLDoc[arg2.str] Definition:`No doc`

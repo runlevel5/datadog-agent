@@ -12,31 +12,31 @@ import (
 	manager "github.com/DataDog/ebpf-manager"
 )
 
-// GetSyntheticProbes returns all the synthetic probes
-func GetSyntheticProbes() []*manager.Probe {
+// GetOnDemandProbes returns all the on-demand probes
+func GetOnDemandProbes() []*manager.Probe {
 	return []*manager.Probe{
-		GetSyntheticRegularProbe(),
-		GetSyntheticSyscallProbe(),
+		GetOnDemandRegularProbe(),
+		GetOnDemandSyscallProbe(),
 	}
 }
 
-// GetSyntheticRegularProbe returns the synthetic probe used for regular (non-sycall) function hooking
-func GetSyntheticRegularProbe() *manager.Probe {
+// GetOnDemandRegularProbe returns the on-demand probe used for regular (non-sycall) function hooking
+func GetOnDemandRegularProbe() *manager.Probe {
 	return &manager.Probe{
 		ProbeIdentificationPair: manager.ProbeIdentificationPair{
 			UID:          SecurityAgentUID,
-			EBPFFuncName: "hook_synthetic",
+			EBPFFuncName: "hook_on_demand",
 		},
 		KeepProgramSpec: true,
 	}
 }
 
-// GetSyntheticSyscallProbe returns the synthetic probe used for sycall function hooking
-func GetSyntheticSyscallProbe() *manager.Probe {
+// GetOnDemandSyscallProbe returns the on-demand probe used for sycall function hooking
+func GetOnDemandSyscallProbe() *manager.Probe {
 	return &manager.Probe{
 		ProbeIdentificationPair: manager.ProbeIdentificationPair{
 			UID:          SecurityAgentUID,
-			EBPFFuncName: "hook_synthetic_syscall",
+			EBPFFuncName: "hook_on_demand_syscall",
 		},
 		KeepProgramSpec: true,
 	}
