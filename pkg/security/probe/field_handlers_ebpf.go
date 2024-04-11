@@ -534,16 +534,19 @@ func (fh *EBPFFieldHandlers) ResolveK8SGroups(_ *model.Event, evtCtx *model.User
 	return evtCtx.K8SGroups
 }
 
+// ResolveSyntheticName resolves the synthetic event name
 func (fh *EBPFFieldHandlers) ResolveSyntheticName(_ *model.Event, e *model.SyntheticEvent) string {
 	return fh.synthetics.hookPoints[e.ID].Name
 }
 
+// ResolveArg1Str resolves the string value of the first argument of hooked function
 func (fh *EBPFFieldHandlers) ResolveArg1Str(_ *model.Event, e *model.SyntheticEvent) string {
 	data := e.Data[0:64]
 	s := model.NullTerminatedString(data)
 	return s
 }
 
+// ResolveArg2Str resolves the string value of the second argument of hooked function
 func (fh *EBPFFieldHandlers) ResolveArg2Str(_ *model.Event, e *model.SyntheticEvent) string {
 	data := e.Data[64:128]
 	s := model.NullTerminatedString(data)

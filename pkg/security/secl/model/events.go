@@ -91,6 +91,7 @@ const (
 	SyscallsEventType
 	// AnomalyDetectionSyscallEventType Anomaly Detection Syscall event
 	AnomalyDetectionSyscallEventType
+	// SyntheticEventType is sent for synthetic events
 	SyntheticEventType
 	// MaxKernelEventType is used internally to get the maximum number of kernel events.
 	MaxKernelEventType

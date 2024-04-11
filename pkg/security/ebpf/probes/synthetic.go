@@ -12,6 +12,7 @@ import (
 	manager "github.com/DataDog/ebpf-manager"
 )
 
+// GetSyntheticProbes returns all the synthetic probes
 func GetSyntheticProbes() []*manager.Probe {
 	return []*manager.Probe{
 		GetSyntheticRegularProbe(),
@@ -19,6 +20,7 @@ func GetSyntheticProbes() []*manager.Probe {
 	}
 }
 
+// GetSyntheticRegularProbe returns the synthetic probe used for regular (non-sycall) function hooking
 func GetSyntheticRegularProbe() *manager.Probe {
 	return &manager.Probe{
 		ProbeIdentificationPair: manager.ProbeIdentificationPair{
@@ -29,6 +31,7 @@ func GetSyntheticRegularProbe() *manager.Probe {
 	}
 }
 
+// GetSyntheticSyscallProbe returns the synthetic probe used for sycall function hooking
 func GetSyntheticSyscallProbe() *manager.Probe {
 	return &manager.Probe{
 		ProbeIdentificationPair: manager.ProbeIdentificationPair{

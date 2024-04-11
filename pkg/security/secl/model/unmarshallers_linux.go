@@ -1116,6 +1116,7 @@ func (e *AnomalyDetectionSyscallEvent) UnmarshalBinary(data []byte) (int, error)
 	return 8, nil
 }
 
+// UnmarshalBinary unmarshalls a binary representation of itself
 func (e *SyntheticEvent) UnmarshalBinary(data []byte) (int, error) {
 	if len(data) < 260 {
 		return 0, ErrNotEnoughData

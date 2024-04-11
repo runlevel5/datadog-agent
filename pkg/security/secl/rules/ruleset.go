@@ -230,7 +230,8 @@ func (rs *RuleSet) GetRuleSetTag() eval.RuleSetTagValue {
 	return rs.opts.RuleSetTag[RuleSetTagKey]
 }
 
-func (rs *RuleSet) GetSyntheticProbes() []SyntheticHookPoint {
+// GetSyntheticHookPoints gets the synthetic hook points
+func (rs *RuleSet) GetSyntheticHookPoints() []SyntheticHookPoint {
 	return rs.syntheticHookPoints
 }
 
@@ -854,12 +855,14 @@ func (rs *RuleSet) NewEvent() eval.Event {
 	return rs.eventCtor()
 }
 
+// SyntheticHookPoint represents a hook point definition
 type SyntheticHookPoint struct {
 	Name      string         `yaml:"name"`
 	IsSyscall bool           `yaml:"syscall"`
 	Args      []HookPointArg `yaml:"args"`
 }
 
+// HookPointArg represents the definition of a hook point argument
 type HookPointArg struct {
 	N    int    `yaml:"n"`
 	Kind string `yaml:"kind"`

@@ -1442,7 +1442,7 @@ func (p *EBPFProbe) ApplyRuleSet(rs *rules.RuleSet) (*kfilters.ApplyRuleSetRepor
 		}
 	}
 
-	p.syntheticManager.hookPoints = rs.GetSyntheticProbes()
+	p.syntheticManager.hookPoints = rs.GetSyntheticHookPoints()
 
 	if err := p.updateProbes(rs.GetEventTypes(), needRawSyscalls); err != nil {
 		return nil, fmt.Errorf("failed to select probes: %w", err)
@@ -1990,6 +1990,7 @@ func (p *EBPFProbe) HandleActions(ctx *eval.Context, rule *rules.Rule) {
 	}
 }
 
+// SyntheticManager is the manager for synthetic probes
 type SyntheticManager struct {
 	hookPoints []rules.SyntheticHookPoint
 	manager    *manager.Manager
@@ -2002,7 +2003,7 @@ func (sm *SyntheticManager) updateProbes() {
 	}
 
 	sm.probes = make([]*manager.Probe, 0)
-	for hookId, hookPoint := range sm.hookPoints {
+	for hookID, hookPoint := range sm.hookPoints {
 		var baseProbe *manager.Probe
 		if hookPoint.IsSyscall {
 			baseProbe = probes.GetSyntheticSyscallProbe()
@@ -2023,7 +2024,7 @@ func (sm *SyntheticManager) updateProbes() {
 		argsEditors := buildArgsEditors(hookPoint.Args)
 		argsEditors = append(argsEditors, manager.ConstantEditor{
 			Name:  "synth_id",
-			Value: uint64(hookId),
+			Value: uint64(hookID),
 		})
 
 		if err := sm.manager.CloneProgram(probes.SecurityAgentUID, newProbe, argsEditors, nil); err != nil {
