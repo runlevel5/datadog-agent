@@ -345,16 +345,16 @@ func (fh *EBPFLessFieldHandlers) ResolveHashesFromEvent(ev *model.Event, f *mode
 func (fh *EBPFLessFieldHandlers) ResolveUserSessionContext(_ *model.UserSessionContext) {}
 
 // ResolveSyntheticName resolves the synthetic event name
-func (fh *EBPFLessFieldHandlers) ResolveSyntheticName(_ *model.Event, e *model.SyntheticEvent) string {
+func (fh *EBPFLessFieldHandlers) ResolveSyntheticName(_ *model.Event, _ *model.SyntheticEvent) string {
 	return ""
 }
 
 // ResolveArg1Str resolves the string value of the first argument of hooked function
-func (fh *EBPFLessFieldHandlers) ResolveArg1Str(_ *model.Event, e *model.SyntheticEvent) string {
+func (fh *EBPFLessFieldHandlers) ResolveArg1Str(_ *model.Event, _ *model.SyntheticEvent) string {
 	return ""
 }
 
 // ResolveArg2Str resolves the string value of the second argument of hooked function
-func (fh *EBPFLessFieldHandlers) ResolveArg2Str(_ *model.Event, e *model.SyntheticEvent) string {
+func (fh *EBPFLessFieldHandlers) ResolveArg2Str(_ *model.Event, _ *model.SyntheticEvent) string {
 	return ""
 }
