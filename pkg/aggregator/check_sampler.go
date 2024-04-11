@@ -160,14 +160,8 @@ func (cs *CheckSampler) commitSeries(timestamp float64) {
 }
 
 func (cs *CheckSampler) commitSketches(timestamp float64) {
-	pointsByCtx := make(map[ckey.ContextKey][]metrics.SketchPoint)
-
-	cs.sketchMap.flushBefore(int64(timestamp), func(ck ckey.ContextKey, p metrics.SketchPoint) {
-		if p.Sketch == nil {
-			return
-		}
-		pointsByCtx[ck] = append(pointsByCtx[ck], p)
-	})
+	done := cs.sketchMap.flushBefore(int64(timestamp))
+	pointsByCtx := done.toPoints()
 	for ck, points := range pointsByCtx {
 		cs.sketches = append(cs.sketches, cs.newSketchSeries(ck, points))
 	}

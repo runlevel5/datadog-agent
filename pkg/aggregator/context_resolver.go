@@ -236,10 +236,6 @@ func (cr *timestampContextResolver) countsByMtype() []uint64 {
 	return cr.resolver.countsByMtype
 }
 
-func (cr *timestampContextResolver) get(key ckey.ContextKey) (*Context, bool) {
-	return cr.resolver.get(key)
-}
-
 // expireContexts cleans up the contexts that haven't been tracked since the given timestamp
 // and returns the associated contextKeys.
 // keep can be used to retain contexts longer than their natural expiration time based on some condition.

@@ -66,21 +66,35 @@ func (m sketchMap) getOrCreate(ts int64, ck ckey.ContextKey) *quantile.Agent {
 	return s
 }
 
-// flushBefore calls f for every sketch inserted before beforeTs, removing flushed sketches
-// from the map.
-func (m sketchMap) flushBefore(beforeTs int64, f func(ckey.ContextKey, metrics.SketchPoint)) {
+// flushBefore removes and returns buckets before the timestamp.
+func (m sketchMap) flushBefore(beforeTs int64) sketchMap {
+	out := make(sketchMap)
+
 	for ts, byCtx := range m {
 		if ts >= beforeTs {
 			continue
 		}
 
-		for ck, as := range byCtx {
-			f(ck, metrics.SketchPoint{
-				Sketch: as.Finish(),
-				Ts:     ts,
-			})
-		}
-
+		out[ts] = byCtx
 		delete(m, ts)
 	}
+
+	return out
+}
+
+// toPoints finalizes sketches and aggregates points by context key.
+func (m sketchMap) toPoints() map[ckey.ContextKey][]metrics.SketchPoint {
+	pointsByCtx := make(map[ckey.ContextKey][]metrics.SketchPoint)
+	for ts, byCtx := range m {
+		for ck, as := range byCtx {
+			sketch := as.Finish()
+			if sketch != nil {
+				pointsByCtx[ck] = append(pointsByCtx[ck], metrics.SketchPoint{
+					Ts:     ts,
+					Sketch: sketch,
+				})
+			}
+		}
+	}
+	return pointsByCtx
 }

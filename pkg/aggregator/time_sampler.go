@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"sync"
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator/ckey"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/internal/tags"
@@ -107,8 +108,8 @@ func (s *TimeSampler) sample(metricSample *metrics.MetricSample, timestamp float
 	}
 }
 
-func (s *TimeSampler) newSketchSeries(ck ckey.ContextKey, points []metrics.SketchPoint) *metrics.SketchSeries {
-	ctx, ok := s.contextResolver.get(ck)
+func (s *TimeSampler) newSketchSeries(ck ckey.ContextKey, points []metrics.SketchPoint, contextBuffer map[ckey.ContextKey]*Context) *metrics.SketchSeries {
+	ctx, ok := contextBuffer[ck]
 	if !ok {
 		return nil
 	}
@@ -127,7 +128,7 @@ func (s *TimeSampler) newSketchSeries(ck ckey.ContextKey, points []metrics.Sketc
 	return ss
 }
 
-func (s *TimeSampler) flushSeries(cutoffTime int64, series metrics.SerieSink) {
+func (s *TimeSampler) flushSeries(cutoffTime int64, series metrics.SerieSink, wg *sync.WaitGroup, contextBuffer map[ckey.ContextKey]*Context) {
 	// Map to hold the expired contexts that will need to be deleted after the flush so that we stop sending zeros
 	counterContextsToDelete := map[ckey.ContextKey]struct{}{}
 	contextMetricsFlusher := metrics.NewContextMetricsFlusher()
@@ -158,10 +159,10 @@ func (s *TimeSampler) flushSeries(cutoffTime int64, series metrics.SerieSink) {
 
 	// serieBySignature is reused for each call of dedupSerieBySerieSignature to avoid allocations.
 	serieBySignature := make(map[SerieSignature]*metrics.Serie)
-	s.flushContextMetrics(contextMetricsFlusher, func(rawSeries []*metrics.Serie) {
+	go flushContextMetrics(contextMetricsFlusher, func(rawSeries []*metrics.Serie) {
 		// Note: rawSeries is reused at each call
-		s.dedupSerieBySerieSignature(rawSeries, series, serieBySignature)
-	})
+		s.dedupSerieBySerieSignature(rawSeries, series, serieBySignature, contextBuffer)
+	}, contextBuffer, wg)
 
 	// Delete the contexts associated to an expired counter
 	for context := range counterContextsToDelete {
@@ -173,6 +174,7 @@ func (s *TimeSampler) dedupSerieBySerieSignature(
 	rawSeries []*metrics.Serie,
 	serieSink metrics.SerieSink,
 	serieBySignature map[SerieSignature]*metrics.Serie,
+	contextBuffer map[ckey.ContextKey]*Context,
 ) {
 	// clear the map. Reuse serieBySignature
 	for k := range serieBySignature {
@@ -187,7 +189,7 @@ func (s *TimeSampler) dedupSerieBySerieSignature(
 			existingSerie.Points = append(existingSerie.Points, serie.Points[0])
 		} else {
 			// Resolve context and populate new Serie
-			context, ok := s.contextResolver.get(serie.ContextKey)
+			context, ok := contextBuffer[serie.ContextKey]
 			if !ok {
 				log.Errorf("TimeSampler #%d Ignoring all metrics on context key '%v': inconsistent context resolver state: the context is not tracked", s.id, serie.ContextKey)
 				continue
@@ -208,31 +210,39 @@ func (s *TimeSampler) dedupSerieBySerieSignature(
 	}
 }
 
-func (s *TimeSampler) flushSketches(cutoffTime int64, sketchesSink metrics.SketchesSink) {
-	pointsByCtx := make(map[ckey.ContextKey][]metrics.SketchPoint)
+func (s *TimeSampler) flushSketches(cutoffTime int64, sketchesSink metrics.SketchesSink, wg *sync.WaitGroup, contextBuffer map[ckey.ContextKey]*Context) {
+	done := s.sketchMap.flushBefore(cutoffTime)
+	go func() {
+		pointsByCtx := done.toPoints()
+		for ck, points := range pointsByCtx {
+			ss := s.newSketchSeries(ck, points, contextBuffer)
+			if ss == nil {
+				log.Errorf("TimeSampler #%d Ignoring all metrics on context key '%v': inconsistent context resolver state: the context is not tracked", s.id, ck)
+				continue
+			}
+			sketchesSink.Append(ss)
+		}
 
-	s.sketchMap.flushBefore(cutoffTime, func(ck ckey.ContextKey, p metrics.SketchPoint) {
-		if p.Sketch == nil {
-			return
-		}
-		pointsByCtx[ck] = append(pointsByCtx[ck], p)
-	})
-	for ck, points := range pointsByCtx {
-		ss := s.newSketchSeries(ck, points)
-		if ss == nil {
-			log.Errorf("TimeSampler #%d Ignoring all metrics on context key '%v': inconsistent context resolver state: the context is not tracked", s.id, ck)
-			continue
-		}
-		sketchesSink.Append(ss)
-	}
+		wg.Done()
+	}()
 }
 
-func (s *TimeSampler) flush(timestamp float64, series metrics.SerieSink, sketches metrics.SketchesSink) {
+func (s *TimeSampler) flush(timestamp float64, series metrics.SerieSink, sketches metrics.SketchesSink, blockChan chan struct{}) {
+	// Comes first, because it can not use SerieSink at the same time as
+	s.sendTelemetry(timestamp, series)
+
+	wg := &sync.WaitGroup{}
+	// Shallow copy of the context resolver
+	contextBuffer := make(map[ckey.ContextKey]*Context, len(s.contextResolver.resolver.contextsByKey))
+	for k, v := range s.contextResolver.resolver.contextsByKey {
+		contextBuffer[k] = v
+	}
+
 	// Compute a limit timestamp
 	cutoffTime := s.calculateBucketStart(timestamp)
-
-	s.flushSeries(cutoffTime, series)
-	s.flushSketches(cutoffTime, sketches)
+	wg.Add(2)
+	s.flushSeries(cutoffTime, series, wg, contextBuffer)
+	s.flushSketches(cutoffTime, sketches, wg, contextBuffer)
 
 	// expiring contexts
 	s.contextResolver.expireContexts(timestamp-config.Datadog.GetFloat64("dogstatsd_context_expiry_seconds"),
@@ -243,7 +253,11 @@ func (s *TimeSampler) flush(timestamp float64, series metrics.SerieSink, sketche
 	s.lastCutOffTime = cutoffTime
 
 	s.updateMetrics()
-	s.sendTelemetry(timestamp, series)
+
+	go func() {
+		wg.Wait()
+		blockChan <- struct{}{}
+	}()
 }
 
 // We do this here mostly because we want to avoid slow operations when we track/remove
@@ -266,16 +280,17 @@ func (s *TimeSampler) updateMetrics() {
 
 // flushContextMetrics flushes the contextMetrics inside contextMetricsFlusher, handles its errors,
 // and call several times `callback`, each time with series with same context key
-func (s *TimeSampler) flushContextMetrics(contextMetricsFlusher *metrics.ContextMetricsFlusher, callback func([]*metrics.Serie)) {
+func flushContextMetrics(contextMetricsFlusher *metrics.ContextMetricsFlusher, callback func([]*metrics.Serie), contextBuffer map[ckey.ContextKey]*Context, wg *sync.WaitGroup) {
 	errors := contextMetricsFlusher.FlushAndClear(callback)
 	for ckey, err := range errors {
-		context, ok := s.contextResolver.get(ckey)
+		context, ok := contextBuffer[ckey]
 		if !ok {
 			log.Errorf("Can't resolve context of error '%s': inconsistent context resolver state: context with key '%v' is not tracked", err, ckey)
 			continue
 		}
 		log.Infof("No value returned for dogstatsd metric '%s' on host '%s' and tags '%s': %s", context.Name, context.Host, context.Tags(), err)
 	}
+	wg.Done()
 }
 
 func (s *TimeSampler) countersSampleZeroValue(timestamp int64, contextMetrics metrics.ContextMetrics, counterContextsToDelete map[ckey.ContextKey]struct{}) {
