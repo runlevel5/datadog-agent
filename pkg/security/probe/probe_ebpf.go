@@ -2016,7 +2016,7 @@ func (sm *OnDemandProbesManager) updateProbes() {
 		newProbe.UID = fmt.Sprintf("%s_%s_on_demand", probes.SecurityAgentUID, hookPoint.Name)
 		newProbe.KeepProgramSpec = false
 		if hookPoint.IsSyscall {
-			newProbe.HookFuncName = "__arm64_sys_" + hookPoint.Name
+			newProbe.HookFuncName = probes.GetSyscallFnName(hookPoint.Name)
 		} else {
 			newProbe.HookFuncName = hookPoint.Name
 		}
