@@ -133,6 +133,7 @@ type EBPFProbe struct {
 	isRuntimeDiscarded bool
 	constantOffsets    map[string]uint64
 	runtimeCompiled    bool
+	useSyscallWrapper  bool
 	useFentry          bool
 
 	onDemandManager *OnDemandProbesManager
@@ -259,8 +260,9 @@ func (p *EBPFProbe) Init() error {
 	if err != nil {
 		return err
 	}
+	p.useSyscallWrapper = useSyscallWrapper
 
-	loader := ebpf.NewProbeLoader(p.config.Probe, useSyscallWrapper, p.UseRingBuffers(), p.useFentry, p.statsdClient)
+	loader := ebpf.NewProbeLoader(p.config.Probe, p.useSyscallWrapper, p.UseRingBuffers(), p.useFentry, p.statsdClient)
 	defer loader.Close()
 
 	bytecodeReader, runtimeCompiled, err := loader.Load()
@@ -1717,23 +1719,8 @@ func NewEBPFProbe(probe *Probe, config *config.Config, opts Opts, wmeta optional
 		return nil, err
 	}
 
-	/*hookPoints := []rules.OnDemandHookPoint{
-		{
-			Name: "do_sys_openat2",
-			Args: []rules.HookPointArg{
-				{
-					N:    1,
-					Kind: "int",
-				},
-				{
-					N:    2,
-					Kind: "null-terminated-string",
-				},
-			},
-		},
-	}*/
-
 	p.onDemandManager = &OnDemandProbesManager{
+		probe:   p,
 		manager: p.Manager,
 	}
 
@@ -1992,6 +1979,8 @@ func (p *EBPFProbe) HandleActions(ctx *eval.Context, rule *rules.Rule) {
 
 // OnDemandProbesManager is the manager for on-demand probes
 type OnDemandProbesManager struct {
+	probe *EBPFProbe
+
 	hookPoints []rules.OnDemandHookPoint
 	manager    *manager.Manager
 	probes     []*manager.Probe
@@ -2005,7 +1994,7 @@ func (sm *OnDemandProbesManager) updateProbes() {
 	sm.probes = make([]*manager.Probe, 0)
 	for hookID, hookPoint := range sm.hookPoints {
 		var baseProbe *manager.Probe
-		if hookPoint.IsSyscall {
+		if hookPoint.IsSyscall && sm.probe.useSyscallWrapper {
 			baseProbe = probes.GetOnDemandSyscallProbe()
 		} else {
 			baseProbe = probes.GetOnDemandRegularProbe()
