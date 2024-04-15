@@ -40,6 +40,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/process/procutil"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
 	timeresolver "github.com/DataDog/datadog-agent/pkg/security/resolvers/time"
+	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -100,6 +101,8 @@ type Tracer struct {
 	processCache *processCache
 
 	timeResolver *timeresolver.Resolver
+
+	rawPacketChan chan *model.Event
 }
 
 // NewTracer creates a Tracer
@@ -184,7 +187,9 @@ func newTracer(cfg *config.Config) (_ *Tracer, reterr error) {
 		log.Info("gateway lookup enabled")
 	}
 
-	tr.reverseDNS = newReverseDNS(cfg)
+	tr.rawPacketChan = make(chan *model.Event, 1000)
+
+	tr.reverseDNS = newReverseDNS(cfg, tr.rawPacketChan)
 	tr.usmMonitor = newUSMMonitor(cfg, tr.ebpfTracer)
 
 	if cfg.EnableProcessEventMonitoring {
@@ -202,6 +207,8 @@ func newTracer(cfg *config.Config) (_ *Tracer, reterr error) {
 		}
 
 		events.RegisterHandler(tr.processCache)
+
+		events.RegisterPacketHandler(tr)
 	}
 
 	tr.sourceExcludes = network.ParseConnectionFilters(cfg.ExcludedSourceConnections)
@@ -218,6 +225,13 @@ func newTracer(cfg *config.Config) (_ *Tracer, reterr error) {
 	)
 
 	return tr, nil
+}
+
+func (tr *Tracer) HandlePacket(ev *model.Event) {
+	select {
+	case tr.rawPacketChan <- ev:
+	default:
+	}
 }
 
 // start starts the tracer. This function is present to separate
@@ -276,12 +290,12 @@ func newConntracker(cfg *config.Config) (netlink.Conntracker, error) {
 	return nil, fmt.Errorf("error initializing conntracker: %s. set network_config.ignore_conntrack_init_failure to true to ignore conntrack failures on startup", err)
 }
 
-func newReverseDNS(c *config.Config) dns.ReverseDNS {
+func newReverseDNS(c *config.Config, ch chan *model.Event) dns.ReverseDNS {
 	if !c.DNSInspection {
 		return dns.NewNullReverseDNS()
 	}
 
-	rdns, err := dns.NewReverseDNS(c)
+	rdns, err := dns.NewReverseDNS(c, ch)
 	if err != nil {
 		log.Errorf("could not instantiate dns inspector: %s", err)
 		return dns.NewNullReverseDNS()

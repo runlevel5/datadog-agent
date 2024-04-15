@@ -40,5 +40,9 @@ func NewNetworkConsumer(evm *eventmonitor.EventMonitor) (*NetworkConsumer, error
 		return nil, err
 	}
 
+	if err := evm.AddEventTypeHandler(smodel.RawPacketEventType, h); err != nil {
+		return nil, err
+	}
+
 	return &NetworkConsumer{}, nil
 }
