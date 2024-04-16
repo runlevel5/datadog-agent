@@ -154,7 +154,6 @@ func (fh *forwarderHealth) healthCheckLoop() {
 			valid := fh.checkValidAPIKey()
 			if !valid {
 				fh.log.Errorf("No valid api key found, reporting the forwarder as unhealthy.")
-				return
 			}
 		case <-fh.health.C:
 		}
