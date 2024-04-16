@@ -104,7 +104,7 @@ int classifier_dns_request(struct __sk_buff *skb) {
 
     struct dnshdr header = {};
     if (bpf_skb_load_bytes(skb, pkt->offset, &header, sizeof(header)) < 0) {
-        return ACT_OK;
+        goto parser;
     }
     pkt->offset += sizeof(header);
 
@@ -115,6 +115,7 @@ int classifier_dns_request(struct __sk_buff *skb) {
     evt->qdcount = htons(header.qdcount);
     evt->id = htons(header.id);
 
+parser:
     // tail call to the dns request parser
     tail_call_to_classifier(skb, DNS_REQUEST_PARSER);
 
