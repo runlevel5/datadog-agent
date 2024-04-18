@@ -230,11 +230,11 @@ int kretprobe__tcp_close_clean_protocols(struct pt_regs *ctx) {
     return 0;
 }
 
-SEC("kretprobe/tcp_close")
-int kretprobe__tcp_close_flush(struct pt_regs *ctx) {
-    flush_conn_close_if_full(ctx);
-    return 0;
-}
+//SEC("kretprobe/tcp_close")
+//int kretprobe__tcp_close_flush(struct pt_regs *ctx) {
+//    flush_conn_close_if_full(ctx);
+//    return 0;
+//}
 
 #if !defined(COMPILE_RUNTIME) || defined(FEATURE_UDPV6_ENABLED)
 
@@ -1009,17 +1009,17 @@ int kprobe__udpv6_destroy_sock(struct pt_regs *ctx) {
     return handle_udp_destroy_sock(ctx, sk);
 }
 
-SEC("kretprobe/udp_destroy_sock")
-int kretprobe__udp_destroy_sock(struct pt_regs *ctx) {
-    flush_conn_close_if_full(ctx);
-    return 0;
-}
+//SEC("kretprobe/udp_destroy_sock")
+//int kretprobe__udp_destroy_sock(struct pt_regs *ctx) {
+//    flush_conn_close_if_full(ctx);
+//    return 0;
+//}
 
-SEC("kretprobe/udpv6_destroy_sock")
-int kretprobe__udpv6_destroy_sock(struct pt_regs *ctx) {
-    flush_conn_close_if_full(ctx);
-    return 0;
-}
+//SEC("kretprobe/udpv6_destroy_sock")
+//int kretprobe__udpv6_destroy_sock(struct pt_regs *ctx) {
+//    flush_conn_close_if_full(ctx);
+//    return 0;
+//}
 
 SEC("kprobe/inet_bind")
 int kprobe__inet_bind(struct pt_regs *ctx) {

@@ -10,9 +10,6 @@ import (
 	"strings"
 	"time"
 
-	cebpf "github.com/cilium/ebpf"
-	"github.com/cilium/ebpf/features"
-
 	sysconfig "github.com/DataDog/datadog-agent/cmd/system-probe/config"
 	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/ebpf"
@@ -418,5 +415,6 @@ func New() *Config {
 }
 
 func (c *Config) RingBufferSupportedNPM() bool {
-	return (features.HaveMapType(cebpf.RingBuf) == nil) && c.NPMRingbuffersEnabled
+	return false
+	//return (features.HaveMapType(cebpf.RingBuf) == nil) && c.NPMRingbuffersEnabled
 }

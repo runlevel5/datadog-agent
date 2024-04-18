@@ -248,12 +248,12 @@ func NewTracer(config *config.Config) (Tracer, error) {
 	m.DumpHandler = dumpMapsHandler
 	ebpfcheck.AddNameMappings(m, "npm_tracer")
 
-	batchMgr, err := newConnBatchManager(m)
-	if err != nil {
-		return nil, fmt.Errorf("could not create connection batch manager: %w", err)
-	}
+	//batchMgr, err := newConnBatchManager(m)
+	//if err != nil {
+	//	return nil, fmt.Errorf("could not create connection batch manager: %w", err)
+	//}
 
-	closeConsumer := newTCPCloseConsumer(connCloseEventHandler, batchMgr)
+	closeConsumer := newTCPCloseConsumer(connCloseEventHandler)
 
 	tr := &tracer{
 		m:              m,

@@ -33,6 +33,7 @@ type PerfHandler struct {
 	lostChannel chan uint64
 	once        sync.Once
 	closed      bool
+	wakeable    Wakeable
 }
 
 // NewPerfHandler creates a PerfHandler
@@ -71,6 +72,14 @@ func (c *PerfHandler) DataChannel() <-chan *DataEvent {
 // LostChannel returns the channel with lost events
 func (c *PerfHandler) LostChannel() <-chan uint64 {
 	return c.lostChannel
+}
+
+func (c *PerfHandler) SetWakeable(wakeable Wakeable) {
+	c.wakeable = wakeable
+}
+
+func (c *PerfHandler) Wakeup() {
+	c.wakeable.Wakeup()
 }
 
 // Stop stops the perf handler and closes both channels

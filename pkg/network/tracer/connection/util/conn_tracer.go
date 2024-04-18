@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/ebpf"
 	ebpftelemetry "github.com/DataDog/datadog-agent/pkg/ebpf/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/network/config"
+	netebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -72,6 +73,7 @@ func SetupClosedConnHandler(connCloseEventHandler ebpf.EventHandler, mgr *ebpf.M
 			RingBufferOptions: options,
 		}
 
+		handler.SetWakeable(rb)
 		mgr.RingBuffers = []*manager.RingBuffer{rb}
 		ebpftelemetry.ReportRingBufferTelemetry(rb)
 	case *ebpf.PerfHandler:
@@ -79,13 +81,14 @@ func SetupClosedConnHandler(connCloseEventHandler ebpf.EventHandler, mgr *ebpf.M
 			Map: manager.Map{Name: probes.ConnCloseEventMap},
 			PerfMapOptions: manager.PerfMapOptions{
 				PerfRingBufferSize: computeDefaultClosedConnPerfBufferSize(),
-				Watermark:          1,
+				WakeupEvents:       netebpf.BatchSize,
 				RecordHandler:      handler.RecordHandler,
 				LostHandler:        handler.LostHandler,
 				RecordGetter:       handler.RecordGetter,
 				TelemetryEnabled:   cfg.InternalTelemetryEnabled,
 			},
 		}
+		handler.SetWakeable(pm)
 		mgr.PerfMaps = []*manager.PerfMap{pm}
 		ebpftelemetry.ReportPerfMapTelemetry(pm)
 		helperCallRemover := ebpf.NewHelperCallRemover(asm.FnRingbufOutput)

@@ -15,9 +15,15 @@ import (
 // EventHandler is the common interface shared across perf map and perf ring
 // buffer handlers
 type EventHandler interface {
+	Wakeable
 	DataChannel() <-chan *DataEvent
 	LostChannel() <-chan uint64
+	SetWakeable(wakeable Wakeable)
 	Stop()
+}
+
+type Wakeable interface {
+	Wakeup()
 }
 
 // DataEvent encapsulates a single event read from a perf buffer
