@@ -2,6 +2,7 @@ import os
 import re
 import sys
 from collections import defaultdict
+from glob import glob
 from typing import List
 
 from invoke import Exit, task
@@ -15,6 +16,7 @@ from tasks.libs.ciproviders.gitlab_api import (
     get_gitlab_repo,
     get_preset_contexts,
     load_context,
+    read_includes,
 )
 from tasks.libs.common.check_tools_version import check_tools_version
 from tasks.libs.common.utils import DEFAULT_BRANCH, GITHUB_REPO_NAME, color_message, is_pr_context
@@ -424,3 +426,35 @@ def releasenote(ctx):
 def update_go(_):
     _update_references(warn=False, version="1.2.3", dry_run=True)
     _update_go_mods(warn=False, version="1.2.3", include_otel_modules=True, dry_run=True)
+
+
+@task(iterable=['e2e_test_files'])
+def e2e_change_path(_, e2e_test_files=None):
+    """
+    Verify that all e2e tests contain a change path rule.
+    """
+    e2e_test_files = e2e_test_files or (['.gitlab/e2e/e2e.yml'] + list(glob('.gitlab/kitchen_testing/*.yml')))
+
+    # Read gitlab config
+    config = generate_gitlab_full_configuration(".gitlab-ci.yml", {}, return_dump=False, apply_postprocessing=True)
+
+    # Fetch all test jobs
+    e2e_config = read_includes(e2e_test_files, return_config=True, add_file_path=True)
+    e2e_tests = [(test, data['_file_path']) for test, data in e2e_config.items() if test[0] != '.']
+
+    # Verify that all e2e tests contain a change path rule
+    tests_without_change_path = defaultdict(list)
+    for test, filepath in e2e_tests:
+        if not any(
+            'changes' in rule and 'paths' in rule['changes'] for rule in config[test]['rules'] if isinstance(rule, dict)
+        ):
+            tests_without_change_path[filepath].append(test)
+
+    if len(tests_without_change_path) != 0:
+        print(color_message("error: Tests not containing any change path rule:", "red"), file=sys.stderr)
+        for filepath, tests in tests_without_change_path.items():
+            print(f"- {color_message(filepath, 'bold')}: {', '.join(tests)}", file=sys.stderr)
+
+        raise RuntimeError('Some tests do not contain any change path rule')
+    else:
+        print(color_message("success: All e2e tests contain a change path rule", "green"))
