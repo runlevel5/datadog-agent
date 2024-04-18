@@ -14,7 +14,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/metadata/inventoryhost/inventoryhostimpl"
 	"github.com/DataDog/datadog-agent/comp/metadata/packagesigning/packagesigningimpl"
 	"github.com/DataDog/datadog-agent/comp/metadata/resources/resourcesimpl"
-	"github.com/DataDog/datadog-agent/comp/metadata/runner/runnerimpl"
+	runnerFx "github.com/DataDog/datadog-agent/comp/metadata/runner/fx"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
@@ -23,7 +23,7 @@ import (
 // Bundle defines the fx options for this bundle.
 func Bundle() fxutil.BundleOptions {
 	return fxutil.Bundle(
-		runnerimpl.Module(),
+		runnerFx.Module(),
 		resourcesimpl.Module(),
 		hostimpl.Module(),
 		inventoryagentimpl.Module(),

@@ -51,7 +51,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/metadata/inventoryhost/inventoryhostimpl"
 	"github.com/DataDog/datadog-agent/comp/metadata/resources"
 	"github.com/DataDog/datadog-agent/comp/metadata/resources/resourcesimpl"
-	"github.com/DataDog/datadog-agent/comp/metadata/runner"
+	runner "github.com/DataDog/datadog-agent/comp/metadata/runner/def"
 	metadatarunnerimpl "github.com/DataDog/datadog-agent/comp/metadata/runner/runnerimpl"
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/serializer"

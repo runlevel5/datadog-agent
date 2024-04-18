@@ -15,7 +15,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/comp/metadata/resources"
-	"github.com/DataDog/datadog-agent/comp/metadata/runner/runnerimpl"
+	runner "github.com/DataDog/datadog-agent/comp/metadata/runner/def"
 	configUtils "github.com/DataDog/datadog-agent/pkg/config/utils"
 	"github.com/DataDog/datadog-agent/pkg/gohai/processes"
 	"github.com/DataDog/datadog-agent/pkg/serializer"
@@ -23,8 +23,10 @@ import (
 	"go.uber.org/fx"
 )
 
-const defaultCollectInterval = 300 * time.Second
-const providerName = "resources"
+const (
+	defaultCollectInterval = 300 * time.Second
+	providerName           = "resources"
+)
 
 type resourcesImpl struct {
 	log log.Component
@@ -55,7 +57,7 @@ type provides struct {
 	fx.Out
 
 	Comp     resources.Component
-	Provider runnerimpl.Provider
+	Provider runner.Provider
 }
 
 func newResourcesProvider(deps dependencies) provides {
@@ -97,7 +99,7 @@ func newResourcesProvider(deps dependencies) provides {
 		deps.Log.Infof("Collection interval for 'resources' metadata provider is set to 0: disabling it")
 	} else {
 		deps.Log.Debugf("Collection interval for 'resources' metadata provider is set to %s", collectInterval)
-		res.Provider = runnerimpl.NewProvider(r.collect)
+		res.Provider = runner.NewProvider(r.collect)
 	}
 
 	return res

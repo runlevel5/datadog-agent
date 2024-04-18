@@ -34,6 +34,12 @@ func (m mockDependencies) getSecretResolver() (secrets.Component, bool) {
 	return nil, false
 }
 
+// NewMock returns a new mock for the Config.Component
+func NewMock(t testing.TB) Component {
+	comp, _ := newMock(mockDependencies{}, t)
+	return comp
+}
+
 // newMock exported mock builder to allow modifying mocks that might be
 // supplied in tests and used for dep injection.
 func newMock(deps mockDependencies, t testing.TB) (Component, error) {

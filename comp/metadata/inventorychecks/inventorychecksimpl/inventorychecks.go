@@ -23,7 +23,7 @@ import (
 	logagent "github.com/DataDog/datadog-agent/comp/logs/agent"
 	"github.com/DataDog/datadog-agent/comp/metadata/internal/util"
 	"github.com/DataDog/datadog-agent/comp/metadata/inventorychecks"
-	"github.com/DataDog/datadog-agent/comp/metadata/runner/runnerimpl"
+	runner "github.com/DataDog/datadog-agent/comp/metadata/runner/def"
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
 	checkid "github.com/DataDog/datadog-agent/pkg/collector/check/id"
 	"github.com/DataDog/datadog-agent/pkg/logs/sources"
@@ -42,8 +42,10 @@ func Module() fxutil.Module {
 	)
 }
 
-type metadata map[string]interface{}
-type checksMetadata map[string][]metadata
+type (
+	metadata       map[string]interface{}
+	checksMetadata map[string][]metadata
+)
 
 // Payload handles the JSON unmarshalling of the metadata payload
 type Payload struct {
@@ -101,7 +103,7 @@ type provides struct {
 	fx.Out
 
 	Comp          inventorychecks.Component
-	Provider      runnerimpl.Provider
+	Provider      runner.Provider
 	FlareProvider flaretypes.Provider
 }
 

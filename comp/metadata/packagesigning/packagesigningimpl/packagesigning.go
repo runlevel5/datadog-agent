@@ -21,7 +21,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/metadata/internal/util"
 	"github.com/DataDog/datadog-agent/comp/metadata/packagesigning"
 	pkgUtils "github.com/DataDog/datadog-agent/comp/metadata/packagesigning/utils"
-	"github.com/DataDog/datadog-agent/comp/metadata/runner/runnerimpl"
+	runner "github.com/DataDog/datadog-agent/comp/metadata/runner/def"
 	"github.com/DataDog/datadog-agent/pkg/serializer"
 	"github.com/DataDog/datadog-agent/pkg/serializer/marshaler"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
@@ -85,7 +85,7 @@ type provides struct {
 	fx.Out
 
 	Comp          packagesigning.Component
-	Provider      runnerimpl.Provider
+	Provider      runner.Provider
 	FlareProvider flaretypes.Provider
 }
 
@@ -112,7 +112,7 @@ func newPackageSigningProvider(deps dependencies) provides {
 	is.InventoryPayload.MaxInterval = defaultCollectInterval
 	is.InventoryPayload.MinInterval = defaultCollectInterval
 	is.InventoryPayload.Enabled = isPackageSigningEnabled(deps.Config, is.log)
-	var provider runnerimpl.Provider
+	var provider runner.Provider
 	if is.InventoryPayload.Enabled {
 		if getPkgManager() != "" {
 			// Package signing telemetry is only valid on Linux and DEB/RPM based distros (including SUSE)
@@ -158,7 +158,6 @@ func isAllowedInstallationTool(installTool string) bool {
 }
 
 func (is *pkgSigning) getData() []signingKey {
-
 	transport := httputils.CreateHTTPTransport(is.conf)
 	client := &http.Client{Transport: transport}
 
@@ -174,7 +173,6 @@ func (is *pkgSigning) getData() []signingKey {
 }
 
 func (is *pkgSigning) getPayload() marshaler.JSONMarshaler {
-
 	return &Payload{
 		Hostname:  is.hostname,
 		Timestamp: time.Now().UnixNano(),

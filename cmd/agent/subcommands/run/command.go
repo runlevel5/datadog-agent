@@ -96,7 +96,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/metadata/inventorychecks"
 	"github.com/DataDog/datadog-agent/comp/metadata/inventoryhost"
 	"github.com/DataDog/datadog-agent/comp/metadata/packagesigning"
-	"github.com/DataDog/datadog-agent/comp/metadata/runner"
+	runner "github.com/DataDog/datadog-agent/comp/metadata/runner/def"
 	"github.com/DataDog/datadog-agent/comp/ndmtmp"
 	"github.com/DataDog/datadog-agent/comp/netflow"
 	netflowServer "github.com/DataDog/datadog-agent/comp/netflow/server"
@@ -477,7 +477,6 @@ func startAgent(
 	jmxLogger jmxlogger.Component,
 	settings settings.Component,
 ) error {
-
 	var err error
 
 	if flavor.GetFlavor() == flavor.IotAgent {

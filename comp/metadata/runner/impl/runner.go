@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package runnerimpl
+package impl
 
 import (
 	"context"
@@ -12,68 +12,41 @@ import (
 
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
-	"github.com/DataDog/datadog-agent/comp/metadata/runner"
+	compdef "github.com/DataDog/datadog-agent/comp/def"
+	"github.com/DataDog/datadog-agent/comp/metadata/runner/def"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
-	"go.uber.org/fx"
 )
-
-// Module defines the fx options for this component.
-func Module() fxutil.Module {
-	return fxutil.Component(fx.Provide(newRunner))
-}
-
-// MetadataProvider is the provider for metadata
-type MetadataProvider func(context.Context) time.Duration
 
 type runnerImpl struct {
 	log    log.Component
 	config config.Component
 
-	providers []MetadataProvider
+	providers []def.MetadataProvider
 
 	wg       sync.WaitGroup
 	stopChan chan struct{}
 }
 
-type dependencies struct {
-	fx.In
-
+type Requires struct {
 	Log    log.Component
 	Config config.Component
+	Lc     *compdef.Lifecycle
 
-	Providers []MetadataProvider `group:"metadata_provider"`
+	Providers []def.MetadataProvider `group:"metadata_provider"`
 }
 
-// Provider represents the callback from a metada provider. This is returned by 'NewProvider' helper.
-type Provider struct {
-	fx.Out
-
-	Callback MetadataProvider `group:"metadata_provider"`
-}
-
-// NewProvider registers a new metadata provider by adding a callback to the runner.
-func NewProvider(callback MetadataProvider) Provider {
-	return Provider{
-		Callback: callback,
-	}
-}
-
-// createRunner instantiates a runner object
-func createRunner(deps dependencies) *runnerImpl {
-	return &runnerImpl{
+// NewRunner returns a new runner for metadata
+func NewRunner(deps Requires) def.Component {
+	r := &runnerImpl{
 		log:       deps.Log,
 		config:    deps.Config,
 		providers: fxutil.GetAndFilterGroup(deps.Providers),
 		stopChan:  make(chan struct{}),
 	}
-}
-
-func newRunner(lc fx.Lifecycle, deps dependencies) runner.Component {
-	r := createRunner(deps)
 
 	if deps.Config.GetBool("enable_metadata_collection") {
 		// We rely on FX to start and stop the metadata runner
-		lc.Append(fx.Hook{
+		deps.Lc.Append(compdef.Hook{
 			OnStart: func(ctx context.Context) error {
 				return r.start()
 			},
@@ -88,7 +61,7 @@ func newRunner(lc fx.Lifecycle, deps dependencies) runner.Component {
 }
 
 // handleProvider runs a provider at regular interval until the runner is stopped
-func (r *runnerImpl) handleProvider(p MetadataProvider) {
+func (r *runnerImpl) handleProvider(p def.MetadataProvider) {
 	r.log.Debugf("Starting runner for MetadataProvider %#v", p)
 	r.wg.Add(1)
 

@@ -20,7 +20,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/status"
 	hostComp "github.com/DataDog/datadog-agent/comp/metadata/host"
 	"github.com/DataDog/datadog-agent/comp/metadata/resources"
-	"github.com/DataDog/datadog-agent/comp/metadata/runner/runnerimpl"
+	runner "github.com/DataDog/datadog-agent/comp/metadata/runner/def"
 	configUtils "github.com/DataDog/datadog-agent/pkg/config/utils"
 	"github.com/DataDog/datadog-agent/pkg/serializer"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
@@ -31,8 +31,10 @@ import (
 const defaultCollectInterval = 1800 * time.Second
 
 // the host metadata collector interval can be set through configuration within acceptable bounds
-const minAcceptedInterval = 300   // 5min
-const maxAcceptedInterval = 14400 // 4h
+const (
+	minAcceptedInterval = 300   // 5min
+	maxAcceptedInterval = 14400 // 4h
+)
 
 const providerName = "host"
 
@@ -66,7 +68,7 @@ type provides struct {
 	fx.Out
 
 	Comp                 hostComp.Component
-	MetadataProvider     runnerimpl.Provider
+	MetadataProvider     runner.Provider
 	FlareProvider        flaretypes.Provider
 	StatusHeaderProvider status.HeaderInformationProvider
 }
@@ -102,7 +104,7 @@ func newHostProvider(deps dependencies) provides {
 	}
 	return provides{
 		Comp:             &h,
-		MetadataProvider: runnerimpl.NewProvider(h.collect),
+		MetadataProvider: runner.NewProvider(h.collect),
 		FlareProvider:    flaretypes.NewProvider(h.fillFlare),
 		StatusHeaderProvider: status.NewHeaderInformationProvider(StatusProvider{
 			Config: h.config,

@@ -8,7 +8,6 @@
 package logimpl
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -51,7 +50,13 @@ func (tbw *tbWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func newMockLogger(t testing.TB, lc fx.Lifecycle) (log.Component, error) {
+// NewMock returns a new mock for the log Component
+func NewMock(t testing.TB) log.Component {
+	comp, _ := newMockLogger(t)
+	return comp
+}
+
+func newMockLogger(t testing.TB) (log.Component, error) {
 	// Build a logger that only logs to t.Log(..)
 	iface, err := seelog.LoggerFromWriterWithMinLevelAndFormat(&tbWriter{t}, seelog.TraceLvl,
 		"%Date(2006-01-02 15:04:05 MST) | %LEVEL | (%ShortFilePath:%Line in %FuncShort) | %ExtraTextContext%Msg%n")
@@ -60,12 +65,11 @@ func newMockLogger(t testing.TB, lc fx.Lifecycle) (log.Component, error) {
 	}
 
 	// flush the seelog logger when the test app stops
-	lc.Append(fx.Hook{OnStop: func(context.Context) error {
+	t.Cleanup(func() {
 		// stop using the logger to avoid a race condition
 		pkglog.ChangeLogLevel(seelog.Default, "debug")
 		iface.Flush()
-		return nil
-	}})
+	})
 
 	// install the logger into pkg/util/log
 	pkglog.ChangeLogLevel(iface, "debug")
@@ -73,11 +77,11 @@ func newMockLogger(t testing.TB, lc fx.Lifecycle) (log.Component, error) {
 	return &logger{}, nil
 }
 
-func newTraceMockLogger(t testing.TB, lc fx.Lifecycle, params Params, cfg config.Component) (log.Component, error) {
+func newTraceMockLogger(t testing.TB, params Params, cfg config.Component) (log.Component, error) {
 	// Make sure we are setting a default value on purpose.
 	logFilePath := params.logFileFn(cfg)
 	if logFilePath != os.Getenv("DDTEST_DEFAULT_LOG_FILE_PATH") {
 		return nil, fmt.Errorf("unexpected default log file path: %q", logFilePath)
 	}
-	return newMockLogger(t, lc)
+	return newMockLogger(t)
 }

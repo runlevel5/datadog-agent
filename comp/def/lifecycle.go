@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package compDef
+package def
 
 import (
 	"context"
@@ -25,6 +25,12 @@ type HookStorage struct {
 // Lifecycle should be added to a component's requires struct if it wants to add hooks
 type Lifecycle struct {
 	storage *HookStorage
+}
+
+func NewLifecycle() *Lifecycle {
+	return &Lifecycle{
+		storage: &HookStorage{},
+	}
 }
 
 // SetStorage assigns HookStorage to a Lifecycle
