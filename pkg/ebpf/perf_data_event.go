@@ -22,6 +22,7 @@ type EventHandler interface {
 	Stop()
 }
 
+// Wakeable is an object that can be woken up from a blocking operation
 type Wakeable interface {
 	Wakeup()
 }

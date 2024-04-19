@@ -69,10 +69,12 @@ func (c *RingBufferHandler) LostChannel() <-chan uint64 {
 	return c.lostChannel
 }
 
+// SetWakeable sets the Wakeable object
 func (c *RingBufferHandler) SetWakeable(wakeable Wakeable) {
 	c.wakeable = wakeable
 }
 
+// Wakeup wakes up the Wakeable object
 func (c *RingBufferHandler) Wakeup() {
 	c.wakeable.Wakeup()
 }

@@ -74,10 +74,12 @@ func (c *PerfHandler) LostChannel() <-chan uint64 {
 	return c.lostChannel
 }
 
+// SetWakeable sets the Wakeable object
 func (c *PerfHandler) SetWakeable(wakeable Wakeable) {
 	c.wakeable = wakeable
 }
 
+// Wakeup wakes up the Wakeable object
 func (c *PerfHandler) Wakeup() {
 	c.wakeable.Wakeup()
 }
