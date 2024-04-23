@@ -65,6 +65,19 @@ __attribute__((always_inline)) int handle_raw_packet(struct __sk_buff *skb, stru
         return ACT_OK;
     }
 
+#if 0
+    register u32 len asm("r4") = skb->len;
+    if (len == 0) {
+        return ACT_OK;
+    }
+    if (len > sizeof(evt->data)) {
+        return ACT_OK;
+    }
+    len = len;
+    if (bpf_skb_load_bytes(skb, 0, evt->data, len) < 0) {
+        return ACT_OK;
+    }
+#else
     asm ("r1 = *(u32 *)(%[skb] + %[len_offset])\n\t"
          "if r1 <= 0 goto +1\n\t"
          "if r1 < %[limit] goto +2\n\t"
@@ -81,6 +94,7 @@ __attribute__((always_inline)) int handle_raw_packet(struct __sk_buff *skb, stru
         return ACT_OK;
     }
 #pragma clang diagnostic pop
+#endif
 
     evt->len = skb->len;
 
