@@ -64,6 +64,7 @@ from tasks.go import (
     lint_licenses,
     reset,
     tidy_all,
+    create_module,
 )
 from tasks.go_test import (
     codecov,
@@ -117,6 +118,7 @@ ns.add_task(check_go_mod_replaces)
 ns.add_task(tidy_all)
 ns.add_task(internal_deps_checker)
 ns.add_task(check_go_version)
+ns.add_task(create_module)
 ns.add_task(junit_upload)
 ns.add_task(fuzz)
 ns.add_task(go_fix)
