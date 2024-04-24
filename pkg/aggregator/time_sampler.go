@@ -10,6 +10,7 @@ import (
 	"io"
 	"strconv"
 	"sync"
+	"maps"
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator/ckey"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/internal/tags"
@@ -232,11 +233,9 @@ func (s *TimeSampler) flush(timestamp float64, series metrics.SerieSink, sketche
 	s.sendTelemetry(timestamp, series)
 
 	wg := &sync.WaitGroup{}
-	// Shallow copy of the context resolver
-	contextBuffer := make(map[ckey.ContextKey]*Context, len(s.contextResolver.resolver.contextsByKey))
-	for k, v := range s.contextResolver.resolver.contextsByKey {
-		contextBuffer[k] = v
-	}
+
+	// Shallow snapshot of the context resolver to enable concurrent flush.
+	contextBuffer := maps.Clone(s.contextResolver.resolver.contextsByKey)
 
 	// Compute a limit timestamp
 	cutoffTime := s.calculateBucketStart(timestamp)
