@@ -98,9 +98,10 @@ const (
 	defaultMemoryRequest int64 = 20 * 1024 * 1024 // 20 MB
 
 	// Env vars
-	instrumentationInstallTypeEnvVarName = "DD_INSTRUMENTATION_INSTALL_TYPE"
-	instrumentationInstallTimeEnvVarName = "DD_INSTRUMENTATION_INSTALL_TIME"
-	instrumentationInstallIDEnvVarName   = "DD_INSTRUMENTATION_INSTALL_ID"
+	instrumentationInstallTypeEnvVarName    = "DD_INSTRUMENTATION_INSTALL_TYPE"
+	instrumentationInstallTimeEnvVarName    = "DD_INSTRUMENTATION_INSTALL_TIME"
+	instrumentationInstallIDEnvVarName      = "DD_INSTRUMENTATION_INSTALL_ID"
+	instrumentationRemoteConfigIDEnvVarName = "DD_INSTRUMENTATION_CONFIG_ID"
 
 	// Values for Env variable DD_INSTRUMENTATION_INSTALL_TYPE
 	singleStepInstrumentationInstallType   = "k8s_single_step"
@@ -135,49 +136,74 @@ var (
 
 // Webhook is the auto instrumentation webhook
 type Webhook struct {
-	name              string
-	isEnabled         bool
-	endpoint          string
-	resources         []string
-	operations        []admiv1.OperationType
-	filter            *containers.Filter
-	containerRegistry string
-	pinnedLibraries   []libInfo
-	wmeta             workloadmeta.Component
+	name                    string
+	isEnabled               bool
+	endpoint                string
+	resources               []string
+	operations              []admiv1.OperationType
+	filter                  *containers.Filter
+	containerRegistry       string
+	pinnedLibraries         []libInfo
+	wmeta                   workloadmeta.Component
+	apmInstrumentationState *instrumentationConfigurationCache
+	rcProvider              rcProvider
 }
 
 // NewWebhook returns a new Webhook
-func NewWebhook(wmeta workloadmeta.Component) (*Webhook, error) {
-	filter, err := apmSSINamespaceFilter()
-	if err != nil {
-		return nil, err
-	}
-
+func NewWebhook(
+	wmeta workloadmeta.Component,
+	rcClient *rcclient.Client,
+	stopCh <-chan struct{},
+	clusterName string,
+) (*Webhook, error) {
 	containerRegistry := mutatecommon.ContainerRegistry("admission_controller.auto_instrumentation.container_registry")
 
-	return &Webhook{
+	w := &Webhook{
 		name:              webhookName,
 		isEnabled:         config.Datadog.GetBool("admission_controller.auto_instrumentation.enabled"),
 		endpoint:          config.Datadog.GetString("admission_controller.auto_instrumentation.endpoint"),
 		resources:         []string{"pods"},
 		operations:        []admiv1.OperationType{admiv1.Create},
-		filter:            filter,
 		containerRegistry: containerRegistry,
 		pinnedLibraries:   getPinnedLibraries(containerRegistry),
 		wmeta:             wmeta,
-	}, nil
+	}
+
+	if rcClient == nil {
+		return w, nil
+	}
+
+	w.apmInstrumentationState = newInstrumentationConfigurationCache(
+		config.Datadog.GetBool("apm_config.instrumentation.enabled"),
+		config.Datadog.GetStringSlice("apm_config.instrumentation.enabled_namespaces"),
+		config.Datadog.GetStringSlice("apm_config.instrumentation.disabled_namespaces"),
+		clusterName,
+	)
+
+	if config.IsRemoteConfigEnabled(config.Datadog) {
+		w.rcProvider, _ = newRemoteConfigProvider(rcClient, clusterName, w.apmInstrumentationState)
+	}
+	go w.rcProvider.start(stopCh)
+
+	filter, err := apmSSINamespaceFilter()
+	if err != nil {
+		return nil, err
+	}
+	w.filter = filter
+
+	return w, nil
 }
 
 // GetWebhook returns the Webhook instance, creating it if it doesn't exist
 func GetWebhook(
 	wmeta workloadmeta.Component,
-	_ *rcclient.Client,
-	_ <-chan struct{},
-	_ string,
+	rcClient *rcclient.Client,
+	stopCh <-chan struct{},
+	clusterName string,
 ) (*Webhook, error) {
 	initOnce.Do(func() {
 		if apmInstrumentationWebhook == nil {
-			apmInstrumentationWebhook, errInitAPMInstrumentation = NewWebhook(wmeta)
+			apmInstrumentationWebhook, errInitAPMInstrumentation = NewWebhook(wmeta, rcClient, stopCh, clusterName)
 		}
 	})
 
@@ -204,9 +230,9 @@ func UnsetWebhook() {
 // namespaces that are not included in the list of disabled namespaces and that
 // are not one of the ones disabled by default.
 // - Enabled and disabled namespaces: return error.
-func apmSSINamespaceFilter() (*containers.Filter, error) {
-	apmEnabledNamespaces := config.Datadog.GetStringSlice("apm_config.instrumentation.enabled_namespaces")
-	apmDisabledNamespaces := config.Datadog.GetStringSlice("apm_config.instrumentation.disabled_namespaces")
+func apmSSINamespaceFilter(apmEnabledNamespaces, apmDisabledNamespaces []string) (*containers.Filter, error) {
+	//apmEnabledNamespaces := config.Datadog.GetStringSlice("apm_config.instrumentation.enabled_namespaces")
+	//apmDisabledNamespaces := config.Datadog.GetStringSlice("apm_config.instrumentation.disabled_namespaces")
 
 	if len(apmEnabledNamespaces) > 0 && len(apmDisabledNamespaces) > 0 {
 		return nil, fmt.Errorf("apm.instrumentation.enabled_namespaces and apm.instrumentation.disabled_namespaces configuration cannot be set together")
@@ -383,6 +409,20 @@ func injectApmTelemetryConfig(pod *corev1.Pod) {
 		Value: os.Getenv(instrumentationInstallIDEnvVarName),
 	}
 	_ = mutatecommon.InjectEnv(pod, instrumentationInstallIDEnvVar)
+}
+
+func injectApmRemoteEnablementConfig(pod *corev1.Pod, rcID string, rcVersion int64, env string) {
+	rcConfigIDEnvVar := corev1.EnvVar{
+		Name:  instrumentationRemoteConfigIDEnvVarName,
+		Value: fmt.Sprintf("%s-%d", rcID, rcVersion),
+	}
+	_ = mutatecommon.InjectEnv(pod, rcConfigIDEnvVar)
+
+	envEnvVar := corev1.EnvVar{
+		Name:  "DD_ENV",
+		Value: env,
+	}
+	_ = mutatecommon.InjectEnv(pod, envEnvVar)
 }
 
 // getLibrariesToInjectForApmInstrumentation returns the list of tracing libraries to inject, when APM Instrumentation is enabled
