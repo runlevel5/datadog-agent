@@ -44,12 +44,13 @@ type BucketsAggregationKey struct {
 
 // PayloadAggregationKey specifies the key by which a payload is aggregated.
 type PayloadAggregationKey struct {
-	Env          string
-	Hostname     string
-	Version      string
-	ContainerID  string
-	GitCommitSha string
-	ImageTag     string
+	Env           string
+	Hostname      string
+	Version       string
+	ContainerID   string
+	GitCommitSha  string
+	ImageTag      string
+	ContainerTags string
 }
 
 func getStatusCode(s *pb.Span) uint32 {

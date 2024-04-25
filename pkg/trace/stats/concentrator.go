@@ -185,8 +185,9 @@ func computeStatsForSpanKind(s *pb.Span) bool {
 
 // Input specifies a set of traces originating from a certain payload.
 type Input struct {
-	Traces      []traceutil.ProcessedTrace
-	ContainerID string
+	Traces        []traceutil.ProcessedTrace
+	ContainerID   string
+	ContainerTags string
 }
 
 // NewStatsInput allocates a stats input for an incoming trace payload
@@ -210,14 +211,14 @@ func NewStatsInput(numChunks int, containerID string, clientComputedStats bool, 
 func (c *Concentrator) Add(t Input) {
 	c.mu.Lock()
 	for _, trace := range t.Traces {
-		c.addNow(&trace, t.ContainerID)
+		c.addNow(&trace, t.ContainerID, t.ContainerTags)
 	}
 	c.mu.Unlock()
 }
 
 // addNow adds the given input into the concentrator.
 // Callers must guard!
-func (c *Concentrator) addNow(pt *traceutil.ProcessedTrace, containerID string) {
+func (c *Concentrator) addNow(pt *traceutil.ProcessedTrace, containerID string, containerTags string) {
 	hostname := pt.TracerHostname
 	if hostname == "" {
 		hostname = c.agentHostname
@@ -228,12 +229,13 @@ func (c *Concentrator) addNow(pt *traceutil.ProcessedTrace, containerID string) 
 	}
 	weight := weight(pt.Root)
 	aggKey := PayloadAggregationKey{
-		Env:          env,
-		Hostname:     hostname,
-		Version:      pt.AppVersion,
-		ContainerID:  containerID,
-		GitCommitSha: pt.GitCommitSha,
-		ImageTag:     pt.ImageTag,
+		Env:           env,
+		Hostname:      hostname,
+		Version:       pt.AppVersion,
+		ContainerID:   containerID,
+		GitCommitSha:  pt.GitCommitSha,
+		ImageTag:      pt.ImageTag,
+		ContainerTags: containerTags,
 	}
 	for _, s := range pt.TraceChunk.Spans {
 		isTop := traceutil.HasTopLevel(s)
@@ -308,8 +310,12 @@ func (c *Concentrator) flushNow(now int64, force bool) *pb.StatsPayload {
 			ImageTag:     k.ImageTag,
 			Stats:        s,
 		}
+		if k.ContainerTags != "" {
+			p.Tags = append(p.Tags, strings.Split(k.ContainerTags, ",")...)
+		}
 		sb = append(sb, p)
 	}
+
 	return &pb.StatsPayload{Stats: sb, AgentHostname: c.agentHostname, AgentEnv: c.agentEnv, AgentVersion: c.agentVersion}
 }
 
