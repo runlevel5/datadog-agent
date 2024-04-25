@@ -64,8 +64,9 @@ type WindowsProbe struct {
 	onETWNotification chan etwNotification
 
 	// ETW component for FIM
-	fileguid windows.GUID
-	regguid  windows.GUID
+	fileguid          windows.GUID
+	regguid           windows.GUID
+	kernelprocessguid windows.GUID
 	//etwcomp    etw.Component
 	fimSession etw.Session
 	fimwg      sync.WaitGroup
@@ -122,6 +123,10 @@ type stats struct {
 	regCloseKey    uint64
 	regSetValueKey uint64
 
+	// etw module notifications
+	moduleLoad       uint64
+	processUntracked uint64
+
 	//filePathResolver status
 	fileCreateSkippedDiscardedPaths     uint64
 	fileCreateSkippedDiscardedBasenames uint64
@@ -173,6 +178,13 @@ func (p *WindowsProbe) initEtwFIM() error {
 
 	//<provider name="Microsoft-Windows-Kernel-Registry" guid="{70eb4f03-c1de-4f73-a051-33d13d5413bd}"
 	p.regguid, err = windows.GUIDFromString("{70eb4f03-c1de-4f73-a051-33d13d5413bd}")
+	if err != nil {
+		log.Errorf("Error converting guid %v", err)
+		return err
+	}
+
+	//<provider name="Microsoft-Windows-Kernel-Process" guid="{22fb2cd6-0e7b-422b-a0c7-2fad1fd0e716}"
+	p.kernelprocessguid, err = windows.GUIDFromString("{22fb2cd6-0e7b-422b-a0c7-2fad1fd0e716}")
 	if err != nil {
 		log.Errorf("Error converting guid %v", err)
 		return err
@@ -231,6 +243,11 @@ func (p *WindowsProbe) initEtwFIM() error {
 		cfg.MatchAnyKeyword = 0xF7E3
 	})
 
+	p.fimSession.ConfigureProvider(p.kernelprocessguid, func(cfg *etw.ProviderConfiguration) {
+		cfg.TraceLevel = etw.TRACE_LEVEL_INFORMATION
+		cfg.PIDs = pidsList
+		cfg.MatchAnyKeyword = 0x40
+	})
 	err = p.fimSession.EnableProvider(p.fileguid)
 	if err != nil {
 		log.Warnf("Error enabling provider %v", err)
@@ -239,6 +256,11 @@ func (p *WindowsProbe) initEtwFIM() error {
 	err = p.fimSession.EnableProvider(p.regguid)
 	if err != nil {
 		log.Warnf("Error enabling provider %v", err)
+		return err
+	}
+	err = p.fimSession.EnableProvider(p.kernelprocessguid)
+	if err != nil {
+		log.Warnf("error enabling provider %v", err)
 		return err
 	}
 	return nil
@@ -265,6 +287,18 @@ func (p *WindowsProbe) setupEtw(ecb etwCallback) error {
 	log.Info("Starting tracing...")
 	err := p.fimSession.StartTracing(func(e *etw.DDEventRecord) {
 		switch e.EventHeader.ProviderID {
+		case etw.DDGUID(p.kernelprocessguid):
+			switch e.EventHeader.EventDescriptor.ID {
+			case idImageLoad:
+				p.stats.moduleLoad++
+				if il, err := p.parseImageLoadArgs(e); err == nil {
+					log.Infof("Received ImageLoad event %d %s\n", e.EventHeader.EventDescriptor.ID, il)
+					ecb(il, e.EventHeader.ProcessID)
+				}
+
+			default:
+				p.stats.processUntracked++
+			}
 		case etw.DDGUID(p.fileguid):
 			switch e.EventHeader.EventDescriptor.ID {
 			case idNameCreate:
@@ -749,6 +783,12 @@ func (p *WindowsProbe) SendStats() error {
 		return err
 	}
 	if err := p.statsdClient.Gauge(metrics.MetricWindowsSizeOfRegistryPathResolver, float64(len(p.regPathResolver)), nil, 1); err != nil {
+		return err
+	}
+	if err := p.statsdClient.Gauge(metrics.MetricWindowsModuleLoad, float64(p.stats.moduleLoad), nil, 1); err != nil {
+		return err
+	}
+	if err := p.statsdClient.Gauge(metrics.MetricWindowsProcessUntracked, float64(p.stats.processUntracked), nil, 1); err != nil {
 		return err
 	}
 	return nil

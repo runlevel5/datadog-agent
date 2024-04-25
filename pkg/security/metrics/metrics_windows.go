@@ -91,4 +91,10 @@ var (
 	//MetricWindowsSizeOfRegistryPathResolver is the metric for counting the size of the registry cache
 	//Tags: -
 	MetricWindowsSizeOfRegistryPathResolver = newRuntimeMetric(".windows.registry_resolver.size")
+	//MetricWindowsModuleLoad is the metric for counting module load notifications
+	//Tags: -
+	MetricWindowsModuleLoad = newRuntimeMetric(".windows.module.load")
+	//MetricWindowsProcessUntracked is the metric for counting untracked process notifications
+	//Tags: -
+	MetricWindowsProcessUntracked = newRuntimeMetric(".windows.process.untracked")
 )
