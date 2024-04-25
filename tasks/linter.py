@@ -428,33 +428,43 @@ def update_go(_):
     _update_go_mods(warn=False, version="1.2.3", include_otel_modules=True, dry_run=True)
 
 
-@task(iterable=['e2e_test_files'])
-def e2e_change_path(_, e2e_test_files=None):
+@task(iterable=['job_files'])
+def test_change_path(_, job_files=None):
     """
-    Verify that all e2e tests contain a change path rule.
+    Verify that the jobs defined within job_files contain a change path rule.
     """
-    e2e_test_files = e2e_test_files or (['.gitlab/e2e/e2e.yml'] + list(glob('.gitlab/kitchen_testing/*.yml')))
+    job_files = job_files or (['.gitlab/e2e/e2e.yml'] + list(glob('.gitlab/kitchen_testing/*.yml')))
 
     # Read gitlab config
     config = generate_gitlab_full_configuration(".gitlab-ci.yml", {}, return_dump=False, apply_postprocessing=True)
 
     # Fetch all test jobs
-    e2e_config = read_includes(e2e_test_files, return_config=True, add_file_path=True)
-    e2e_tests = [(test, data['_file_path']) for test, data in e2e_config.items() if test[0] != '.']
+    test_config = read_includes(job_files, return_config=True, add_file_path=True)
+    tests = [(test, data['_file_path']) for test, data in test_config.items() if test[0] != '.']
 
-    # Verify that all e2e tests contain a change path rule
+    def contains_valid_change_rule(rule):
+        """
+        Verifies that the job rule contains the required change path configuration.
+        """
+        if 'changes' not in rule or 'paths' not in rule['changes']:
+            return False
+
+        # The change paths should be more than just test files
+        return any(not path.startswith(('test/', './test/')) for path in rule['changes']['paths'])
+
+    # Verify that all tests contain a change path rule
     tests_without_change_path = defaultdict(list)
-    for test, filepath in e2e_tests:
-        if not any(
-            'changes' in rule and 'paths' in rule['changes'] for rule in config[test]['rules'] if isinstance(rule, dict)
-        ):
+    for test, filepath in tests:
+        if not any(contains_valid_change_rule(rule) for rule in config[test]['rules'] if isinstance(rule, dict)):
             tests_without_change_path[filepath].append(test)
 
     if len(tests_without_change_path) != 0:
-        print(color_message("error: Tests not containing any change path rule:", "red"), file=sys.stderr)
+        print(color_message("error: Tests without required change paths rule:", "red"), file=sys.stderr)
         for filepath, tests in tests_without_change_path.items():
             print(f"- {color_message(filepath, 'bold')}: {', '.join(tests)}", file=sys.stderr)
 
-        raise RuntimeError('Some tests do not contain any change path rule')
+        raise RuntimeError(
+            'Some tests do not contain required change paths rule, they must contain at least one non-test path.'
+        )
     else:
-        print(color_message("success: All e2e tests contain a change path rule", "green"))
+        print(color_message("success: All tests contain a change paths rule", "green"))
