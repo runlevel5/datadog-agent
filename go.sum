@@ -1008,8 +1008,8 @@ github.com/aws/aws-sdk-go-v2/service/kms v1.27.7/go.mod h1:D9FVDkZjkZnnFHymJ3fPV
 github.com/aws/aws-sdk-go-v2/service/rds v1.73.0 h1:Cq8KqaoLISfjtKBeaZY0rVmjb22J1j9N+M/BYGfXrXQ=
 github.com/aws/aws-sdk-go-v2/service/rds v1.73.0/go.mod h1:VwhpZOXYa/PPsZgcGpXFNe5bdL4Rlcv+1Z7nGKX8MVI=
 github.com/aws/aws-sdk-go-v2/service/s3 v1.40.2/go.mod h1:Zjfqt7KhQK+PO1bbOsFNzKgaq7TcxzmEoDWN8lM0qzQ=
-github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.26.0 h1:dPCRgAL4WD9tSMaDglRNGOiAtSTjkwNiUW5GDpWFfHA=
-github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.26.0/go.mod h1:4Ae1NCLK6ghmjzd45Tc33GgCKhUWD2ORAlULtMO1Cbs=
+github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.28.6 h1:TIOEjw0i2yyhmhRry3Oeu9YtiiHWISZ6j/irS1W3gX4=
+github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.28.6/go.mod h1:3Ba++UwWd154xtP4FRX5pUK3Gt4up5sDHCve6kVfE+g=
 github.com/aws/aws-sdk-go-v2/service/sso v1.4.2/go.mod h1:NBvT9R1MEF+Ud6ApJKM0G+IkPchKS7p7c2YPKwHmBOk=
 github.com/aws/aws-sdk-go-v2/service/sso v1.15.2/go.mod h1:gsL4keucRCgW+xA85ALBpRFfdSLH4kHOVSnLMSuBECo=
 github.com/aws/aws-sdk-go-v2/service/sso v1.20.5 h1:vN8hEbpRnL7+Hopy9dzmRle1xmDc7o8tmY0klsr175w=
@@ -1077,7 +1077,6 @@ github.com/buger/jsonparser v1.1.1 h1:2PnMjfWD7wBILjqQbt530v576A/cAbQvEW9gGIpYMU
 github.com/buger/jsonparser v1.1.1/go.mod h1:6RYKKt7H4d4+iWqouImQ9R2FZql3VbhNgx27UK13J/0=
 github.com/bwesterb/go-ristretto v1.2.3/go.mod h1:fUIoIZaG73pV5biE2Blr2xEzDoMj7NFEuV9ekS419A0=
 github.com/bytecodealliance/wasmtime-go/v3 v3.0.2 h1:3uZCA/BLTIu+DqCfguByNMJa2HVHpXvjfy0Dy7g6fuA=
-github.com/bytecodealliance/wasmtime-go/v3 v3.0.2/go.mod h1:RnUjnIXxEJcL6BgCvNyzCCRzZcxCgsZCi+RNlvYor5Q=
 github.com/cavaliergopher/grab/v3 v3.0.1 h1:4z7TkBfmPjmLAAmkkAZNX/6QJ1nNFdv3SdIHXju0Fr4=
 github.com/cavaliergopher/grab/v3 v3.0.1/go.mod h1:1U/KNnD+Ft6JJiYoYBAimKH2XrYptb8Kl3DFGmsjpq4=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
