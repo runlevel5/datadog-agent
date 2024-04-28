@@ -10,6 +10,7 @@ package ksm
 import (
 	"fmt"
 	"regexp"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -374,6 +375,7 @@ func cronJobLastScheduleTransformer(s sender.Sender, name string, metric ksmstor
 //
 //nolint:revive // TODO(CINT) Fix revive linter
 func jobCompleteTransformer(s sender.Sender, name string, metric ksmstore.DDMetric, hostname string, tags []string, _ time.Time) {
+	log.Debugf("tags in jobCompleteTransformer: %+v: %s", tags, debug.Stack())
 	for i, tag := range tags {
 		if tag == "condition:true" {
 			tags = append(tags[:i], tags[i+1:]...)
@@ -396,6 +398,7 @@ func jobCompleteTransformer(s sender.Sender, name string, metric ksmstore.DDMetr
 //
 //nolint:revive // TODO(CINT) Fix revive linter
 func jobFailedTransformer(s sender.Sender, name string, metric ksmstore.DDMetric, hostname string, tags []string, _ time.Time) {
+	log.Debugf("tags in jobFailedTransformer: %+v: %s", tags, debug.Stack())
 	for i, tag := range tags {
 		if tag == "condition:true" {
 			tags = append(tags[:i], tags[i+1:]...)
@@ -455,6 +458,7 @@ func jobServiceCheck(s sender.Sender, metric ksmstore.DDMetric, status servicech
 //
 //nolint:revive // TODO(CINT) Fix revive linter
 func jobStatusSucceededTransformer(s sender.Sender, name string, metric ksmstore.DDMetric, hostname string, tags []string, _ time.Time) {
+	log.Debugf("tags in jobStatusSucceededTransformer: %+v: %s", tags, debug.Stack())
 	jobMetric(s, metric, ksmMetricPrefix+"job.succeeded", hostname, tags)
 }
 
@@ -471,6 +475,7 @@ func jobStatusSucceededTransformer(s sender.Sender, name string, metric ksmstore
 //
 //nolint:revive // TODO(CINT) Fix revive linter
 func jobStatusFailedTransformer(s sender.Sender, name string, metric ksmstore.DDMetric, hostname string, tags []string, _ time.Time) {
+	log.Debugf("tags in jobStatusFailedTransformer: %+v: %s", tags, debug.Stack())
 	// Remove the `reason` tag to reduce the cardinality
 	reasonTagIndex := -1
 	for idx, tag := range tags {
