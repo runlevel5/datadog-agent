@@ -719,6 +719,8 @@ require (
 	k8s.io/kubectl v0.29.0
 )
 
+replace github.com/DataDog/agent-payload/v5 => github.com/DataDog/agent-payload/v5 v5.0.115-0.20240507213800-dc0c2bb40974
+
 require (
 	bitbucket.org/atlassian/go-asap/v2 v2.8.0 // indirect
 	cloud.google.com/go/logging v1.9.0 // indirect
