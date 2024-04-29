@@ -51,7 +51,7 @@ func TestEventMonitor(t *testing.T) {
 			}
 
 			return errors.New("event not received")
-		}, retry.Delay(200*time.Millisecond), retry.Attempts(10))
+		}, retry.Delay(200*time.Millisecond), retry.Attempts(10), retry.DelayType(retry.FixedDelay))
 		assert.Nil(t, err)
 	})
 
@@ -69,7 +69,7 @@ func TestEventMonitor(t *testing.T) {
 			}
 
 			return errors.New("event not received")
-		}, retry.Delay(200*time.Millisecond), retry.Attempts(10))
+		}, retry.Delay(200*time.Millisecond), retry.Attempts(10), retry.DelayType(retry.FixedDelay))
 		assert.Nil(t, err)
 	})
 }
