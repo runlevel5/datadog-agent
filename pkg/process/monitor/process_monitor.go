@@ -300,9 +300,9 @@ func (pm *ProcessMonitor) mainEventLoop() {
 			pm.tel.events.Add(1)
 			switch ev := event.Msg.(type) {
 			case *netlink.ExecProcEvent:
-				log.Info("netlink exec pid", ev.ProcessPid)
+				//log.Info("netlink exec pid", ev.ProcessPid)
 
-				log.Info("skip netlink event")
+				//log.Info("skip netlink event")
 				continue
 				pm.tel.exec.Add(1)
 				// handleProcessExec locks a mutex to access the exec callbacks array, if it is empty, then we're
@@ -313,8 +313,8 @@ func (pm *ProcessMonitor) mainEventLoop() {
 				}
 			case *netlink.ExitProcEvent:
 				pm.tel.exit.Add(1)
-				log.Info("netlink exit pid", ev.ProcessPid)
-				log.Info("skip netlink event")
+				//log.Info("netlink exit pid", ev.ProcessPid)
+				//log.Info("skip netlink event")
 				continue
 				// handleProcessExit locks a mutex to access the exit callbacks array, if it is empty, then we're
 				// wasting "resources" to check it. Since it is a hot-code-path, it has some cpu load.
@@ -555,7 +555,7 @@ func (fc *SimpleEventConsumer) HandleEvent(event any) {
 	fc.Lock()
 	defer fc.Unlock()
 
-	fmt.Println("Got event", sevent)
+	//fmt.Println("Got event", sevent)
 
 	pm := processMonitor
 	switch sevent.Type {
