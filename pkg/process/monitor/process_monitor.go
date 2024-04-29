@@ -300,10 +300,6 @@ func (pm *ProcessMonitor) mainEventLoop() {
 			pm.tel.events.Add(1)
 			switch ev := event.Msg.(type) {
 			case *netlink.ExecProcEvent:
-				//log.Info("netlink exec pid", ev.ProcessPid)
-
-				//log.Info("skip netlink event")
-				continue
 				pm.tel.exec.Add(1)
 				// handleProcessExec locks a mutex to access the exec callbacks array, if it is empty, then we're
 				// wasting "resources" to check it. Since it is a hot-code-path, it has some cpu load.
@@ -313,9 +309,6 @@ func (pm *ProcessMonitor) mainEventLoop() {
 				}
 			case *netlink.ExitProcEvent:
 				pm.tel.exit.Add(1)
-				//log.Info("netlink exit pid", ev.ProcessPid)
-				//log.Info("skip netlink event")
-				continue
 				// handleProcessExit locks a mutex to access the exit callbacks array, if it is empty, then we're
 				// wasting "resources" to check it. Since it is a hot-code-path, it has some cpu load.
 				// Checking an atomic boolean, is an atomic operation, hence much faster.
@@ -356,27 +349,31 @@ func (pm *ProcessMonitor) mainEventLoop() {
 //  2. Initializes the netlink process monitor.
 //  2. Run the main event loop in a goroutine.
 //  4. Scans already running processes and call the Exec callbacks on them.
-func (pm *ProcessMonitor) Initialize() error {
+func (pm *ProcessMonitor) Initialize(useNetlink bool) error {
 	var initErr error
 	pm.initOnce.Do(
 		func() {
 			log.Info("initializing process monitor")
 			pm.tel = newProcessMonitorTelemetry()
-			pm.done = make(chan struct{})
+
 			pm.initCallbackRunner()
 
 			pm.processMonitorWG.Add(1)
-			// Setting up the main loop
-			pm.netlinkDoneChannel = make(chan struct{})
-			pm.netlinkErrorsChannel = make(chan error, 10)
-			pm.netlinkEventsChannel = make(chan netlink.ProcEvent, processMonitorEventQueueSize)
 
-			go pm.mainEventLoop()
+			if useNetlink {
+				pm.done = make(chan struct{})
+				// Setting up the main loop
+				pm.netlinkDoneChannel = make(chan struct{})
+				pm.netlinkErrorsChannel = make(chan error, 10)
+				pm.netlinkEventsChannel = make(chan netlink.ProcEvent, processMonitorEventQueueSize)
 
-			if err := kernel.WithRootNS(kernel.ProcFSRoot(), func() error {
-				return netlink.ProcEventMonitor(pm.netlinkEventsChannel, pm.netlinkDoneChannel, pm.netlinkErrorsChannel, netlink.PROC_EVENT_EXEC|netlink.PROC_EVENT_EXIT)
-			}); err != nil {
-				initErr = fmt.Errorf("couldn't initialize process monitor: %w", err)
+				go pm.mainEventLoop()
+
+				if err := kernel.WithRootNS(kernel.ProcFSRoot(), func() error {
+					return netlink.ProcEventMonitor(pm.netlinkEventsChannel, pm.netlinkDoneChannel, pm.netlinkErrorsChannel, netlink.PROC_EVENT_EXEC|netlink.PROC_EVENT_EXIT)
+				}); err != nil {
+					initErr = fmt.Errorf("couldn't initialize process monitor: %w", err)
+				}
 			}
 
 			pm.processExecCallbacksMutex.RLock()
