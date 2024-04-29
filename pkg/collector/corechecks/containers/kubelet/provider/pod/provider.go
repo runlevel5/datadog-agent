@@ -162,7 +162,7 @@ func (p *Provider) generateContainerStatusMetrics(sender sender.Sender, pod *kub
 	sender.Gauge(common.KubeletMetricsPrefix+"containers.restarts", float64(cStatus.RestartCount), "", tags)
 
 	for key, state := range map[string]kubelet.ContainerState{"state": cStatus.State, "last_state": cStatus.LastState} {
-		log.Debugf("%s = %+v: %s", key, state, debug.Stack())
+		log.Debugf("%s.Terminated = %+v: %s", key, state.Terminated, debug.Stack())
 		if state.Terminated != nil && slices.Contains(includeContainerStateReason["terminated"], strings.ToLower(state.Terminated.Reason)) {
 			termTags := utils.ConcatenateStringTags(tags, "reason:"+strings.ToLower(state.Terminated.Reason))
 			sender.Gauge(common.KubeletMetricsPrefix+"containers."+key+".terminated", 1, "", termTags)

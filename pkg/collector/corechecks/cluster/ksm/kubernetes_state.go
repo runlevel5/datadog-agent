@@ -543,7 +543,9 @@ func (k *KSMCheck) processMetrics(sender sender.Sender, metrics map[string][]ksm
 			if transform, found := k.metricTransformers[metricFamily.Name]; found {
 				lMapperOverride := labelsMapperOverride(metricFamily.Name)
 				for _, m := range metricFamily.ListMetrics {
+					log.Debugf("Labels = %+v", metricFamily.Name, m.Labels)
 					hostname, tags := k.hostnameAndTags(m.Labels, labelJoiner, lMapperOverride)
+					log.Debugf("Tags = %+v", metricFamily.Name, tags)
 					transform(sender, metricFamily.Name, m, hostname, tags, now)
 				}
 				continue
