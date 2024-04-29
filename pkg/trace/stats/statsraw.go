@@ -117,7 +117,7 @@ func NewRawBucket(ts, d uint64) *RawBucket {
 		start:             ts,
 		duration:          d,
 		data:              make(map[Aggregation]*groupedStats),
-		containerTagsByID: make(map[string][]string),
+		containerTagsByID: getContainerTagsByIDFromPool(),
 	}
 }
 

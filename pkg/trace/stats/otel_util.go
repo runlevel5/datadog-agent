@@ -7,6 +7,7 @@ package stats
 
 import (
 	"slices"
+	"sync"
 
 	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
 	"github.com/DataDog/datadog-agent/pkg/trace/config"
@@ -25,6 +26,21 @@ type chunkKey struct {
 	cid           string
 }
 
+var containerTagsByIDPool = &sync.Pool{
+	New: func() interface{} {
+		return make(map[string][]string)
+	},
+}
+
+func getContainerTagsByIDFromPool() map[string][]string {
+	return containerTagsByIDPool.Get().(map[string][]string)
+}
+
+func putContainerTagsByIDToPool(containerTagsByID map[string][]string) {
+	clear(containerTagsByID)
+	containerTagsByIDPool.Put(containerTagsByID)
+}
+
 // OTLPTracesToConcentratorInputs converts eligible OTLP spans to Concentrator.Input.
 // The converted Inputs only have the minimal number of fields for APM stats calculation and are only meant
 // to be used in Concentrator.Add(). Do not use them for other purposes.
@@ -41,7 +57,7 @@ func OTLPTracesToConcentratorInputs(
 		ignoreResNames[resName] = struct{}{}
 	}
 	chunks := make(map[chunkKey]*pb.TraceChunk)
-	containerTagsByID := make(map[string][]string)
+	containerTagsByID := getContainerTagsByIDFromPool()
 	for spanID, otelspan := range spanByID {
 		otelres := resByID[spanID]
 		if _, exists := ignoreResNames[traceutil.GetOTelResource(otelspan, otelres)]; exists {
@@ -92,6 +108,7 @@ func OTLPTracesToConcentratorInputs(
 			ContainerTags: containerTagsByID[ckey.cid],
 		})
 	}
+	putContainerTagsByIDToPool(containerTagsByID)
 	return inputs
 }
 

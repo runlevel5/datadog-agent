@@ -273,7 +273,7 @@ func (c *Concentrator) Flush(force bool) *pb.StatsPayload {
 
 func (c *Concentrator) flushNow(now int64, force bool) *pb.StatsPayload {
 	m := make(map[PayloadAggregationKey][]*pb.ClientStatsBucket)
-	containerTagsByID := make(map[string][]string)
+	containerTagsByID := getContainerTagsByIDFromPool()
 
 	c.mu.Lock()
 	for ts, srb := range c.buckets {
@@ -295,6 +295,7 @@ func (c *Concentrator) flushNow(now int64, force bool) *pb.StatsPayload {
 				containerTagsByID[k.ContainerID] = ctags
 			}
 		}
+		putContainerTagsByIDToPool(srb.containerTagsByID)
 		delete(c.buckets, ts)
 	}
 	// After flushing, update the oldest timestamp allowed to prevent having stats for
@@ -320,6 +321,7 @@ func (c *Concentrator) flushNow(now int64, force bool) *pb.StatsPayload {
 		sb = append(sb, p)
 	}
 
+	putContainerTagsByIDToPool(containerTagsByID)
 	return &pb.StatsPayload{Stats: sb, AgentHostname: c.agentHostname, AgentEnv: c.agentEnv, AgentVersion: c.agentVersion}
 }
 
