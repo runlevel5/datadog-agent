@@ -58,14 +58,14 @@ type EventHandler interface {
 	HandleEvent(event *model.Event)
 }
 
-// EventConsumer represents a handler for events sent by the probe. This handler makes a copy of the event upon receipt
+// EventConsumerInterface represents a handler for events sent by the probe. This handler makes a copy of the event upon receipt
 type EventConsumerInterface interface {
 	HandleEvent(event any)
 	Copy(_ *model.Event) any
 	EventTypes() []model.EventType
 }
 
-// ProbeEventConsumer defines a probe event consumer
+// EventConsumer defines a probe event consumer
 type EventConsumer struct {
 	consumer EventConsumerInterface
 	eventCh  chan any
