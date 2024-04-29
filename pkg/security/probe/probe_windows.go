@@ -661,18 +661,16 @@ func (p *WindowsProbe) setProcessContext(pid uint32, event *model.Event) error {
 
 // DispatchEvent sends an event to the probe event handler
 func (p *WindowsProbe) DispatchEvent(event *model.Event) {
-
 	traceEvent("Dispatching event %s", func() ([]byte, model.EventType, error) {
 		eventJSON, err := serializers.MarshalEvent(event, nil)
 		return eventJSON, event.GetEventType(), err
 	})
 
 	// send event to wildcard handlers, like the CWS rule engine, first
-	p.probe.sendEventToWildcardHandlers(event)
+	p.probe.sendEventToHandlers(event)
 
 	// send event to specific event handlers, like the event monitor consumers, subsequently
-	p.probe.sendEventToSpecificEventTypeHandlers(event)
-
+	p.probe.sendEventToConsumers(event)
 }
 
 // Snapshot runs the different snapshot functions of the resolvers that

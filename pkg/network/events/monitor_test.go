@@ -47,7 +47,7 @@ func TestEventConsumerWrapperCopy(t *testing.T) {
 		require.IsType(t, &Process{}, _p, "Copy should return a *events.Process")
 		p := _p.(*Process)
 		assert.Equal(t, uint32(2233), p.Pid)
-		assert.Equal(t, now.UnixNano(), p.StartTime)
+		assert.Equal(t, now.UnixNano(), p.ExecTime.UnixNano())
 		assert.EqualValues(t, []string{
 			"DD_ENV=env",
 			"DD_SERVICE=service",
@@ -83,7 +83,7 @@ func TestEventConsumerWrapperCopy(t *testing.T) {
 		require.IsType(t, &Process{}, _p, "Copy should return a *events.Process")
 		p := _p.(*Process)
 		assert.Equal(t, uint32(2244), p.Pid)
-		assert.Equal(t, now.UnixNano(), p.StartTime)
+		assert.Equal(t, now.UnixNano(), p.ForkTime.UnixNano())
 		assert.EqualValues(t, []string{
 			"DD_ENV=env",
 			"DD_SERVICE=service",

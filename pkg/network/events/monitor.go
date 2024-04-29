@@ -3,6 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
+//go:generate go run github.com/DataDog/datadog-agent/pkg/security/generators/event_copy -scope "(h *eventConsumerWrapper)" -pkg events -output event_copy_linux.go Process .
+
 //go:build linux
 
 // Package events handles process events
@@ -22,15 +24,21 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
+const (
+	chanSize = 100
+)
+
 var theMonitor atomic.Value
 var once sync.Once
 var initErr error
 
 // Process is a process
 type Process struct {
-	Pid         uint32
-	Envs        []string
-	ContainerID *intern.Value
+	Pid         uint32        `copy:"GetProcessPid;event:*"`
+	Envs        []string      `copy:"FilterEnvs;event:*;envs:DD_SERVICE,DD_VERSION,DD_ENV"`
+	ContainerID *intern.Value `copy:"GetContainerId;event:*;intern:true"`
+	ExecTime    time.Time     `copy:"GetProcessExecTime;event:ExecEventType"`
+	ForkTime    time.Time     `copy:"GetProcessExecTime;event:ForkEventType"`
 	StartTime   int64
 	Expiry      int64
 }
@@ -98,39 +106,19 @@ func (h *eventConsumerWrapper) HandleEvent(ev any) {
 
 	m := theMonitor.Load()
 	if m != nil {
+		if !evProcess.ExecTime.IsZero() {
+			evProcess.StartTime = evProcess.ExecTime.UnixNano()
+		} else if !evProcess.ForkTime.IsZero() {
+			evProcess.StartTime = evProcess.ForkTime.UnixNano()
+		}
 		m.(*eventMonitor).HandleEvent(evProcess)
 	}
 }
 
-// Copy copies the necessary fields from the event received from the event monitor
-func (h *eventConsumerWrapper) Copy(ev *model.Event) any {
-	if theMonitor.Load() == nil {
-		// monitor is not initialized, so need to copy the event
-		// since it will get dropped by the handler anyway
-		return nil
-	}
-
-	// If this consumer subscribes to more event types, this block will have to account for those additional event types
-	var processStartTime time.Time
-	if ev.GetEventType() == model.ExecEventType {
-		processStartTime = ev.GetProcessExecTime()
-	}
-	if ev.GetEventType() == model.ForkEventType {
-		processStartTime = ev.GetProcessForkTime()
-	}
-
-	envs := ev.GetProcessEnvp()
-
-	return &Process{
-		Pid:         ev.GetProcessPid(),
-		ContainerID: intern.GetByString(ev.GetContainerId()),
-		StartTime:   processStartTime.UnixNano(),
-		Envs: model.FilterEnvs(envs, map[string]bool{
-			"DD_SERVICE": true,
-			"DD_VERSION": true,
-			"DD_ENV":     true,
-		}),
-	}
+// monitor is not initialized, no need to copy the event
+// since it will get dropped by the handler anyway
+func (h *eventConsumerWrapper) IsReady() bool {
+	return theMonitor.Load() != nil
 }
 
 // EventTypes returns the event types handled by this consumer
@@ -143,7 +131,7 @@ func (h *eventConsumerWrapper) EventTypes() []model.EventType {
 
 // ChanSize returns the chan size used by this consumer
 func (h *eventConsumerWrapper) ChanSize() int {
-	return 100
+	return chanSize
 }
 
 var _eventConsumerWrapper = &eventConsumerWrapper{}
