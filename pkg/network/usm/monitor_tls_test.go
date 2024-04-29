@@ -27,7 +27,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/ebpf/ebpftest"
+	"github.com/DataDog/datadog-agent/pkg/eventmonitor"
+	emconfig "github.com/DataDog/datadog-agent/pkg/eventmonitor/config"
 	"github.com/DataDog/datadog-agent/pkg/network"
 	"github.com/DataDog/datadog-agent/pkg/network/config"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols"
@@ -39,6 +42,10 @@ import (
 	nettestutil "github.com/DataDog/datadog-agent/pkg/network/testutil"
 	usmtestutil "github.com/DataDog/datadog-agent/pkg/network/usm/testutil"
 	"github.com/DataDog/datadog-agent/pkg/network/usm/utils"
+	procmon "github.com/DataDog/datadog-agent/pkg/process/monitor"
+	secconfig "github.com/DataDog/datadog-agent/pkg/security/config"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/util/optional"
 )
 
 type tlsSuite struct {
@@ -775,7 +782,25 @@ func (m requestsMap) String() string {
 	return result.String()
 }
 
+func setupEventStream(t *testing.T) {
+	emconfig := emconfig.NewConfig()
+	secconfig, err := secconfig.NewConfig()
+	require.NoError(t, err)
+
+	opts := eventmonitor.Opts{}
+	evm, err := eventmonitor.NewEventMonitor(emconfig, secconfig, opts, optional.NewNoneOption[workloadmeta.Component]())
+	require.NoError(t, err)
+	require.NoError(t, evm.Init())
+	procmonconsumer, err := procmon.NewSimpleEventConsumer(evm)
+	require.NoError(t, err)
+	evm.RegisterEventConsumer(procmonconsumer)
+	log.Info("process monitoring test consumer initialized")
+	require.NoError(t, evm.Start())
+	t.Cleanup(evm.Close)
+}
+
 func setupUSMTLSMonitor(t *testing.T, cfg *config.Config) *Monitor {
+	setupEventStream(t)
 	usmMonitor, err := NewMonitor(cfg, nil)
 	require.NoError(t, err)
 	require.NoError(t, usmMonitor.Start())
