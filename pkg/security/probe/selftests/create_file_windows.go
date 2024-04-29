@@ -27,11 +27,17 @@ type WindowsCreateFileSelfTest struct {
 func (o *WindowsCreateFileSelfTest) GetRuleDefinition() *rules.RuleDefinition {
 	o.ruleID = fmt.Sprintf("%s_windows_create_file", ruleIDPrefix)
 
+	pathWithGlob := o.filename
+	volumeName := filepath.VolumeName(o.filename)
+	// replace volume name with globs matching the drive name
+	if volumeName != "" {
+		pathWithGlob = "/*/*" + o.filename[len(volumeName):]
+	}
 	basename := filepath.Base(o.filename)
 
 	return &rules.RuleDefinition{
 		ID:         o.ruleID,
-		Expression: fmt.Sprintf(`create.file.name == "%s" && create.file.path == "%s"`, basename, o.filename),
+		Expression: fmt.Sprintf(`create.file.name == "%s" && create.file.path =~ "%s" && process.pid == %d`, basename, filepath.ToSlash(pathWithGlob), os.Getpid()),
 	}
 }
 
