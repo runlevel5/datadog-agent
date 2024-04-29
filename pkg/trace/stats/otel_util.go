@@ -7,7 +7,6 @@ package stats
 
 import (
 	"slices"
-	"strings"
 
 	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
 	"github.com/DataDog/datadog-agent/pkg/trace/config"
@@ -24,7 +23,6 @@ type chunkKey struct {
 	version       string
 	hostname      string
 	cid           string
-	ctags         string
 }
 
 // OTLPTracesToConcentratorInputs converts eligible OTLP spans to Concentrator.Input.
@@ -33,7 +31,7 @@ type chunkKey struct {
 func OTLPTracesToConcentratorInputs(
 	traces ptrace.Traces,
 	conf *config.AgentConfig,
-	additionalCtagKeys []string,
+	containerTagKeys []string,
 ) []Input {
 	spanByID, resByID, scopeByID := traceutil.IndexOTelSpans(traces)
 	topLevelByKind := conf.HasFeature("enable_otlp_compute_top_level_by_span_kind")
@@ -43,6 +41,7 @@ func OTLPTracesToConcentratorInputs(
 		ignoreResNames[resName] = struct{}{}
 	}
 	chunks := make(map[chunkKey]*pb.TraceChunk)
+	containerTagsByID := make(map[string][]string)
 	for spanID, otelspan := range spanByID {
 		otelres := resByID[spanID]
 		if _, exists := ignoreResNames[traceutil.GetOTelResource(otelspan, otelres)]; exists {
@@ -54,9 +53,12 @@ func OTLPTracesToConcentratorInputs(
 		cid := traceutil.GetOTelAttrValInResAndSpanAttrs(otelspan, otelres, true, semconv.AttributeContainerID, semconv.AttributeK8SPodUID)
 		var ctags []string
 		if cid != "" {
-			ctags = traceutil.GetOTelContainerTags(otelres.Attributes(), false, additionalCtagKeys...)
-			if !slices.IsSorted(ctags) {
-				slices.Sort(ctags)
+			ctags = traceutil.GetOTelContainerTags(otelres.Attributes(), containerTagKeys)
+			if ctags != nil {
+				if !slices.IsSorted(ctags) {
+					slices.Sort(ctags)
+				}
+				containerTagsByID[cid] = ctags
 			}
 		}
 		ckey := chunkKey{
@@ -65,7 +67,6 @@ func OTLPTracesToConcentratorInputs(
 			version:       version,
 			hostname:      hostname,
 			cid:           cid,
-			ctags:         strings.Join(ctags, ","),
 		}
 		chunk, ok := chunks[ckey]
 		if !ok {
@@ -88,7 +89,7 @@ func OTLPTracesToConcentratorInputs(
 		inputs = append(inputs, Input{
 			Traces:        []traceutil.ProcessedTrace{pt},
 			ContainerID:   ckey.cid,
-			ContainerTags: ckey.ctags,
+			ContainerTags: containerTagsByID[ckey.cid],
 		})
 	}
 	return inputs

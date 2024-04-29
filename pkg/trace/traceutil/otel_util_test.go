@@ -426,7 +426,6 @@ func TestGetOTelContainerTags(t *testing.T) {
 	res.Attributes().PutStr(semconv.AttributeContainerImageName, "ciname")
 	res.Attributes().PutStr(semconv.AttributeContainerImageTag, "citag")
 	res.Attributes().PutStr("az", "my-az")
-	assert.Contains(t, GetOTelContainerTags(res.Attributes(), true, "az"), "container_id:cid", "container_name:cname", "image_name:ciname", "image_tag:citag", "az:my-az")
-	assert.Contains(t, GetOTelContainerTags(res.Attributes(), false, "az"), "az:my-az")
-	assert.Contains(t, GetOTelContainerTags(res.Attributes(), false, semconv.AttributeContainerID, "az"), "container_id:cid", "az:my-az")
+	assert.Contains(t, GetOTelContainerTags(res.Attributes(), []string{"az", semconv.AttributeContainerID, semconv.AttributeContainerName, semconv.AttributeContainerImageName, semconv.AttributeContainerImageTag}), "container_id:cid", "container_name:cname", "image_name:ciname", "image_tag:citag", "az:my-az")
+	assert.Contains(t, GetOTelContainerTags(res.Attributes(), []string{"az"}), "az:my-az")
 }
