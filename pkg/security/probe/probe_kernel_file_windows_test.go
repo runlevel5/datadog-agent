@@ -56,6 +56,10 @@ func createTestProbe() (*WindowsProbe, error) {
 		regPathResolver:    make(map[regObjectPointer]string, 0),
 		discardedPaths:     discardedPaths,
 		discardedBasenames: discardedBasenames,
+
+		isRenameEnabled: true,
+		isWriteEnabled:  true,
+		isDeleteEnabled: true,
 	}
 	err = wp.Init()
 
