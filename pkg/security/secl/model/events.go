@@ -91,6 +91,8 @@ const (
 	SyscallsEventType
 	// AnomalyDetectionSyscallEventType Anomaly Detection Syscall event
 	AnomalyDetectionSyscallEventType
+	// IMDSEventType is sent when an IMDS request or qnswer is captured
+	IMDSEventType
 	// MaxKernelEventType is used internally to get the maximum number of kernel events.
 	MaxKernelEventType
 
@@ -225,6 +227,8 @@ func (t EventType) String() string {
 		return "syscalls"
 	case AnomalyDetectionSyscallEventType:
 		return "anomaly_detection_syscall"
+	case IMDSEventType:
+		return "imds"
 
 	case CustomLostReadEventType:
 		return "lost_events_read"
