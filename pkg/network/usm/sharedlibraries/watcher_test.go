@@ -25,20 +25,44 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/DataDog/datadog-agent/comp/core/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/ebpf/ebpftest"
+	"github.com/DataDog/datadog-agent/pkg/eventmonitor"
+	emconfig "github.com/DataDog/datadog-agent/pkg/eventmonitor/config"
 	"github.com/DataDog/datadog-agent/pkg/network/config"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/http"
 	fileopener "github.com/DataDog/datadog-agent/pkg/network/usm/sharedlibraries/testutil"
 	"github.com/DataDog/datadog-agent/pkg/network/usm/utils"
 	"github.com/DataDog/datadog-agent/pkg/process/monitor"
+	procmon "github.com/DataDog/datadog-agent/pkg/process/monitor"
+	secconfig "github.com/DataDog/datadog-agent/pkg/security/config"
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/util/optional"
 )
 
+func setupEventStream(t *testing.T) {
+	emconfig := emconfig.NewConfig()
+	secconfig, err := secconfig.NewConfig()
+	require.NoError(t, err)
+
+	opts := eventmonitor.Opts{}
+	evm, err := eventmonitor.NewEventMonitor(emconfig, secconfig, opts, optional.NewNoneOption[workloadmeta.Component]())
+	require.NoError(t, err)
+	require.NoError(t, evm.Init())
+	procmonconsumer, err := procmon.NewSimpleEventConsumer(evm)
+	require.NoError(t, err)
+	evm.RegisterEventConsumer(procmonconsumer)
+	log.Info("process monitoring test consumer initialized")
+	require.NoError(t, evm.Start())
+	t.Cleanup(evm.Close)
+}
+
 func launchProcessMonitor(t *testing.T) {
+	setupEventStream(t)
 	pm := monitor.GetProcessMonitor()
 	t.Cleanup(pm.Stop)
-	require.NoError(t, pm.Initialize())
+	require.NoError(t, pm.Initialize(false))
 }
 
 type SharedLibrarySuite struct {
