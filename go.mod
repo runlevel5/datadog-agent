@@ -131,7 +131,7 @@ require (
 	github.com/DataDog/datadog-go/v5 v5.5.0
 	// do not update datadog-operator to 1.2.1 because the indirect dependency github.com/DataDog/datadog-api-client-go/v2 v2.15.0 is trigger a huge Go heap memory increase.
 	github.com/DataDog/datadog-operator v1.1.0
-	github.com/DataDog/ebpf-manager v0.6.1-0.20240418221350-4f329bda1928
+	github.com/DataDog/ebpf-manager v0.6.1-0.20240501201131-8fd8e1f6acd3
 	github.com/DataDog/gopsutil v1.2.2
 	github.com/DataDog/nikos v1.12.4
 	github.com/DataDog/opentelemetry-mapping-go/pkg/otlp/attributes v0.14.0
@@ -1198,7 +1198,7 @@ replace (
 	github.com/prometheus/common => github.com/prometheus/common v0.46.0
 )
 
-replace github.com/cilium/ebpf => github.com/brycekahle/ebpf v0.0.0-20240418221230-b8544d4dab2e
+replace github.com/cilium/ebpf => github.com/brycekahle/ebpf v0.0.0-20240501200949-58b3613ef710
 
 // Prevent a false-positive detection by the Google and Ikarus security vendors on VirusTotal
 exclude go.opentelemetry.io/proto/otlp v1.1.0
