@@ -7,7 +7,6 @@
 package probe
 
 import (
-	"regexp"
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/security/config"
@@ -39,12 +38,10 @@ func (fh *FieldHandlers) ResolveFilePath(_ *model.Event, f *model.FileEvent) str
 	return f.PathnameStr
 }
 
-var devicePathRe = regexp.MustCompile(`(?i)^\\device\\harddiskvolume\d+\\`)
-
 // ResolveFileUserPath resolves the inode to a full user path
 func (fh *FieldHandlers) ResolveFileUserPath(_ *model.Event, f *model.FileEvent) string {
 	if f.UserPathnameStr == "" {
-		f.UserPathnameStr = devicePathRe.ReplaceAllString(f.PathnameStr, "C:\\")
+		f.UserPathnameStr = fh.resolvers.PathResolver.ResolveUserPath(f.PathnameStr)
 	}
 	return f.UserPathnameStr
 }
