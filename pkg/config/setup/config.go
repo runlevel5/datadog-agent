@@ -102,9 +102,17 @@ const (
 
 // Datadog is the global configuration object
 var (
-	Datadog     pkgconfigmodel.Config
+	datadog     pkgconfigmodel.Config
 	SystemProbe pkgconfigmodel.Config
 )
+
+func Datadog() pkgconfigmodel.Config {
+	return datadog
+}
+
+func SetDatadog(cfg pkgconfigmodel.Config) {
+	datadog = cfg
+}
 
 // Variables to initialize at build time
 var (
@@ -192,10 +200,10 @@ const (
 func init() {
 	osinit()
 	// Configure Datadog global configuration
-	Datadog = pkgconfigmodel.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
+	datadog = pkgconfigmodel.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
 	SystemProbe = pkgconfigmodel.NewConfig("system-probe", "DD", strings.NewReplacer(".", "_"))
 	// Configuration defaults
-	InitConfig(Datadog)
+	InitConfig(datadog)
 	InitSystemProbeConfig(SystemProbe)
 }
 
