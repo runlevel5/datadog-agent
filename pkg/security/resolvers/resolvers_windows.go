@@ -34,7 +34,10 @@ func NewResolvers(config *config.Config, statsdClient statsd.ClientInterface, sc
 		return nil, err
 	}
 
-	pathResolver := path.NewPathResolver()
+	pathResolver, err := path.NewResolver()
+	if err != nil {
+		return nil, err
+	}
 	tagsResolver := tags.NewResolver(config.Probe)
 
 	userSessionsResolver, err := usersessions.NewResolver(config.RuntimeSecurity)
