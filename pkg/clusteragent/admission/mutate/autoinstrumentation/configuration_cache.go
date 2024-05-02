@@ -147,6 +147,17 @@ func (c *instrumentationConfigurationCache) delete(rcConfigID string) error {
 		if confID.configID == rcConfigID {
 			delete(c.enabledRevisions, rev)
 			c.orderedRevisions = append(c.orderedRevisions[:i], c.orderedRevisions[i+1:]...)
+			if confID.enabledNamespaces != nil && len(*confID.enabledNamespaces) > 0 {
+				for _, ns := range *confID.enabledNamespaces {
+					delete(c.namespaceToConfigIDMap, ns)
+					delete(c.namespaceToEnvMap, ns)
+				}
+				log.Infof("LILIYAB11")
+			} else {
+				delete(c.namespaceToConfigIDMap, "cluster")
+				delete(c.namespaceToEnvMap, "cluster")
+				log.Infof("LILIYAB22")
+			}
 			break
 		}
 	}
