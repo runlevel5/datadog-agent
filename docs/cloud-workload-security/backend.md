@@ -1037,6 +1037,13 @@ CSM Threats logs have the following JSON schema:
                 "source": {
                     "type": "string",
                     "description": "Process source"
+                },
+                "aws_security_credentials": {
+                    "items": {
+                        "$ref": "#/$defs/AWSSecurityCredentials"
+                    },
+                    "type": "array",
+                    "description": "List of AWS Security Credentials that the process had access to"
                 }
             },
             "additionalProperties": false,
@@ -1165,6 +1172,13 @@ CSM Threats logs have the following JSON schema:
                 "source": {
                     "type": "string",
                     "description": "Process source"
+                },
+                "aws_security_credentials": {
+                    "items": {
+                        "$ref": "#/$defs/AWSSecurityCredentials"
+                    },
+                    "type": "array",
+                    "description": "List of AWS Security Credentials that the process had access to"
                 },
                 "parent": {
                     "$ref": "#/$defs/Process",
@@ -3071,6 +3085,13 @@ CSM Threats logs have the following JSON schema:
         "source": {
             "type": "string",
             "description": "Process source"
+        },
+        "aws_security_credentials": {
+            "items": {
+                "$ref": "#/$defs/AWSSecurityCredentials"
+            },
+            "type": "array",
+            "description": "List of AWS Security Credentials that the process had access to"
         }
     },
     "additionalProperties": false,
@@ -3113,6 +3134,7 @@ CSM Threats logs have the following JSON schema:
 | `is_kworker` | Indicates whether the process is a kworker |
 | `is_exec_child` | Indicates whether the process is an exec following another exec |
 | `source` | Process source |
+| `aws_security_credentials` | List of AWS Security Credentials that the process had access to |
 
 | References |
 | ---------- |
@@ -3245,6 +3267,13 @@ CSM Threats logs have the following JSON schema:
             "type": "string",
             "description": "Process source"
         },
+        "aws_security_credentials": {
+            "items": {
+                "$ref": "#/$defs/AWSSecurityCredentials"
+            },
+            "type": "array",
+            "description": "List of AWS Security Credentials that the process had access to"
+        },
         "parent": {
             "$ref": "#/$defs/Process",
             "description": "Parent process"
@@ -3301,6 +3330,7 @@ CSM Threats logs have the following JSON schema:
 | `is_kworker` | Indicates whether the process is a kworker |
 | `is_exec_child` | Indicates whether the process is an exec following another exec |
 | `source` | Process source |
+| `aws_security_credentials` | List of AWS Security Credentials that the process had access to |
 | `parent` | Parent process |
 | `ancestors` | Ancestor processes |
 | `variables` | Variables values |

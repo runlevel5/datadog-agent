@@ -2579,33 +2579,6 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			Field:  field,
 			Weight: eval.FunctionWeight,
 		}, nil
-	case "imds.aws.security_credentials.access_key_id":
-		return &eval.StringEvaluator{
-			EvalFnc: func(ctx *eval.Context) string {
-				ev := ctx.Event.(*Event)
-				return ev.IMDS.AWS.SecurityCredentials.AccessKeyID
-			},
-			Field:  field,
-			Weight: eval.FunctionWeight,
-		}, nil
-	case "imds.aws.security_credentials.code":
-		return &eval.StringEvaluator{
-			EvalFnc: func(ctx *eval.Context) string {
-				ev := ctx.Event.(*Event)
-				return ev.IMDS.AWS.SecurityCredentials.Code
-			},
-			Field:  field,
-			Weight: eval.FunctionWeight,
-		}, nil
-	case "imds.aws.security_credentials.last_updated":
-		return &eval.StringEvaluator{
-			EvalFnc: func(ctx *eval.Context) string {
-				ev := ctx.Event.(*Event)
-				return ev.IMDS.AWS.SecurityCredentials.LastUpdated
-			},
-			Field:  field,
-			Weight: eval.FunctionWeight,
-		}, nil
 	case "imds.aws.security_credentials.type":
 		return &eval.StringEvaluator{
 			EvalFnc: func(ctx *eval.Context) string {
@@ -16698,9 +16671,6 @@ func (ev *Event) GetFields() []eval.Field {
 		"exit.user_session.k8s_uid",
 		"exit.user_session.k8s_username",
 		"imds.aws.is_imds_v2",
-		"imds.aws.security_credentials.access_key_id",
-		"imds.aws.security_credentials.code",
-		"imds.aws.security_credentials.last_updated",
 		"imds.aws.security_credentials.type",
 		"imds.cloud_provider",
 		"imds.host",
@@ -18461,12 +18431,6 @@ func (ev *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 		return ev.FieldHandlers.ResolveK8SUsername(ev, &ev.Exit.Process.UserSession), nil
 	case "imds.aws.is_imds_v2":
 		return ev.IMDS.AWS.IsIMDSv2, nil
-	case "imds.aws.security_credentials.access_key_id":
-		return ev.IMDS.AWS.SecurityCredentials.AccessKeyID, nil
-	case "imds.aws.security_credentials.code":
-		return ev.IMDS.AWS.SecurityCredentials.Code, nil
-	case "imds.aws.security_credentials.last_updated":
-		return ev.IMDS.AWS.SecurityCredentials.LastUpdated, nil
 	case "imds.aws.security_credentials.type":
 		return ev.IMDS.AWS.SecurityCredentials.Type, nil
 	case "imds.cloud_provider":
@@ -24577,12 +24541,6 @@ func (ev *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 		return "exit", nil
 	case "imds.aws.is_imds_v2":
 		return "imds", nil
-	case "imds.aws.security_credentials.access_key_id":
-		return "imds", nil
-	case "imds.aws.security_credentials.code":
-		return "imds", nil
-	case "imds.aws.security_credentials.last_updated":
-		return "imds", nil
 	case "imds.aws.security_credentials.type":
 		return "imds", nil
 	case "imds.cloud_provider":
@@ -27156,12 +27114,6 @@ func (ev *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.String, nil
 	case "imds.aws.is_imds_v2":
 		return reflect.Bool, nil
-	case "imds.aws.security_credentials.access_key_id":
-		return reflect.String, nil
-	case "imds.aws.security_credentials.code":
-		return reflect.String, nil
-	case "imds.aws.security_credentials.last_updated":
-		return reflect.String, nil
 	case "imds.aws.security_credentials.type":
 		return reflect.String, nil
 	case "imds.cloud_provider":
@@ -31443,27 +31395,6 @@ func (ev *Event) SetFieldValue(field eval.Field, value interface{}) error {
 			return &eval.ErrValueTypeMismatch{Field: "IMDS.AWS.IsIMDSv2"}
 		}
 		ev.IMDS.AWS.IsIMDSv2 = rv
-		return nil
-	case "imds.aws.security_credentials.access_key_id":
-		rv, ok := value.(string)
-		if !ok {
-			return &eval.ErrValueTypeMismatch{Field: "IMDS.AWS.SecurityCredentials.AccessKeyID"}
-		}
-		ev.IMDS.AWS.SecurityCredentials.AccessKeyID = rv
-		return nil
-	case "imds.aws.security_credentials.code":
-		rv, ok := value.(string)
-		if !ok {
-			return &eval.ErrValueTypeMismatch{Field: "IMDS.AWS.SecurityCredentials.Code"}
-		}
-		ev.IMDS.AWS.SecurityCredentials.Code = rv
-		return nil
-	case "imds.aws.security_credentials.last_updated":
-		rv, ok := value.(string)
-		if !ok {
-			return &eval.ErrValueTypeMismatch{Field: "IMDS.AWS.SecurityCredentials.LastUpdated"}
-		}
-		ev.IMDS.AWS.SecurityCredentials.LastUpdated = rv
 		return nil
 	case "imds.aws.security_credentials.type":
 		rv, ok := value.(string)

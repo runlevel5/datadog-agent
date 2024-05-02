@@ -320,6 +320,37 @@ func easyjsonA1e47abeDecodeGithubComDataDogDatadogAgentPkgSecuritySerializers1(i
 			out.IsExecExec = bool(in.Bool())
 		case "source":
 			out.Source = string(in.String())
+		case "aws_security_credentials":
+			if in.IsNull() {
+				in.Skip()
+				out.AWSSecurityCredentials = nil
+			} else {
+				in.Delim('[')
+				if out.AWSSecurityCredentials == nil {
+					if !in.IsDelim(']') {
+						out.AWSSecurityCredentials = make([]*AWSSecurityCredentialsSerializer, 0, 8)
+					} else {
+						out.AWSSecurityCredentials = []*AWSSecurityCredentialsSerializer{}
+					}
+				} else {
+					out.AWSSecurityCredentials = (out.AWSSecurityCredentials)[:0]
+				}
+				for !in.IsDelim(']') {
+					var v6 *AWSSecurityCredentialsSerializer
+					if in.IsNull() {
+						in.Skip()
+						v6 = nil
+					} else {
+						if v6 == nil {
+							v6 = new(AWSSecurityCredentialsSerializer)
+						}
+						(*v6).UnmarshalEasyJSON(in)
+					}
+					out.AWSSecurityCredentials = append(out.AWSSecurityCredentials, v6)
+					in.WantComma()
+				}
+				in.Delim(']')
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -350,14 +381,14 @@ func easyjsonA1e47abeEncodeGithubComDataDogDatadogAgentPkgSecuritySerializers1(o
 		}
 		{
 			out.RawByte('[')
-			for v6, v7 := range in.Ancestors {
-				if v6 > 0 {
+			for v7, v8 := range in.Ancestors {
+				if v7 > 0 {
 					out.RawByte(',')
 				}
-				if v7 == nil {
+				if v8 == nil {
 					out.RawString("null")
 				} else {
-					(*v7).MarshalEasyJSON(out)
+					(*v8).MarshalEasyJSON(out)
 				}
 			}
 			out.RawByte(']')
@@ -493,11 +524,11 @@ func easyjsonA1e47abeEncodeGithubComDataDogDatadogAgentPkgSecuritySerializers1(o
 		out.RawString(prefix)
 		{
 			out.RawByte('[')
-			for v8, v9 := range in.Args {
-				if v8 > 0 {
+			for v9, v10 := range in.Args {
+				if v9 > 0 {
 					out.RawByte(',')
 				}
-				out.String(string(v9))
+				out.String(string(v10))
 			}
 			out.RawByte(']')
 		}
@@ -512,11 +543,11 @@ func easyjsonA1e47abeEncodeGithubComDataDogDatadogAgentPkgSecuritySerializers1(o
 		out.RawString(prefix)
 		{
 			out.RawByte('[')
-			for v10, v11 := range in.Envs {
-				if v10 > 0 {
+			for v11, v12 := range in.Envs {
+				if v11 > 0 {
 					out.RawByte(',')
 				}
-				out.String(string(v11))
+				out.String(string(v12))
 			}
 			out.RawByte(']')
 		}
@@ -545,6 +576,24 @@ func easyjsonA1e47abeEncodeGithubComDataDogDatadogAgentPkgSecuritySerializers1(o
 		const prefix string = ",\"source\":"
 		out.RawString(prefix)
 		out.String(string(in.Source))
+	}
+	if len(in.AWSSecurityCredentials) != 0 {
+		const prefix string = ",\"aws_security_credentials\":"
+		out.RawString(prefix)
+		{
+			out.RawByte('[')
+			for v13, v14 := range in.AWSSecurityCredentials {
+				if v13 > 0 {
+					out.RawByte(',')
+				}
+				if v14 == nil {
+					out.RawString("null")
+				} else {
+					(*v14).MarshalEasyJSON(out)
+				}
+			}
+			out.RawByte(']')
+		}
 	}
 	out.RawByte('}')
 }
@@ -698,9 +747,9 @@ func easyjsonA1e47abeDecodeGithubComDataDogDatadogAgentPkgSecuritySerializers3(i
 					out.Tags = (out.Tags)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v12 string
-					v12 = string(in.String())
-					out.Tags = append(out.Tags, v12)
+					var v15 string
+					v15 = string(in.String())
+					out.Tags = append(out.Tags, v15)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -749,11 +798,11 @@ func easyjsonA1e47abeEncodeGithubComDataDogDatadogAgentPkgSecuritySerializers3(o
 		}
 		{
 			out.RawByte('[')
-			for v13, v14 := range in.Tags {
-				if v13 > 0 {
+			for v16, v17 := range in.Tags {
+				if v16 > 0 {
 					out.RawByte(',')
 				}
-				out.String(string(v14))
+				out.String(string(v17))
 			}
 			out.RawByte(']')
 		}
@@ -1119,9 +1168,9 @@ func easyjsonA1e47abeDecodeGithubComDataDogDatadogAgentPkgSecuritySerializers8(i
 					out.MatchedRules = (out.MatchedRules)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v15 MatchedRuleSerializer
-					(v15).UnmarshalEasyJSON(in)
-					out.MatchedRules = append(out.MatchedRules, v15)
+					var v18 MatchedRuleSerializer
+					(v18).UnmarshalEasyJSON(in)
+					out.MatchedRules = append(out.MatchedRules, v18)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -1188,11 +1237,11 @@ func easyjsonA1e47abeEncodeGithubComDataDogDatadogAgentPkgSecuritySerializers8(o
 		}
 		{
 			out.RawByte('[')
-			for v16, v17 := range in.MatchedRules {
-				if v16 > 0 {
+			for v19, v20 := range in.MatchedRules {
+				if v19 > 0 {
 					out.RawByte(',')
 				}
-				(v17).MarshalEasyJSON(out)
+				(v20).MarshalEasyJSON(out)
 			}
 			out.RawByte(']')
 		}

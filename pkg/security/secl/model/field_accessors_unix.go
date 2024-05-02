@@ -2791,35 +2791,6 @@ func (ev *Event) GetImdsAwsIsImdsV2() bool {
 	return ev.IMDS.AWS.IsIMDSv2
 }
 
-// GetImdsAwsSecurityCredentialsAccessKeyId returns the value of the field, resolving if necessary
-func (ev *Event) GetImdsAwsSecurityCredentialsAccessKeyId() string {
-	if ev.GetEventType().String() != "imds" {
-		return ""
-	}
-	return ev.IMDS.AWS.SecurityCredentials.AccessKeyID
-}
-
-// GetImdsAwsSecurityCredentialsCode returns the value of the field, resolving if necessary
-func (ev *Event) GetImdsAwsSecurityCredentialsCode() string {
-	if ev.GetEventType().String() != "imds" {
-		return ""
-	}
-	return ev.IMDS.AWS.SecurityCredentials.Code
-}
-
-// GetImdsAwsSecurityCredentialsExpiration returns the value of the field, resolving if necessary
-func (ev *Event) GetImdsAwsSecurityCredentialsExpiration() time.Time {
-	return ev.IMDS.AWS.SecurityCredentials.Expiration
-}
-
-// GetImdsAwsSecurityCredentialsLastUpdated returns the value of the field, resolving if necessary
-func (ev *Event) GetImdsAwsSecurityCredentialsLastUpdated() string {
-	if ev.GetEventType().String() != "imds" {
-		return ""
-	}
-	return ev.IMDS.AWS.SecurityCredentials.LastUpdated
-}
-
 // GetImdsAwsSecurityCredentialsType returns the value of the field, resolving if necessary
 func (ev *Event) GetImdsAwsSecurityCredentialsType() string {
 	if ev.GetEventType().String() != "imds" {

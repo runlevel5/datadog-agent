@@ -240,6 +240,8 @@ type ProcessSerializer struct {
 	IsExecExec bool `json:"is_exec_child,omitempty"`
 	// Process source
 	Source string `json:"source,omitempty"`
+	// List of AWS Security Credentials that the process had access to
+	AWSSecurityCredentials []*AWSSecurityCredentialsSerializer `json:"aws_security_credentials,omitempty"`
 }
 
 // FileEventSerializer serializes a file event to JSON
@@ -603,6 +605,13 @@ func newProcessSerializer(ps *model.Process, e *model.Event) *ProcessSerializer 
 
 		if ps.UserSession.ID != 0 {
 			psSerializer.UserSession = newUserSessionContextSerializer(&ps.UserSession, e)
+		}
+
+		awsSecurityCredentials := e.FieldHandlers.ResolveAWSSecurityCredentials(e)
+		if len(awsSecurityCredentials) > 0 {
+			for _, creds := range awsSecurityCredentials {
+				psSerializer.AWSSecurityCredentials = append(psSerializer.AWSSecurityCredentials, newAWSSecurityCredentialsSerializer(&creds))
+			}
 		}
 
 		if len(ps.ContainerID) != 0 {

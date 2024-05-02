@@ -532,3 +532,8 @@ func (fh *EBPFFieldHandlers) ResolveK8SGroups(_ *model.Event, evtCtx *model.User
 	fh.ResolveUserSessionContext(evtCtx)
 	return evtCtx.K8SGroups
 }
+
+// ResolveAWSSecurityCredentials resolves and updates the AWS security credentials of the input process entry
+func (fh *EBPFFieldHandlers) ResolveAWSSecurityCredentials(e *model.Event) []model.AWSSecurityCredentials {
+	return fh.resolvers.ProcessResolver.FetchAWSSecurityCredentials(e)
+}
