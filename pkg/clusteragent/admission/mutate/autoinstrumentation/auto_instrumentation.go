@@ -169,10 +169,6 @@ func NewWebhook(
 		wmeta:             wmeta,
 	}
 
-	if rcClient == nil {
-		return w, nil
-	}
-
 	w.apmInstrumentationState = newInstrumentationConfigurationCache(
 		config.Datadog.GetBool("apm_config.instrumentation.enabled"),
 		config.Datadog.GetStringSlice("apm_config.instrumentation.enabled_namespaces"),
@@ -180,16 +176,20 @@ func NewWebhook(
 		clusterName,
 	)
 
-	if config.IsRemoteConfigEnabled(config.Datadog) {
-		w.rcProvider, _ = newRemoteConfigProvider(rcClient, clusterName, w.apmInstrumentationState)
-	}
-	go w.rcProvider.start(stopCh)
-
-	filter, err := apmSSINamespaceFilter()
+	filter, err := apmSSINamespaceFilter(w.apmInstrumentationState.currentConfiguration.enabledNamespaces, w.apmInstrumentationState.currentConfiguration.disabledNamespaces)
 	if err != nil {
 		return nil, err
 	}
 	w.filter = filter
+
+	if rcClient == nil {
+		return w, nil
+	}
+
+	if config.IsRemoteConfigEnabled(config.Datadog) {
+		w.rcProvider, _ = newRemoteConfigProvider(rcClient, clusterName, w.apmInstrumentationState)
+	}
+	go w.rcProvider.start(stopCh)
 
 	return w, nil
 }
@@ -325,6 +325,7 @@ func (w *Webhook) inject(pod *corev1.Pod, _ string, _ dynamic.Interface) (bool, 
 		return false, errors.New(metrics.InvalidInput)
 	}
 	injectApmTelemetryConfig(pod)
+	injectApmRemoteEnablementConfig(pod, w.apmInstrumentationState.getConfigID(pod.Namespace), w.apmInstrumentationState.getEnv(pod.Namespace))
 
 	if w.isEnabledInNamespace(pod.Namespace) {
 		// if Single Step Instrumentation is enabled, pods can still opt out using the label
@@ -411,18 +412,22 @@ func injectApmTelemetryConfig(pod *corev1.Pod) {
 	_ = mutatecommon.InjectEnv(pod, instrumentationInstallIDEnvVar)
 }
 
-func injectApmRemoteEnablementConfig(pod *corev1.Pod, rcID string, rcVersion int64, env string) {
-	rcConfigIDEnvVar := corev1.EnvVar{
-		Name:  instrumentationRemoteConfigIDEnvVarName,
-		Value: fmt.Sprintf("%s-%d", rcID, rcVersion),
+func injectApmRemoteEnablementConfig(pod *corev1.Pod, rcID string, env string) {
+	if rcID != "" {
+		rcConfigIDEnvVar := corev1.EnvVar{
+			Name:  instrumentationRemoteConfigIDEnvVarName,
+			Value: fmt.Sprintf("%s", rcID),
+		}
+		_ = mutatecommon.InjectEnv(pod, rcConfigIDEnvVar)
 	}
-	_ = mutatecommon.InjectEnv(pod, rcConfigIDEnvVar)
 
-	envEnvVar := corev1.EnvVar{
-		Name:  "DD_ENV",
-		Value: env,
+	if env != "" {
+		envEnvVar := corev1.EnvVar{
+			Name:  "DD_ENV",
+			Value: env,
+		}
+		_ = mutatecommon.InjectEnv(pod, envEnvVar)
 	}
-	_ = mutatecommon.InjectEnv(pod, envEnvVar)
 }
 
 // getLibrariesToInjectForApmInstrumentation returns the list of tracing libraries to inject, when APM Instrumentation is enabled
@@ -637,14 +642,23 @@ func ShouldInject(pod *corev1.Pod, wmeta workloadmeta.Component) bool {
 // isEnabledInNamespace indicates if Single Step Instrumentation is enabled for
 // the namespace in the cluster
 func (w *Webhook) isEnabledInNamespace(namespace string) bool {
-	apmInstrumentationEnabled := config.Datadog.GetBool("apm_config.instrumentation.enabled")
+	apmInstrumentationEnabled := w.apmInstrumentationState.currentConfiguration.enabled
 
 	if !apmInstrumentationEnabled {
 		log.Debugf("APM Instrumentation is disabled")
 		return false
 	}
 
-	return !w.filter.IsExcluded(nil, "", "", namespace)
+	filter, err := apmSSINamespaceFilter(w.apmInstrumentationState.currentConfiguration.enabledNamespaces, w.apmInstrumentationState.currentConfiguration.disabledNamespaces)
+	if err != nil {
+		log.Errorf("Error %v", err)
+		return false
+	}
+	w.filter = filter
+	isEnabled := !w.filter.IsExcluded(nil, "", "", namespace)
+	log.Infof("LILIYAB11 for ns %s is enabled %v", namespace, isEnabled)
+
+	return isEnabled
 }
 
 func (w *Webhook) injectAutoInstruConfig(pod *corev1.Pod, libsToInject []libInfo, autoDetected bool, injectionType string) error {

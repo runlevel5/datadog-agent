@@ -35,6 +35,7 @@ type instrumentationConfigurationCache struct {
 	currentConfiguration   *instrumentationConfiguration
 	clusterName            string
 	namespaceToConfigIDMap map[string]string // maps the namespace with enabled instrumentation to Remote Enablement rule
+	namespaceToEnvMap      map[string]string
 
 	mu               sync.RWMutex
 	orderedRevisions []int64
@@ -62,10 +63,29 @@ func newInstrumentationConfigurationCache(
 		currentConfiguration:   currentConfig,
 		clusterName:            clusterName,
 		namespaceToConfigIDMap: nsToRules,
+		namespaceToEnvMap:      make(map[string]string),
 
 		orderedRevisions: make([]int64, 0),
 		enabledRevisions: map[int64]enablementConfig{},
 	}
+}
+
+func (c *instrumentationConfigurationCache) getConfigID(ns string) string {
+	if rcID, ok := c.namespaceToConfigIDMap[ns]; ok {
+		return rcID
+	} else if rcIDCluster, ok := c.namespaceToConfigIDMap["cluster"]; ok {
+		return rcIDCluster
+	}
+	return ""
+}
+
+func (c *instrumentationConfigurationCache) getEnv(ns string) string {
+	if env, ok := c.namespaceToEnvMap[ns]; ok {
+		return env
+	} else if env, ok := c.namespaceToEnvMap["cluster"]; ok {
+		return env
+	}
+	return ""
 }
 
 func (c *instrumentationConfigurationCache) update(req Request) Response {
@@ -88,7 +108,13 @@ func (c *instrumentationConfigurationCache) update(req Request) Response {
 
 			c.mu.Lock()
 			defer c.mu.Unlock()
-			resp = c.updateConfiguration(*newEnabled, newEnabledNamespaces, req.ID, int(req.RcVersion))
+			var env string
+			if req.LibConfig.Env == nil {
+				env = ""
+			} else {
+				env = *req.LibConfig.Env
+			}
+			resp = c.updateConfiguration(*newEnabled, newEnabledNamespaces, req.ID, int(req.RcVersion), env)
 			log.Infof("Updated configuration: %v, %v, %v",
 				c.currentConfiguration.enabled, c.currentConfiguration.enabledNamespaces, c.currentConfiguration.disabledNamespaces)
 
@@ -132,11 +158,17 @@ func (c *instrumentationConfigurationCache) resetConfiguration() {
 	c.currentConfiguration = c.localConfiguration
 	for _, rev := range c.orderedRevisions {
 		conf := c.enabledRevisions[rev]
-		c.updateConfiguration(*conf.enabled, conf.enabledNamespaces, conf.configID, conf.rcVersion)
+		var env string
+		if conf.env == nil {
+			env = ""
+		} else {
+			env = *conf.env
+		}
+		c.updateConfiguration(*conf.enabled, conf.enabledNamespaces, conf.configID, conf.rcVersion, env)
 	}
 }
 
-func (c *instrumentationConfigurationCache) updateConfiguration(enabled bool, enabledNamespaces *[]string, rcID string, rcVersion int) Response {
+func (c *instrumentationConfigurationCache) updateConfiguration(enabled bool, enabledNamespaces *[]string, rcID string, rcVersion int, env string) Response {
 	log.Debugf("Updating current APM Instrumentation configuration. Old APM Instrumentation configuration [enabled=%t enabledNamespaces=%v disabledNamespaces=%v]",
 		c.currentConfiguration.enabled,
 		c.currentConfiguration.enabledNamespaces,
@@ -172,6 +204,9 @@ func (c *instrumentationConfigurationCache) updateConfiguration(enabled bool, en
 			// result - enable APM instrumentation in the whole cluster
 			c.currentConfiguration.enabledNamespaces = []string{}
 			c.namespaceToConfigIDMap["cluster"] = fmt.Sprintf("%s-%d", rcID, rcVersion)
+			if env != "" {
+				c.namespaceToEnvMap["cluster"] = env
+			}
 		} else if len(c.currentConfiguration.enabledNamespaces) > 0 {
 			// current configuration - APM Instrumentation enabled in specific namespaces
 			// remote configuration - APM Instrumentation enabled in specific namespaces
@@ -183,6 +218,9 @@ func (c *instrumentationConfigurationCache) updateConfiguration(enabled bool, en
 				} else {
 					c.currentConfiguration.enabledNamespaces = append(c.currentConfiguration.enabledNamespaces, ns)
 					c.namespaceToConfigIDMap[ns] = fmt.Sprintf("%s-%d", rcID, rcVersion)
+					if env != "" {
+						c.namespaceToEnvMap[ns] = env
+					}
 				}
 			}
 			if len(alreadyEnabledNamespaces) > 0 {
@@ -196,6 +234,9 @@ func (c *instrumentationConfigurationCache) updateConfiguration(enabled bool, en
 			// result - enable APM instrumentation in the whole cluster
 			c.currentConfiguration.disabledNamespaces = []string{}
 			c.namespaceToConfigIDMap["cluster"] = fmt.Sprintf("%s-%d", rcID, rcVersion)
+			if env != "" {
+				c.namespaceToEnvMap["cluster"] = env
+			}
 		} else if len(c.currentConfiguration.disabledNamespaces) > 0 {
 			// current configuration - APM Instrumentation disabled in specific namespaces
 			// remote configuration - APM Instrumentation enabled in specific namespaces
@@ -207,6 +248,9 @@ func (c *instrumentationConfigurationCache) updateConfiguration(enabled bool, en
 			for _, ns := range *enabledNamespaces {
 				delete(disabledNsMap, ns)
 				c.namespaceToConfigIDMap[ns] = fmt.Sprintf("%s-%d", rcID, rcVersion)
+				if env != "" {
+					c.namespaceToEnvMap[ns] = env
+				}
 			}
 			disabledNs := make([]string, 0, len(disabledNsMap))
 			for k := range disabledNsMap {
@@ -221,9 +265,15 @@ func (c *instrumentationConfigurationCache) updateConfiguration(enabled bool, en
 				for _, ns := range *enabledNamespaces {
 					c.currentConfiguration.enabledNamespaces = append(c.currentConfiguration.enabledNamespaces, ns)
 					c.namespaceToConfigIDMap[ns] = fmt.Sprintf("%s-%d", rcID, rcVersion)
+					if env != "" {
+						c.namespaceToEnvMap[ns] = env
+					}
 				}
 			} else {
 				c.namespaceToConfigIDMap["cluster"] = fmt.Sprintf("%s-%d", rcID, rcVersion)
+				if env != "" {
+					c.namespaceToEnvMap["cluster"] = env
+				}
 			}
 		} else {
 			log.Errorf("Noop: APM Instrumentation is off")

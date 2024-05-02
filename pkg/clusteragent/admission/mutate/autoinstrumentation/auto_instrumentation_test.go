@@ -1557,6 +1557,10 @@ func TestInjectAutoInstrumentation(t *testing.T) {
 					Name:  "DD_INSTRUMENTATION_INSTALL_ID",
 					Value: uuid,
 				},
+				corev1.EnvVar{
+					Name:  "DD_INSTRUMENTATION_CONFIG_ID",
+					Value: "local",
+				},
 			),
 			expectedInjectedLibraries: map[string]string{"java": "latest", "python": "latest", "js": "latest", "ruby": "latest", "dotnet": "latest"},
 			wantErr:                   false,

@@ -121,7 +121,7 @@ func TestUpdateConfiguration(t *testing.T) {
 			c := newInstrumentationConfigurationCache(tt.localConfig.enabled, tt.localConfig.enabledNamespaces, tt.localConfig.disabledNamespaces, "")
 
 			for _, remoteConfig := range tt.remoteConfigs {
-				c.updateConfiguration(remoteConfig.enabled, &remoteConfig.enabledNamespaces, tt.clusterName, 1)
+				c.updateConfiguration(remoteConfig.enabled, &remoteConfig.enabledNamespaces, tt.clusterName, 1, "")
 			}
 			require.Equal(t, tt.expectedConfig.enabled, c.currentConfiguration.enabled)
 			require.Equal(t, tt.expectedConfig.enabledNamespaces, c.currentConfiguration.enabledNamespaces)

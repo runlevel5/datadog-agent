@@ -62,8 +62,8 @@ func (rcp *remoteConfigProvider) start(stopCh <-chan struct{}) {
 
 	for {
 		select {
-		case <-ticker.C:
-			rcp.process(rcp.client.GetConfigs(state.ProductAPMTracing), rcp.client.UpdateApplyStatus)
+		//case <-ticker.C:
+		//	rcp.process(rcp.client.GetConfigs(state.ProductAPMTracing), rcp.client.UpdateApplyStatus)
 		case <-stopCh:
 			log.Info("Remote Enablement: shutting down remote-config patch provider")
 			return
@@ -80,7 +80,7 @@ func (rcp *remoteConfigProvider) process(update map[string]state.RawConfig, appl
 	}
 
 	for path, config := range update {
-		log.Debugf("Parsing config %s from path %s", config.Config, path)
+		log.Infof("Parsing config %s from path %s", config.Config, path)
 		var req Request
 		err := json.Unmarshal(config.Config, &req)
 		if err != nil {
@@ -99,7 +99,7 @@ func (rcp *remoteConfigProvider) process(update map[string]state.RawConfig, appl
 		}
 
 		req.RcVersion = config.Metadata.Version
-		log.Debugf("Patch request parsed %+v", req)
+		log.Infof("Remote Enablement: updating with config %+v", req)
 		resp := rcp.cache.update(req)
 		applyStateCallback(path, resp.Status)
 		rcp.lastProcessedRCRevision = req.Revision

@@ -81,10 +81,10 @@ func EnvIndex(envs []corev1.EnvVar, name string) int {
 func InjectEnv(pod *corev1.Pod, env corev1.EnvVar) bool {
 	injected := false
 	podStr := PodString(pod)
-	log.Debugf("Injecting env var '%s' into pod %s", env.Name, podStr)
+	//log.Debugf("Injecting env var '%s' into pod %s", env.Name, podStr)
 	for i, ctr := range pod.Spec.Containers {
 		if contains(ctr.Env, env.Name) {
-			log.Debugf("Ignoring container '%s' in pod %s: env var '%s' already exist", ctr.Name, podStr, env.Name)
+			//log.Debugf("Ignoring container '%s' in pod %s: env var '%s' already exist", ctr.Name, podStr, env.Name)
 			continue
 		}
 		// prepend rather than append so that our new vars precede container vars in the final list, so that they
