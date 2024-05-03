@@ -166,7 +166,9 @@ func (c *instrumentationConfigurationCache) delete(rcConfigID string) error {
 }
 
 func (c *instrumentationConfigurationCache) resetConfiguration() {
+	log.Infof("Reseting current configuration %+v:", c.currentConfiguration)
 	c.currentConfiguration = c.localConfiguration
+	log.Infof("New base configuration %+v:", c.currentConfiguration)
 	for _, rev := range c.orderedRevisions {
 		conf := c.enabledRevisions[rev]
 		var env string
@@ -175,12 +177,13 @@ func (c *instrumentationConfigurationCache) resetConfiguration() {
 		} else {
 			env = *conf.env
 		}
+		log.Infof("Updating with  %s, %v, %v:", conf.configID, conf.enabled, conf.enabledNamespaces)
 		c.updateConfiguration(*conf.enabled, conf.enabledNamespaces, conf.configID, conf.rcVersion, env)
 	}
 }
 
 func (c *instrumentationConfigurationCache) updateConfiguration(enabled bool, enabledNamespaces *[]string, rcID string, rcVersion int, env string) Response {
-	log.Debugf("Updating current APM Instrumentation configuration. Old APM Instrumentation configuration [enabled=%t enabledNamespaces=%v disabledNamespaces=%v]",
+	log.Infof("Updating current APM Instrumentation configuration. Old APM Instrumentation configuration [enabled=%t enabledNamespaces=%v disabledNamespaces=%v]",
 		c.currentConfiguration.enabled,
 		c.currentConfiguration.enabledNamespaces,
 		c.currentConfiguration.disabledNamespaces,
@@ -294,7 +297,7 @@ func (c *instrumentationConfigurationCache) updateConfiguration(enabled bool, en
 		}
 	}
 
-	log.Debugf("New APM Instrumentation configuration [enabled=%t enabledNamespaces=%v disabledNamespaces=%v]",
+	log.Infof("New APM Instrumentation configuration [enabled=%t enabledNamespaces=%v disabledNamespaces=%v]",
 		c.currentConfiguration.enabled,
 		c.currentConfiguration.enabledNamespaces,
 		c.currentConfiguration.disabledNamespaces,
