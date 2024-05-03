@@ -450,7 +450,9 @@ def test_change_path(_, job_files=None):
             return False
 
         # The change paths should be more than just test files
-        return any(not path.startswith(('test/', './test/')) for path in rule['changes']['paths'])
+        return any(
+            not path.startswith(('test/', './test/', 'test\\', '.\\test\\')) for path in rule['changes']['paths']
+        )
 
     # Verify that all tests contain a change path rule
     tests_without_change_path = defaultdict(list)
