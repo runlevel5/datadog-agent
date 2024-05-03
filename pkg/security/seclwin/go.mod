@@ -9,4 +9,7 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 )
 
-require github.com/alecthomas/participle v0.7.1 // indirect
+require (
+	github.com/alecthomas/participle v0.7.1 // indirect
+	github.com/hashicorp/golang-lru v1.0.2 // indirect
+)
