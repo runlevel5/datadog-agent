@@ -52,7 +52,6 @@ func TestInstallStable(t *testing.T) {
 	}
 
 	s := fixtures.NewServer(t)
-	defer s.Close()
 	installer := newTestPackageManager(t, s, t.TempDir(), t.TempDir())
 
 	err := installer.Install(testCtx, s.PackageURL(fixtures.FixtureSimpleV1))
@@ -72,7 +71,6 @@ func TestInstallExperiment(t *testing.T) {
 	}
 
 	s := fixtures.NewServer(t)
-	defer s.Close()
 	installer := newTestPackageManager(t, s, t.TempDir(), t.TempDir())
 
 	err := installer.Install(testCtx, s.PackageURL(fixtures.FixtureSimpleV1))
@@ -95,7 +93,6 @@ func TestInstallPromoteExperiment(t *testing.T) {
 	}
 
 	s := fixtures.NewServer(t)
-	defer s.Close()
 	installer := newTestPackageManager(t, s, t.TempDir(), t.TempDir())
 
 	err := installer.Install(testCtx, s.PackageURL(fixtures.FixtureSimpleV1))
@@ -119,7 +116,6 @@ func TestUninstallExperiment(t *testing.T) {
 	}
 
 	s := fixtures.NewServer(t)
-	defer s.Close()
 	installer := newTestPackageManager(t, s, t.TempDir(), t.TempDir())
 
 	err := installer.Install(testCtx, s.PackageURL(fixtures.FixtureSimpleV1))

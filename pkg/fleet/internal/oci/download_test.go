@@ -48,7 +48,6 @@ func (s *testDownloadServer) Image(f fixtures.Fixture) oci.Image {
 
 func TestDownload(t *testing.T) {
 	s := newTestDownloadServer(t)
-	defer s.Close()
 	d := s.Downloader()
 
 	downloadedPackage, err := d.Download(context.Background(), s.PackageURL(fixtures.FixtureSimpleV1))
@@ -63,7 +62,6 @@ func TestDownload(t *testing.T) {
 
 func TestDownloadLayout(t *testing.T) {
 	s := newTestDownloadServer(t)
-	defer s.Close()
 	d := s.Downloader()
 
 	downloadedPackage, err := d.Download(context.Background(), s.PackageLayoutURL(fixtures.FixtureSimpleV1))
@@ -78,7 +76,6 @@ func TestDownloadLayout(t *testing.T) {
 
 func TestDownloadInvalidHash(t *testing.T) {
 	s := newTestDownloadServer(t)
-	defer s.Close()
 	d := s.Downloader()
 
 	pkgURL := s.PackageURL(fixtures.FixtureSimpleV1)
@@ -89,7 +86,6 @@ func TestDownloadInvalidHash(t *testing.T) {
 
 func TestDownloadPlatformNotAvailable(t *testing.T) {
 	s := newTestDownloadServer(t)
-	defer s.Close()
 	d := s.Downloader()
 
 	pkg := s.PackageURL(fixtures.FixtureSimpleV1Linux2Amd128)
@@ -99,7 +95,6 @@ func TestDownloadPlatformNotAvailable(t *testing.T) {
 
 func TestDownloadRegistryWithOverride(t *testing.T) {
 	s := newTestDownloadServer(t)
-	defer s.Close()
 	d := s.DownloaderRegistryOverride()
 
 	_, err := d.Download(context.Background(), s.PackageURL(fixtures.FixtureSimpleV1))
@@ -108,7 +103,6 @@ func TestDownloadRegistryWithOverride(t *testing.T) {
 
 func TestGetRegistryURL(t *testing.T) {
 	s := newTestDownloadServer(t)
-	defer s.Close()
 
 	testURL := s.URL() + "/simple@sha256:2aaf415ad1bd66fd9ba5214603c7fb27ef2eb595baf21222cde22846e02aab4d"
 
