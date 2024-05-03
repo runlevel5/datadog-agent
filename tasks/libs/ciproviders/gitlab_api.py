@@ -123,7 +123,7 @@ class ReferenceTag(yaml.YAMLObject):
 
 def convert_to_config_node(node):
     """
-    Convert json like data to ConfigNode
+    Convert json data to ConfigNode
     """
     if isinstance(node, dict):
         return ConfigNodeDict({k: convert_to_config_node(v) for k, v in node.items()})
