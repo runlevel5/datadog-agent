@@ -138,7 +138,23 @@ def convert_to_config_node(node):
 def apply_yaml_extends(config: dict, node):
     """
     Applies `extends` yaml tags to the node and its children inplace
+
+    > Example:
+    Config:
+    ```yaml
+    .parent:
+        hello: world
+    node:
+        extends: .parent
+    ```
+
+    apply_yaml_extends(node) updates node to:
+    ```yaml
+    node:
+        hello: world
+    ```
     """
+    # Ensure node is an object that can contain extends
     if not isinstance(node, dict):
         return
 
@@ -161,6 +177,26 @@ def apply_yaml_extends(config: dict, node):
 def apply_yaml_reference(config: dict, node):
     """
     Applies `!reference` gitlab yaml tags to the node and its children inplace
+
+    > Example:
+    Config:
+    ```yaml
+    .colors:
+        - red
+        - green
+        - blue
+    node:
+        colors: !reference [.colors]
+    ```
+
+    apply_yaml_extends(node) updates node to:
+    ```yaml
+    node:
+        colors:
+            - red
+            - green
+            - blue
+    ```
     """
 
     def apply_ref(value):
@@ -209,6 +245,12 @@ def generate_gitlab_full_configuration(
 ):
     """
     Generate a full gitlab-ci configuration by resolving all includes
+
+    - input_file: Initial gitlab yaml file (.gitlab-ci.yml)
+    - context: Gitlab variables
+    - compare_to: Override compare_to on change rules
+    - return_dump: Whether to return the string dump or the dict object representing the configuration
+    - apply_postprocessing: Whether or not to solve `extends` and `!reference` tags
     """
     # Update loader/dumper to handle !reference tag
     yaml.SafeLoader.add_constructor(ReferenceTag.yaml_tag, ReferenceTag.from_yaml)
