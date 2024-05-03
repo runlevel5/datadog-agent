@@ -32,7 +32,7 @@ func GetConfigCheck(w io.Writer, withDebug bool) error {
 	c := util.GetClient(false) // FIX: get certificates right then make this true
 
 	// Set session token
-	err := util.SetAuthToken(config.Datadog)
+	err := util.SetAuthToken(config.Datadog())
 	if err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func GetConfigCheck(w io.Writer, withDebug bool) error {
 		return err
 	}
 	if configCheckURL == "" {
-		configCheckURL = fmt.Sprintf("https://%v:%v/agent/config-check", ipcAddress, config.Datadog.GetInt("cmd_port"))
+		configCheckURL = fmt.Sprintf("https://%v:%v/agent/config-check", ipcAddress, config.Datadog().GetInt("cmd_port"))
 	}
 	r, err := util.DoGet(c, configCheckURL, util.LeaveConnectionOpen)
 	if err != nil {
@@ -95,7 +95,7 @@ func GetConfigCheck(w io.Writer, withDebug bool) error {
 
 // GetClusterAgentConfigCheck proxies GetConfigCheck overidding the URL
 func GetClusterAgentConfigCheck(w io.Writer, withDebug bool) error {
-	configCheckURL = fmt.Sprintf("https://localhost:%v/config-check", config.Datadog.GetInt("cluster_agent.cmd_port"))
+	configCheckURL = fmt.Sprintf("https://localhost:%v/config-check", config.Datadog().GetInt("cluster_agent.cmd_port"))
 	return GetConfigCheck(w, withDebug)
 }
 

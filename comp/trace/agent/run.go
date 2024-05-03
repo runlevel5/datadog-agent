@@ -45,11 +45,11 @@ func runAgentSidekicks(ag *agent) error {
 
 	defer watchdog.LogOnPanic(ag.Statsd)
 
-	if err := util.SetupCoreDump(coreconfig.Datadog); err != nil {
+	if err := util.SetupCoreDump(coreconfig.Datadog()); err != nil {
 		log.Warnf("Can't setup core dumps: %v, core dumps might not be available after a crash", err)
 	}
 
-	err = manager.ConfigureAutoExit(ag.ctx, coreconfig.Datadog)
+	err = manager.ConfigureAutoExit(ag.ctx, coreconfig.Datadog())
 	if err != nil {
 		ag.telemetryCollector.SendStartupError(telemetry.CantSetupAutoExit, err)
 		return fmt.Errorf("Unable to configure auto-exit, err: %v", err)
@@ -57,7 +57,7 @@ func runAgentSidekicks(ag *agent) error {
 
 	rand.Seed(time.Now().UTC().UnixNano())
 
-	if coreconfig.IsRemoteConfigEnabled(coreconfig.Datadog) {
+	if coreconfig.IsRemoteConfigEnabled(coreconfig.Datadog()) {
 		cf, err := newConfigFetcher()
 		if err != nil {
 			ag.telemetryCollector.SendStartupError(telemetry.CantCreateRCCLient, err)
@@ -76,7 +76,7 @@ func runAgentSidekicks(ag *agent) error {
 	// the trace agent.
 	// pkg/config is not a go-module yet and pulls a large chunk of Agent code base with it. Using it within the
 	// trace-agent would largely increase the number of module pulled by OTEL when using the pkg/trace go-module.
-	if err := apiutil.CreateAndSetAuthToken(coreconfig.Datadog); err != nil {
+	if err := apiutil.CreateAndSetAuthToken(coreconfig.Datadog()); err != nil {
 		log.Errorf("could not set auth token: %s", err)
 	} else {
 		ag.Agent.DebugServer.AddRoute("/config", ag.config.GetConfigHandler())
@@ -160,27 +160,27 @@ func stopAgentSidekicks(cfg config.Component, statsd statsd.ClientInterface) {
 }
 
 func profilingConfig(tracecfg *tracecfg.AgentConfig) *profiling.Settings {
-	if !coreconfig.Datadog.GetBool("apm_config.internal_profiling.enabled") {
+	if !coreconfig.Datadog().GetBool("apm_config.internal_profiling.enabled") {
 		return nil
 	}
-	endpoint := coreconfig.Datadog.GetString("internal_profiling.profile_dd_url")
+	endpoint := coreconfig.Datadog().GetString("internal_profiling.profile_dd_url")
 	if endpoint == "" {
 		endpoint = fmt.Sprintf(profiling.ProfilingURLTemplate, tracecfg.Site)
 	}
-	tags := coreconfig.Datadog.GetStringSlice("internal_profiling.extra_tags")
+	tags := coreconfig.Datadog().GetStringSlice("internal_profiling.extra_tags")
 	tags = append(tags, fmt.Sprintf("version:%s", version.AgentVersion))
 	return &profiling.Settings{
 		ProfilingURL: endpoint,
 
 		// remaining configuration parameters use the top-level `internal_profiling` config
-		Period:               coreconfig.Datadog.GetDuration("internal_profiling.period"),
+		Period:               coreconfig.Datadog().GetDuration("internal_profiling.period"),
 		Service:              "trace-agent",
-		CPUDuration:          coreconfig.Datadog.GetDuration("internal_profiling.cpu_duration"),
-		MutexProfileFraction: coreconfig.Datadog.GetInt("internal_profiling.mutex_profile_fraction"),
-		BlockProfileRate:     coreconfig.Datadog.GetInt("internal_profiling.block_profile_rate"),
-		WithGoroutineProfile: coreconfig.Datadog.GetBool("internal_profiling.enable_goroutine_stacktraces"),
-		WithBlockProfile:     coreconfig.Datadog.GetBool("internal_profiling.enable_block_profiling"),
-		WithMutexProfile:     coreconfig.Datadog.GetBool("internal_profiling.enable_mutex_profiling"),
+		CPUDuration:          coreconfig.Datadog().GetDuration("internal_profiling.cpu_duration"),
+		MutexProfileFraction: coreconfig.Datadog().GetInt("internal_profiling.mutex_profile_fraction"),
+		BlockProfileRate:     coreconfig.Datadog().GetInt("internal_profiling.block_profile_rate"),
+		WithGoroutineProfile: coreconfig.Datadog().GetBool("internal_profiling.enable_goroutine_stacktraces"),
+		WithBlockProfile:     coreconfig.Datadog().GetBool("internal_profiling.enable_block_profiling"),
+		WithMutexProfile:     coreconfig.Datadog().GetBool("internal_profiling.enable_mutex_profiling"),
 		Tags:                 tags,
 	}
 }
@@ -192,5 +192,5 @@ func newConfigFetcher() (rc.ConfigFetcher, error) {
 	}
 
 	// Auth tokens are handled by the rcClient
-	return rc.NewAgentGRPCConfigFetcher(ipcAddress, coreconfig.GetIPCPort(), func() (string, error) { return security.FetchAuthToken(coreconfig.Datadog) })
+	return rc.NewAgentGRPCConfigFetcher(ipcAddress, coreconfig.GetIPCPort(), func() (string, error) { return security.FetchAuthToken(coreconfig.Datadog()) })
 }

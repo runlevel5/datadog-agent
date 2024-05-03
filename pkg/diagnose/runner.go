@@ -305,13 +305,13 @@ func requestDiagnosesFromAgentProcess(diagCfg diagnosis.Config) ([]diagnosis.Dia
 	}
 
 	// Make sure we have a session token (for privileged information)
-	if err = util.SetAuthToken(pkgconfig.Datadog); err != nil {
+	if err = util.SetAuthToken(pkgconfig.Datadog()); err != nil {
 		return nil, fmt.Errorf("auth error: %w", err)
 	}
 
 	// Form call end-point
 	//nolint:revive // TODO(CINT) Fix revive linter
-	diagnoseUrl := fmt.Sprintf("https://%v:%v/agent/diagnose", ipcAddress, pkgconfig.Datadog.GetInt("cmd_port"))
+	diagnoseUrl := fmt.Sprintf("https://%v:%v/agent/diagnose", ipcAddress, pkgconfig.Datadog().GetInt("cmd_port"))
 
 	// Serialized diag config to pass it to Agent execution context
 	var cfgSer []byte

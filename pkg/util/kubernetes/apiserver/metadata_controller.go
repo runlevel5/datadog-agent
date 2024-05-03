@@ -322,7 +322,7 @@ func GetPodMetadataNames(nodeName, ns, podName string) ([]string, error) {
 
 // GetNamespaceLabels retrieves the labels of the queried namespace from the cache of the shared informer.
 func GetNamespaceLabels(nsName string) (map[string]string, error) {
-	if !config.Datadog.GetBool("kubernetes_collect_metadata_tags") {
+	if !config.Datadog().GetBool("kubernetes_collect_metadata_tags") {
 		return nil, log.Errorf("Metadata collection is disabled on the Cluster Agent")
 	}
 

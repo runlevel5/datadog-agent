@@ -83,10 +83,10 @@ func StartServer(ctx context.Context, w workloadmeta.Component, taggerComp tagge
 		return fmt.Errorf("unable to create the api server: %v", err)
 	}
 	// Internal token
-	util.CreateAndSetAuthToken(pkgconfig.Datadog) //nolint:errcheck
+	util.CreateAndSetAuthToken(pkgconfig.Datadog()) //nolint:errcheck
 
 	// DCA client token
-	util.InitDCAAuthToken(pkgconfig.Datadog) //nolint:errcheck
+	util.InitDCAAuthToken(pkgconfig.Datadog()) //nolint:errcheck
 
 	// create cert
 	hosts := []string{"127.0.0.1", "localhost"}
@@ -111,7 +111,7 @@ func StartServer(ctx context.Context, w workloadmeta.Component, taggerComp tagge
 		MinVersion:   tls.VersionTLS13,
 	}
 
-	if pkgconfig.Datadog.GetBool("cluster_agent.allow_legacy_tls") {
+	if pkgconfig.Datadog().GetBool("cluster_agent.allow_legacy_tls") {
 		tlsConfig.MinVersion = tls.VersionTLS10
 	}
 
@@ -136,7 +136,7 @@ func StartServer(ctx context.Context, w workloadmeta.Component, taggerComp tagge
 		taggerServer: taggerserver.NewServer(taggerComp),
 	})
 
-	timeout := pkgconfig.Datadog.GetDuration("cluster_agent.server.idle_timeout_seconds") * time.Second
+	timeout := pkgconfig.Datadog().GetDuration("cluster_agent.server.idle_timeout_seconds") * time.Second
 	srv := grpcutil.NewMuxedGRPCServer(
 		listener.Addr().String(),
 		tlsConfig,

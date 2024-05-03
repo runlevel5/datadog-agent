@@ -159,7 +159,7 @@ func makeFlare(w http.ResponseWriter, r *http.Request, senderManager sender.Diag
 		}
 	}
 
-	logFile := config.Datadog.GetString("log_file")
+	logFile := config.Datadog().GetString("log_file")
 	if logFile == "" {
 		logFile = path.DefaultDCALogFile
 	}

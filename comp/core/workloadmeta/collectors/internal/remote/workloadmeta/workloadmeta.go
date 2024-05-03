@@ -61,7 +61,7 @@ func NewCollector() (workloadmeta.CollectorProvider, error) {
 	return workloadmeta.CollectorProvider{
 		Collector: &remote.GenericCollector{
 			CollectorID:   collectorID,
-			StreamHandler: &streamHandler{Config: config.Datadog},
+			StreamHandler: &streamHandler{Config: config.Datadog()},
 			Catalog:       workloadmeta.Remote,
 		},
 	}, nil

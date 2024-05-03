@@ -32,21 +32,21 @@ type controllerFuncs struct {
 
 var controllerCatalog = map[controllerName]controllerFuncs{
 	metadataController: {
-		func() bool { return config.Datadog.GetBool("kubernetes_collect_metadata_tags") },
+		func() bool { return config.Datadog().GetBool("kubernetes_collect_metadata_tags") },
 		startMetadataController,
 	},
 	autoscalersController: {
 		func() bool {
-			return config.Datadog.GetBool("external_metrics_provider.enabled") && !config.Datadog.GetBool("external_metrics_provider.use_datadogmetric_crd")
+			return config.Datadog().GetBool("external_metrics_provider.enabled") && !config.Datadog().GetBool("external_metrics_provider.use_datadogmetric_crd")
 		},
 		startAutoscalersController,
 	},
 	servicesController: {
-		func() bool { return config.Datadog.GetBool("cluster_checks.enabled") },
+		func() bool { return config.Datadog().GetBool("cluster_checks.enabled") },
 		registerServicesInformer,
 	},
 	endpointsController: {
-		func() bool { return config.Datadog.GetBool("cluster_checks.enabled") },
+		func() bool { return config.Datadog().GetBool("cluster_checks.enabled") },
 		registerEndpointsInformer,
 	},
 }
@@ -145,7 +145,7 @@ func startAutoscalersController(ctx ControllerContext, c chan error) {
 		return
 	}
 
-	if config.Datadog.GetBool("external_metrics_provider.wpa_controller") {
+	if config.Datadog().GetBool("external_metrics_provider.wpa_controller") {
 		go autoscalersController.RunWPA(ctx.StopCh, ctx.DynamicClient, ctx.DynamicInformerFactory)
 	}
 

@@ -201,7 +201,7 @@ func initTelemetry(cfg config.Reader, logger logComponent.Component) {
 func newServer(deps dependencies) Component {
 	s := newServerCompat(deps.Config, deps.Log, deps.Replay, deps.Debug, deps.Params.Serverless, deps.Demultiplexer, deps.WMeta, deps.PidMap)
 
-	if config.Datadog.GetBool("use_dogstatsd") {
+	if config.Datadog().GetBool("use_dogstatsd") {
 		deps.Lc.Append(fx.Hook{
 			OnStart: s.startHook,
 			OnStop:  s.stop,

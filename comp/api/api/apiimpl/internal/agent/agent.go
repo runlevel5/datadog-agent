@@ -331,7 +331,7 @@ func getStreamFunc(messageReceiverFunc func() messageReceiver, streamType, agent
 func getDogstatsdStats(w http.ResponseWriter, _ *http.Request, dogstatsdServer dogstatsdServer.Component, serverDebug dogstatsddebug.Component) {
 	log.Info("Got a request for the Dogstatsd stats.")
 
-	if !config.Datadog.GetBool("use_dogstatsd") {
+	if !config.Datadog().GetBool("use_dogstatsd") {
 		w.Header().Set("Content-Type", "application/json")
 		body, _ := json.Marshal(map[string]string{
 			"error":      "Dogstatsd not enabled in the Agent configuration",
@@ -342,7 +342,7 @@ func getDogstatsdStats(w http.ResponseWriter, _ *http.Request, dogstatsdServer d
 		return
 	}
 
-	if !config.Datadog.GetBool("dogstatsd_metrics_stats_enable") {
+	if !config.Datadog().GetBool("dogstatsd_metrics_stats_enable") {
 		w.Header().Set("Content-Type", "application/json")
 		body, _ := json.Marshal(map[string]string{
 			"error":      "Dogstatsd metrics stats not enabled in the Agent configuration",
@@ -600,7 +600,7 @@ func dumpDogstatsdContexts(w http.ResponseWriter, _ *http.Request, demux demulti
 }
 
 func dumpDogstatsdContextsImpl(demux demultiplexer.Component) (string, error) {
-	path := path.Join(config.Datadog.GetString("run_path"), "dogstatsd_contexts.json.zstd")
+	path := path.Join(config.Datadog().GetString("run_path"), "dogstatsd_contexts.json.zstd")
 
 	f, err := os.Create(path)
 	if err != nil {

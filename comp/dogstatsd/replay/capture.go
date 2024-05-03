@@ -48,7 +48,7 @@ type trafficCapture struct {
 //
 //nolint:revive // TODO(AML) Fix revive linter
 func NewServerlessTrafficCapture() Component {
-	tc := newTrafficCaptureCompat(config.Datadog)
+	tc := newTrafficCaptureCompat(config.Datadog())
 	_ = tc.configure(context.TODO())
 	return tc
 }
