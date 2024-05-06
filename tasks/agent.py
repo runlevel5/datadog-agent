@@ -73,7 +73,7 @@ AGENT_CORECHECKS = [
     "telemetry",
     "orchestrator_pod",
     "orchestrator_ecs",
-    "cisco_sdwan"
+    "cisco_sdwan",
 ]
 
 WINDOWS_CORECHECKS = [
@@ -129,7 +129,7 @@ def build(
     bundle=None,
     bundle_ebpf=False,
     agent_bin=None,
-    platform=None,  # noqa: U100. Used by the run_on_devcontainer decorator
+    run_on=None,  # noqa: U100, F841. Used by the run_on_devcontainer decorator
 ):
     """
     Build the agent. If the bits to include in the build are not specified,

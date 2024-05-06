@@ -330,7 +330,7 @@ def test(
     include_sds=False,
     skip_flakes=False,
     build_stdlib=False,
-    platform=None,  # noqa: U100. Used by the run_on_devcontainer decorator
+    run_on=None,  # noqa: U100, F841. Used by the run_on_devcontainer decorator
 ):
     """
     Run go tests on the given module and targets.
