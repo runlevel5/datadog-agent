@@ -121,18 +121,18 @@ class ReferenceTag(yaml.YAMLObject):
         return dumper.represent_sequence(cls.yaml_tag, data, flow_style=True)
 
 
-def convert_to_config_node(node):
+def convert_to_config_node(json_data):
     """
     Convert json data to ConfigNode
     """
-    if isinstance(node, dict):
-        return ConfigNodeDict({k: convert_to_config_node(v) for k, v in node.items()})
-    elif isinstance(node, list):
-        constructor = YamlReferenceTagList if isinstance(node, YamlReferenceTagList) else ConfigNodeList
+    if isinstance(json_data, dict):
+        return ConfigNodeDict({k: convert_to_config_node(v) for k, v in json_data.items()})
+    elif isinstance(json_data, list):
+        constructor = YamlReferenceTagList if isinstance(json_data, YamlReferenceTagList) else ConfigNodeList
 
-        return constructor([convert_to_config_node(v) for v in node])
+        return constructor([convert_to_config_node(v) for v in json_data])
     else:
-        return node
+        return json_data
 
 
 def apply_yaml_extends(config: dict, node):
@@ -206,7 +206,7 @@ def apply_yaml_reference(config: dict, node):
         if isinstance(value, YamlReferenceTagList):
             assert value != [], 'Empty reference tag'
 
-            # [a, b, c] -> config[a][b][c]
+            # !reference [a, b, c] means we are looking for config[a][b][c]
             ref_value = config[value[0]]
             for i in range(1, len(value)):
                 ref_value = ref_value[value[i]]
