@@ -167,7 +167,9 @@ func (c *instrumentationConfigurationCache) delete(rcConfigID string) error {
 
 func (c *instrumentationConfigurationCache) resetConfiguration() {
 	log.Infof("Reseting current configuration %+v:", c.currentConfiguration)
-	c.currentConfiguration = c.localConfiguration
+	c.currentConfiguration.enabled = c.localConfiguration.enabled
+	c.currentConfiguration.enabledNamespaces = c.localConfiguration.enabledNamespaces
+	c.currentConfiguration.disabledNamespaces = c.localConfiguration.disabledNamespaces
 	log.Infof("New base configuration %+v:", c.currentConfiguration)
 	for _, rev := range c.orderedRevisions {
 		conf := c.enabledRevisions[rev]
