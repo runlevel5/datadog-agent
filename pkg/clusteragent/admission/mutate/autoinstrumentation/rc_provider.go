@@ -109,7 +109,10 @@ func (rcp *remoteConfigProvider) process(update map[string]state.RawConfig, appl
 		log.Infof("Remote Enablement: deleting config %s", configToDelete)
 		if err := rcp.cache.delete(configToDelete); err != nil {
 			log.Errorf("Remote Enablement: failed to delete config %s with %v", configToDelete, err)
+		} else {
+			delete(rcp.rcConfigIDs, configToDelete)
 		}
+
 	}
 }
 
