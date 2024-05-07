@@ -117,6 +117,11 @@ func (a *apmInjectorInstaller) deleteDockerConfigContent(previousContent []byte)
 	return dockerConfigJSON, nil
 }
 
+func (a *apmInjectorInstaller) verifyDockerConfig(path string) error {
+	cmd := exec.Command("dockerd", "--validate", "--config-file", path)
+	return cmd.Run()
+}
+
 func reloadDockerConfig(ctx context.Context) (err error) {
 	span, _ := tracer.StartSpanFromContext(ctx, "reload_docker")
 	defer span.Finish(tracer.WithError(err))
