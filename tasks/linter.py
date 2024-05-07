@@ -433,7 +433,7 @@ def test_change_path(_, job_files=None):
     """
     Verify that the jobs defined within job_files contain a change path rule.
     """
-    job_files = job_files or (['.gitlab/e2e/e2e.yml'] + list(glob('.gitlab/kitchen_testing/*.yml')))
+    job_files = job_files or (['.gitlab/e2e/e2e.yml'] + list(glob('.gitlab/kitchen_testing/new-e2e_testing/*.yml')))
 
     # Read gitlab config
     config = generate_gitlab_full_configuration(".gitlab-ci.yml", {}, return_dump=False, apply_postprocessing=True)
