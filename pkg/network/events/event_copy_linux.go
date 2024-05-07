@@ -16,20 +16,24 @@ var _ = intern.Value{}
 
 func (h *eventConsumerWrapper) Copy(event *smodel.Event) any {
 	var result Process
+
 	valuePid := event.GetProcessPid()
 	result.Pid = valuePid
 
 	valueEnvs := smodel.FilterEnvs(event.GetProcessEnvp(), map[string]bool{"DD_SERVICE": true, "DD_VERSION": true, "DD_ENV": true})
 	result.Envs = valueEnvs
+
 	valueContainerID := intern.GetByString(event.GetContainerId())
 	result.ContainerID = valueContainerID
+
 	if event.GetEventType() == smodel.ExecEventType {
 		valueExecTime := event.GetProcessExecTime()
 		result.ExecTime = valueExecTime
 	}
+
 	if event.GetEventType() == smodel.ForkEventType {
-		valueForkTime := event.GetProcessExecTime()
+		valueForkTime := event.GetProcessForkTime()
 		result.ForkTime = valueForkTime
 	}
-	return result
+	return &result
 }

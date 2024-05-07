@@ -38,7 +38,7 @@ type Process struct {
 	Envs        []string      `copy:"FilterEnvs;event:*;envs:DD_SERVICE,DD_VERSION,DD_ENV"`
 	ContainerID *intern.Value `copy:"GetContainerId;event:*;intern:true"`
 	ExecTime    time.Time     `copy:"GetProcessExecTime;event:ExecEventType"`
-	ForkTime    time.Time     `copy:"GetProcessExecTime;event:ForkEventType"`
+	ForkTime    time.Time     `copy:"GetProcessForkTime;event:ForkEventType"`
 	StartTime   int64
 	Expiry      int64
 }
