@@ -55,6 +55,7 @@ from tasks.go import (
     check_go_mod_replaces,
     check_go_version,
     check_mod_tidy,
+    create_module,
     deps,
     deps_vendored,
     generate_licenses,
@@ -64,7 +65,6 @@ from tasks.go import (
     lint_licenses,
     reset,
     tidy_all,
-    create_module,
 )
 from tasks.go_test import (
     codecov,
